@@ -41,63 +41,24 @@ serve(async (req) => {
 
     const testPrompt = "Extract a table from this test text:\n\nRef | Product | Price\nSKU001 | Widget A | 29.99\nSKU002 | Widget B | 39.99";
 
-    let apiUrl = "https://ai.gateway.lovable.dev/v1/chat/completions";
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    let result: any = { status: "failed", error: "Unknown provider type" };
-
+    // For lovable_gateway type, use directAICall (provider-agnostic)
     if (provider.provider_type === "lovable_gateway") {
-      headers["Authorization"] = `Bearer ${lovableKey}`;
-    } else if (provider.provider_type === "openai_direct") {
-      const apiKey = provider.config?.api_key;
-      if (!apiKey) {
-        return new Response(JSON.stringify({
-          status: "failed",
-          error: "No API key configured",
-          provider: provider.provider_name,
-          responseTimeMs: Date.now() - startTime,
-        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-      apiUrl = "https://api.openai.com/v1/chat/completions";
-      headers["Authorization"] = `Bearer ${apiKey}`;
-    } else if (provider.provider_type === "gemini_direct") {
-      const apiKey = provider.config?.api_key;
-      if (!apiKey) {
-        return new Response(JSON.stringify({
-          status: "failed",
-          error: "No API key configured",
-          provider: provider.provider_name,
-          responseTimeMs: Date.now() - startTime,
-        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-      const model = provider.default_model || "gemini-2.5-flash";
-      const gUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
       try {
-        const resp = await fetch(gUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: testPrompt }] }],
-          }),
+        const aiResult = await directAICall({
+          systemPrompt: "Extract tables from text. Return JSON with tables array.",
+          messages: [{ role: "user", content: testPrompt }],
+          model: provider.default_model || "gemini-2.5-flash",
+          maxTokens: 500,
         });
         const responseTimeMs = Date.now() - startTime;
-        if (resp.ok) {
-          const data = await resp.json();
-          return new Response(JSON.stringify({
-            status: "ok",
-            provider: provider.provider_name,
-            model: model,
-            responseTimeMs,
-            outputPreview: (data.candidates?.[0]?.content?.parts?.[0]?.text || "").substring(0, 200),
-          }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        } else {
-          const errText = await resp.text();
-          return new Response(JSON.stringify({
-            status: "failed",
-            error: `Gemini API ${resp.status}: ${errText.substring(0, 200)}`,
-            provider: provider.provider_name,
-            responseTimeMs,
-          }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        }
+        const content = aiResult.choices?.[0]?.message?.content || "";
+        return new Response(JSON.stringify({
+          status: "ok",
+          provider: provider.provider_name,
+          model: provider.default_model || "gemini-2.5-flash",
+          responseTimeMs,
+          outputPreview: content.substring(0, 200),
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       } catch (e: unknown) {
         return new Response(JSON.stringify({
           status: "failed",
@@ -108,52 +69,84 @@ serve(async (req) => {
       }
     }
 
-    // Lovable Gateway / OpenAI compatible test
-    if (!headers["Authorization"]) headers["Authorization"] = `Bearer ${lovableKey}`;
-
-    try {
-      const resp = await fetch(apiUrl, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          model: provider.default_model || "google/gemini-2.5-flash",
-          messages: [
-            { role: "system", content: "Extract tables from text. Return JSON with tables array." },
-            { role: "user", content: testPrompt },
-          ],
-          max_tokens: 500,
-        }),
-      });
-
-      const responseTimeMs = Date.now() - startTime;
-
-      if (resp.ok) {
-        const data = await resp.json();
-        const content = data.choices?.[0]?.message?.content || "";
+    // OpenAI direct
+    if (provider.provider_type === "openai_direct") {
+      const apiKey = provider.config?.api_key;
+      if (!apiKey) {
         return new Response(JSON.stringify({
-          status: "ok",
-          provider: provider.provider_name,
-          model: provider.default_model || "google/gemini-2.5-flash",
-          responseTimeMs,
-          outputPreview: content.substring(0, 200),
-        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      } else {
-        const errText = await resp.text();
-        return new Response(JSON.stringify({
-          status: "failed",
-          error: `API ${resp.status}: ${errText.substring(0, 200)}`,
-          provider: provider.provider_name,
-          responseTimeMs,
+          status: "failed", error: "No API key configured", provider: provider.provider_name, responseTimeMs: Date.now() - startTime,
         }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-    } catch (e: unknown) {
-      return new Response(JSON.stringify({
-        status: "failed",
-        error: (e as Error).message,
-        provider: provider.provider_name,
-        responseTimeMs: Date.now() - startTime,
-      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      try {
+        const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: provider.default_model || "gpt-4o-mini",
+            messages: [
+              { role: "system", content: "Extract tables from text. Return JSON with tables array." },
+              { role: "user", content: testPrompt },
+            ],
+            max_tokens: 500,
+          }),
+        });
+        const responseTimeMs = Date.now() - startTime;
+        if (resp.ok) {
+          const data = await resp.json();
+          return new Response(JSON.stringify({
+            status: "ok", provider: provider.provider_name, model: provider.default_model || "gpt-4o-mini",
+            responseTimeMs, outputPreview: (data.choices?.[0]?.message?.content || "").substring(0, 200),
+          }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        const errText = await resp.text();
+        return new Response(JSON.stringify({
+          status: "failed", error: `OpenAI ${resp.status}: ${errText.substring(0, 200)}`, provider: provider.provider_name, responseTimeMs,
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      } catch (e: unknown) {
+        return new Response(JSON.stringify({
+          status: "failed", error: (e as Error).message, provider: provider.provider_name, responseTimeMs: Date.now() - startTime,
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
     }
+
+    // Gemini direct
+    if (provider.provider_type === "gemini_direct") {
+      const apiKey = provider.config?.api_key;
+      if (!apiKey) {
+        return new Response(JSON.stringify({
+          status: "failed", error: "No API key configured", provider: provider.provider_name, responseTimeMs: Date.now() - startTime,
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const model = provider.default_model || "gemini-2.5-flash";
+      try {
+        const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents: [{ parts: [{ text: testPrompt }] }] }),
+        });
+        const responseTimeMs = Date.now() - startTime;
+        if (resp.ok) {
+          const data = await resp.json();
+          return new Response(JSON.stringify({
+            status: "ok", provider: provider.provider_name, model, responseTimeMs,
+            outputPreview: (data.candidates?.[0]?.content?.parts?.[0]?.text || "").substring(0, 200),
+          }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        const errText = await resp.text();
+        return new Response(JSON.stringify({
+          status: "failed", error: `Gemini API ${resp.status}: ${errText.substring(0, 200)}`, provider: provider.provider_name, responseTimeMs,
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      } catch (e: unknown) {
+        return new Response(JSON.stringify({
+          status: "failed", error: (e as Error).message, provider: provider.provider_name, responseTimeMs: Date.now() - startTime,
+        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
+    // Unknown provider type
+    return new Response(JSON.stringify({
+      status: "failed", error: `Unknown provider type: ${provider.provider_type}`, provider: provider.provider_name, responseTimeMs: Date.now() - startTime,
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: unknown) {
     return new Response(JSON.stringify({ status: "failed", error: (e as Error).message }), {
       status: 500,
