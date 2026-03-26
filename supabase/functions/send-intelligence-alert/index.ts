@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/telegram";
+const TELEGRAM_API_URL = "https://api.telegram.org";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -14,8 +14,8 @@ Deno.serve(async (req) => {
     const { workspace_id, chat_id } = await req.json();
     if (!workspace_id) throw new Error("workspace_id is required");
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const TELEGRAM_API_KEY = Deno.env.get("TELEGRAM_API_KEY");
+    if (!TELEGRAM_API_KEY) throw new Error("TELEGRAM_API_KEY is not configured");
 
     const TELEGRAM_API_KEY = Deno.env.get("TELEGRAM_API_KEY");
     if (!TELEGRAM_API_KEY) throw new Error("TELEGRAM_API_KEY is not configured");
@@ -93,11 +93,9 @@ Deno.serve(async (req) => {
     const text = lines.join("\n");
 
     // Send via Telegram Gateway
-    const response = await fetch(`${GATEWAY_URL}/sendMessage`, {
+    const response = await fetch(`${TELEGRAM_API_URL}/bot${TELEGRAM_API_KEY}/sendMessage`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "X-Connection-Api-Key": TELEGRAM_API_KEY,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    // AI calls go through resolve-ai-route (no LOVABLE_API_KEY dependency)
 
     // Service-role client for scrape_cache (bypasses RLS)
     const supabaseAdmin = createClient(

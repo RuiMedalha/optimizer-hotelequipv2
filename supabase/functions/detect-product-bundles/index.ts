@@ -48,8 +48,7 @@ Deno.serve(async (req) => {
       product_type: p.product_type,
     }));
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    // AI calls go through resolve-ai-route (no LOVABLE_API_KEY dependency)
 
     const systemPrompt = `You are a HORECA product bundling expert. Analyze the provided products and detect potential bundles.
 

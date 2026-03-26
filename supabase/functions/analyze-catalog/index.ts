@@ -10,7 +10,7 @@ Deno.serve(async (req) => {
 
   try {
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    // AI calls go through resolve-ai-route (no LOVABLE_API_KEY dependency)
     const { workspace_id, limit = 500 } = await req.json();
     if (!workspace_id) throw new Error("workspace_id required");
 
@@ -227,7 +227,7 @@ Deno.serve(async (req) => {
 
     // AI SEO for low-score products
     const topProducts = products.filter(p => (p.seo_score || 0) < 60 && p.optimized_title).slice(0, 5);
-    if (LOVABLE_API_KEY && topProducts.length > 0) {
+    if (topProducts.length > 0) {
       const productSummaries = topProducts.map(p => `SKU: ${p.sku}, Title: ${p.optimized_title || p.original_title}, Category: ${p.category || "N/A"}, Meta: ${p.meta_title || "N/A"}`).join("\n");
       try {
         const seoResp = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/resolve-ai-route`, {

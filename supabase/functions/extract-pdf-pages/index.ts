@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { directAICall } from "../_shared/ai/direct-ai-call.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,7 +17,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY")!;
+    // AI keys resolved automatically from env (GEMINI_API_KEY, OPENAI_API_KEY, etc.)
     const supabase = createClient(supabaseUrl, serviceKey);
 
     const body = await req.json();
@@ -29,7 +30,7 @@ serve(async (req) => {
     // ==========================================
     if (chunkMode) {
       return await processChunk({
-        supabase, supabaseUrl, serviceKey, lovableKey,
+        supabase, supabaseUrl, serviceKey,
         extractionId, chunkStart, chunkEnd, storagePath, overviewData, pdfBase64,
       });
     }
@@ -61,49 +62,32 @@ serve(async (req) => {
     console.log(`PDF loaded for overview: ${pdfSizeMB.toFixed(2)} MB`);
     const overviewPdfBase64 = toBase64(pdfBuffer);
 
-    const overviewResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${lovableKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
+    const overviewResult = await directAICall({
+      systemPrompt: "És um especialista em análise de documentos. Analisa este PDF e devolve um JSON conciso com a visão geral do documento.",
+      messages: [{
+        role: "user",
+        content: [
+          { type: "image_url", image_url: { url: `data:application/pdf;base64,${overviewPdfBase64}` } },
           {
-            role: "system",
-            content: "És um especialista em análise de documentos. Analisa este PDF e devolve um JSON conciso com a visão geral do documento.",
-          },
-          {
-            role: "user",
-            content: [
-              { type: "image_url", image_url: { url: `data:application/pdf;base64,${overviewPdfBase64}` } },
-              {
-                type: "text",
-                text: `Quickly analyze this PDF. Return JSON:
+            type: "text",
+            text: `Quickly analyze this PDF. Return JSON:
 {"total_pages":N,"document_type":"product_catalog"|"price_list"|"technical_sheet"|"mixed","language":"xx","supplier_name":"...","has_images":bool,"estimated_products":N,"table_format":"tabular"|"cards"|"list"|"mixed","page_ranges":[{"start":1,"end":N,"content_type":"products"|"cover"|"index"|"notes"|"empty"}]}
 Return ONLY valid JSON.`,
-              },
-            ],
           },
         ],
-        max_tokens: 2000,
-      }),
+      }],
+      model: "gemini-2.5-flash",
+      maxTokens: 2000,
     });
 
     // Free base64 from memory immediately
     // (JS GC will reclaim once we null the reference and move on)
 
     let overview: any = { total_pages: 1, page_ranges: [{ start: 1, end: 1, content_type: "products" }] };
-    if (overviewResp.ok) {
-      const od = await overviewResp.json();
-      const content = od.choices?.[0]?.message?.content || "{}";
-      try {
-        overview = JSON.parse(content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
-      } catch { console.warn("Overview parse failed, using defaults"); }
-    } else {
-      console.error("Overview failed:", overviewResp.status);
-    }
+    try {
+      const content = overviewResult.choices?.[0]?.message?.content || "{}";
+      overview = JSON.parse(content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
+    } catch { console.warn("Overview parse failed, using defaults"); }
 
     const totalPages = overview.total_pages || 1;
     await supabase.from("pdf_extractions").update({
@@ -352,11 +336,11 @@ async function invokeChunkExtraction(opts: {
 // CHUNK PROCESSOR — runs in its own worker
 // ==========================================
 async function processChunk(opts: {
-  supabase: any; supabaseUrl: string; serviceKey: string; lovableKey: string;
+  supabase: any; supabaseUrl: string; serviceKey: string;
   extractionId: string; chunkStart: number; chunkEnd: number;
   storagePath: string; overviewData: any; pdfBase64?: string;
 }) {
-  const { supabase, lovableKey, extractionId, chunkStart, chunkEnd, storagePath, overviewData, pdfBase64 } = opts;
+  const { supabase, extractionId, chunkStart, chunkEnd, storagePath, overviewData, pdfBase64 } = opts;
 
   let chunkPdfBase64 = pdfBase64;
   if (!chunkPdfBase64) {
@@ -367,26 +351,17 @@ async function processChunk(opts: {
 
   console.log(`Chunk: extracting pages ${chunkStart}-${chunkEnd}`);
 
-  const extractionResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${lovableKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        {
-          role: "system",
-          content: "És um especialista em extração de dados de catálogos. Extrai TODOS os produtos deste catálogo PDF. Sê rigoroso e sistemático.",
-        },
-        {
-          role: "user",
-          content: [
-            { type: "image_url", image_url: { url: `data:application/pdf;base64,${chunkPdfBase64}` } },
-            {
-              type: "text",
-              text: `Extrai TODOS os produtos das páginas ${chunkStart} a ${chunkEnd} deste PDF.
+  let aiResult: any;
+  try {
+    aiResult = await directAICall({
+      systemPrompt: "És um especialista em extração de dados de catálogos. Extrai TODOS os produtos deste catálogo PDF. Sê rigoroso e sistemático.",
+      messages: [{
+        role: "user",
+        content: [
+          { type: "image_url", image_url: { url: `data:application/pdf;base64,${chunkPdfBase64}` } },
+          {
+            type: "text",
+            text: `Extrai TODOS os produtos das páginas ${chunkStart} a ${chunkEnd} deste PDF.
 Idioma: ${overviewData?.language || "auto-detect"}
 Fornecedor: ${overviewData?.supplier_name || "desconhecido"}
 
@@ -404,26 +379,23 @@ Para cada produto devolve:
 Formato JSON:
 {"pages":[{"page_number":N,"page_type":"product_listing","zones":["header","table","images"],"section_title":"...","page_images_count":N,"products":[{...}]}]}
 Devolve APENAS JSON válido.`,
-            },
-          ],
-        },
-      ],
-      max_tokens: 16000,
-    }),
-  });
-
-  if (!extractionResp.ok) {
-    const errText = await extractionResp.text();
-    console.error(`Chunk ${chunkStart}-${chunkEnd} AI failed:`, extractionResp.status, errText.substring(0, 300));
+          },
+        ],
+      }],
+      model: "gemini-2.5-flash",
+      maxTokens: 16000,
+    });
+  } catch (err) {
+    console.error(`Chunk ${chunkStart}-${chunkEnd} AI failed:`, (err as Error).message);
     return new Response(JSON.stringify({
       error: "AI call failed", pagesProcessed: 0, tablesCreated: 0, rowsExtracted: 0, confidenceSum: 0,
     }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
-  const rawAiBody = await extractionResp.text();
   let aiPayload: any = {};
   try {
-    aiPayload = rawAiBody ? JSON.parse(rawAiBody) : {};
+    const content = aiResult.choices?.[0]?.message?.content || "{}";
+    aiPayload = JSON.parse(content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
   } catch {
     console.error(`Chunk ${chunkStart}-${chunkEnd} returned non-JSON AI payload`);
     aiPayload = {};

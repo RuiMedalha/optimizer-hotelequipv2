@@ -92,8 +92,7 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    // AI calls go through resolve-ai-route (no LOVABLE_API_KEY dependency)
 
     // Build compact product list with type and parent info
     const productList = products.map((p: any) => {

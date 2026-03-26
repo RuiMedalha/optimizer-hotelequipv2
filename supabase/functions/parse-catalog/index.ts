@@ -692,8 +692,7 @@ async function extractExcelText(fileData: Blob): Promise<string> {
 }
 
 async function extractPdfText(fileData: Blob, fileName: string): Promise<string> {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+  // AI calls go through resolve-ai-route (no LOVABLE_API_KEY dependency)
 
   const buffer = await fileData.arrayBuffer();
   const bytes = new Uint8Array(buffer);
@@ -770,8 +769,7 @@ async function extractPdfTextViaUrl(fileName: string, fileSize: number): Promise
 }
 
 async function parsePdfWithAI(fileData: Blob, fileName: string): Promise<Array<Record<string, unknown>>> {
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-  if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+  // AI calls go through resolve-ai-route (no LOVABLE_API_KEY dependency)
 
   console.log(`📄 Parsing PDF "${fileName}" (${(fileData.size / 1024 / 1024).toFixed(1)}MB) for products...`);
 
