@@ -13747,6 +13747,14 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      get_channel_workspace_id: {
+        Args: { _channel_id: string }
+        Returns: string
+      }
+      get_decision_workspace_id: {
+        Args: { _decision_id: string }
+        Returns: string
+      }
       get_product_assets: {
         Args: {
           _channel_id?: string
@@ -13831,6 +13839,14 @@ export type Database = {
           woocommerce_id: number
           workspace_id: string
         }[]
+      }
+      get_simulation_run_workspace_id: {
+        Args: { _run_id: string }
+        Returns: string
+      }
+      get_supplier_workspace_id: {
+        Args: { _supplier_id: string }
+        Returns: string
       }
       get_workspace_role: {
         Args: { _workspace_id: string }
