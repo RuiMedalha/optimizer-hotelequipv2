@@ -86,7 +86,7 @@ export function useAiModelPricing() {
         .order("provider_id")
         .order("model_id");
       if (error) throw error;
-      return (data || []) as AiModelPricing[];
+      return (data || []) as unknown as AiModelPricing[];
     },
   });
 }

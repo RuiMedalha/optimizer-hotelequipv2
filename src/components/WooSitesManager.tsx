@@ -243,7 +243,7 @@ export function WooSitesManager({ onSitesChange }: WooSitesManagerProps) {
                         <XCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                         <div>
                           <div className="font-medium">Erro de ligação</div>
-                          <div className="text-red-500">{ts.result.error}</div>
+                          <div className="text-red-500">{(ts.result as { success: false; status: number; error: string }).error}</div>
                         </div>
                       </div>
                     )
