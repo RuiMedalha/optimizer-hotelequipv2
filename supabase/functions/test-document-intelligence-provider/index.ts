@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { directAICall } from "../_shared/ai/direct-ai-call.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,7 +14,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY") || "";
+    // AI keys resolved from env (GEMINI_API_KEY, OPENAI_API_KEY, etc.)
     const supabase = createClient(supabaseUrl, serviceKey);
 
     const { providerId, workspaceId } = await req.json();

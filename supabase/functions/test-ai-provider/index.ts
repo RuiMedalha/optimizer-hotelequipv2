@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { directAICall } from "../_shared/ai/direct-ai-call.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -33,27 +34,18 @@ Deno.serve(async (req) => {
 
     try {
       if (provider.provider_type === "lovable_gateway") {
-        const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-        if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
-
-        const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: provider.default_model || "google/gemini-2.5-flash",
+        // Lovable gateway replaced with direct AI calls
+        try {
+          const result = await directAICall({
+            systemPrompt: "",
             messages: [{ role: "user", content: testPrompt }],
-            max_tokens: 10,
-          }),
-        });
-        latencyMs = Date.now() - startMs;
-        if (!resp.ok) {
-          const t = await resp.text();
-          throw new Error(`Gateway ${resp.status}: ${t}`);
+            model: provider.default_model || "gemini-2.5-flash",
+            maxTokens: 10,
+          });
+          latencyMs = Date.now() - startMs;
+        } catch (e: any) {
+          throw e;
         }
-        await resp.json();
       } else if (provider.provider_type === "openai_direct") {
         const apiKey = provider.config?.api_key;
         if (!apiKey) throw new Error("OpenAI API key not configured in provider config");
