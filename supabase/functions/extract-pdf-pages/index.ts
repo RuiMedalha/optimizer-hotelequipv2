@@ -84,15 +84,10 @@ Return ONLY valid JSON.`,
     // (JS GC will reclaim once we null the reference and move on)
 
     let overview: any = { total_pages: 1, page_ranges: [{ start: 1, end: 1, content_type: "products" }] };
-    if (overviewResp.ok) {
-      const od = await overviewResp.json();
-      const content = od.choices?.[0]?.message?.content || "{}";
-      try {
-        overview = JSON.parse(content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
-      } catch { console.warn("Overview parse failed, using defaults"); }
-    } else {
-      console.error("Overview failed:", overviewResp.status);
-    }
+    try {
+      const content = overviewResult.choices?.[0]?.message?.content || "{}";
+      overview = JSON.parse(content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
+    } catch { console.warn("Overview parse failed, using defaults"); }
 
     const totalPages = overview.total_pages || 1;
     await supabase.from("pdf_extractions").update({
