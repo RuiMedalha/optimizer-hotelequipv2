@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { directAICall } from "../_shared/ai/direct-ai-call.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,7 +17,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY")!;
+    // AI keys resolved automatically from env (GEMINI_API_KEY, OPENAI_API_KEY, etc.)
     const supabase = createClient(supabaseUrl, serviceKey);
 
     const body = await req.json();
@@ -29,7 +30,7 @@ serve(async (req) => {
     // ==========================================
     if (chunkMode) {
       return await processChunk({
-        supabase, supabaseUrl, serviceKey, lovableKey,
+        supabase, supabaseUrl, serviceKey,
         extractionId, chunkStart, chunkEnd, storagePath, overviewData, pdfBase64,
       });
     }
@@ -61,34 +62,22 @@ serve(async (req) => {
     console.log(`PDF loaded for overview: ${pdfSizeMB.toFixed(2)} MB`);
     const overviewPdfBase64 = toBase64(pdfBuffer);
 
-    const overviewResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${lovableKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
+    const overviewResult = await directAICall({
+      systemPrompt: "És um especialista em análise de documentos. Analisa este PDF e devolve um JSON conciso com a visão geral do documento.",
+      messages: [{
+        role: "user",
+        content: [
+          { type: "image_url", image_url: { url: `data:application/pdf;base64,${overviewPdfBase64}` } },
           {
-            role: "system",
-            content: "És um especialista em análise de documentos. Analisa este PDF e devolve um JSON conciso com a visão geral do documento.",
-          },
-          {
-            role: "user",
-            content: [
-              { type: "image_url", image_url: { url: `data:application/pdf;base64,${overviewPdfBase64}` } },
-              {
-                type: "text",
-                text: `Quickly analyze this PDF. Return JSON:
+            type: "text",
+            text: `Quickly analyze this PDF. Return JSON:
 {"total_pages":N,"document_type":"product_catalog"|"price_list"|"technical_sheet"|"mixed","language":"xx","supplier_name":"...","has_images":bool,"estimated_products":N,"table_format":"tabular"|"cards"|"list"|"mixed","page_ranges":[{"start":1,"end":N,"content_type":"products"|"cover"|"index"|"notes"|"empty"}]}
 Return ONLY valid JSON.`,
-              },
-            ],
           },
         ],
-        max_tokens: 2000,
-      }),
+      }],
+      model: "gemini-2.5-flash",
+      maxTokens: 2000,
     });
 
     // Free base64 from memory immediately
