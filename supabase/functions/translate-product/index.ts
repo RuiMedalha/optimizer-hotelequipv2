@@ -12,7 +12,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY")!;
+    // AI calls go through resolve-ai-route (no LOVABLE_API_KEY dependency);
     const supabase = createClient(supabaseUrl, serviceKey);
 
     const { product_id, workspace_id, source_locale, target_locale, user_id, job_id, job_item_id } = await req.json();

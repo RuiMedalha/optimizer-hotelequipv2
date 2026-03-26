@@ -24,7 +24,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY")!;
+    // AI calls go through resolve-ai-route (no LOVABLE_API_KEY dependency);
     const supabase = createClient(supabaseUrl, serviceKey);
 
     const { pageId } = await req.json();

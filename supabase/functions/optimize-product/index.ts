@@ -1655,8 +1655,8 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
 
             if (childrenNeedAttrs.length > 0) {
               console.log(`🤖 Attempting AI attribute extraction for ${childrenNeedAttrs.length} variations...`);
-              const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-              if (LOVABLE_API_KEY) {
+              // AI calls go through resolve-ai-route (no LOVABLE_API_KEY dependency)
+              if (true) {
                 try {
                   const parentTitleForAI = updateData.optimized_title || product.optimized_title || product.original_title || "";
                   const childTitles: Record<string, string> = {};
@@ -1793,9 +1793,7 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
                   console.error("AI attribute extraction error:", aiErr);
                   await supabase.from("products").update({ status: "needs_review" }).eq("id", product.id);
                 }
-              } else {
-                console.warn("LOVABLE_API_KEY not set, skipping AI attribute extraction");
-                await supabase.from("products").update({ status: "needs_review" }).eq("id", product.id);
+              // (unreachable — AI always attempted via resolve-ai-route)
               }
             }
           }
