@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const TELEGRAM_GATEWAY_URL = "https://connector-gateway.lovable.dev/telegram";
+// Telegram direct API (no gateway dependency)
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
