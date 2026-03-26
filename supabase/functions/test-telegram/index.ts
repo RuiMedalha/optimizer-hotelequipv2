@@ -66,15 +66,8 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const TELEGRAM_API_KEY = Deno.env.get("TELEGRAM_API_KEY");
 
-    if (!LOVABLE_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: "LOVABLE_API_KEY not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
     if (!TELEGRAM_API_KEY) {
       return new Response(
         JSON.stringify({ error: "TELEGRAM_API_KEY not configured" }),
@@ -84,11 +77,9 @@ serve(async (req) => {
 
     const message = `🧪 <b>Teste de Notificação</b>\n\n✅ Telegram configurado corretamente!\n📅 ${new Date().toLocaleString("pt-PT", { timeZone: "Europe/Lisbon" })}`;
 
-    const response = await fetch(`${TELEGRAM_GATEWAY_URL}/sendMessage`, {
+    const response = await fetch(`https://api.telegram.org/bot${TELEGRAM_API_KEY}/sendMessage`, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-        "X-Connection-Api-Key": TELEGRAM_API_KEY,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
