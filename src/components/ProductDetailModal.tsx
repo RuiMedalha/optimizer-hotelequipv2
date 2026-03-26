@@ -1,0 +1,1175 @@
+import { useState, useEffect, useMemo } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Check, X, ExternalLink, RotateCcw, History, Send, ArrowUpRight, Shuffle, AlertTriangle, Brain, BookOpen, Globe, Database, Loader2, BarChart3, Columns, GitBranch, PackageSearch, ImageIcon, Sparkles, Camera, ShieldCheck, ClipboardCheck, Languages } from "lucide-react";
+import { useProcessImages } from "@/hooks/useProcessImages";
+import { useWorkspaceContext } from "@/hooks/useWorkspaces";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { VariationsPanel } from "@/components/VariationsPanel";
+import { QualityGatePanel } from "@/components/QualityGatePanel";
+import { PublishBlockerAlert } from "@/components/PublishBlockerAlert";
+import { WorkflowStateBadge } from "@/components/WorkflowStateBadge";
+import { ValidationPanel } from "@/components/ValidationPanel";
+import { TrustScoreCard } from "@/components/TrustScoreCard";
+import { cn } from "@/lib/utils";
+import type { Product } from "@/hooks/useProducts";
+import { useAllProductIds } from "@/hooks/useProducts";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { useUpdateProduct } from "@/hooks/useUpdateProduct";
+import { useUpdateProductStatus } from "@/hooks/useProducts";
+import { useProductVersions, useRestoreVersion, type ProductVersion } from "@/hooks/useProductVersions";
+import { usePublishWooCommerce } from "@/hooks/usePublishWooCommerce";
+import { useProductOptimizationLogs } from "@/hooks/useOptimizationLogs";
+import { useQualityGateResults, usePublishLocks, useEvaluateQualityGate } from "@/hooks/useQualityGates";
+import { calculateSeoScore, getSeoScoreColor, getSeoScoreBg, getSeoFixSuggestions } from "@/lib/seoScore";
+import { format } from "date-fns";
+import { pt } from "date-fns/locale";
+import { useProductLocalizations, useTranslateProduct, useApproveLocalization, SUPPORTED_LOCALES } from "@/hooks/useTranslations";
+import { useAuth } from "@/hooks/useAuth";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+interface Props {
+  product: Product | null;
+  onClose: () => void;
+}
+
+export function ProductDetailModal({ product, onClose }: Props) {
+  const { data: allProducts } = useAllProductIds();
+  const updateProduct = useUpdateProduct();
+  const updateStatus = useUpdateProductStatus();
+  const publishWoo = usePublishWooCommerce();
+  const { data: versions } = useProductVersions(product?.id ?? null);
+  const { data: optLogs, isLoading: logsLoading } = useProductOptimizationLogs(product?.id ?? null);
+  const restoreVersion = useRestoreVersion();
+  const { processImages, isProcessing, progress: imgProgress } = useProcessImages();
+  const { activeWorkspace } = useWorkspaceContext();
+  const { data: gateResults } = useQualityGateResults(product?.id ?? null);
+  const { data: publishLocks } = usePublishLocks(product?.id ?? null);
+  const evaluateGate = useEvaluateQualityGate();
+
+  // Fetch optimized images from images table
+  const { data: optimizedImages } = useQuery({
+    queryKey: ["product-images", product?.id],
+    enabled: !!product?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("images")
+        .select("*")
+        .eq("product_id", product!.id)
+        .order("sort_order", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const [editData, setEditData] = useState<Record<string, any>>({});
+  const [hasChanges, setHasChanges] = useState(false);
+
+  useEffect(() => {
+    if (product) {
+      setEditData({
+        optimized_title: product.optimized_title ?? "",
+        optimized_description: product.optimized_description ?? "",
+        optimized_short_description: product.optimized_short_description ?? "",
+        meta_title: product.meta_title ?? "",
+        meta_description: product.meta_description ?? "",
+        seo_slug: product.seo_slug ?? "",
+        tags: (product.tags ?? []).join(", "),
+        optimized_price: product.optimized_price ?? product.original_price ?? "",
+        category: product.category ?? "",
+        focus_keyword: (Array.isArray(product.focus_keyword) ? product.focus_keyword : []).join(", "),
+      });
+      setHasChanges(false);
+    }
+  }, [product]);
+
+  if (!product) return null;
+
+  const handleFieldChange = (key: string, value: string) => {
+    setEditData((prev) => ({ ...prev, [key]: value }));
+    setHasChanges(true);
+  };
+
+  const handleSave = () => {
+    const updates: Record<string, any> = {
+      optimized_title: editData.optimized_title || null,
+      optimized_description: editData.optimized_description || null,
+      optimized_short_description: editData.optimized_short_description || null,
+      meta_title: editData.meta_title || null,
+      meta_description: editData.meta_description || null,
+      seo_slug: editData.seo_slug || null,
+      tags: editData.tags ? editData.tags.split(",").map((t: string) => t.trim()).filter(Boolean) : null,
+      optimized_price: editData.optimized_price ? Number(editData.optimized_price) : null,
+      category: editData.category || null,
+      focus_keyword: editData.focus_keyword ? editData.focus_keyword.split(",").map((t: string) => t.trim()).filter(Boolean) : null,
+    };
+
+    // Collect image alt texts from edit fields
+    if (product.image_urls && product.image_urls.length > 0) {
+      const altTexts = product.image_urls.map((url, i) => ({
+        url,
+        alt_text: editData[`image_alt_${i}`] ?? "",
+      })).filter((a) => a.alt_text);
+      if (altTexts.length > 0) {
+        updates.image_alt_texts = altTexts;
+      }
+    }
+
+    updateProduct.mutate({ id: product.id, updates });
+    setHasChanges(false);
+  };
+
+  const handleRestore = (version: ProductVersion) => {
+    if (confirm(`Restaurar versão ${version.version_number}? Os dados atuais serão substituídos.`)) {
+      restoreVersion.mutate({ productId: product.id, version });
+      onClose();
+    }
+  };
+
+  const faq = Array.isArray(product.faq) ? product.faq : [];
+  const upsells = Array.isArray((product as any).upsell_skus) ? (product as any).upsell_skus : [];
+  const crosssells = Array.isArray((product as any).crosssell_skus) ? (product as any).crosssell_skus : [];
+
+  return (
+    <Dialog open={!!product} onOpenChange={() => onClose()}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-3">
+            {product.image_urls && product.image_urls.length > 0 ? (
+              <img
+                src={product.image_urls[0]}
+                alt={product.original_title || "Produto"}
+                className="w-14 h-14 rounded-lg border object-contain bg-background shrink-0"
+              />
+            ) : (
+              <div className="w-14 h-14 rounded-lg border bg-muted/30 flex items-center justify-center shrink-0">
+                <ImageIcon className="w-6 h-6 text-muted-foreground/40" />
+              </div>
+            )}
+            <div className="min-w-0">
+              <span className="font-mono text-xs bg-muted px-2 py-1 rounded">{product.sku ?? "—"}</span>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="truncate text-base">{product.original_title ?? "Sem título"}</p>
+                <WorkflowStateBadge state={(product as any).workflow_state} size="sm" />
+              </div>
+            </div>
+          </DialogTitle>
+        </DialogHeader>
+
+        <Tabs defaultValue="textos" className="mt-2">
+          <TabsList className="w-full justify-start flex-wrap h-auto gap-1">
+            <TabsTrigger value="textos">Textos</TabsTrigger>
+            <TabsTrigger value="comparacao">
+              <Columns className="w-3.5 h-3.5 mr-1" /> Comparação
+            </TabsTrigger>
+            <TabsTrigger value="imagens">Imagens</TabsTrigger>
+            <TabsTrigger value="seo">SEO</TabsTrigger>
+            <TabsTrigger value="seo-score">
+              <BarChart3 className="w-3.5 h-3.5 mr-1" /> Score SEO
+            </TabsTrigger>
+            <TabsTrigger value="faq">FAQ</TabsTrigger>
+            <TabsTrigger value="relacionados">
+              <Shuffle className="w-3.5 h-3.5 mr-1" /> Upsells / Cross-sells
+            </TabsTrigger>
+            <TabsTrigger value="historico">
+              <History className="w-3.5 h-3.5 mr-1" /> Versões
+            </TabsTrigger>
+            {product.product_type === "variable" && (
+              <TabsTrigger value="variacoes">
+                <GitBranch className="w-3.5 h-3.5 mr-1" /> Variações
+              </TabsTrigger>
+            )}
+            <TabsTrigger value="fornecedor">
+              <PackageSearch className="w-3.5 h-3.5 mr-1" /> Fornecedor
+            </TabsTrigger>
+            <TabsTrigger value="ai-log">
+              <Brain className="w-3.5 h-3.5 mr-1" /> Log IA
+            </TabsTrigger>
+            <TabsTrigger value="qualidade">
+              <ShieldCheck className="w-3.5 h-3.5 mr-1" /> Qualidade
+            </TabsTrigger>
+            <TabsTrigger value="brutos">Dados Brutos</TabsTrigger>
+            <TabsTrigger value="idiomas">
+              <Languages className="w-3.5 h-3.5 mr-1" /> Idiomas
+            </TabsTrigger>
+          </TabsList>
+
+          {/* PUBLISH BLOCKER ALERT */}
+          {publishLocks && publishLocks.length > 0 && (
+            <PublishBlockerAlert locks={publishLocks} className="mt-2" />
+          )}
+
+          {/* TEXTOS TAB */}
+          <TabsContent value="textos" className="space-y-6 mt-4">
+            <EditableComparison
+              label="Título"
+              original={product.original_title ?? "—"}
+              value={editData.optimized_title}
+              onChange={(v) => handleFieldChange("optimized_title", v)}
+            />
+            <EditableComparison
+              label="Descrição Curta"
+              original={product.short_description ?? "—"}
+              value={editData.optimized_short_description}
+              onChange={(v) => handleFieldChange("optimized_short_description", v)}
+              multiline
+            />
+            <EditableComparison
+              label="Descrição"
+              original={product.original_description ?? "—"}
+              value={editData.optimized_description}
+              onChange={(v) => handleFieldChange("optimized_description", v)}
+              multiline
+              large
+            />
+          </TabsContent>
+
+          {/* COMPARISON TAB - Side by Side */}
+          <TabsContent value="comparacao" className="space-y-4 mt-4">
+            <p className="text-sm text-muted-foreground">Comparação lado a lado: original vs otimizado (somente leitura)</p>
+            {[
+              { label: "Título", original: product.original_title, optimized: product.optimized_title },
+              { label: "Descrição Curta", original: product.short_description, optimized: product.optimized_short_description },
+              { label: "Descrição", original: product.original_description, optimized: product.optimized_description },
+              { label: "Preço", original: product.original_price != null ? `${product.original_price}€` : null, optimized: product.optimized_price != null ? `${product.optimized_price}€` : null },
+            ].map(({ label, original, optimized }) => (
+              <div key={label} className="border border-border/50 rounded-lg p-4">
+                <h4 className="text-sm font-semibold mb-3">{label}</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Original</p>
+                    <div className="p-3 rounded-lg bg-muted/50 text-sm whitespace-pre-wrap max-h-[200px] overflow-y-auto">
+                      {original ?? "—"}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-primary mb-1">Otimizado</p>
+                    <div className={cn(
+                      "p-3 rounded-lg text-sm whitespace-pre-wrap max-h-[200px] overflow-y-auto",
+                      optimized ? "bg-primary/5 border border-primary/20" : "bg-muted/50"
+                    )}>
+                      {optimized ?? "—"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {/* SEO fields comparison */}
+            <div className="border border-border/50 rounded-lg p-4">
+              <h4 className="text-sm font-semibold mb-3">Campos SEO</h4>
+              <div className="space-y-3">
+                {[
+                  { label: "Meta Title", value: product.meta_title },
+                  { label: "Meta Description", value: product.meta_description },
+                  { label: "Slug", value: product.seo_slug },
+                  { label: "Categoria", value: product.category },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex items-start gap-3">
+                    <span className="text-xs text-muted-foreground w-28 shrink-0 pt-1">{label}</span>
+                    <div className={cn(
+                      "flex-1 p-2 rounded text-sm",
+                      value ? "bg-primary/5" : "bg-muted/50 text-muted-foreground"
+                    )}>
+                      {value ?? "—"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* SEO TAB */}
+          <TabsContent value="seo" className="space-y-6 mt-4">
+            {/* Category */}
+            <div className="border border-border/50 rounded-lg p-4">
+              <h4 className="text-sm font-semibold mb-3">Categoria</h4>
+              <Input
+                value={editData.category}
+                onChange={(e) => handleFieldChange("category", e.target.value)}
+                placeholder="Categoria > Subcategoria"
+                className="text-sm"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Formato: Categoria &gt; Subcategoria (ex: Equipamento de Cozinha &gt; Fritadeiras)</p>
+            </div>
+            <EditableComparison
+              label="Meta Title"
+              original="—"
+              value={editData.meta_title}
+              onChange={(v) => handleFieldChange("meta_title", v)}
+            />
+            <EditableComparison
+              label="Meta Description"
+              original="—"
+              value={editData.meta_description}
+              onChange={(v) => handleFieldChange("meta_description", v)}
+              multiline
+            />
+            <EditableComparison
+              label="SEO Slug"
+              original="—"
+              value={editData.seo_slug}
+              onChange={(v) => handleFieldChange("seo_slug", v)}
+            />
+            <div>
+              <h4 className="text-sm font-medium mb-2">Tags</h4>
+              <Input
+                value={editData.tags}
+                onChange={(e) => handleFieldChange("tags", e.target.value)}
+                placeholder="tag1, tag2, tag3"
+                className="text-sm"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Separadas por vírgula</p>
+            </div>
+            <div>
+              <h4 className="text-sm font-medium mb-2">Preço Otimizado</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Original</p>
+                  <div className="p-3 rounded-lg bg-muted/50 text-sm">{product.original_price ?? "—"}€</div>
+                </div>
+                <div>
+                  <p className="text-xs text-primary mb-1">Otimizado</p>
+                  <Input
+                    type="number"
+                    value={editData.optimized_price}
+                    onChange={(e) => handleFieldChange("optimized_price", e.target.value)}
+                    className="text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* SEO SCORE TAB */}
+          <TabsContent value="seo-score" className="mt-4 space-y-4">
+            {(() => {
+              const { score, checks } = calculateSeoScore(product);
+              return (
+                <>
+                  <div className="flex items-center gap-6">
+                    <div className="relative w-24 h-24">
+                      <svg viewBox="0 0 36 36" className="w-24 h-24 -rotate-90">
+                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="hsl(var(--muted))" strokeWidth="3" />
+                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" className={getSeoScoreColor(score).replace("text-", "stroke-")} strokeWidth="3" strokeDasharray={`${score}, 100`} strokeLinecap="round" />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className={cn("text-2xl font-bold", getSeoScoreColor(score))}>{score}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className={cn("text-lg font-bold", getSeoScoreColor(score))}>
+                        {score >= 80 ? "Bom" : score >= 50 ? "Médio" : "Fraco"}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {checks.filter(c => c.passed).length}/{checks.length} verificações passaram
+                      </p>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {checks.map((check, i) => (
+                      <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
+                        <div className={cn(
+                          "w-5 h-5 rounded-full flex items-center justify-center shrink-0",
+                          check.passed ? "bg-green-500/20 text-green-600" : "bg-red-500/20 text-red-600"
+                        )}>
+                          {check.passed ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                        </div>
+                        <div className="flex-1">
+                          <span className="text-sm font-medium">{check.label}</span>
+                          <span className="text-xs text-muted-foreground ml-2">({check.weight}pts)</span>
+                        </div>
+                        <span className={cn("text-xs", check.passed ? "text-green-600" : "text-muted-foreground")}>{check.detail}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Auto-fix suggestions when score < 70 */}
+                  {score < 70 && (() => {
+                    const suggestions = getSeoFixSuggestions(checks);
+                    if (suggestions.length === 0) return null;
+                    return (
+                      <Alert className="border-yellow-500/30 bg-yellow-500/5">
+                        <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                        <AlertDescription className="space-y-1">
+                          <p className="text-sm font-medium">Sugestões para melhorar o SEO:</p>
+                          <ul className="text-xs space-y-0.5 list-disc list-inside text-muted-foreground">
+                            {suggestions.map((s, i) => <li key={i}>{s}</li>)}
+                          </ul>
+                        </AlertDescription>
+                      </Alert>
+                    );
+                  })()}
+                   <div className="border border-border/50 rounded-lg p-4">
+                     <h4 className="text-sm font-semibold mb-2">Focus Keywords (RankMath)</h4>
+                     <Input
+                       value={editData.focus_keyword ?? ""}
+                       onChange={(e) => handleFieldChange("focus_keyword", e.target.value)}
+                       placeholder="Ex: fritadeira industrial, fryer profissional, fritadeira a gás"
+                       className="text-sm"
+                     />
+                     <p className="text-xs text-muted-foreground mt-1">Separadas por vírgula. A primeira é a keyword principal. Geradas automaticamente pela IA durante a otimização.</p>
+                     {(() => {
+                       const kws = editData.focus_keyword ? editData.focus_keyword.split(",").map((k: string) => k.trim()).filter(Boolean) : [];
+                       if (kws.length === 0) return null;
+                       return (
+                         <div className="flex flex-wrap gap-1.5 mt-2">
+                           {kws.map((kw: string, i: number) => (
+                             <Badge key={i} variant={i === 0 ? "default" : "secondary"} className="text-xs">
+                               {kw}
+                               {i === 0 && <span className="ml-1 opacity-60">principal</span>}
+                             </Badge>
+                           ))}
+                         </div>
+                       );
+                     })()}
+                   </div>
+                </>
+              );
+            })()}
+          </TabsContent>
+
+          {/* FAQ TAB */}
+          <TabsContent value="faq" className="mt-4">
+            {faq.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <p>Nenhuma FAQ gerada para este produto.</p>
+                <p className="text-xs mt-1">Otimize com o campo "FAQ" selecionado.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">{faq.length} pergunta(s) frequente(s)</p>
+                {faq.map((item: { question: string; answer: string }, idx: number) => (
+                  <Card key={idx}>
+                    <CardContent className="p-4">
+                      <h4 className="font-medium text-sm mb-2">❓ {item.question}</h4>
+                      <p className="text-sm text-muted-foreground">{item.answer}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* IMAGES TAB */}
+          <TabsContent value="imagens" className="mt-4">
+            {product.image_urls && product.image_urls.length > 0 ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">{product.image_urls.length} imagem(ns)</p>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isProcessing || !activeWorkspace}
+                      onClick={() => activeWorkspace && processImages({
+                        workspaceId: activeWorkspace.id,
+                        productIds: [product.id],
+                        mode: "optimize",
+                      })}
+                    >
+                      {isProcessing ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <ImageIcon className="w-3 h-3 mr-1" />}
+                      Otimizar Imagens
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isProcessing || !activeWorkspace}
+                      onClick={() => activeWorkspace && processImages({
+                        workspaceId: activeWorkspace.id,
+                        productIds: [product.id],
+                        mode: "lifestyle",
+                      })}
+                    >
+                      {isProcessing ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+                      Gerar Lifestyle
+                    </Button>
+                  </div>
+                </div>
+                {imgProgress && (
+                  <div className="text-xs text-muted-foreground">
+                    A processar... {imgProgress.done}/{imgProgress.total}
+                  </div>
+                )}
+                <div className="space-y-4">
+                  {product.image_urls.map((url, i) => {
+                    const altTexts = Array.isArray((product as any).image_alt_texts) ? (product as any).image_alt_texts : [];
+                    const altEntry = altTexts.find((a: any) => a.url === url);
+                    const altText = altEntry?.alt_text || "";
+                    const optimized = optimizedImages?.find((img) => img.sort_order === i);
+                    return (
+                      <div key={i} className="space-y-2">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Original</p>
+                            <img src={url} alt={altText || `Original ${i + 1}`} className="rounded-lg border object-contain aspect-square w-full bg-background" />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                              {optimized?.optimized_url ? "✅ Otimizada" : "— Não processada"}
+                            </p>
+                            {optimized?.optimized_url ? (
+                              <img src={optimized.optimized_url} alt={altText || `Otimizada ${i + 1}`} className="rounded-lg border border-primary/30 object-contain aspect-square w-full bg-background" />
+                            ) : (
+                              <div className="rounded-lg border border-dashed object-contain aspect-square w-full bg-muted/20 flex items-center justify-center">
+                                <ImageIcon className="w-8 h-8 text-muted-foreground/20" />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Alt Text (SEO)</label>
+                          <Input
+                            value={editData[`image_alt_${i}`] ?? altText}
+                            onChange={(e) => handleFieldChange(`image_alt_${i}`, e.target.value)}
+                            placeholder="Texto alternativo para SEO..."
+                            className="text-xs h-8 mt-1"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                <p>Nenhuma imagem carregada para este produto.</p>
+              </div>
+            )}
+          </TabsContent>
+
+          {/* UPSELLS / CROSS-SELLS TAB */}
+          <TabsContent value="relacionados" className="mt-4 space-y-6">
+            {upsells.length === 0 && crosssells.length === 0 && (
+              <Alert className="border-yellow-500/50 bg-yellow-500/10">
+                <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                <AlertDescription className="text-sm text-yellow-700 dark:text-yellow-400">
+                  {product.status === "optimized" || product.status === "published"
+                    ? "A otimização não encontrou produtos válidos no catálogo para sugerir como upsell ou cross-sell. Verifique se existem produtos suficientes com SKUs definidos."
+                    : "Nenhuma sugestão disponível. Otimize o produto com os campos \"Upsells\" e \"Cross-sells\" selecionados."}
+                </AlertDescription>
+              </Alert>
+            )}
+            <div>
+              <h4 className="text-sm font-semibold flex items-center gap-2 mb-3">
+                <ArrowUpRight className="w-4 h-4 text-primary" /> Upsells
+                <span className="text-xs text-muted-foreground font-normal">(produtos superiores sugeridos)</span>
+              </h4>
+              {upsells.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhum upsell sugerido.</p>
+              ) : (
+                <div className="space-y-2">
+                  {upsells.map((item: any, idx: number) => {
+                    const sku = typeof item === "string" ? item : item.sku;
+                    const title = typeof item === "string" ? null : item.title;
+                    return (
+                      <div key={idx} className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
+                        <Badge variant="outline" className="font-mono text-xs shrink-0">{sku}</Badge>
+                        {title && <span className="text-sm">{title}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold flex items-center gap-2 mb-3">
+                <Shuffle className="w-4 h-4 text-primary" /> Cross-sells
+                <span className="text-xs text-muted-foreground font-normal">(produtos complementares sugeridos)</span>
+              </h4>
+              {crosssells.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhum cross-sell sugerido.</p>
+              ) : (
+                <div className="space-y-2">
+                  {crosssells.map((item: any, idx: number) => {
+                    const sku = typeof item === "string" ? item : item.sku;
+                    const title = typeof item === "string" ? null : item.title;
+                    return (
+                      <div key={idx} className="flex items-center gap-3 p-3 border rounded-lg bg-muted/30">
+                        <Badge variant="outline" className="font-mono text-xs shrink-0">{sku}</Badge>
+                        {title && <span className="text-sm">{title}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          {/* VERSION HISTORY TAB */}
+          <TabsContent value="historico" className="mt-4">
+            {!versions || versions.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <p>Nenhuma versão anterior guardada.</p>
+                <p className="text-xs mt-1">As versões são guardadas automaticamente antes de cada otimização.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  {versions.length} versão(ões) anteriore(s) disponíve(is) (máx. 3)
+                </p>
+                {versions.map((v) => {
+                  const diffFields = [
+                    { label: "Título", current: product.optimized_title, old: v.optimized_title },
+                    { label: "Slug", current: product.seo_slug, old: v.seo_slug },
+                    { label: "Meta Title", current: product.meta_title, old: v.meta_title },
+                    { label: "Meta Desc.", current: product.meta_description, old: v.meta_description },
+                    { label: "Desc. Curta", current: product.optimized_short_description, old: v.optimized_short_description },
+                    { label: "Preço", current: product.optimized_price?.toString(), old: v.optimized_price?.toString() },
+                  ];
+                  const changedFields = diffFields.filter(f => (f.current ?? '') !== (f.old ?? ''));
+                  
+                  return (
+                    <Card key={v.id}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              v{v.version_number}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {format(new Date(v.created_at), "dd MMM yyyy HH:mm", { locale: pt })}
+                            </span>
+                            {changedFields.length > 0 && (
+                              <Badge variant="secondary" className="text-[10px]">
+                                {changedFields.length} alteração(ões)
+                              </Badge>
+                            )}
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleRestore(v)}
+                            disabled={restoreVersion.isPending}
+                          >
+                            <RotateCcw className="w-3.5 h-3.5 mr-1" /> Restaurar
+                          </Button>
+                        </div>
+                        {/* Diff comparison */}
+                        <div className="space-y-2">
+                          {diffFields.map((field, idx) => {
+                            const changed = (field.current ?? '') !== (field.old ?? '');
+                            return (
+                              <div key={idx} className={cn("text-xs rounded-md p-2", changed ? "bg-yellow-500/5 border border-yellow-500/20" : "bg-muted/30")}>
+                                <div className="flex items-center gap-1.5 mb-1">
+                                  <span className="font-medium">{field.label}</span>
+                                  {changed && <Badge variant="outline" className="text-[9px] h-4 px-1 border-yellow-500/40 text-yellow-600">alterado</Badge>}
+                                </div>
+                                {changed ? (
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <span className="text-[10px] text-muted-foreground block mb-0.5">Versão anterior:</span>
+                                      <p className="line-through opacity-60 truncate">{field.old || "—"}</p>
+                                    </div>
+                                    <div>
+                                      <span className="text-[10px] text-muted-foreground block mb-0.5">Atual:</span>
+                                      <p className="truncate font-medium">{field.current || "—"}</p>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <p className="truncate text-muted-foreground">{field.current || "—"}</p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* AI LOG TAB */}
+          <TabsContent value="ai-log" className="mt-4 space-y-4">
+            {logsLoading ? (
+              <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+            ) : !optLogs || optLogs.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <Brain className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p>Nenhum log de otimização disponível.</p>
+                <p className="text-xs mt-1">Os logs são guardados automaticamente a cada otimização.</p>
+              </div>
+            ) : (
+              optLogs.map((log) => (
+                <Card key={log.id}>
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline" className="font-mono text-xs">{log.model}</Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(log.created_at), "dd MMM yyyy HH:mm", { locale: pt })}
+                      </span>
+                    </div>
+
+                    {/* Token usage */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="text-center p-2 rounded-lg bg-muted/50">
+                        <p className="text-lg font-bold text-primary">{log.prompt_tokens.toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground">Prompt tokens</p>
+                      </div>
+                      <div className="text-center p-2 rounded-lg bg-muted/50">
+                        <p className="text-lg font-bold text-primary">{log.completion_tokens.toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground">Completion tokens</p>
+                      </div>
+                      <div className="text-center p-2 rounded-lg bg-muted/50">
+                        <p className="text-lg font-bold text-primary">{log.total_tokens.toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground">Total tokens</p>
+                      </div>
+                    </div>
+
+                    {/* Sources used */}
+                    <div className="space-y-2">
+                      <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Fontes de contexto</h5>
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant={log.had_knowledge ? "default" : "secondary"} className="text-xs">
+                          <BookOpen className="w-3 h-3 mr-1" /> Conhecimento {log.had_knowledge ? "✓" : "✗"}
+                        </Badge>
+                        <Badge variant={log.had_supplier ? "default" : "secondary"} className="text-xs">
+                          <Globe className="w-3 h-3 mr-1" /> Fornecedor {log.had_supplier ? "✓" : "✗"}
+                        </Badge>
+                        <Badge variant={log.had_catalog ? "default" : "secondary"} className="text-xs">
+                          <Database className="w-3 h-3 mr-1" /> Catálogo {log.had_catalog ? "✓" : "✗"}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* Knowledge sources detail */}
+                    {Array.isArray(log.knowledge_sources) && log.knowledge_sources.length > 0 && (
+                      <div>
+                        <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Ficheiros de conhecimento utilizados</h5>
+                        <div className="space-y-1">
+                          {log.knowledge_sources.map((s, i) => (
+                            <div key={i} className="flex items-center justify-between text-xs p-1.5 rounded bg-muted/30">
+                              <span>{s.source}</span>
+                              <Badge variant="outline" className="text-[10px]">{s.chunks} chunks</Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Supplier URL */}
+                    {log.supplier_url && (
+                      <div className="text-xs">
+                        <span className="text-muted-foreground">Fornecedor: </span>
+                        <a href={log.supplier_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
+                          {log.supplier_name || "Link"} <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    )}
+
+                    {/* Fields */}
+                    <div className="flex flex-wrap gap-1">
+                      {log.fields_optimized.map((f) => (
+                        <Badge key={f} variant="outline" className="text-[10px]">{f}</Badge>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </TabsContent>
+
+          {/* VARIATIONS TAB */}
+          {product.product_type === "variable" && (
+            <TabsContent value="variacoes" className="mt-4 space-y-4">
+              <VariationsPanel product={product} allProducts={allProducts ?? []} updateProduct={updateProduct} />
+            </TabsContent>
+          )}
+
+          {/* SUPPLIER DATA TAB */}
+          <TabsContent value="fornecedor" className="mt-4 space-y-4">
+            <SupplierDataSection product={product} />
+          </TabsContent>
+
+          {/* QUALITY TAB */}
+          <TabsContent value="qualidade" className="space-y-4 mt-4">
+            <TrustScoreCard
+              qualityScore={(product as any).quality_score}
+              validationStatus={(product as any).validation_status}
+            />
+
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium">Avaliação de Qualidade</h3>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (activeWorkspace?.id && product?.id) {
+                    evaluateGate.mutate({ workspaceId: activeWorkspace.id, productIds: [product.id] });
+                  }
+                }}
+                disabled={evaluateGate.isPending}
+              >
+                {evaluateGate.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <ShieldCheck className="h-3.5 w-3.5 mr-1" />}
+                Avaliar Quality Gate
+              </Button>
+            </div>
+
+            <QualityGatePanel results={gateResults || []} gateName="Quality Gate" />
+
+            <ValidationPanel productId={product.id} />
+          </TabsContent>
+
+          {/* RAW DATA TAB */}
+          <TabsContent value="brutos" className="mt-4">
+            <Card>
+              <CardContent className="p-4">
+                <pre className="text-xs font-mono whitespace-pre-wrap text-muted-foreground max-h-[400px] overflow-y-auto">
+                  {JSON.stringify(product, null, 2)}
+                </pre>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* IDIOMAS / LOCALIZATION TAB */}
+          <TabsContent value="idiomas" className="mt-4">
+            <ProductLocalizationTab productId={product.id} workspaceId={product.workspace_id} />
+          </TabsContent>
+        </Tabs>
+
+        {/* Footer actions */}
+        <div className="flex items-center justify-between mt-4 pt-4 border-t gap-2 flex-wrap">
+          <div>
+            {hasChanges && (
+              <Button size="sm" onClick={handleSave} disabled={updateProduct.isPending}>
+                Guardar Alterações
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="destructive" size="sm" onClick={() => { updateStatus.mutate({ ids: [product.id], status: "error" }); onClose(); }}>
+              Rejeitar
+            </Button>
+            <Button size="sm" onClick={() => { 
+              if (hasChanges) handleSave();
+              updateStatus.mutate({ ids: [product.id], status: "optimized" }); 
+              onClose(); 
+            }}>
+              <Check className="w-4 h-4 mr-1" /> Aprovar
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => { 
+              publishWoo.mutate({ productIds: [product.id] }); 
+              onClose(); 
+            }} disabled={publishWoo.isPending}>
+              <Send className="w-4 h-4 mr-1" /> Publicar
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditableComparison({
+  label,
+  original,
+  value,
+  onChange,
+  multiline = false,
+  large = false,
+}: {
+  label: string;
+  original: string;
+  value: string;
+  onChange: (v: string) => void;
+  multiline?: boolean;
+  large?: boolean;
+}) {
+  return (
+    <div className="border border-border/50 rounded-lg p-4">
+      <h4 className="text-sm font-semibold mb-3">{label}</h4>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <p className="text-xs text-muted-foreground mb-1">Original</p>
+          <div className={cn(
+            "p-3 rounded-lg bg-muted/50 text-sm whitespace-pre-wrap",
+            large && "max-h-[200px] overflow-y-auto"
+          )}>
+            {original}
+          </div>
+        </div>
+        <div>
+          <p className="text-xs text-primary mb-1">Otimizado</p>
+          {multiline ? (
+            <Textarea
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              className={cn("text-sm", large ? "min-h-[200px]" : "min-h-[80px]")}
+            />
+          ) : (
+            <Input
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              className="text-sm"
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SupplierDataSection({ product }: { product: Product }) {
+  const { data: enrichmentFile, isLoading } = useQuery({
+    queryKey: ["enrichment-file", product.sku],
+    enabled: !!product.sku,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("uploaded_files")
+        .select("file_name, metadata, created_at")
+        .eq("file_name", `🌐 SKU: ${product.sku}`)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  const metadata = enrichmentFile?.metadata as Record<string, any> | null;
+  const isEnriched = !!enrichmentFile;
+  const sourceUrl = metadata?.source_url;
+  const supplierName = metadata?.supplier;
+  const imagesFound = metadata?.imagesFound ?? 0;
+  const variations = metadata?.variations ?? [];
+  const specs = metadata?.specs ?? {};
+  const seriesName = metadata?.series_name;
+  const isVariable = variations.length > 0 || metadata?.isVariable;
+
+  // Try to parse technical_specs as JSON
+  let structuredSpecs: Record<string, string> = {};
+  let rawSpecs = '';
+  if (product.technical_specs) {
+    try {
+      structuredSpecs = JSON.parse(product.technical_specs);
+    } catch {
+      rawSpecs = product.technical_specs;
+    }
+  }
+  // Merge specs from metadata if product specs are empty
+  if (Object.keys(structuredSpecs).length === 0 && Object.keys(specs).length > 0) {
+    structuredSpecs = specs;
+  }
+
+  return (
+    <>
+      {/* Enrichment status badges */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <Badge variant={isEnriched ? "default" : "secondary"} className="text-sm px-3 py-1">
+          <Globe className="w-3.5 h-3.5 mr-1.5" />
+          {isEnriched ? "Enriquecido via Web" : "Não enriquecido"}
+        </Badge>
+        {isVariable && (
+          <Badge variant="outline" className="text-sm px-3 py-1">
+            <GitBranch className="w-3.5 h-3.5 mr-1.5" /> Variações detetadas
+          </Badge>
+        )}
+        {imagesFound > 0 && (
+          <Badge variant="outline" className="text-sm px-3 py-1">
+            {imagesFound} imagens extraídas
+          </Badge>
+        )}
+        {seriesName && (
+          <Badge variant="outline" className="text-sm px-3 py-1">
+            Série: {seriesName}
+          </Badge>
+        )}
+      </div>
+
+      {/* Source URL */}
+      {sourceUrl && (
+        <Card>
+          <CardContent className="p-4">
+            <h4 className="text-sm font-semibold mb-2">Fonte Web</h4>
+            <div className="flex items-center gap-2">
+              {supplierName && <Badge variant="outline" className="text-xs">{supplierName}</Badge>}
+              <a
+                href={sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-primary hover:underline inline-flex items-center gap-1 break-all"
+              >
+                {sourceUrl} <ExternalLink className="w-3 h-3 shrink-0" />
+              </a>
+            </div>
+            {enrichmentFile?.created_at && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Extraído em {format(new Date(enrichmentFile.created_at), "dd MMM yyyy HH:mm", { locale: pt })}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Variations detected */}
+      {variations.length > 0 && (
+        <Card>
+          <CardContent className="p-4">
+            <h4 className="text-sm font-semibold mb-3">Variações Detetadas</h4>
+            <div className="space-y-3">
+              {variations.map((v: any, i: number) => (
+                <div key={i}>
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5">{v.name}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(v.values || []).map((val: string, j: number) => (
+                      <Badge key={j} variant="secondary" className="text-xs">
+                        {val}
+                        {v.skus?.[j] && (
+                          <span className="ml-1 text-muted-foreground font-mono">({v.skus[j]})</span>
+                        )}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Technical Specs */}
+      <Card>
+        <CardContent className="p-4">
+          <h4 className="text-sm font-semibold mb-2">Especificações Técnicas</h4>
+          {Object.keys(structuredSpecs).length > 0 ? (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+              {Object.entries(structuredSpecs).map(([key, value]) => (
+                <div key={key} className="flex items-baseline gap-2 py-1 border-b border-border/30">
+                  <span className="text-xs font-medium text-muted-foreground shrink-0">{key}</span>
+                  <span className="text-sm flex-1 text-right">{value}</span>
+                </div>
+              ))}
+            </div>
+          ) : rawSpecs ? (
+            <div className="p-3 rounded-lg bg-muted/50 text-sm whitespace-pre-wrap max-h-[400px] overflow-y-auto">
+              {rawSpecs}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Nenhuma especificação técnica extraída. Execute o enriquecimento web para obter dados do fornecedor.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Loading state */}
+      {isLoading && (
+        <div className="flex justify-center py-4">
+          <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {!isLoading && !isEnriched && (
+        <Alert>
+          <PackageSearch className="h-4 w-4" />
+          <AlertDescription>
+            Este produto ainda não foi enriquecido via web. Use o botão "Enriquecer Web" na barra de ferramentas para extrair dados do fornecedor.
+          </AlertDescription>
+        </Alert>
+      )}
+    </>
+  );
+}
+
+function ProductLocalizationTab({ productId, workspaceId }: { productId: string; workspaceId: string }) {
+  const { data: localizations, isLoading } = useProductLocalizations(productId);
+  const translateProduct = useTranslateProduct();
+  const approveLocalization = useApproveLocalization();
+  const { user } = useAuth();
+  const [targetLocale, setTargetLocale] = useState("en-GB");
+
+  const handleTranslate = () => {
+    if (!user) return;
+    translateProduct.mutate({
+      product_id: productId,
+      workspace_id: workspaceId,
+      source_locale: "pt-PT",
+      target_locale: targetLocale,
+      user_id: user.id,
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <Select value={targetLocale} onValueChange={setTargetLocale}>
+          <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {SUPPORTED_LOCALES.filter(l => l.code !== "pt-PT").map(l => (
+              <SelectItem key={l.code} value={l.code}>{l.flag} {l.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button size="sm" onClick={handleTranslate} disabled={translateProduct.isPending}>
+          {translateProduct.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Languages className="w-4 h-4 mr-1" />}
+          Traduzir
+        </Button>
+      </div>
+
+      {isLoading && <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin" /></div>}
+
+      {(!localizations || localizations.length === 0) && !isLoading && (
+        <p className="text-sm text-muted-foreground text-center py-8">Sem traduções. Selecione um idioma e clique "Traduzir".</p>
+      )}
+
+      <div className="space-y-3">
+        {(localizations || []).map((loc: any) => {
+          const locInfo = SUPPORTED_LOCALES.find(l => l.code === loc.locale);
+          return (
+            <Card key={loc.id}>
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{locInfo?.flag || "🌐"}</span>
+                    <span className="font-medium text-sm">{loc.locale}</span>
+                    <Badge variant={loc.status === "approved" ? "default" : loc.needs_review ? "destructive" : "secondary"}>
+                      {loc.status}
+                    </Badge>
+                    <Badge variant="outline">Score: {loc.quality_score}%</Badge>
+                  </div>
+                  <div className="flex gap-2">
+                    {loc.needs_review && (
+                      <Button size="sm" variant="outline" onClick={() => approveLocalization.mutate({ id: loc.id, product_id: productId })}>
+                        <Check className="w-3.5 h-3.5 mr-1" /> Aprovar
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" onClick={() => {
+                      setTargetLocale(loc.locale);
+                      handleTranslate();
+                    }}>
+                      <RotateCcw className="w-3.5 h-3.5 mr-1" /> Re-traduzir
+                    </Button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  {[
+                    { label: "Título", value: loc.translated_title },
+                    { label: "Meta Title", value: loc.translated_meta_title },
+                    { label: "Descrição Curta", value: loc.translated_short_description },
+                    { label: "Meta Description", value: loc.translated_meta_description },
+                    { label: "Slug", value: loc.translated_slug },
+                  ].map(({ label, value }) => value && (
+                    <div key={label}>
+                      <p className="text-xs text-muted-foreground">{label}</p>
+                      <p className="truncate">{value}</p>
+                    </div>
+                  ))}
+                </div>
+                {loc.translated_description && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Descrição</p>
+                    <p className="text-sm max-h-24 overflow-y-auto">{loc.translated_description}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
