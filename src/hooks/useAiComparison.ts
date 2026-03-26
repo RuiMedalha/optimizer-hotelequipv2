@@ -97,7 +97,7 @@ export function useCreateComparisonRun() {
         .single();
 
       if (error) throw error;
-      return data as ComparisonRun;
+      return data as unknown as ComparisonRun;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["comparison-runs"], exact: false }),
   });
@@ -200,7 +200,7 @@ export function useComparisonResults(runId: string | null) {
         .eq("run_id", runId!)
         .order("created_at");
       if (error) throw error;
-      return (data ?? []) as ComparisonResult[];
+      return (data ?? []) as unknown as ComparisonResult[];
     },
   });
 }
@@ -286,8 +286,8 @@ export function useApplyComparisonResult() {
             result_id:   resultId,
             product_id:  productId,
             field_name:  sectionDef.productField,
-            model_id:    (resultRow as { model_id: string; provider_id: string }).model_id,
-            provider_id: (resultRow as { model_id: string; provider_id: string }).provider_id,
+            model_id:    (resultRow as unknown as { model_id: string; provider_id: string }).model_id,
+            provider_id: (resultRow as unknown as { model_id: string; provider_id: string }).provider_id,
             applied_by:  (await supabase.auth.getUser()).data.user?.id ?? null,
           });
         }
@@ -323,7 +323,7 @@ export function useComparisonHistory() {
         .order("created_at", { ascending: false })
         .limit(50);
       if (error) throw error;
-      return (data ?? []) as ComparisonRun[];
+      return (data ?? []) as unknown as ComparisonRun[];
     },
   });
 }
