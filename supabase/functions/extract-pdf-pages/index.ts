@@ -336,11 +336,11 @@ async function invokeChunkExtraction(opts: {
 // CHUNK PROCESSOR — runs in its own worker
 // ==========================================
 async function processChunk(opts: {
-  supabase: any; supabaseUrl: string; serviceKey: string; lovableKey: string;
+  supabase: any; supabaseUrl: string; serviceKey: string;
   extractionId: string; chunkStart: number; chunkEnd: number;
   storagePath: string; overviewData: any; pdfBase64?: string;
 }) {
-  const { supabase, lovableKey, extractionId, chunkStart, chunkEnd, storagePath, overviewData, pdfBase64 } = opts;
+  const { supabase, extractionId, chunkStart, chunkEnd, storagePath, overviewData, pdfBase64 } = opts;
 
   let chunkPdfBase64 = pdfBase64;
   if (!chunkPdfBase64) {
@@ -351,26 +351,17 @@ async function processChunk(opts: {
 
   console.log(`Chunk: extracting pages ${chunkStart}-${chunkEnd}`);
 
-  const extractionResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${lovableKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        {
-          role: "system",
-          content: "És um especialista em extração de dados de catálogos. Extrai TODOS os produtos deste catálogo PDF. Sê rigoroso e sistemático.",
-        },
-        {
-          role: "user",
-          content: [
-            { type: "image_url", image_url: { url: `data:application/pdf;base64,${chunkPdfBase64}` } },
-            {
-              type: "text",
-              text: `Extrai TODOS os produtos das páginas ${chunkStart} a ${chunkEnd} deste PDF.
+  let aiResult: any;
+  try {
+    aiResult = await directAICall({
+      systemPrompt: "És um especialista em extração de dados de catálogos. Extrai TODOS os produtos deste catálogo PDF. Sê rigoroso e sistemático.",
+      messages: [{
+        role: "user",
+        content: [
+          { type: "image_url", image_url: { url: `data:application/pdf;base64,${chunkPdfBase64}` } },
+          {
+            type: "text",
+            text: `Extrai TODOS os produtos das páginas ${chunkStart} a ${chunkEnd} deste PDF.
 Idioma: ${overviewData?.language || "auto-detect"}
 Fornecedor: ${overviewData?.supplier_name || "desconhecido"}
 
@@ -388,26 +379,23 @@ Para cada produto devolve:
 Formato JSON:
 {"pages":[{"page_number":N,"page_type":"product_listing","zones":["header","table","images"],"section_title":"...","page_images_count":N,"products":[{...}]}]}
 Devolve APENAS JSON válido.`,
-            },
-          ],
-        },
-      ],
-      max_tokens: 16000,
-    }),
-  });
-
-  if (!extractionResp.ok) {
-    const errText = await extractionResp.text();
-    console.error(`Chunk ${chunkStart}-${chunkEnd} AI failed:`, extractionResp.status, errText.substring(0, 300));
+          },
+        ],
+      }],
+      model: "gemini-2.5-flash",
+      maxTokens: 16000,
+    });
+  } catch (err) {
+    console.error(`Chunk ${chunkStart}-${chunkEnd} AI failed:`, (err as Error).message);
     return new Response(JSON.stringify({
       error: "AI call failed", pagesProcessed: 0, tablesCreated: 0, rowsExtracted: 0, confidenceSum: 0,
     }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
-  const rawAiBody = await extractionResp.text();
   let aiPayload: any = {};
   try {
-    aiPayload = rawAiBody ? JSON.parse(rawAiBody) : {};
+    const content = aiResult.choices?.[0]?.message?.content || "{}";
+    aiPayload = JSON.parse(content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
   } catch {
     console.error(`Chunk ${chunkStart}-${chunkEnd} returned non-JSON AI payload`);
     aiPayload = {};
