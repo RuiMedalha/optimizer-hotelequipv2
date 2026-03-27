@@ -116,7 +116,7 @@ function ProtectedRoutes() {
           <Route path="/prompt-governance" element={<PromptGovernancePage />} />
           <Route path="/agent-registry" element={<AgentRegistryPage />} />
           <Route path="/product-identity" element={<ProductIdentityPage />} />
-          <Route path="/ai-governance" element={<AiGovernancePage />} />
+          <Route path="/ai-governance" element={<Navigate to="/ai-provider-center" replace />} />
           <Route path="/ai-provider-center" element={<AiProviderCenterPage />} />
           <Route path="/supplier-intelligence" element={<SupplierIntelligencePage />} />
           <Route path="/canonical-assembly" element={<CanonicalAssemblyPage />} />

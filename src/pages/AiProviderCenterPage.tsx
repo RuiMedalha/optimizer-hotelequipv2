@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Server, Plus, Trash2, TestTube, CheckCircle, XCircle, Loader2,
   Cpu, Route, Activity, Zap, Shield, Brain, Settings2, Info, BookOpen,
+  DollarSign, Gauge,
 } from "lucide-react";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import {
@@ -22,6 +23,7 @@ import {
   PROVIDER_TYPES, DEFAULT_TASK_TYPES,
   type AiProvider, type AiRoutingRule,
 } from "@/hooks/useAiProviderCenter";
+import { useAiGovernance } from "@/hooks/useAiGovernance";
 
 const emptyProvider: Partial<AiProvider> = {
   provider_name: "", provider_type: "lovable_gateway", default_model: "", fallback_model: "",
@@ -36,6 +38,9 @@ const emptyRoute: Partial<AiRoutingRule> = {
   is_active: true, execution_priority: 50,
 };
 
+const MODES = ["economic", "balanced", "premium"];
+const MODELS = ["google/gemini-2.5-flash-lite", "google/gemini-2.5-flash", "google/gemini-2.5-pro", "google/gemini-3-flash-preview"];
+
 export default function AiProviderCenterPage() {
   const { activeWorkspace } = useWorkspaceContext();
   const providers = useAiProviders();
@@ -47,9 +52,13 @@ export default function AiProviderCenterPage() {
   const saveRoute = useSaveAiRoutingRule();
   const deleteRoute = useDeleteAiRoutingRule();
 
+  // AI Governance data (consolidated)
+  const { usageSummary, usageLogs, profiles, createProfile, activateProfile, retryPolicies, createRetryPolicy } = useAiGovernance();
+
   const [editProvider, setEditProvider] = useState<Partial<AiProvider> | null>(null);
   const [editRoute, setEditRoute] = useState<Partial<AiRoutingRule> | null>(null);
   const [testingId, setTestingId] = useState<string | null>(null);
+  const [newRetry, setNewRetry] = useState({ policy_name: "", retry_limit: "3", fallback_model: "google/gemini-2.5-flash-lite" });
 
   const modelsForType = (providerType: string) =>
     (modelCatalog.data || []).filter(m => m.provider_type === providerType);
@@ -73,12 +82,13 @@ export default function AiProviderCenterPage() {
   const activeProviders = (providers.data || []).filter(p => p.is_active).length;
   const totalRoutes = (routingRules.data || []).length;
   const healthyProviders = (providers.data || []).filter(p => p.last_health_status === "success").length;
+  const summary = usageSummary.data;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2 text-foreground"><Server className="w-6 h-6" /> AI Provider Center</h1>
-        <p className="text-muted-foreground">Centro unificado de gestão de providers, modelos e routing de IA</p>
+        <p className="text-muted-foreground">Centro unificado de gestão de providers, modelos, routing, custos e políticas de IA</p>
       </div>
 
       {/* Setup Guide */}
@@ -95,7 +105,7 @@ export default function AiProviderCenterPage() {
               </div>
               <div className="space-y-1">
                 <p className="font-semibold text-foreground">2. Routing (tab AI Routing)</p>
-                <p>Mapeie cada tarefa (categorização, SEO, PDFs…) ao provider e modelo ideal. Já foram criadas {totalRoutes} regras automáticas.</p>
+                <p>Mapeie cada tarefa (categorização, SEO, PDFs…) ao provider e modelo ideal.</p>
               </div>
               <div className="space-y-1">
                 <p className="font-semibold text-foreground">3. Prompts (Prompt Governance)</p>
@@ -111,19 +121,25 @@ export default function AiProviderCenterPage() {
       )}
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-foreground">{activeProviders}</p><p className="text-xs text-muted-foreground">Providers Ativos</p></CardContent></Card>
         <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-foreground">{healthyProviders}</p><p className="text-xs text-muted-foreground">Providers Saudáveis</p></CardContent></Card>
         <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-foreground">{(modelCatalog.data || []).length}</p><p className="text-xs text-muted-foreground">Modelos no Catálogo</p></CardContent></Card>
         <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-foreground">{totalRoutes}</p><p className="text-xs text-muted-foreground">Regras de Routing</p></CardContent></Card>
+        {summary && (
+          <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-foreground">${summary.totalCost.toFixed(4)}</p><p className="text-xs text-muted-foreground">Custo Total AI</p></CardContent></Card>
+        )}
       </div>
 
       <Tabs defaultValue="providers">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="providers" className="gap-1.5"><Server className="h-4 w-4" /> Providers</TabsTrigger>
-          <TabsTrigger value="models" className="gap-1.5"><Cpu className="h-4 w-4" /> Catálogo de Modelos</TabsTrigger>
-          <TabsTrigger value="routing" className="gap-1.5"><Route className="h-4 w-4" /> AI Routing</TabsTrigger>
+          <TabsTrigger value="models" className="gap-1.5"><Cpu className="h-4 w-4" /> Catálogo</TabsTrigger>
+          <TabsTrigger value="routing" className="gap-1.5"><Route className="h-4 w-4" /> Routing</TabsTrigger>
           <TabsTrigger value="health" className="gap-1.5"><Activity className="h-4 w-4" /> Health</TabsTrigger>
+          <TabsTrigger value="costs" className="gap-1.5"><DollarSign className="h-4 w-4" /> Custos</TabsTrigger>
+          <TabsTrigger value="profiles" className="gap-1.5"><Gauge className="h-4 w-4" /> Perfis</TabsTrigger>
+          <TabsTrigger value="retry" className="gap-1.5"><Shield className="h-4 w-4" /> Retry</TabsTrigger>
         </TabsList>
 
         {/* ═══ PROVIDERS TAB ═══ */}
@@ -267,6 +283,104 @@ export default function AiProviderCenterPage() {
           {(providers.data || []).length === 0 && (
             <Card><CardContent className="p-8 text-center text-muted-foreground">Adicione providers na tab Providers primeiro.</CardContent></Card>
           )}
+        </TabsContent>
+
+        {/* ═══ COSTS TAB (from AI Governance) ═══ */}
+        <TabsContent value="costs" className="space-y-4 mt-4">
+          {summary && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-foreground">${summary.totalCost.toFixed(4)}</p><p className="text-xs text-muted-foreground">Custo Total</p></CardContent></Card>
+              <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-foreground">{summary.totalRequests}</p><p className="text-xs text-muted-foreground">Requests</p></CardContent></Card>
+              <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-foreground">{(summary.totalInputTokens / 1000).toFixed(1)}k</p><p className="text-xs text-muted-foreground">Input Tokens</p></CardContent></Card>
+              <Card><CardContent className="p-4 text-center"><p className="text-2xl font-bold text-foreground">{(summary.totalOutputTokens / 1000).toFixed(1)}k</p><p className="text-xs text-muted-foreground">Output Tokens</p></CardContent></Card>
+            </div>
+          )}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Modelo</TableHead>
+                <TableHead>In</TableHead>
+                <TableHead>Out</TableHead>
+                <TableHead>Custo</TableHead>
+                <TableHead>Data</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {usageLogs.data?.map((l: any) => (
+                <TableRow key={l.id}>
+                  <TableCell><Badge variant="secondary">{l.model_name || "—"}</Badge></TableCell>
+                  <TableCell>{l.input_tokens}</TableCell>
+                  <TableCell>{l.output_tokens}</TableCell>
+                  <TableCell>${(l.estimated_cost || 0).toFixed(4)}</TableCell>
+                  <TableCell className="text-xs">{new Date(l.created_at).toLocaleString()}</TableCell>
+                </TableRow>
+              ))}
+              {usageLogs.data?.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Sem logs de utilização</TableCell></TableRow>}
+            </TableBody>
+          </Table>
+        </TabsContent>
+
+        {/* ═══ PROFILES TAB (from AI Governance) ═══ */}
+        <TabsContent value="profiles" className="space-y-4 mt-4">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground mb-2">Perfis de Execução</h3>
+            <p className="text-xs text-muted-foreground mb-4">Definem o modo de operação (custo vs qualidade) e os modelos preferidos para cada contexto.</p>
+          </div>
+          <div className="flex gap-2">
+            {MODES.map((m) => (
+              <Button key={m} variant="outline" onClick={() => createProfile.mutate(m)} disabled={createProfile.isPending}>
+                <Plus className="w-4 h-4 mr-1" /> {m}
+              </Button>
+            ))}
+          </div>
+          {profiles.data?.map((p: any) => (
+            <Card key={p.id} className={p.is_active ? "border-primary" : ""}>
+              <CardContent className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-3">
+                  {p.is_active && <CheckCircle className="w-4 h-4 text-primary" />}
+                  <div>
+                    <p className="font-medium text-foreground">{p.profile_name}</p>
+                    <p className="text-xs text-muted-foreground">Modo: {p.mode} • Primary: {(p.model_preferences as any)?.primary}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant={p.mode === "premium" ? "default" : p.mode === "economic" ? "outline" : "secondary"}>{p.mode}</Badge>
+                  {!p.is_active && <Button size="sm" variant="ghost" onClick={() => activateProfile.mutate(p.id)}>Ativar</Button>}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+          {profiles.data?.length === 0 && <p className="text-muted-foreground text-sm">Crie um perfil de execução acima.</p>}
+        </TabsContent>
+
+        {/* ═══ RETRY TAB (from AI Governance) ═══ */}
+        <TabsContent value="retry" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Shield className="w-4 h-4" /> Nova Retry Policy</CardTitle></CardHeader>
+            <CardContent className="flex gap-2 flex-wrap">
+              <Input placeholder="Nome" value={newRetry.policy_name} onChange={(e) => setNewRetry({ ...newRetry, policy_name: e.target.value })} className="w-40" />
+              <Input placeholder="Retries" type="number" value={newRetry.retry_limit} onChange={(e) => setNewRetry({ ...newRetry, retry_limit: e.target.value })} className="w-24" />
+              <Select value={newRetry.fallback_model} onValueChange={(v) => setNewRetry({ ...newRetry, fallback_model: v })}>
+                <SelectTrigger className="w-60"><SelectValue /></SelectTrigger>
+                <SelectContent>{MODELS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
+              </Select>
+              <Button size="sm" onClick={() => { createRetryPolicy.mutate({ policy_name: newRetry.policy_name, retry_limit: parseInt(newRetry.retry_limit), fallback_model: newRetry.fallback_model }); setNewRetry({ policy_name: "", retry_limit: "3", fallback_model: "google/gemini-2.5-flash-lite" }); }} disabled={!newRetry.policy_name}>
+                <Plus className="w-4 h-4" />
+              </Button>
+            </CardContent>
+          </Card>
+          {retryPolicies.data?.map((r: any) => (
+            <Card key={r.id}>
+              <CardContent className="flex items-center justify-between p-4">
+                <p className="font-medium text-foreground">{r.policy_name}</p>
+                <div className="flex gap-2">
+                  <Badge variant="outline">Retries: {r.retry_limit}</Badge>
+                  <Badge variant="secondary">{r.fallback_model}</Badge>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+          {retryPolicies.data?.length === 0 && <p className="text-muted-foreground text-sm">Sem políticas de retry configuradas.</p>}
         </TabsContent>
       </Tabs>
 

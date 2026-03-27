@@ -163,12 +163,11 @@ export const navGroups: NavGroup[] = [
   },
   {
     key: "governance",
-    label: "Governance",
+    label: "AI Governance",
     icon: Gauge,
     items: [
+      { title: "AI Provider Center", icon: Cpu, route: "/ai-provider-center", badge: "Core" },
       { title: "Prompt Governance", icon: FileCode, route: "/prompt-governance" },
-      { title: "AI Provider Center", icon: Cpu, route: "/ai-provider-center" },
-      { title: "AI Governance", icon: Gauge, route: "/ai-governance" },
       { title: "Cost Intelligence", icon: DollarSign, route: "/cost-intelligence" },
       { title: "Comparações IA", icon: GitCompare, route: "/ai-comparacoes" },
       { title: "Supplier Intelligence", icon: Building2, route: "/supplier-intelligence" },
