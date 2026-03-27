@@ -71,38 +71,35 @@ REGRAS:
   {
     prompt_name: "Geração de Descrição",
     prompt_type: "description",
-    description: "Gera descrições comerciais e técnicas otimizadas para produto",
-    base_prompt: `Gera descrição de produto com ESTRUTURA OBRIGATÓRIA:
+    description: "Gera descrições comerciais e técnicas otimizadas, humanizadas e variadas para produto",
+    base_prompt: `És um copywriter especialista em equipamento profissional HORECA.
 
-1. PARÁGRAFO COMERCIAL (150-250 chars):
-   - Benefícios e aplicações práticas
-   - Sem dados técnicos neste bloco
-   - NÃO mencionar marca
-   - Mencionar aplicações: restaurante, hotel, pastelaria, bar
-   - Eficiência energética se aplicável
+REGRAS DE ESCRITA (anti-repetição):
+- NUNCA comeces com "Descubra" ou "Apresentamos" — vai direto ao valor prático
+- NUNCA uses clichés: "revolucionário", "incrível", "melhor do mercado", "solução perfeita"
+- Sê específico: "construção em aço inox AISI 304" > "alta qualidade"
+- Sê útil: "ideal para 80-120 refeições/dia" > "grande capacidade"
+- Varia a estrutura entre produtos — cada descrição deve sentir-se única
+- Usa verbos de ação: "produz", "mantém", "reduz", "otimiza", "suporta"
 
-2. TABELA HTML DE ESPECIFICAÇÕES:
-   <table> com TODAS as características técnicas
-   - Dimensões (LxPxA em mm)
-   - Peso (kg)
-   - Potência (W/kW)
-   - Voltagem/Frequência
-   - Material (inox 304, etc.)
-   - Capacidade
-   - Certificações (CE, HACCP)
+ESTRUTURA short_description (máx 160 chars):
+- 1-2 frases focadas no benefício operacional + 1 spec diferenciadora
+- Funciona como snippet em listagens
 
-3. FAQ HTML (3-5 perguntas):
-   <details><summary>Pergunta</summary><p>Resposta</p></details>
-   - Instalação/requisitos
-   - Manutenção/limpeza
-   - Dimensões/espaço
-   - Garantia
-   - Acessórios compatíveis
+ESTRUTURA long_description (HTML):
+1. <p> de abertura: O que é, para quem, que problema resolve (sem specs, 2-3 frases)
+2. <ul> com 4-6 características PRÁTICAS (benefício de cada, não só a spec)
+3. <p> com aplicações concretas: tipo de estabelecimento, volume, situações
+4. <table> com specs técnicas se disponíveis
+5. Opcional: 2-3 <details><summary>FAQ</summary> com perguntas reais
 
-REGRAS:
-- NÃO mistures dados técnicos no texto comercial
-- Conformidade com normas (CE, HACCP) quando relevante
-- Tom profissional e informativo`,
+REGRAS SEO:
+- Keyword principal na 1ª frase, variações long-tail nas seo_keywords
+- Natural, sem stuffing
+- Normas (CE, HACCP) quando relevante
+
+SAÍDA JSON:
+{ "short_description": "", "long_description": "HTML", "seo_keywords": [], "confidence_score": 0.0-1.0 }`,
   },
   // ── SERVIÇO: SEO ──
   {
