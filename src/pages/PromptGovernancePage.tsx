@@ -7,8 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, FileCode, Cog, Wrench } from "lucide-react";
+import { Plus, FileCode, Cog, Wrench, ScrollText } from "lucide-react";
 import { PromptTemplatesTable } from "@/components/prompt-governance/PromptTemplatesTable";
+import { FieldPromptsSettings } from "@/components/FieldPromptsSettings";
 import { EditPromptTemplateDialog } from "@/components/prompt-governance/EditPromptTemplateDialog";
 import { PromptVersionHistoryPanel } from "@/components/prompt-governance/PromptVersionHistoryPanel";
 import { PromptVersionCompareDialog } from "@/components/prompt-governance/PromptVersionCompareDialog";
@@ -142,6 +143,9 @@ export default function PromptGovernancePage() {
           <TabsTrigger value="service" className="gap-1.5">
             <Wrench className="h-4 w-4" /> Serviço ({serviceTemplates.length})
           </TabsTrigger>
+          <TabsTrigger value="field-prompts" className="gap-1.5">
+            <ScrollText className="h-4 w-4" /> Prompts por Campo
+          </TabsTrigger>
           <TabsTrigger value="versions" disabled={!selectedTemplate}>
             Versões {selectedTpl ? `— ${selectedTpl.prompt_name}` : ""}
           </TabsTrigger>
@@ -184,6 +188,16 @@ export default function PromptGovernancePage() {
             onRestore={id => restoreTemplate.mutate(id)}
             onDelete={id => setDeleteId(id)}
           />
+        </TabsContent>
+
+        <TabsContent value="field-prompts" className="mt-4">
+          <div className="mb-4 p-3 bg-muted/50 rounded-lg">
+            <p className="text-sm text-muted-foreground">
+              <ScrollText className="w-4 h-4 inline mr-1" />
+              <strong>Prompts por Campo</strong> — instruções específicas que a IA segue ao otimizar cada campo do produto (título, descrição, SEO, etc.). Estes são os prompts operacionais usados durante a otimização.
+            </p>
+          </div>
+          <FieldPromptsSettings />
         </TabsContent>
 
         <TabsContent value="versions" className="space-y-4 mt-4">
