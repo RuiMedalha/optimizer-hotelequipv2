@@ -21,6 +21,7 @@ import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import {
   useAiProviders, useSaveAiProvider, useDeleteAiProvider, useTestAiProvider,
   useAiModelCatalog, useAiRoutingRules, useSaveAiRoutingRule, useDeleteAiRoutingRule,
+  useDiscoverAiModels,
   PROVIDER_TYPES, DEFAULT_TASK_TYPES,
   type AiProvider, type AiRoutingRule,
 } from "@/hooks/useAiProviderCenter";
