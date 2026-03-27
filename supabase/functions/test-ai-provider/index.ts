@@ -76,11 +76,9 @@ Deno.serve(async (req) => {
     let status = "success";
     let errorMessage: string | null = null;
     let latencyMs = 0;
-    let latencyMs = 0;
 
     try {
-      // Resolve API key from environment secrets — never from DB config
-      const apiKey = getProviderApiKey(provider.provider_type);
+      const apiKey = await getProviderApiKey(provider.provider_type, supabase, userId);
 
       if (provider.provider_type === "openai_direct") {
         if (!apiKey) throw new Error("OPENAI_API_KEY não configurada nos Secrets do backend. Adicione-a em Configurações → Secrets.");
