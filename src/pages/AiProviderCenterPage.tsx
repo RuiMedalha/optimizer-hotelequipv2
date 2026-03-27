@@ -196,8 +196,17 @@ export default function AiProviderCenterPage() {
 
         {/* ═══ PROVIDERS TAB ═══ */}
         <TabsContent value="providers" className="space-y-4 mt-4">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button 
+              onClick={() => activeWorkspace && discoverModels.mutate(activeWorkspace.id)} 
+              size="sm" variant="outline" 
+              disabled={discoverModels.isPending || !activeWorkspace}
+            >
+              {discoverModels.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Cpu className="h-4 w-4 mr-1" />}
+              Descobrir Modelos
+            </Button>
             <Button onClick={() => setEditProvider({ ...emptyProvider })} size="sm"><Plus className="h-4 w-4 mr-1" /> Adicionar Provider</Button>
+          </div>
           </div>
 
           {(providers.data || []).map(p => {
