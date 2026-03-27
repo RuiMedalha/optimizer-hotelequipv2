@@ -16,9 +16,6 @@ import { Progress } from "@/components/ui/progress";
 import { useSettings, useSaveSettings } from "@/hooks/useSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { FieldPromptsSettings } from "@/components/FieldPromptsSettings";
-import { DescriptionTemplateEditor } from "@/components/DescriptionTemplateEditor";
-import { AI_MODELS } from "@/hooks/useOptimizeProducts";
 import { WOO_PUBLISH_GROUPS, DEFAULT_WOO_FIELDS, SETTING_KEY_WOO_PUBLISH_FIELDS } from "@/lib/wooPublishFields";
 import { WooSitesManager } from "@/components/WooSitesManager";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
@@ -50,19 +47,6 @@ const SETTING_KEYS = {
   telegram_chat_id: "telegram_chat_id",
 };
 
-const DEFAULT_OPTIMIZATION_PROMPT = `Optimiza o seguinte produto de e-commerce para SEO e conversão em português europeu.
-
-Gera:
-1. Um título otimizado (máx 70 chars, com keyword principal)
-2. Uma descrição otimizada (200-400 chars, persuasiva, com benefícios e keywords)
-3. Uma descrição curta (máx 160 chars, resumo conciso)
-4. Meta title SEO (máx 60 chars)
-5. Meta description SEO (máx 155 chars, com call-to-action)
-6. SEO slug (url-friendly, lowercase, hífens)
-7. Tags relevantes (3-6 palavras-chave)
-8. Preço sugerido (pode manter o original ou ajustar ligeiramente)
-
-IMPORTANTE: Mantém e melhora as características técnicas do produto (dimensões, peso, potência, etc.) na descrição otimizada. Não percas informação técnica.`;
 
 const SettingsPage = () => {
   const { activeWorkspace } = useWorkspaceContext();
