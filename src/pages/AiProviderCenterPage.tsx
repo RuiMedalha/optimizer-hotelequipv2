@@ -63,8 +63,14 @@ export default function AiProviderCenterPage() {
   const modelsForType = (providerType: string) =>
     (modelCatalog.data || []).filter(m => m.provider_type === providerType);
 
-  const handleTestProvider = async (_id: string) => {
-    toast.info("Teste de provider temporariamente indisponível — função edge no limite do plano Supabase.");
+  const handleTestProvider = async (id: string) => {
+    if (!activeWorkspace) return;
+    setTestingId(id);
+    try {
+      await testProvider.mutateAsync({ providerId: id, workspaceId: activeWorkspace.id });
+    } finally {
+      setTestingId(null);
+    }
   };
 
   const handleSaveProvider = async () => {
@@ -426,20 +432,15 @@ export default function AiProviderCenterPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>API Key <span className="text-destructive">*</span></Label>
-                <Input
-                  type="password"
-                  placeholder={editProvider.provider_type === "gemini_direct" ? "AIza..." : editProvider.provider_type === "openai_direct" ? "sk-..." : "Chave API..."}
-                  value={(editProvider.config as any)?.api_key || ""}
-                  onChange={e => setEditProvider({ ...editProvider, config: { ...editProvider.config, api_key: e.target.value } })}
-                />
-                <p className="text-xs text-muted-foreground">
-                  {editProvider.provider_type === "gemini_direct" && "Obtém em: Google AI Studio → API Keys"}
-                  {editProvider.provider_type === "openai_direct" && "Obtém em: platform.openai.com → API Keys"}
-                  {editProvider.provider_type === "anthropic_direct" && "Obtém em: console.anthropic.com → API Keys"}
-                  {editProvider.provider_type === "azure_openai" && "Obtém no portal Azure → Cognitive Services"}
-                  {!["gemini_direct", "openai_direct", "anthropic_direct", "azure_openai"].includes(editProvider.provider_type || "") && "Guardada de forma segura no backend."}
-                </p>
+                <Label>API Key</Label>
+                <div className="bg-muted/50 p-3 rounded-lg text-sm text-muted-foreground space-y-1">
+                  <p className="font-medium text-foreground flex items-center gap-1.5"><Shield className="h-3.5 w-3.5" /> Chaves geridas via Secrets do Backend</p>
+                  <p>As API Keys são armazenadas de forma segura como Secrets no backend e <strong>nunca</strong> passam pela base de dados.</p>
+                  {editProvider.provider_type === "gemini_direct" && <p>Secret necessário: <code className="bg-background px-1 rounded">GEMINI_API_KEY</code> — Obtém em: Google AI Studio → API Keys</p>}
+                  {editProvider.provider_type === "openai_direct" && <p>Secret necessário: <code className="bg-background px-1 rounded">OPENAI_API_KEY</code> — Obtém em: platform.openai.com → API Keys</p>}
+                  {editProvider.provider_type === "anthropic_direct" && <p>Secret necessário: <code className="bg-background px-1 rounded">ANTHROPIC_API_KEY</code> — Obtém em: console.anthropic.com → API Keys</p>}
+                  {editProvider.provider_type === "azure_openai" && <p>Secret necessário: <code className="bg-background px-1 rounded">AZURE_OPENAI_API_KEY</code> — Obtém no portal Azure</p>}
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
