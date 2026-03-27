@@ -16,9 +16,6 @@ import { Progress } from "@/components/ui/progress";
 import { useSettings, useSaveSettings } from "@/hooks/useSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { FieldPromptsSettings } from "@/components/FieldPromptsSettings";
-import { DescriptionTemplateEditor } from "@/components/DescriptionTemplateEditor";
-import { AI_MODELS } from "@/hooks/useOptimizeProducts";
 import { WOO_PUBLISH_GROUPS, DEFAULT_WOO_FIELDS, SETTING_KEY_WOO_PUBLISH_FIELDS } from "@/lib/wooPublishFields";
 import { WooSitesManager } from "@/components/WooSitesManager";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
@@ -50,19 +47,6 @@ const SETTING_KEYS = {
   telegram_chat_id: "telegram_chat_id",
 };
 
-const DEFAULT_OPTIMIZATION_PROMPT = `Optimiza o seguinte produto de e-commerce para SEO e conversão em português europeu.
-
-Gera:
-1. Um título otimizado (máx 70 chars, com keyword principal)
-2. Uma descrição otimizada (200-400 chars, persuasiva, com benefícios e keywords)
-3. Uma descrição curta (máx 160 chars, resumo conciso)
-4. Meta title SEO (máx 60 chars)
-5. Meta description SEO (máx 155 chars, com call-to-action)
-6. SEO slug (url-friendly, lowercase, hífens)
-7. Tags relevantes (3-6 palavras-chave)
-8. Preço sugerido (pode manter o original ou ajustar ligeiramente)
-
-IMPORTANTE: Mantém e melhora as características técnicas do produto (dimensões, peso, potência, etc.) na descrição otimizada. Não percas informação técnica.`;
 
 const SettingsPage = () => {
   const { activeWorkspace } = useWorkspaceContext();
@@ -192,193 +176,24 @@ const SettingsPage = () => {
         <p className="text-muted-foreground mt-1">Gerir credenciais e preferências da aplicação.</p>
       </div>
 
-      {/* Prompt Governance Link */}
+      {/* AI & Prompts — Centralized */}
       <Card className="border-primary/20 bg-primary/5">
-        <CardContent className="p-4 flex items-center justify-between">
-          <div>
-            <p className="font-medium text-foreground">🧠 Gestão Avançada de Prompts</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Versionamento, performance por versão, comparação e templates de sistema/serviço — tudo centralizado no Prompt Governance.
-            </p>
-          </div>
-          <Link to="/prompt-governance">
-            <Button variant="outline" size="sm" className="gap-1.5">
-              <ExternalLink className="w-3.5 h-3.5" /> Abrir
-            </Button>
-          </Link>
-        </CardContent>
-      </Card>
-
-      {/* Optimization Prompt */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">✍️ Prompt Global de Otimização</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Prompt Global (contexto base para todos os campos)</Label>
-            <p className="text-xs text-muted-foreground">
-              Este prompt é incluído como contexto base em todas as otimizações. Os prompts por campo abaixo adicionam regras específicas.
-            </p>
-            <Textarea
-              rows={8}
-              className="font-mono text-xs"
-              placeholder={DEFAULT_OPTIMIZATION_PROMPT}
-              value={form[SETTING_KEYS.optimization_prompt] ?? DEFAULT_OPTIMIZATION_PROMPT}
-              onChange={(e) => updateField(SETTING_KEYS.optimization_prompt, e.target.value)}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Description Template */}
-      <DescriptionTemplateEditor />
-
-      {/* Per-field prompts */}
-      <FieldPromptsSettings />
-
-      {/* Notifications */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">📱 Notificações</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Telegram Chat ID</Label>
-            <p className="text-xs text-muted-foreground">
-              O bot Telegram envia notificações a 50% e ao concluir jobs de background. Usa o teu <strong>Chat ID numérico</strong> (ex: <code>123456789</code> ou <code>-1001234567890</code>), não <code>@username</code> nem links <code>t.me</code>.
-            </p>
-            <div className="flex gap-2">
-              <Input
-                className="flex-1"
-                placeholder="123456789"
-                value={form[SETTING_KEYS.telegram_chat_id] ?? ""}
-                onChange={(e) => updateField(SETTING_KEYS.telegram_chat_id, e.target.value)}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={!form[SETTING_KEYS.telegram_chat_id]?.trim()}
-                onClick={async () => {
-                  try {
-                    // Save the chat ID first so the edge function can read it
-                    const chatId = form[SETTING_KEYS.telegram_chat_id]?.trim();
-                    if (!chatId) {
-                      toast.error("Introduz o Telegram Chat ID primeiro");
-                      return;
-                    }
-
-                    if (!/^-?\d+$/.test(chatId)) {
-                      toast.error("Chat ID inválido: usa apenas números (ex: 123456789 ou -100...).");
-                      return;
-                    }
-                    const { data: { user } } = await supabase.auth.getUser();
-                    if (!user) { toast.error("Não autenticado"); return; }
-
-                    await supabase.from("settings").upsert(
-                      { user_id: user.id, key: "telegram_chat_id", value: chatId },
-                      { onConflict: "user_id,key" }
-                    );
-
-                    toast.info("A enviar teste Telegram...");
-                    const { data, error } = await supabase.functions.invoke("test-telegram");
-                    if (error) {
-                      const response = typeof error === "object" && error && "context" in error ? (error as any).context : null;
-                      if (response?.json) {
-                        const payload = await response.json().catch(() => null);
-                        toast.error(payload?.error || error.message || "Erro ao enviar");
-                      } else {
-                        toast.error(error.message || "Erro ao enviar");
-                      }
-                      return;
-                    }
-                    if (data?.success) {
-                      toast.success("✅ Notificação Telegram enviada!");
-                    } else {
-                      toast.error(data?.error || "Erro ao enviar notificação");
-                    }
-                  } catch (err: any) {
-                    toast.error(err.message || "Erro ao testar Telegram");
-                  }
-                }}
-              >
-                <Send className="h-4 w-4 mr-1" /> Testar
-              </Button>
-            </div>
-          </div>
-          <Separator />
-          <div className="space-y-2">
-            <Label>Webhook WhatsApp (Zapier, Make, n8n)</Label>
-            <p className="text-xs text-muted-foreground">
-              Alternativa: webhook que envia para WhatsApp ao concluir jobs.
-            </p>
-            <Input
-              placeholder="https://hooks.zapier.com/hooks/catch/..."
-              value={form[SETTING_KEYS.whatsapp_webhook] ?? ""}
-              onChange={(e) => updateField(SETTING_KEYS.whatsapp_webhook, e.target.value)}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Knowledge URLs */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">🔗 URLs de Conhecimento</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="p-4 space-y-3">
+          <p className="font-medium text-foreground">🧠 IA e Prompts</p>
           <p className="text-xs text-muted-foreground">
-            URLs de sites de fornecedores/marcas para pesquisa de informação adicional durante a otimização.
+            Toda a gestão de prompts, modelos de IA e providers está centralizada em páginas dedicadas para maior controlo e versionamento.
           </p>
-          {knowledgeUrls.map((url, index) => (
-            <div key={index} className="flex gap-2">
-              <Input
-                placeholder="https://fornecedor.com/catalogo"
-                value={url}
-                className="flex-1"
-                onChange={(e) => {
-                  const updated = [...knowledgeUrls];
-                  updated[index] = e.target.value;
-                  setKnowledgeUrls(updated);
-                }}
-              />
-              <Button variant="ghost" size="icon" onClick={() => removeKnowledgeUrl(index)} disabled={knowledgeUrls.length === 1}>
-                <Trash2 className="w-4 h-4" />
+          <div className="flex flex-wrap gap-2">
+            <Link to="/prompt-governance">
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <ExternalLink className="w-3.5 h-3.5" /> Prompt Governance
               </Button>
-            </div>
-          ))}
-          <Button variant="outline" size="sm" onClick={addKnowledgeUrl}>
-            <Plus className="w-4 h-4 mr-1" /> Adicionar URL
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* AI Models */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">🤖 Modelos de IA</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-xs text-muted-foreground">
-            A otimização usa o Lovable AI Gateway por defeito (não requer API keys). Opcionalmente, pode guardar chaves para uso futuro ou integrações externas.
-          </p>
-          <SecretField label="API Key OpenAI" id="openai" settingKey={SETTING_KEYS.openai_key} form={form} updateField={updateField} showKeys={showKeys} toggleShow={toggleShow} />
-          <SecretField label="API Key Anthropic (Claude)" id="anthropic" settingKey={SETTING_KEYS.anthropic_key} form={form} updateField={updateField} showKeys={showKeys} toggleShow={toggleShow} />
-          <SecretField label="API Key Google Gemini" id="gemini" settingKey={SETTING_KEYS.gemini_key} form={form} updateField={updateField} showKeys={showKeys} toggleShow={toggleShow} />
-          <SecretField label="API Key Mistral AI" id="mistral" settingKey={SETTING_KEYS.mistral_key} form={form} updateField={updateField} showKeys={showKeys} toggleShow={toggleShow} />
-          <Separator />
-          <div className="space-y-2">
-            <Label>Modelo Padrão</Label>
-            <Select value={form[SETTING_KEYS.default_model] ?? "gemini-3-flash"} onValueChange={(v) => updateField(SETTING_KEYS.default_model, v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {AI_MODELS.map((m) => (
-                  <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">Modelo usado por defeito na otimização (pode ser alterado por otimização).</p>
+            </Link>
+            <Link to="/ai-provider-center">
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <ExternalLink className="w-3.5 h-3.5" /> AI Provider Center
+              </Button>
+            </Link>
           </div>
         </CardContent>
       </Card>
