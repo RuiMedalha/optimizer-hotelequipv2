@@ -417,6 +417,9 @@ export default function PromptGovernancePage() {
           <TabsTrigger value="field-prompts" className="gap-1.5">
             <ScrollText className="h-4 w-4" /> Prompts por Campo
           </TabsTrigger>
+          <TabsTrigger value="description-template" className="gap-1.5">
+            <Palette className="h-4 w-4" /> Template Descrição
+          </TabsTrigger>
           <TabsTrigger value="versions" disabled={!selectedTemplate}>
             Versões {selectedTpl ? `— ${selectedTpl.prompt_name}` : ""}
           </TabsTrigger>
