@@ -485,6 +485,7 @@ export default function PromptGovernancePage() {
           <DescriptionTemplateEditor />
         </TabsContent>
 
+        <TabsContent value="versions" className="space-y-4 mt-4">
           {!selectedTemplate ? (
             <p className="text-muted-foreground">Selecione um template.</p>
           ) : (
