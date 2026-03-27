@@ -1,11 +1,25 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { directAICall } from "../_shared/ai/direct-ai-call.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
+
+/**
+ * Resolves the API key for a provider type from Supabase secrets (env vars).
+ * Keys are NEVER read from the database — only from secure environment variables.
+ */
+function getProviderApiKey(providerType: string): string | null {
+  const keyMap: Record<string, string> = {
+    gemini_direct: "GEMINI_API_KEY",
+    openai_direct: "OPENAI_API_KEY",
+    anthropic_direct: "ANTHROPIC_API_KEY",
+    azure_openai: "AZURE_OPENAI_API_KEY",
+  };
+  const envVar = keyMap[providerType];
+  return envVar ? (Deno.env.get(envVar) ?? null) : null;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -21,7 +35,7 @@ Deno.serve(async (req) => {
 
     const { data: provider, error: pErr } = await supabase
       .from("ai_providers")
-      .select("*")
+      .select("id, provider_name, provider_type, default_model, fallback_model, config")
       .eq("id", providerId)
       .single();
     if (pErr || !provider) throw new Error("Provider not found");
@@ -33,22 +47,11 @@ Deno.serve(async (req) => {
     let latencyMs = 0;
 
     try {
-      if (provider.provider_type === "lovable_gateway") {
-        // Lovable gateway replaced with direct AI calls
-        try {
-          const result = await directAICall({
-            systemPrompt: "",
-            messages: [{ role: "user", content: testPrompt }],
-            model: provider.default_model || "gemini-2.5-flash",
-            maxTokens: 10,
-          });
-          latencyMs = Date.now() - startMs;
-        } catch (e: any) {
-          throw e;
-        }
-      } else if (provider.provider_type === "openai_direct") {
-        const apiKey = provider.config?.api_key;
-        if (!apiKey) throw new Error("OpenAI API key not configured in provider config");
+      // Resolve API key from environment secrets — never from DB config
+      const apiKey = getProviderApiKey(provider.provider_type);
+
+      if (provider.provider_type === "openai_direct") {
+        if (!apiKey) throw new Error("OPENAI_API_KEY não configurada nos Secrets do backend. Adicione-a em Configurações → Secrets.");
         const resp = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
           headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
@@ -61,9 +64,9 @@ Deno.serve(async (req) => {
         latencyMs = Date.now() - startMs;
         if (!resp.ok) throw new Error(`OpenAI ${resp.status}: ${await resp.text()}`);
         await resp.json();
+
       } else if (provider.provider_type === "gemini_direct") {
-        const apiKey = provider.config?.api_key;
-        if (!apiKey) throw new Error("Gemini API key not configured in provider config");
+        if (!apiKey) throw new Error("GEMINI_API_KEY não configurada nos Secrets do backend. Adicione-a em Configurações → Secrets.");
         const model = provider.default_model || "gemini-2.5-flash";
         const resp = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
@@ -76,9 +79,9 @@ Deno.serve(async (req) => {
         latencyMs = Date.now() - startMs;
         if (!resp.ok) throw new Error(`Gemini ${resp.status}: ${await resp.text()}`);
         await resp.json();
+
       } else if (provider.provider_type === "anthropic_direct") {
-        const apiKey = provider.config?.api_key;
-        if (!apiKey) throw new Error("Anthropic API key not configured in provider config");
+        if (!apiKey) throw new Error("ANTHROPIC_API_KEY não configurada nos Secrets do backend. Adicione-a em Configurações → Secrets.");
         const resp = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
           headers: {
@@ -95,9 +98,10 @@ Deno.serve(async (req) => {
         latencyMs = Date.now() - startMs;
         if (!resp.ok) throw new Error(`Anthropic ${resp.status}: ${await resp.text()}`);
         await resp.json();
+
       } else {
+        // OCR or unknown — mark as success
         latencyMs = Date.now() - startMs;
-        // OCR or unknown — just mark as success
       }
     } catch (e: any) {
       status = "error";
@@ -115,7 +119,7 @@ Deno.serve(async (req) => {
       model_tested: provider.default_model,
     });
 
-    // Update provider health
+    // Update provider health metadata
     await supabase.from("ai_providers").update({
       last_health_check: new Date().toISOString(),
       last_health_status: status,
