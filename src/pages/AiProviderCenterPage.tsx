@@ -42,6 +42,26 @@ const emptyRoute: Partial<AiRoutingRule> = {
 const MODES = ["economic", "balanced", "premium"];
 const MODELS = ["google/gemini-2.5-flash-lite", "google/gemini-2.5-flash", "google/gemini-2.5-pro", "google/gemini-3-flash-preview"];
 
+const MODEL_DESCRIPTIONS: Record<string, string> = {
+  "gemini-2.5-pro": "Top-tier Gemini. Melhor para raciocínio complexo, imagens+texto e contextos grandes.",
+  "gemini-2.5-flash": "Equilíbrio custo/qualidade. Bom para multimodal e raciocínio moderado.",
+  "gemini-2.5-flash-lite": "Mais rápido e barato. Ideal para classificação, sumários e tarefas simples.",
+  "gemini-3-flash-preview": "Última geração Google. Velocidade e capacidade equilibradas.",
+  "gemini-3.1-pro-preview": "Preview do modelo de raciocínio de próxima geração.",
+  "gemini-3-pro-image-preview": "Geração de imagens de próxima geração.",
+  "gemini-3.1-flash-image-preview": "Geração e edição de imagens rápida com qualidade pro.",
+  "gpt-4o": "Multimodal potente. Excelente raciocínio, contexto longo, texto+imagens.",
+  "gpt-4o-mini": "Custo reduzido com boa capacidade multimodal. Bom equilíbrio geral.",
+  "gpt-5": "Topo de gama OpenAI. Raciocínio avançado, grande precisão. Mais caro e lento.",
+  "gpt-5-mini": "Custo moderado mantendo raciocínio e capacidade multimodal forte.",
+  "gpt-5-nano": "Velocidade e custo mínimos. Ideal para tarefas simples de alto volume.",
+  "gpt-5.2": "Último modelo OpenAI com raciocínio melhorado para resolução de problemas complexos.",
+  "claude-3-5-haiku-20241022": "Rápido e económico. Bom para tarefas simples e respostas rápidas.",
+  "claude-3-5-sonnet-20241022": "Equilíbrio entre velocidade e inteligência. Versátil.",
+  "claude-3-opus-20240229": "Máxima capacidade Anthropic. Raciocínio profundo e nuance.",
+  "claude-sonnet-4-20250514": "Última geração Anthropic. Raciocínio superior e fiabilidade.",
+};
+
 export default function AiProviderCenterPage() {
   const { activeWorkspace } = useWorkspaceContext();
   const providers = useAiProviders();
@@ -177,29 +197,67 @@ export default function AiProviderCenterPage() {
             <Button onClick={() => setEditProvider({ ...emptyProvider })} size="sm"><Plus className="h-4 w-4 mr-1" /> Adicionar Provider</Button>
           </div>
 
-          {(providers.data || []).map(p => (
+          {(providers.data || []).map(p => {
+            const providerModels = (modelCatalog.data || []).filter(m => m.provider_type === p.provider_type);
+            const isHealthy = p.is_active && p.last_health_status === "success";
+            return (
             <Card key={p.id} className={!p.is_active ? "opacity-60" : ""}>
-              <CardContent className="flex items-center justify-between p-4 gap-4 flex-wrap">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className={`w-2.5 h-2.5 rounded-full ${p.last_health_status === "success" ? "bg-primary" : p.last_health_status === "error" ? "bg-destructive" : "bg-muted-foreground"}`} />
-                  <div className="min-w-0">
-                    <p className="font-medium text-foreground truncate">{p.provider_name}</p>
-                    <p className="text-xs text-muted-foreground">{PROVIDER_TYPES.find(t => t.value === p.provider_type)?.label || p.provider_type} • {p.default_model || "sem modelo"}</p>
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-2.5 h-2.5 rounded-full ${p.last_health_status === "success" ? "bg-primary" : p.last_health_status === "error" ? "bg-destructive" : "bg-muted-foreground"}`} />
+                    <div className="min-w-0">
+                      <p className="font-medium text-foreground truncate">{p.provider_name}</p>
+                      <p className="text-xs text-muted-foreground">{PROVIDER_TYPES.find(t => t.value === p.provider_type)?.label || p.provider_type} • {p.default_model || "sem modelo"}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant={p.is_active ? "default" : "secondary"}>{p.is_active ? "Ativo" : "Inativo"}</Badge>
+                    <Badge variant="outline">Prioridade: {p.priority_order}</Badge>
+                    {p.avg_latency_ms && <Badge variant="outline">{Math.round(p.avg_latency_ms)}ms</Badge>}
+                    <Button size="sm" variant="outline" onClick={() => handleTestProvider(p.id)} disabled={testingId === p.id}>
+                      {testingId === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <TestTube className="h-3 w-3" />}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditProvider(p)}><Settings2 className="h-3 w-3" /></Button>
+                    <Button size="sm" variant="ghost" onClick={() => deleteProvider.mutate(p.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge variant={p.is_active ? "default" : "secondary"}>{p.is_active ? "Ativo" : "Inativo"}</Badge>
-                  <Badge variant="outline">Prioridade: {p.priority_order}</Badge>
-                  {p.avg_latency_ms && <Badge variant="outline">{Math.round(p.avg_latency_ms)}ms</Badge>}
-                  <Button size="sm" variant="outline" onClick={() => handleTestProvider(p.id)} disabled={testingId === p.id}>
-                    {testingId === p.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <TestTube className="h-3 w-3" />}
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setEditProvider(p)}><Settings2 className="h-3 w-3" /></Button>
-                  <Button size="sm" variant="ghost" onClick={() => deleteProvider.mutate(p.id)}><Trash2 className="h-3 w-3 text-destructive" /></Button>
-                </div>
+
+                {/* Models available for this provider */}
+                {isHealthy && providerModels.length > 0 && (
+                  <div className="border border-border rounded-lg overflow-hidden">
+                    <div className="bg-muted/30 px-3 py-1.5 text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                      <Cpu className="h-3 w-3" /> {providerModels.length} modelo{providerModels.length !== 1 ? "s" : ""} disponíve{providerModels.length !== 1 ? "is" : "l"}
+                    </div>
+                    <div className="divide-y divide-border">
+                      {providerModels.map(m => (
+                        <div key={m.id} className="px-3 py-2 flex items-start gap-3 text-xs">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-foreground">{m.display_name}</p>
+                            <p className="text-muted-foreground mt-0.5">{MODEL_DESCRIPTIONS[m.model_id] || `Modelo ${m.model_id}`}</p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                            {m.supports_text && <Badge variant="outline" className="text-[10px] px-1.5 py-0">Texto</Badge>}
+                            {m.supports_vision && <Badge variant="outline" className="text-[10px] px-1.5 py-0">Vision</Badge>}
+                            {m.supports_tool_calls && <Badge variant="outline" className="text-[10px] px-1.5 py-0">Tools</Badge>}
+                            <span className="text-muted-foreground whitespace-nowrap">
+                              ${m.cost_input_per_mtok ?? "?"} / ${m.cost_output_per_mtok ?? "?"} MTok
+                            </span>
+                            {m.speed_rating && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">⚡{m.speed_rating}</Badge>}
+                            {m.accuracy_rating && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">🎯{m.accuracy_rating}</Badge>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {isHealthy && providerModels.length === 0 && (
+                  <p className="text-xs text-muted-foreground italic px-1">Nenhum modelo no catálogo para este tipo de provider. Adicione modelos no separador Catálogo.</p>
+                )}
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
           {(providers.data || []).length === 0 && (
             <Card><CardContent className="p-8 text-center text-muted-foreground">Nenhum provider configurado. Adicione o primeiro acima.</CardContent></Card>
           )}
