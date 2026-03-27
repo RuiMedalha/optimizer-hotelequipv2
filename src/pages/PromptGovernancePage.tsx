@@ -474,7 +474,17 @@ export default function PromptGovernancePage() {
           <FieldPromptsSettings />
         </TabsContent>
 
-        <TabsContent value="versions" className="space-y-4 mt-4">
+        <TabsContent value="description-template" className="mt-4">
+          <div className="mb-4 p-3 bg-muted/50 rounded-lg">
+            <p className="text-sm text-muted-foreground">
+              <Palette className="w-4 h-4 inline mr-1" />
+              <strong>Template de Descrição</strong> — define a estrutura visual da descrição gerada pela IA. 
+              Use variáveis coloridas para montar o layout. O template é passado como instrução de formato à IA.
+            </p>
+          </div>
+          <DescriptionTemplateEditor />
+        </TabsContent>
+
           {!selectedTemplate ? (
             <p className="text-muted-foreground">Selecione um template.</p>
           ) : (
