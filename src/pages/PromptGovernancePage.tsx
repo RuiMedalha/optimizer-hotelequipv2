@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, FileCode, Cog, Wrench, ScrollText, Loader2, Sparkles } from "lucide-react";
+import { Plus, FileCode, Cog, Wrench, ScrollText, Loader2, Sparkles, Palette } from "lucide-react";
+import { DescriptionTemplateEditor } from "@/components/DescriptionTemplateEditor";
 import { PromptTemplatesTable } from "@/components/prompt-governance/PromptTemplatesTable";
 import { EditPromptTemplateDialog } from "@/components/prompt-governance/EditPromptTemplateDialog";
 import { PromptVersionHistoryPanel } from "@/components/prompt-governance/PromptVersionHistoryPanel";
@@ -416,6 +417,9 @@ export default function PromptGovernancePage() {
           <TabsTrigger value="field-prompts" className="gap-1.5">
             <ScrollText className="h-4 w-4" /> Prompts por Campo
           </TabsTrigger>
+          <TabsTrigger value="description-template" className="gap-1.5">
+            <Palette className="h-4 w-4" /> Template Descrição
+          </TabsTrigger>
           <TabsTrigger value="versions" disabled={!selectedTemplate}>
             Versões {selectedTpl ? `— ${selectedTpl.prompt_name}` : ""}
           </TabsTrigger>
@@ -468,6 +472,17 @@ export default function PromptGovernancePage() {
             </p>
           </div>
           <FieldPromptsSettings />
+        </TabsContent>
+
+        <TabsContent value="description-template" className="mt-4">
+          <div className="mb-4 p-3 bg-muted/50 rounded-lg">
+            <p className="text-sm text-muted-foreground">
+              <Palette className="w-4 h-4 inline mr-1" />
+              <strong>Template de Descrição</strong> — define a estrutura visual da descrição gerada pela IA. 
+              Use variáveis coloridas para montar o layout. O template é passado como instrução de formato à IA.
+            </p>
+          </div>
+          <DescriptionTemplateEditor />
         </TabsContent>
 
         <TabsContent value="versions" className="space-y-4 mt-4">
