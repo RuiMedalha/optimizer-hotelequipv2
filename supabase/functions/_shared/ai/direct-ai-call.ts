@@ -31,6 +31,14 @@ export interface DirectAIResponse {
 
 // Model mapping: canonical -> provider-specific
 const MODEL_MAP: Record<string, { provider: string; model: string }> = {
+  // Lovable Gateway models (use gateway format)
+  "lovable/gemini-3-flash-preview": { provider: "lovable_gateway", model: "google/gemini-3-flash-preview" },
+  "lovable/gemini-2.5-pro": { provider: "lovable_gateway", model: "google/gemini-2.5-pro" },
+  "lovable/gemini-2.5-flash": { provider: "lovable_gateway", model: "google/gemini-2.5-flash" },
+  "lovable/gemini-2.5-flash-lite": { provider: "lovable_gateway", model: "google/gemini-2.5-flash-lite" },
+  "lovable/gpt-5": { provider: "lovable_gateway", model: "openai/gpt-5" },
+  "lovable/gpt-5-mini": { provider: "lovable_gateway", model: "openai/gpt-5-mini" },
+  "lovable/gpt-5-nano": { provider: "lovable_gateway", model: "openai/gpt-5-nano" },
   // Gemini models (via Gemini API)
   "google/gemini-2.5-flash": { provider: "gemini", model: "gemini-2.5-flash" },
   "google/gemini-2.5-pro": { provider: "gemini", model: "gemini-2.5-pro" },
@@ -55,6 +63,7 @@ function resolveModel(model: string): { provider: string; model: string } {
 
 function getApiKey(provider: string): string | null {
   const envVars: Record<string, string> = {
+    lovable_gateway: "LOVABLE_API_KEY",
     gemini: "GEMINI_API_KEY",
     openai: "OPENAI_API_KEY",
     anthropic: "ANTHROPIC_API_KEY",
@@ -220,6 +229,46 @@ async function callOpenAI(params: DirectAICallParams, model: string): Promise<Di
   return { ...data, provider: "openai" };
 }
 
+// ─── Lovable AI Gateway ──────────────────────────────────────────────────────
+
+async function callLovableGateway(params: DirectAICallParams, model: string): Promise<DirectAIResponse> {
+  const apiKey = getApiKey("lovable_gateway");
+  if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
+
+  const messages: any[] = [
+    { role: "system", content: params.systemPrompt },
+    ...params.messages,
+  ];
+
+  const body: any = {
+    model,
+    messages,
+    ...(params.temperature != null ? { temperature: params.temperature } : {}),
+    ...(params.maxTokens != null ? { max_tokens: params.maxTokens } : {}),
+    ...(params.jsonMode ? { response_format: { type: "json_object" } } : {}),
+    ...(params.tools?.length ? { tools: params.tools, tool_choice: params.toolChoice ?? "auto" } : {}),
+  };
+
+  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text();
+    if (resp.status === 429) throw new Error(`Lovable AI rate limited: ${text}`);
+    if (resp.status === 402) throw new Error(`Lovable AI credits exhausted: ${text}`);
+    throw new Error(`Lovable AI Gateway error ${resp.status}: ${text}`);
+  }
+
+  const data = await resp.json();
+  return { ...data, provider: "lovable_gateway" };
+}
+
 // ─── Main Entry Point ────────────────────────────────────────────────────────
 
 export async function directAICall(params: DirectAICallParams): Promise<DirectAIResponse> {
@@ -228,7 +277,9 @@ export async function directAICall(params: DirectAICallParams): Promise<DirectAI
 
   // Try primary provider
   try {
-    if (resolved.provider === "gemini") {
+    if (resolved.provider === "lovable_gateway") {
+      return await callLovableGateway(params, resolved.model);
+    } else if (resolved.provider === "gemini") {
       return await callGemini(params, resolved.model);
     } else if (resolved.provider === "openai") {
       return await callOpenAI(params, resolved.model);
@@ -237,12 +288,13 @@ export async function directAICall(params: DirectAICallParams): Promise<DirectAI
     console.warn(`[direct-ai-call] Primary provider ${resolved.provider} failed:`, (err as Error).message);
   }
 
-  // Fallback chain: gemini -> openai -> anthropic
-  const fallbacks = ["gemini", "openai"].filter((p) => p !== resolved.provider);
+  // Fallback chain: lovable_gateway -> gemini -> openai
+  const fallbacks = ["lovable_gateway", "gemini", "openai"].filter((p) => p !== resolved.provider);
   for (const fb of fallbacks) {
     const key = getApiKey(fb);
     if (!key) continue;
     try {
+      if (fb === "lovable_gateway") return await callLovableGateway({ ...params }, "google/gemini-3-flash-preview");
       const fbModel = fb === "gemini" ? "gemini-2.5-flash" : "gpt-4o-mini";
       if (fb === "gemini") return await callGemini({ ...params }, fbModel);
       if (fb === "openai") return await callOpenAI({ ...params }, fbModel);
@@ -251,5 +303,5 @@ export async function directAICall(params: DirectAICallParams): Promise<DirectAI
     }
   }
 
-  throw new Error("No AI providers available. Configure GEMINI_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY.");
+  throw new Error("No AI providers available. Configure LOVABLE_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY.");
 }
