@@ -74,6 +74,7 @@ export default function AiProviderCenterPage() {
   const testProvider = useTestAiProvider();
   const saveRoute = useSaveAiRoutingRule();
   const deleteRoute = useDeleteAiRoutingRule();
+  const discoverModels = useDiscoverAiModels();
 
   // AI Governance data (consolidated)
   const { usageSummary, usageLogs, profiles, createProfile, activateProfile, retryPolicies, createRetryPolicy } = useAiGovernance();
