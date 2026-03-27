@@ -26,7 +26,7 @@ import {
 import { useAiGovernance } from "@/hooks/useAiGovernance";
 
 const emptyProvider: Partial<AiProvider> = {
-  provider_name: "", provider_type: "lovable_gateway", default_model: "", fallback_model: "",
+  provider_name: "", provider_type: "gemini_direct", default_model: "", fallback_model: "",
   timeout_seconds: 60, priority_order: 10, is_active: true, supports_text: true,
   supports_vision: false, supports_json_schema: false, supports_translation: false,
   supports_function_calling: false, config: {},
@@ -100,8 +100,8 @@ export default function AiProviderCenterPage() {
           <CardContent className="space-y-3 text-sm text-muted-foreground">
             <div className="grid md:grid-cols-3 gap-4">
               <div className="space-y-1">
-                <p className="font-semibold text-foreground">1. Provider (esta página)</p>
-                <p>Adicione um provider de IA. O <strong>Lovable AI Gateway</strong> funciona sem API key — já está integrado.</p>
+                <p className="font-semibold text-foreground">1. Provider + API Key</p>
+                <p>Adicione um provider (Google Gemini, OpenAI, Anthropic) e configure a <strong>API Key</strong> diretamente.</p>
               </div>
               <div className="space-y-1">
                 <p className="font-semibold text-foreground">2. Routing (tab AI Routing)</p>
@@ -114,7 +114,7 @@ export default function AiProviderCenterPage() {
             </div>
             <div className="flex items-start gap-2 bg-muted/50 p-3 rounded-lg mt-2">
               <Info className="h-4 w-4 mt-0.5 text-primary shrink-0" />
-              <p>Para providers externos (OpenAI, Gemini, Anthropic), a API key é guardada no campo de configuração do provider. O Lovable Gateway não precisa de chave.</p>
+              <p>Cada provider necessita da sua API Key (GEMINI_API_KEY, OPENAI_API_KEY, etc.). A chave é guardada de forma segura no campo de configuração. Os modelos disponíveis aparecem no <strong>Catálogo</strong> após configurar o provider.</p>
             </div>
           </CardContent>
         </Card>
@@ -425,18 +425,22 @@ export default function AiProviderCenterPage() {
                   </Select>
                 </div>
               </div>
-              {editProvider.provider_type !== "lovable_gateway" && (
-                <div className="space-y-2">
-                  <Label>API Key</Label>
-                  <Input
-                    type="password"
-                    placeholder="sk-..."
-                    value={(editProvider.config as any)?.api_key || ""}
-                    onChange={e => setEditProvider({ ...editProvider, config: { ...editProvider.config, api_key: e.target.value } })}
-                  />
-                  <p className="text-xs text-muted-foreground">Guardada de forma segura no backend.</p>
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label>API Key <span className="text-destructive">*</span></Label>
+                <Input
+                  type="password"
+                  placeholder={editProvider.provider_type === "gemini_direct" ? "AIza..." : editProvider.provider_type === "openai_direct" ? "sk-..." : "Chave API..."}
+                  value={(editProvider.config as any)?.api_key || ""}
+                  onChange={e => setEditProvider({ ...editProvider, config: { ...editProvider.config, api_key: e.target.value } })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  {editProvider.provider_type === "gemini_direct" && "Obtém em: Google AI Studio → API Keys"}
+                  {editProvider.provider_type === "openai_direct" && "Obtém em: platform.openai.com → API Keys"}
+                  {editProvider.provider_type === "anthropic_direct" && "Obtém em: console.anthropic.com → API Keys"}
+                  {editProvider.provider_type === "azure_openai" && "Obtém no portal Azure → Cognitive Services"}
+                  {!["gemini_direct", "openai_direct", "anthropic_direct", "azure_openai"].includes(editProvider.provider_type || "") && "Guardada de forma segura no backend."}
+                </p>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Timeout (s)</Label>
