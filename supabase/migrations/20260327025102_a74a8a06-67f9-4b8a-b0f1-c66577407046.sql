@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS ai_model_catalog_ws_provider_model_uniq ON public.ai_model_catalog (workspace_id, provider_type, model_id);

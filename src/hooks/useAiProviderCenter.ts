@@ -185,6 +185,30 @@ export function useAiModelCatalog() {
   });
 }
 
+// ═══ Discover Models from Providers ═══
+export function useDiscoverAiModels() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (workspaceId: string) => {
+      const { data, error } = await supabase.functions.invoke("discover-ai-models", {
+        body: { workspaceId },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      if (data.discovered > 0) {
+        toast.success(data.message || `${data.discovered} modelos descobertos!`);
+      } else {
+        toast.info(data.message || "Nenhum modelo novo encontrado.");
+      }
+      qc.invalidateQueries({ queryKey: ["ai-model-catalog"] });
+      qc.invalidateQueries({ queryKey: ["ai-providers"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+}
+
 // ═══ Routing Rules ═══
 export function useAiRoutingRules() {
   const { activeWorkspace } = useWorkspaceContext();
