@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Trash2, Save, Eye, EyeOff, Loader2, Zap, Send, ImageIcon } from "lucide-react";
+import { Plus, Trash2, Save, Eye, EyeOff, Loader2, Zap, Send, ImageIcon, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Progress } from "@/components/ui/progress";
 import { useSettings, useSaveSettings } from "@/hooks/useSettings";
 import { supabase } from "@/integrations/supabase/client";
@@ -190,6 +191,23 @@ const SettingsPage = () => {
         <h1 className="text-2xl font-bold text-foreground">Configurações</h1>
         <p className="text-muted-foreground mt-1">Gerir credenciais e preferências da aplicação.</p>
       </div>
+
+      {/* Prompt Governance Link */}
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="p-4 flex items-center justify-between">
+          <div>
+            <p className="font-medium text-foreground">🧠 Gestão Avançada de Prompts</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Versionamento, performance por versão, comparação e templates de sistema/serviço — tudo centralizado no Prompt Governance.
+            </p>
+          </div>
+          <Link to="/prompt-governance">
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <ExternalLink className="w-3.5 h-3.5" /> Abrir
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
 
       {/* Optimization Prompt */}
       <Card>
