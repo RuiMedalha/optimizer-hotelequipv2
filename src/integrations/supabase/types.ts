@@ -8246,6 +8246,7 @@ export type Database = {
           page_hash: string
           supplier_guess: string | null
           table_positions: Json | null
+          workspace_id: string | null
         }
         Insert: {
           column_count?: number | null
@@ -8256,6 +8257,7 @@ export type Database = {
           page_hash: string
           supplier_guess?: string | null
           table_positions?: Json | null
+          workspace_id?: string | null
         }
         Update: {
           column_count?: number | null
@@ -8266,8 +8268,17 @@ export type Database = {
           page_hash?: string
           supplier_guess?: string | null
           table_positions?: Json | null
+          workspace_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pdf_layout_signatures_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pdf_page_blocks: {
         Row: {
