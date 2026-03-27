@@ -335,9 +335,23 @@ export default function PromptGovernancePage() {
           </h1>
           <p className="text-muted-foreground">Gestão de prompts de sistema (comportamento base) e prompts de serviço (tarefas específicas)</p>
         </div>
-        <Button onClick={() => setShowCreate(!showCreate)}>
-          <Plus className="w-4 h-4 mr-1" /> Novo Template
-        </Button>
+        <div className="flex gap-2">
+          {(templates.data || []).length === 0 && (
+            <Button variant="outline" onClick={handleSeedDefaults} disabled={seeding}>
+              {seeding ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}
+              Criar Prompts Padrão
+            </Button>
+          )}
+          {(templates.data || []).length > 0 && (templates.data || []).length < DEFAULT_PROMPTS.length && (
+            <Button variant="outline" size="sm" onClick={handleSeedDefaults} disabled={seeding}>
+              {seeding ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}
+              Completar em Falta
+            </Button>
+          )}
+          <Button onClick={() => setShowCreate(!showCreate)}>
+            <Plus className="w-4 h-4 mr-1" /> Novo Template
+          </Button>
+        </div>
       </div>
 
       {/* Summary */}
