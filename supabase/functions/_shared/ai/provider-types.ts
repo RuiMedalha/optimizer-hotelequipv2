@@ -16,7 +16,8 @@ export type CapabilityType =
 export type ProviderFormat =
   | 'openai_compatible'
   | 'anthropic'
-  | 'gemini';
+  | 'gemini'
+  | 'lovable_gateway';
 
 export type ModelStatus = 'active' | 'deprecated' | 'experimental';
 
@@ -98,7 +99,8 @@ export interface ResolvedRoute {
     | 'routing_rule'
     | 'workspace_preference'
     | 'capability_default'
-    | 'system_default';
+    | 'system_default'
+    | 'product_optimization_fixed';
 }
 
 export interface RunPromptParams {

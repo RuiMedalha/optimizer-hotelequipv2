@@ -4,6 +4,17 @@ import type { ProviderConfig, ResolvedRoute, RunPromptParams } from "./provider-
 import { CAPABILITY_DEFAULTS } from "./capability-matrix.ts";
 
 const PROVIDER_CONFIGS: Record<string, ProviderConfig> = {
+  lovable_gateway: {
+    id: "lovable_gateway",
+    displayName: "Lovable AI Gateway",
+    format: "lovable_gateway",
+    apiBaseUrl: "https://ai.gateway.lovable.dev/v1/chat/completions",
+    apiKeyEnvVar: "LOVABLE_API_KEY",
+    authScheme: "bearer",
+    enabled: true,
+    isLegacy: false,
+    priority: 0,
+  },
   anthropic: {
     id: "anthropic",
     displayName: "Anthropic",
@@ -70,6 +81,7 @@ function buildChain(
 
 function getDefaultModelForProvider(providerId: string): string {
   const defaults: Record<string, string> = {
+    lovable_gateway: "google/gemini-3-flash-preview",
     anthropic: "claude-sonnet-4-6",
     openai: "gpt-4o",
     gemini: "gemini-2.5-pro",
@@ -80,6 +92,7 @@ function getDefaultModelForProvider(providerId: string): string {
 function isModelCompatibleWithProvider(modelId: string, providerId: string): boolean {
   const m = String(modelId || "").toLowerCase();
 
+  if (providerId === "lovable_gateway") return m.startsWith("google/") || m.startsWith("openai/");
   if (providerId === "gemini") return m.startsWith("gemini-");
   if (providerId === "openai") return m.startsWith("gpt-");
   if (providerId === "anthropic") return m.startsWith("claude-");
