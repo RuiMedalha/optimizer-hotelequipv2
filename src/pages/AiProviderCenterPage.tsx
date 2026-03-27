@@ -56,8 +56,9 @@ const MODEL_DESCRIPTIONS: Record<string, string> = {
   "gpt-5-mini": "Custo moderado mantendo raciocínio e capacidade multimodal forte.",
   "gpt-5-nano": "Velocidade e custo mínimos. Ideal para tarefas simples de alto volume.",
   "gpt-5.2": "Último modelo OpenAI com raciocínio melhorado para resolução de problemas complexos.",
-  "claude-3-5-haiku-20241022": "Rápido e económico. Bom para tarefas simples e respostas rápidas.",
+  "claude-3-5-haiku-20241022": "⚠️ Descontinuado. Será substituído automaticamente pelo próximo modelo disponível.",
   "claude-3-5-sonnet-20241022": "Equilíbrio entre velocidade e inteligência. Versátil.",
+  "claude-3-haiku-20240307": "Rápido e económico. Bom para tarefas simples e respostas rápidas.",
   "claude-3-opus-20240229": "Máxima capacidade Anthropic. Raciocínio profundo e nuance.",
   "claude-sonnet-4-20250514": "Última geração Anthropic. Raciocínio superior e fiabilidade.",
 };

@@ -80,58 +80,82 @@ Deno.serve(async (req) => {
     try {
       const apiKey = await getProviderApiKey(provider.provider_type, supabase, userId);
 
+      // Fallback models per provider type
+      const FALLBACK_MODELS: Record<string, string[]> = {
+        openai_direct: ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"],
+        gemini_direct: ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"],
+        anthropic_direct: ["claude-sonnet-4-20250514", "claude-3-5-sonnet-20241022", "claude-3-haiku-20240307"],
+      };
+
+      const modelsToTry = [
+        provider.default_model,
+        provider.fallback_model,
+        ...(FALLBACK_MODELS[provider.provider_type] || []),
+      ].filter(Boolean) as string[];
+
+      // Deduplicate
+      const uniqueModels = [...new Set(modelsToTry)];
+      let testedModel: string | null = null;
+
       if (provider.provider_type === "openai_direct") {
-        if (!apiKey) throw new Error("OPENAI_API_KEY não configurada nos Secrets do backend. Adicione-a em Configurações → Secrets.");
-        const resp = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: provider.default_model || "gpt-4o-mini",
-            messages: [{ role: "user", content: testPrompt }],
-            max_tokens: 10,
-          }),
-        });
-        latencyMs = Date.now() - startMs;
-        if (!resp.ok) throw new Error(`OpenAI ${resp.status}: ${await resp.text()}`);
-        await resp.json();
+        if (!apiKey) throw new Error("OPENAI_API_KEY não configurada. Adicione-a nas configurações do provider.");
+        for (const model of uniqueModels) {
+          const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ model, messages: [{ role: "user", content: testPrompt }], max_tokens: 10 }),
+          });
+          latencyMs = Date.now() - startMs;
+          if (resp.ok) { await resp.json(); testedModel = model; break; }
+          const body = await resp.text();
+          if (resp.status === 404 || body.includes("not_found")) {
+            console.warn(`OpenAI model ${model} not found, trying next...`);
+            continue;
+          }
+          throw new Error(`OpenAI ${resp.status}: ${body}`);
+        }
+        if (!testedModel) throw new Error("Nenhum modelo OpenAI disponível. Verifique os modelos configurados.");
 
       } else if (provider.provider_type === "gemini_direct") {
-        if (!apiKey) throw new Error("GEMINI_API_KEY não configurada nos Secrets do backend. Adicione-a em Configurações → Secrets.");
-        const model = provider.default_model || "gemini-2.5-flash";
-        const resp = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ contents: [{ parts: [{ text: testPrompt }] }] }),
+        if (!apiKey) throw new Error("GEMINI_API_KEY não configurada. Adicione-a nas configurações do provider.");
+        for (const model of uniqueModels) {
+          const resp = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+            { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents: [{ parts: [{ text: testPrompt }] }] }) }
+          );
+          latencyMs = Date.now() - startMs;
+          if (resp.ok) { await resp.json(); testedModel = model; break; }
+          const body = await resp.text();
+          if (resp.status === 404 || body.includes("not found")) {
+            console.warn(`Gemini model ${model} not found, trying next...`);
+            continue;
           }
-        );
-        latencyMs = Date.now() - startMs;
-        if (!resp.ok) throw new Error(`Gemini ${resp.status}: ${await resp.text()}`);
-        await resp.json();
+          throw new Error(`Gemini ${resp.status}: ${body}`);
+        }
+        if (!testedModel) throw new Error("Nenhum modelo Gemini disponível. Verifique os modelos configurados.");
 
       } else if (provider.provider_type === "anthropic_direct") {
-        if (!apiKey) throw new Error("ANTHROPIC_API_KEY não configurada nos Secrets do backend. Adicione-a em Configurações → Secrets.");
-        const resp = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
-          headers: {
-            "x-api-key": apiKey,
-            "anthropic-version": "2023-06-01",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: provider.default_model || "claude-3-5-haiku-20241022",
-            max_tokens: 10,
-            messages: [{ role: "user", content: testPrompt }],
-          }),
-        });
-        latencyMs = Date.now() - startMs;
-        if (!resp.ok) throw new Error(`Anthropic ${resp.status}: ${await resp.text()}`);
-        await resp.json();
+        if (!apiKey) throw new Error("ANTHROPIC_API_KEY não configurada. Adicione-a nas configurações do provider.");
+        for (const model of uniqueModels) {
+          const resp = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "Content-Type": "application/json" },
+            body: JSON.stringify({ model, max_tokens: 10, messages: [{ role: "user", content: testPrompt }] }),
+          });
+          latencyMs = Date.now() - startMs;
+          if (resp.ok) { await resp.json(); testedModel = model; break; }
+          const body = await resp.text();
+          if (resp.status === 404 || body.includes("not_found")) {
+            console.warn(`Anthropic model ${model} not found, trying next...`);
+            continue;
+          }
+          throw new Error(`Anthropic ${resp.status}: ${body}`);
+        }
+        if (!testedModel) throw new Error("Nenhum modelo Anthropic disponível. Verifique os modelos configurados.");
 
       } else {
-        // OCR or unknown — mark as success
         latencyMs = Date.now() - startMs;
+        testedModel = provider.default_model;
       }
     } catch (e: any) {
       status = "error";
@@ -146,19 +170,27 @@ Deno.serve(async (req) => {
       status,
       latency_ms: latencyMs,
       error_message: errorMessage,
-      model_tested: provider.default_model,
+      model_tested: testedModel || provider.default_model,
     });
 
-    // Update provider health metadata
-    await supabase.from("ai_providers").update({
+    // Update provider health metadata + auto-fix default_model if fallback succeeded
+    const updatePayload: Record<string, any> = {
       last_health_check: new Date().toISOString(),
       last_health_status: status,
       last_error: errorMessage,
       avg_latency_ms: latencyMs,
       updated_at: new Date().toISOString(),
-    }).eq("id", providerId);
+    };
+    if (status === "success" && testedModel && testedModel !== provider.default_model) {
+      updatePayload.default_model = testedModel;
+    }
+    await supabase.from("ai_providers").update(updatePayload).eq("id", providerId);
 
-    return new Response(JSON.stringify({ status, latencyMs, error: errorMessage }), {
+    return new Response(JSON.stringify({ 
+      status, latencyMs, error: errorMessage,
+      testedModel: testedModel || provider.default_model,
+      modelChanged: status === "success" && testedModel !== provider.default_model ? testedModel : null,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {

@@ -154,7 +154,11 @@ export function useTestAiProvider() {
     },
     onSuccess: (data) => {
       if (data.status === "success") {
-        toast.success(`Provider OK — ${data.latencyMs}ms`);
+        if (data.modelChanged) {
+          toast.success(`Provider OK — ${data.latencyMs}ms. Modelo atualizado para ${data.modelChanged} (anterior estava indisponível).`);
+        } else {
+          toast.success(`Provider OK — ${data.latencyMs}ms (modelo: ${data.testedModel || "default"})`);
+        }
       } else {
         toast.error(`Provider falhou: ${data.error}`);
       }
