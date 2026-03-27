@@ -120,7 +120,7 @@ export default function AiProviderCenterPage() {
             </div>
             <div className="flex items-start gap-2 bg-muted/50 p-3 rounded-lg mt-2">
               <Info className="h-4 w-4 mt-0.5 text-primary shrink-0" />
-              <p>Cada provider necessita da sua API Key (GEMINI_API_KEY, OPENAI_API_KEY, etc.). A chave é guardada de forma segura no campo de configuração. Os modelos disponíveis aparecem no <strong>Catálogo</strong> após configurar o provider.</p>
+              <p>Cada provider necessita da sua API Key configurada como <strong>Secret no backend</strong> (GEMINI_API_KEY, OPENAI_API_KEY, etc.). As chaves <strong>nunca</strong> são armazenadas na base de dados. Os modelos disponíveis aparecem no <strong>Catálogo</strong> após configurar o provider.</p>
             </div>
           </CardContent>
         </Card>
