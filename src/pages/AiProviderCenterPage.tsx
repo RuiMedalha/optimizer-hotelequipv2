@@ -433,13 +433,18 @@ export default function AiProviderCenterPage() {
               </div>
               <div className="space-y-2">
                 <Label>API Key</Label>
-                <div className="bg-muted/50 p-3 rounded-lg text-sm text-muted-foreground space-y-1">
-                  <p className="font-medium text-foreground flex items-center gap-1.5"><Shield className="h-3.5 w-3.5" /> Chaves geridas via Secrets do Backend</p>
-                  <p>As API Keys são armazenadas de forma segura como Secrets no backend e <strong>nunca</strong> passam pela base de dados.</p>
-                  {editProvider.provider_type === "gemini_direct" && <p>Secret necessário: <code className="bg-background px-1 rounded">GEMINI_API_KEY</code> — Obtém em: Google AI Studio → API Keys</p>}
-                  {editProvider.provider_type === "openai_direct" && <p>Secret necessário: <code className="bg-background px-1 rounded">OPENAI_API_KEY</code> — Obtém em: platform.openai.com → API Keys</p>}
-                  {editProvider.provider_type === "anthropic_direct" && <p>Secret necessário: <code className="bg-background px-1 rounded">ANTHROPIC_API_KEY</code> — Obtém em: console.anthropic.com → API Keys</p>}
-                  {editProvider.provider_type === "azure_openai" && <p>Secret necessário: <code className="bg-background px-1 rounded">AZURE_OPENAI_API_KEY</code> — Obtém no portal Azure</p>}
+                <Input
+                  type="password"
+                  placeholder="Cole a nova API Key aqui (deixe vazio para manter a atual)"
+                  value={(editProvider as any)._newApiKey || ""}
+                  onChange={e => setEditProvider({ ...editProvider, _newApiKey: e.target.value } as any)}
+                />
+                <div className="bg-muted/50 p-3 rounded-lg text-xs text-muted-foreground space-y-1">
+                  <p className="font-medium text-foreground flex items-center gap-1.5"><Shield className="h-3.5 w-3.5" /> Armazenada de forma segura na sua conta</p>
+                  {editProvider.provider_type === "gemini_direct" && <p>Obtém em: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" className="underline text-primary">Google AI Studio → API Keys</a></p>}
+                  {editProvider.provider_type === "openai_direct" && <p>Obtém em: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" className="underline text-primary">platform.openai.com → API Keys</a></p>}
+                  {editProvider.provider_type === "anthropic_direct" && <p>Obtém em: <a href="https://console.anthropic.com/" target="_blank" rel="noopener" className="underline text-primary">console.anthropic.com → API Keys</a></p>}
+                  {editProvider.provider_type === "azure_openai" && <p>Obtém no portal Azure</p>}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
