@@ -130,7 +130,7 @@ export default function AiProviderCenterPage() {
             <div className="grid md:grid-cols-3 gap-4">
               <div className="space-y-1">
                 <p className="font-semibold text-foreground">1. Provider + API Key</p>
-                <p>Adicione um provider (Google Gemini, OpenAI, Anthropic) e configure a <strong>API Key</strong> diretamente.</p>
+                <p>Adicione um provider (Google Gemini, OpenAI, Anthropic) e cole a sua <strong>API Key</strong> no formulário.</p>
               </div>
               <div className="space-y-1">
                 <p className="font-semibold text-foreground">2. Routing (tab AI Routing)</p>
@@ -143,7 +143,7 @@ export default function AiProviderCenterPage() {
             </div>
             <div className="flex items-start gap-2 bg-muted/50 p-3 rounded-lg mt-2">
               <Info className="h-4 w-4 mt-0.5 text-primary shrink-0" />
-              <p>Cada provider necessita da sua API Key configurada como <strong>Secret no backend</strong> (GEMINI_API_KEY, OPENAI_API_KEY, etc.). As chaves <strong>nunca</strong> são armazenadas na base de dados. Os modelos disponíveis aparecem no <strong>Catálogo</strong> após configurar o provider.</p>
+              <p>Cada provider necessita da sua API Key. Cole-a no formulário ao criar/editar o provider — é armazenada de forma segura na sua conta e <strong>nunca</strong> exposta na base de dados partilhada.</p>
             </div>
           </CardContent>
         </Card>
