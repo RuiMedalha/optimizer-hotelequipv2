@@ -7,21 +7,256 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, FileCode, Cog, Wrench, ScrollText } from "lucide-react";
+import { Plus, FileCode, Cog, Wrench, ScrollText, Loader2, Sparkles } from "lucide-react";
 import { PromptTemplatesTable } from "@/components/prompt-governance/PromptTemplatesTable";
-import { FieldPromptsSettings } from "@/components/FieldPromptsSettings";
 import { EditPromptTemplateDialog } from "@/components/prompt-governance/EditPromptTemplateDialog";
 import { PromptVersionHistoryPanel } from "@/components/prompt-governance/PromptVersionHistoryPanel";
 import { PromptVersionCompareDialog } from "@/components/prompt-governance/PromptVersionCompareDialog";
 import { PromptPerformancePanel } from "@/components/prompt-governance/PromptPerformancePanel";
 import { ConfirmArchiveDialog } from "@/components/prompt-governance/ConfirmArchiveDialog";
 import { ConfirmDeleteDialog } from "@/components/prompt-governance/ConfirmDeleteDialog";
+import { FieldPromptsSettings } from "@/components/FieldPromptsSettings";
+import { toast } from "sonner";
 
-// System prompts = general (core behavior instructions)
-// Service prompts = task-specific (enrichment, description, seo, categorization, validation, translation)
 const PROMPT_TYPES = ["enrichment", "description", "seo", "categorization", "validation", "translation", "general"];
 const SYSTEM_TYPES = ["general"];
 const SERVICE_TYPES = ["enrichment", "description", "seo", "categorization", "validation", "translation"];
+
+// ═══ DEFAULT PROMPT SEEDS ═══
+const DEFAULT_PROMPTS: Array<{ prompt_name: string; prompt_type: string; description: string; base_prompt: string }> = [
+  // ── SISTEMA ──
+  {
+    prompt_name: "Instruções Gerais da IA",
+    prompt_type: "general",
+    description: "Comportamento base, tom de escrita, idioma e regras globais para todas as tarefas de IA",
+    base_prompt: `És um assistente especializado em equipamento profissional para hotelaria, restauração, cozinhas industriais e bares (HORECA).
+
+REGRAS GLOBAIS:
+- Responde SEMPRE em Português de Portugal (pt-PT)
+- Tom profissional, técnico mas acessível
+- Usa terminologia do setor HORECA português
+- Unidades: metros, kg, litros, watts, volts (sistema métrico)
+- Moeda: EUR (€)
+- NÃO inventes especificações técnicas — usa apenas dados fornecidos
+- NÃO incluas o nome da marca no texto comercial — foca no equipamento
+- Mantém consistência entre campos (título, descrição, SEO devem ser coerentes)
+- Prioriza precisão sobre criatividade
+- Formato de saída: JSON estruturado conforme schema fornecido`,
+  },
+  // ── SERVIÇO: Enrichment ──
+  {
+    prompt_name: "Enriquecimento de Produto",
+    prompt_type: "enrichment",
+    description: "Completa e enriquece dados de produto a partir de fontes parciais (PDF, scraping, catálogo)",
+    base_prompt: `Analisa os dados parciais do produto e enriquece com informação adicional.
+
+OBJETIVO: Preencher campos em falta mantendo 100% de precisão nos dados existentes.
+
+CAMPOS A ENRIQUECER:
+- Título otimizado (máx 70 chars, keyword no início)
+- Descrição comercial (150-250 chars, sem dados técnicos)
+- Especificações técnicas (tabela estruturada)
+- Categoria e subcategoria HORECA
+- Tags relevantes (4-8)
+- FAQ (3-5 perguntas)
+
+REGRAS:
+- NÃO alteres dados confirmados (SKU, preço original, dimensões medidas)
+- Infere apenas quando há evidência suficiente
+- Marca confiança: alta (>90%), média (70-90%), baixa (<70%)
+- Se um campo não pode ser inferido com confiança, deixa vazio
+- Usa contexto do catálogo para manter consistência com produtos similares`,
+  },
+  // ── SERVIÇO: Description ──
+  {
+    prompt_name: "Geração de Descrição",
+    prompt_type: "description",
+    description: "Gera descrições comerciais e técnicas otimizadas para produto",
+    base_prompt: `Gera descrição de produto com ESTRUTURA OBRIGATÓRIA:
+
+1. PARÁGRAFO COMERCIAL (150-250 chars):
+   - Benefícios e aplicações práticas
+   - Sem dados técnicos neste bloco
+   - NÃO mencionar marca
+   - Mencionar aplicações: restaurante, hotel, pastelaria, bar
+   - Eficiência energética se aplicável
+
+2. TABELA HTML DE ESPECIFICAÇÕES:
+   <table> com TODAS as características técnicas
+   - Dimensões (LxPxA em mm)
+   - Peso (kg)
+   - Potência (W/kW)
+   - Voltagem/Frequência
+   - Material (inox 304, etc.)
+   - Capacidade
+   - Certificações (CE, HACCP)
+
+3. FAQ HTML (3-5 perguntas):
+   <details><summary>Pergunta</summary><p>Resposta</p></details>
+   - Instalação/requisitos
+   - Manutenção/limpeza
+   - Dimensões/espaço
+   - Garantia
+   - Acessórios compatíveis
+
+REGRAS:
+- NÃO mistures dados técnicos no texto comercial
+- Conformidade com normas (CE, HACCP) quando relevante
+- Tom profissional e informativo`,
+  },
+  // ── SERVIÇO: SEO ──
+  {
+    prompt_name: "Otimização SEO",
+    prompt_type: "seo",
+    description: "Gera meta titles, meta descriptions, slugs e focus keywords otimizados",
+    base_prompt: `Otimiza os campos SEO do produto para máxima visibilidade em pesquisa.
+
+CAMPOS A GERAR:
+
+1. META TITLE (máx 60 chars):
+   - Keyword principal no início
+   - Inclui "Comprar" ou "Preço" para intenção comercial
+   - NÃO inclui marca — foca na linha/série e tipo
+   - Termina com separador e nome da loja se couber
+
+2. META DESCRIPTION (máx 155 chars):
+   - Call-to-action (ex: "Encomende já", "Entrega rápida")
+   - 1-2 benefícios chave
+   - Menção de preço ou "Melhor preço" se aplicável
+   - Linguagem que gere cliques
+
+3. SEO SLUG:
+   - Lowercase, sem acentos, hífens
+   - Keyword principal + tipo + linha
+   - Máx 5-7 palavras
+   - Ex: fritadeira-gas-linha-700-8-litros
+
+4. FOCUS KEYWORDS (3-5):
+   - Keyword principal do produto
+   - Variações long-tail
+   - Termos de pesquisa do setor HORECA
+
+5. IMAGE ALT TEXTS (máx 125 chars cada):
+   - Descritivo e relevante
+   - Keyword + linha/marca
+   - Não começar com "Imagem de"
+
+REGRAS:
+- Pesquisa de intenção comercial (comprar, preço, melhor)
+- Evita keyword stuffing
+- Cada campo deve ser único e complementar`,
+  },
+  // ── SERVIÇO: Categorization ──
+  {
+    prompt_name: "Classificação de Produto",
+    prompt_type: "categorization",
+    description: "Classifica produtos na taxonomia HORECA com categoria e subcategoria",
+    base_prompt: `Classifica o produto na taxonomia HORECA correta.
+
+TAXONOMIA PRINCIPAL:
+- Cozinha > Fogões, Fritadeiras, Fornos, Grelhadores, Banhos-maria, Marmitas, Basculantes
+- Cozinha > Preparação (Cortadores, Batedeiras, Amassadeiras, Processadores)
+- Lavagem > Máquinas Lavar Loiça, Máquinas Lavar Copos, Túneis Lavagem
+- Frio > Armários Refrigerados, Bancadas Refrigeradas, Abatedores, Câmaras
+- Bar > Máquinas Café, Máquinas Gelo, Dispensadores Bebidas
+- Mobiliário Inox > Bancadas, Estantes, Lavatórios, Mesas
+- Ventilação > Hottes, Exaustores, Filtros
+- Distribuição > Buffets, Vitrinas, Carros Transporte
+
+FORMATO DE SAÍDA:
+{
+  "category": "Categoria Principal",
+  "subcategory": "Subcategoria",
+  "confidence": 0.95,
+  "alternative_category": "Alternativa se ambíguo",
+  "reasoning": "Breve justificação"
+}
+
+REGRAS:
+- Prioriza categorias existentes no catálogo
+- Se ambíguo, indica as 2 categorias mais prováveis com confiança
+- Pode propor nova subcategoria se nenhuma existente serve
+- Considera o uso primário do equipamento para classificar`,
+  },
+  // ── SERVIÇO: Validation ──
+  {
+    prompt_name: "Validação de Produto",
+    prompt_type: "validation",
+    description: "Valida completude, consistência e qualidade dos dados de produto",
+    base_prompt: `Valida os dados do produto e reporta problemas de qualidade.
+
+VERIFICAÇÕES OBRIGATÓRIAS:
+
+1. COMPLETUDE:
+   - Título presente e com >20 chars
+   - Descrição presente e com >100 chars
+   - Pelo menos 1 imagem
+   - Preço > 0
+   - Categoria atribuída
+   - SKU único
+
+2. CONSISTÊNCIA:
+   - Título coerente com descrição
+   - Categoria correta para o tipo de produto
+   - Preço razoável para a categoria (não outlier extremo)
+   - Dimensões e peso fazem sentido para o tipo
+
+3. QUALIDADE:
+   - Sem texto duplicado entre campos
+   - Sem caracteres especiais/encoding quebrado
+   - Meta title ≤ 60 chars
+   - Meta description ≤ 155 chars
+   - Imagens com alt text
+
+FORMATO DE SAÍDA:
+{
+  "score": 85,
+  "issues": [
+    { "field": "meta_title", "severity": "warning", "message": "Meta title tem 72 chars (máx 60)" }
+  ],
+  "suggestions": ["Adicionar FAQ", "Completar alt text das imagens"]
+}
+
+REGRAS:
+- Score de 0-100
+- Severity: error (bloqueante), warning (recomendado), info (sugestão)
+- Não penalizar campos opcionais em falta, apenas obrigatórios`,
+  },
+  // ── SERVIÇO: Translation ──
+  {
+    prompt_name: "Tradução de Conteúdo",
+    prompt_type: "translation",
+    description: "Traduz conteúdo de produto mantendo terminologia técnica HORECA",
+    base_prompt: `Traduz o conteúdo do produto para o idioma alvo mantendo qualidade profissional.
+
+REGRAS DE TRADUÇÃO:
+- Mantém terminologia técnica correta no idioma alvo
+- NÃO traduz: SKUs, códigos, nomes de modelos, marcas
+- Adapta unidades se necessário (mas mantém sistema métrico)
+- Mantém formatação HTML intacta
+- Traduz alt texts das imagens
+- Adapta o SEO ao mercado alvo (keywords locais)
+
+GLOSSÁRIO HORECA (PT→EN exemplo):
+- Fritadeira → Fryer
+- Fogão → Range/Cooker
+- Bancada → Worktable/Counter
+- Armário refrigerado → Refrigerated cabinet
+- Máquina lavar loiça → Dishwasher
+- Abatedor → Blast chiller
+- Hotte → Extraction hood
+- Banho-maria → Bain-marie
+
+FORMATO DE SAÍDA:
+Retorna o mesmo JSON de entrada com todos os campos de texto traduzidos.
+Adiciona campo "translation_notes" com observações relevantes.
+
+REGRAS:
+- Confiança mínima: 85% para publicação automática
+- Se um termo técnico não tem tradução clara, mantém o original entre parênteses
+- Verifica que URLs e links não foram alterados`,
+  },
+];
 
 export default function PromptGovernancePage() {
   const {
@@ -33,6 +268,7 @@ export default function PromptGovernancePage() {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [selectedVersion, setSelectedVersion] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("system");
+  const [seeding, setSeeding] = useState(false);
 
   // Create form
   const [showCreate, setShowCreate] = useState(false);
@@ -67,6 +303,29 @@ export default function PromptGovernancePage() {
     setActiveTab("versions");
   };
 
+  const handleSeedDefaults = async () => {
+    const existing = templates.data || [];
+    const existingTypes = new Set(existing.map(t => t.prompt_type));
+    const toCreate = DEFAULT_PROMPTS.filter(p => !existingTypes.has(p.prompt_type));
+
+    if (toCreate.length === 0) {
+      toast.info("Todos os prompts padrão já existem.");
+      return;
+    }
+
+    setSeeding(true);
+    try {
+      for (const prompt of toCreate) {
+        await createTemplate.mutateAsync(prompt);
+      }
+      toast.success(`${toCreate.length} prompts padrão criados!`);
+    } catch (e: any) {
+      toast.error(`Erro ao criar prompts: ${e.message}`);
+    } finally {
+      setSeeding(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -76,9 +335,23 @@ export default function PromptGovernancePage() {
           </h1>
           <p className="text-muted-foreground">Gestão de prompts de sistema (comportamento base) e prompts de serviço (tarefas específicas)</p>
         </div>
-        <Button onClick={() => setShowCreate(!showCreate)}>
-          <Plus className="w-4 h-4 mr-1" /> Novo Template
-        </Button>
+        <div className="flex gap-2">
+          {(templates.data || []).length === 0 && (
+            <Button variant="outline" onClick={handleSeedDefaults} disabled={seeding}>
+              {seeding ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}
+              Criar Prompts Padrão
+            </Button>
+          )}
+          {(templates.data || []).length > 0 && (templates.data || []).length < DEFAULT_PROMPTS.length && (
+            <Button variant="outline" size="sm" onClick={handleSeedDefaults} disabled={seeding}>
+              {seeding ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1" />}
+              Completar em Falta
+            </Button>
+          )}
+          <Button onClick={() => setShowCreate(!showCreate)}>
+            <Plus className="w-4 h-4 mr-1" /> Novo Template
+          </Button>
+        </div>
       </div>
 
       {/* Summary */}
