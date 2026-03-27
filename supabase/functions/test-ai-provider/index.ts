@@ -63,10 +63,19 @@ Deno.serve(async (req) => {
       .single();
     if (pErr || !provider) throw new Error("Provider not found");
 
+    // Get the user who owns this workspace to resolve their API keys
+    const { data: wsData } = await supabase
+      .from("workspaces")
+      .select("user_id")
+      .eq("id", workspaceId)
+      .maybeSingle();
+    const userId = wsData?.user_id;
+
     const testPrompt = "Reply with exactly: OK";
     const startMs = Date.now();
     let status = "success";
     let errorMessage: string | null = null;
+    let latencyMs = 0;
     let latencyMs = 0;
 
     try {
