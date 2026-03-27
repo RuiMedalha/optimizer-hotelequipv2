@@ -42,6 +42,26 @@ const emptyRoute: Partial<AiRoutingRule> = {
 const MODES = ["economic", "balanced", "premium"];
 const MODELS = ["google/gemini-2.5-flash-lite", "google/gemini-2.5-flash", "google/gemini-2.5-pro", "google/gemini-3-flash-preview"];
 
+const MODEL_DESCRIPTIONS: Record<string, string> = {
+  "gemini-2.5-pro": "Top-tier Gemini. Melhor para raciocínio complexo, imagens+texto e contextos grandes.",
+  "gemini-2.5-flash": "Equilíbrio custo/qualidade. Bom para multimodal e raciocínio moderado.",
+  "gemini-2.5-flash-lite": "Mais rápido e barato. Ideal para classificação, sumários e tarefas simples.",
+  "gemini-3-flash-preview": "Última geração Google. Velocidade e capacidade equilibradas.",
+  "gemini-3.1-pro-preview": "Preview do modelo de raciocínio de próxima geração.",
+  "gemini-3-pro-image-preview": "Geração de imagens de próxima geração.",
+  "gemini-3.1-flash-image-preview": "Geração e edição de imagens rápida com qualidade pro.",
+  "gpt-4o": "Multimodal potente. Excelente raciocínio, contexto longo, texto+imagens.",
+  "gpt-4o-mini": "Custo reduzido com boa capacidade multimodal. Bom equilíbrio geral.",
+  "gpt-5": "Topo de gama OpenAI. Raciocínio avançado, grande precisão. Mais caro e lento.",
+  "gpt-5-mini": "Custo moderado mantendo raciocínio e capacidade multimodal forte.",
+  "gpt-5-nano": "Velocidade e custo mínimos. Ideal para tarefas simples de alto volume.",
+  "gpt-5.2": "Último modelo OpenAI com raciocínio melhorado para resolução de problemas complexos.",
+  "claude-3-5-haiku-20241022": "Rápido e económico. Bom para tarefas simples e respostas rápidas.",
+  "claude-3-5-sonnet-20241022": "Equilíbrio entre velocidade e inteligência. Versátil.",
+  "claude-3-opus-20240229": "Máxima capacidade Anthropic. Raciocínio profundo e nuance.",
+  "claude-sonnet-4-20250514": "Última geração Anthropic. Raciocínio superior e fiabilidade.",
+};
+
 export default function AiProviderCenterPage() {
   const { activeWorkspace } = useWorkspaceContext();
   const providers = useAiProviders();
