@@ -76,6 +76,7 @@ Deno.serve(async (req) => {
     let status = "success";
     let errorMessage: string | null = null;
     let latencyMs = 0;
+    let testedModel: string | null = null;
 
     try {
       const apiKey = await getProviderApiKey(provider.provider_type, supabase, userId);
@@ -93,9 +94,7 @@ Deno.serve(async (req) => {
         ...(FALLBACK_MODELS[provider.provider_type] || []),
       ].filter(Boolean) as string[];
 
-      // Deduplicate
       const uniqueModels = [...new Set(modelsToTry)];
-      let testedModel: string | null = null;
 
       if (provider.provider_type === "openai_direct") {
         if (!apiKey) throw new Error("OPENAI_API_KEY não configurada. Adicione-a nas configurações do provider.");
