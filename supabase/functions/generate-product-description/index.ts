@@ -5,6 +5,23 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Variação de tom para evitar descrições repetitivas
+const TONE_VARIATIONS = [
+  "Escreve com um tom direto e confiante, como se estivesses a apresentar o equipamento a um chef experiente que sabe exatamente o que precisa.",
+  "Adota um tom consultivo e informativo, como um especialista HORECA que ajuda o comprador a tomar a melhor decisão para o seu negócio.",
+  "Usa um tom prático e objetivo, focando nos resultados concretos que este equipamento entrega no dia-a-dia de uma cozinha profissional.",
+  "Escreve como se fosse uma recomendação pessoal entre profissionais — genuína, com conhecimento de causa, sem exageros.",
+  "Adota um tom técnico mas acessível, que demonstra domínio do produto sem ser intimidante para quem está a equipar um novo espaço.",
+];
+
+const OPENING_STYLES = [
+  "Começa com o benefício principal — o que este equipamento resolve ou melhora na operação.",
+  "Abre com o contexto de utilização — onde e como este equipamento se integra numa cozinha profissional.",
+  "Inicia com uma afirmação factual sobre a capacidade ou performance do equipamento.",
+  "Começa pelo diferencial técnico — o que torna este modelo específico uma escolha inteligente.",
+  "Abre com a aplicação prática — para que tipo de estabelecimento e volume de trabalho é ideal.",
+];
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -18,34 +35,57 @@ Deno.serve(async (req) => {
     );
 
     const lang = language || "pt";
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    const systemPrompt = `You are a Product Description Generator for a B2B HORECA e-commerce catalog.
+    // Selecionar variação aleatória para diversidade
+    const toneVariation = TONE_VARIATIONS[Math.floor(Math.random() * TONE_VARIATIONS.length)];
+    const openingStyle = OPENING_STYLES[Math.floor(Math.random() * OPENING_STYLES.length)];
 
-Write in ${lang === "pt" ? "European Portuguese" : lang === "es" ? "Spanish" : lang === "fr" ? "French" : "English"}.
+    const langInstruction = lang === "pt" ? "Português de Portugal (pt-PT)" 
+      : lang === "es" ? "Espanhol" 
+      : lang === "fr" ? "Francês" 
+      : "Inglês";
 
-TONE & STYLE:
-- Professional, clear, factual
-- NO exaggerated marketing ("revolutionary", "incredible", "best ever")
-- Highlight practical functionalities and operational benefits
-- Avoid generic filler phrases
-- Write for professional buyers (chefs, hotel managers, restaurant owners)
+    const systemPrompt = `És um copywriter especialista em equipamento profissional HORECA (Hotelaria, Restauração, Catering).
 
-STRUCTURE for long_description (HTML allowed):
-1. Brief introduction (what the product is and its primary purpose)
-2. Key features (bullet list of practical characteristics)
-3. Professional kitchen applications (how/where it's used in HORECA)
-4. Relevant specifications inline
+IDIOMA: Escreve em ${langInstruction}.
 
-short_description: 1-2 sentences, max 160 chars, punchy and informative.
+TOM E PERSONALIDADE:
+${toneVariation}
 
-long_description: 150-400 words, well-structured with HTML tags (<p>, <ul>, <li>, <strong>).
+ABERTURA:
+${openingStyle}
 
-seo_keywords: 5-10 relevant search terms a B2B buyer would use.
+REGRAS DE ESCRITA OBRIGATÓRIAS:
+- Sê específico: em vez de "alta qualidade", diz "construção em aço inox AISI 304"
+- Sê útil: menciona aplicações reais (ex: "ideal para serviço de 80-120 refeições/dia")
+- Sê honesto: não inventes specs que não foram fornecidas
+- NUNCA uses clichés como "revolucionário", "incrível", "o melhor do mercado", "solução perfeita"
+- NUNCA comeces com "Descubra" ou "Apresentamos" — vai direto ao valor
+- Varia a estrutura entre produtos — nem todos precisam da mesma introdução
+- Menciona normas relevantes (CE, HACCP) quando aplicável
+- Usa verbos de ação: "produz", "mantém", "reduz", "otimiza", "suporta"
 
-Respond with valid JSON only, no markdown fences:
+ESTRUTURA short_description:
+- 1-2 frases, máximo 160 caracteres
+- Foca no benefício operacional principal + 1 spec diferenciadora
+- Deve funcionar como snippet em listagens de produtos
+
+ESTRUTURA long_description (HTML):
+- <p> de abertura: O que é, para quem serve, que problema resolve (2-3 frases, sem dados técnicos)
+- <ul> com 4-6 características práticas (não apenas specs — explica o benefício de cada uma)
+- <p> com aplicações concretas: tipos de estabelecimento, volume, situações de uso
+- Se houver specs técnicas suficientes, inclui uma <table> limpa com as características principais
+- Opcional: 2-3 <details><summary>FAQ</summary> com perguntas reais que um comprador faria
+
+REGRAS SEO:
+- Keywords naturais no texto, sem stuffing
+- A primeira frase deve conter a keyword principal do produto
+- Inclui variações long-tail nas keywords (ex: "fritadeira a gás 8 litros profissional")
+- Alt-text pensado para pesquisa, não para decoração
+
+FORMATO DE RESPOSTA (JSON puro, sem markdown fences):
 {
   "short_description": "string",
   "long_description": "string (HTML)",
@@ -53,15 +93,15 @@ Respond with valid JSON only, no markdown fences:
   "confidence_score": 0.0-1.0
 }`;
 
-    const userPrompt = `Generate descriptions for this product:
+    const userPrompt = `Gera descrição para este produto:
 
-Title: ${product.title || product.original_title || "N/A"}
-Brand: ${product.brand || "N/A"}
-Category: ${product.category || "N/A"}
-Current Description: ${product.description || product.original_description || "N/A"}
-Technical Specs: ${product.technical_specs || "N/A"}
-Attributes: ${product.attributes ? JSON.stringify(product.attributes) : "N/A"}
-Price: ${product.price || product.original_price || "N/A"}`;
+Título: ${product.title || product.original_title || "N/A"}
+Marca/Linha: ${product.brand || "N/A"}
+Categoria: ${product.category || "N/A"}
+Descrição Atual: ${product.description || product.original_description || "N/A"}
+Specs Técnicas: ${product.technical_specs || "N/A"}
+Atributos: ${product.attributes ? JSON.stringify(product.attributes) : "N/A"}
+Preço: ${product.price || product.original_price || "N/A"}`;
 
     // Use centralized resolve-ai-route
     const aiResponse = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
