@@ -207,7 +207,6 @@ export default function AiProviderCenterPage() {
             </Button>
             <Button onClick={() => setEditProvider({ ...emptyProvider })} size="sm"><Plus className="h-4 w-4 mr-1" /> Adicionar Provider</Button>
           </div>
-          </div>
 
           {(providers.data || []).map(p => {
             const providerModels = (modelCatalog.data || []).filter(m => m.provider_type === p.provider_type);
