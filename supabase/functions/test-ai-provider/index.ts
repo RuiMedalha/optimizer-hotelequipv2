@@ -7,18 +7,41 @@ const corsHeaders = {
 };
 
 /**
- * Resolves the API key for a provider type from Supabase secrets (env vars).
- * Keys are NEVER read from the database — only from secure environment variables.
+ * Resolves the API key for a provider type.
+ * Priority: 1) env secrets 2) user's settings table
  */
-function getProviderApiKey(providerType: string): string | null {
-  const keyMap: Record<string, string> = {
+async function getProviderApiKey(providerType: string, supabase: any, userId?: string): Promise<string | null> {
+  const envKeyMap: Record<string, string> = {
     gemini_direct: "GEMINI_API_KEY",
     openai_direct: "OPENAI_API_KEY",
     anthropic_direct: "ANTHROPIC_API_KEY",
     azure_openai: "AZURE_OPENAI_API_KEY",
   };
-  const envVar = keyMap[providerType];
-  return envVar ? (Deno.env.get(envVar) ?? null) : null;
+  // 1) Try env secret first
+  const envVar = envKeyMap[providerType];
+  const envKey = envVar ? (Deno.env.get(envVar) ?? null) : null;
+  if (envKey) return envKey;
+
+  // 2) Fallback: read from user's settings table
+  if (userId) {
+    const settingsKeyMap: Record<string, string> = {
+      gemini_direct: "gemini_api_key",
+      openai_direct: "openai_api_key",
+      anthropic_direct: "anthropic_api_key",
+      azure_openai: "azure_openai_api_key",
+    };
+    const settingKey = settingsKeyMap[providerType];
+    if (settingKey) {
+      const { data } = await supabase
+        .from("settings")
+        .select("value")
+        .eq("user_id", userId)
+        .eq("key", settingKey)
+        .maybeSingle();
+      if (data?.value) return data.value;
+    }
+  }
+  return null;
 }
 
 Deno.serve(async (req) => {

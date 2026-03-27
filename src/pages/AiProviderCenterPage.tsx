@@ -75,7 +75,29 @@ export default function AiProviderCenterPage() {
 
   const handleSaveProvider = async () => {
     if (!editProvider?.provider_name) return;
-    await saveProvider.mutateAsync(editProvider as any);
+    // If user provided a new API key, save it securely in user settings
+    const newApiKey = (editProvider as any)._newApiKey;
+    if (newApiKey && newApiKey.trim()) {
+      const keyMap: Record<string, string> = {
+        gemini_direct: "gemini_api_key",
+        openai_direct: "openai_api_key",
+        anthropic_direct: "anthropic_api_key",
+        azure_openai: "azure_openai_api_key",
+      };
+      const settingKey = keyMap[editProvider.provider_type || ""];
+      if (settingKey) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from("settings").upsert(
+            { user_id: user.id, key: settingKey, value: newApiKey.trim() },
+            { onConflict: "user_id,key" }
+          );
+        }
+      }
+    }
+    // Remove temp field before saving provider
+    const { _newApiKey, ...providerData } = editProvider as any;
+    await saveProvider.mutateAsync(providerData as any);
     setEditProvider(null);
   };
 
