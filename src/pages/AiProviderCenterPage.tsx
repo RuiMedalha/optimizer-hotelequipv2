@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -75,7 +76,29 @@ export default function AiProviderCenterPage() {
 
   const handleSaveProvider = async () => {
     if (!editProvider?.provider_name) return;
-    await saveProvider.mutateAsync(editProvider as any);
+    // If user provided a new API key, save it securely in user settings
+    const newApiKey = (editProvider as any)._newApiKey;
+    if (newApiKey && newApiKey.trim()) {
+      const keyMap: Record<string, string> = {
+        gemini_direct: "gemini_api_key",
+        openai_direct: "openai_api_key",
+        anthropic_direct: "anthropic_api_key",
+        azure_openai: "azure_openai_api_key",
+      };
+      const settingKey = keyMap[editProvider.provider_type || ""];
+      if (settingKey) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from("settings").upsert(
+            { user_id: user.id, key: settingKey, value: newApiKey.trim() },
+            { onConflict: "user_id,key" }
+          );
+        }
+      }
+    }
+    // Remove temp field before saving provider
+    const { _newApiKey, ...providerData } = editProvider as any;
+    await saveProvider.mutateAsync(providerData as any);
     setEditProvider(null);
   };
 
@@ -107,7 +130,7 @@ export default function AiProviderCenterPage() {
             <div className="grid md:grid-cols-3 gap-4">
               <div className="space-y-1">
                 <p className="font-semibold text-foreground">1. Provider + API Key</p>
-                <p>Adicione um provider (Google Gemini, OpenAI, Anthropic) e configure a <strong>API Key</strong> diretamente.</p>
+                <p>Adicione um provider (Google Gemini, OpenAI, Anthropic) e cole a sua <strong>API Key</strong> no formulário.</p>
               </div>
               <div className="space-y-1">
                 <p className="font-semibold text-foreground">2. Routing (tab AI Routing)</p>
@@ -120,7 +143,7 @@ export default function AiProviderCenterPage() {
             </div>
             <div className="flex items-start gap-2 bg-muted/50 p-3 rounded-lg mt-2">
               <Info className="h-4 w-4 mt-0.5 text-primary shrink-0" />
-              <p>Cada provider necessita da sua API Key configurada como <strong>Secret no backend</strong> (GEMINI_API_KEY, OPENAI_API_KEY, etc.). As chaves <strong>nunca</strong> são armazenadas na base de dados. Os modelos disponíveis aparecem no <strong>Catálogo</strong> após configurar o provider.</p>
+              <p>Cada provider necessita da sua API Key. Cole-a no formulário ao criar/editar o provider — é armazenada de forma segura na sua conta e <strong>nunca</strong> exposta na base de dados partilhada.</p>
             </div>
           </CardContent>
         </Card>
@@ -433,13 +456,18 @@ export default function AiProviderCenterPage() {
               </div>
               <div className="space-y-2">
                 <Label>API Key</Label>
-                <div className="bg-muted/50 p-3 rounded-lg text-sm text-muted-foreground space-y-1">
-                  <p className="font-medium text-foreground flex items-center gap-1.5"><Shield className="h-3.5 w-3.5" /> Chaves geridas via Secrets do Backend</p>
-                  <p>As API Keys são armazenadas de forma segura como Secrets no backend e <strong>nunca</strong> passam pela base de dados.</p>
-                  {editProvider.provider_type === "gemini_direct" && <p>Secret necessário: <code className="bg-background px-1 rounded">GEMINI_API_KEY</code> — Obtém em: Google AI Studio → API Keys</p>}
-                  {editProvider.provider_type === "openai_direct" && <p>Secret necessário: <code className="bg-background px-1 rounded">OPENAI_API_KEY</code> — Obtém em: platform.openai.com → API Keys</p>}
-                  {editProvider.provider_type === "anthropic_direct" && <p>Secret necessário: <code className="bg-background px-1 rounded">ANTHROPIC_API_KEY</code> — Obtém em: console.anthropic.com → API Keys</p>}
-                  {editProvider.provider_type === "azure_openai" && <p>Secret necessário: <code className="bg-background px-1 rounded">AZURE_OPENAI_API_KEY</code> — Obtém no portal Azure</p>}
+                <Input
+                  type="password"
+                  placeholder="Cole a nova API Key aqui (deixe vazio para manter a atual)"
+                  value={(editProvider as any)._newApiKey || ""}
+                  onChange={e => setEditProvider({ ...editProvider, _newApiKey: e.target.value } as any)}
+                />
+                <div className="bg-muted/50 p-3 rounded-lg text-xs text-muted-foreground space-y-1">
+                  <p className="font-medium text-foreground flex items-center gap-1.5"><Shield className="h-3.5 w-3.5" /> Armazenada de forma segura na sua conta</p>
+                  {editProvider.provider_type === "gemini_direct" && <p>Obtém em: <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" className="underline text-primary">Google AI Studio → API Keys</a></p>}
+                  {editProvider.provider_type === "openai_direct" && <p>Obtém em: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" className="underline text-primary">platform.openai.com → API Keys</a></p>}
+                  {editProvider.provider_type === "anthropic_direct" && <p>Obtém em: <a href="https://console.anthropic.com/" target="_blank" rel="noopener" className="underline text-primary">console.anthropic.com → API Keys</a></p>}
+                  {editProvider.provider_type === "azure_openai" && <p>Obtém no portal Azure</p>}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
