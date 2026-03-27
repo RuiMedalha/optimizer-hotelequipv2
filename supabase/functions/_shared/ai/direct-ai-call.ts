@@ -31,6 +31,14 @@ export interface DirectAIResponse {
 
 // Model mapping: canonical -> provider-specific
 const MODEL_MAP: Record<string, { provider: string; model: string }> = {
+  // Lovable Gateway models (use gateway format)
+  "lovable/gemini-3-flash-preview": { provider: "lovable_gateway", model: "google/gemini-3-flash-preview" },
+  "lovable/gemini-2.5-pro": { provider: "lovable_gateway", model: "google/gemini-2.5-pro" },
+  "lovable/gemini-2.5-flash": { provider: "lovable_gateway", model: "google/gemini-2.5-flash" },
+  "lovable/gemini-2.5-flash-lite": { provider: "lovable_gateway", model: "google/gemini-2.5-flash-lite" },
+  "lovable/gpt-5": { provider: "lovable_gateway", model: "openai/gpt-5" },
+  "lovable/gpt-5-mini": { provider: "lovable_gateway", model: "openai/gpt-5-mini" },
+  "lovable/gpt-5-nano": { provider: "lovable_gateway", model: "openai/gpt-5-nano" },
   // Gemini models (via Gemini API)
   "google/gemini-2.5-flash": { provider: "gemini", model: "gemini-2.5-flash" },
   "google/gemini-2.5-pro": { provider: "gemini", model: "gemini-2.5-pro" },
@@ -55,6 +63,7 @@ function resolveModel(model: string): { provider: string; model: string } {
 
 function getApiKey(provider: string): string | null {
   const envVars: Record<string, string> = {
+    lovable_gateway: "LOVABLE_API_KEY",
     gemini: "GEMINI_API_KEY",
     openai: "OPENAI_API_KEY",
     anthropic: "ANTHROPIC_API_KEY",
