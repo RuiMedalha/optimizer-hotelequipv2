@@ -231,7 +231,15 @@ export default function AiProviderCenterPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant={p.is_active ? "default" : "secondary"}>{p.is_active ? "Ativo" : "Inativo"}</Badge>
+                    <div className="flex items-center gap-1.5">
+                      <Switch
+                        checked={p.is_active}
+                        onCheckedChange={(checked) => {
+                          saveProvider.mutate({ id: p.id, is_active: checked, provider_name: p.provider_name, provider_type: p.provider_type });
+                        }}
+                      />
+                      <span className={`text-xs font-medium ${p.is_active ? "text-primary" : "text-muted-foreground"}`}>{p.is_active ? "Ativo" : "Inativo"}</span>
+                    </div>
                     <Badge variant="outline">Prioridade: {p.priority_order}</Badge>
                     {p.avg_latency_ms && <Badge variant="outline">{Math.round(p.avg_latency_ms)}ms</Badge>}
                     <Button size="sm" variant="outline" onClick={() => handleTestProvider(p.id)} disabled={testingId === p.id}>
