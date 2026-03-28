@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useProducts, useAllProductIds, useUpdateProductStatus, useProductFilterOptions, type Product, type ProductFilters } from "@/hooks/useProducts";
 import { useOptimizeProducts, OPTIMIZATION_FIELDS, OPTIMIZATION_PHASES, CancellationToken, type OptimizationField } from "@/hooks/useOptimizeProducts";
-import { useActiveAiModels } from "@/hooks/useAiProviderCenter";
+import { useActiveAiModels, useActiveImageModels } from "@/hooks/useAiProviderCenter";
 import { useOptimizationJob } from "@/hooks/useOptimizationJob";
 import { useOptimizationJobItems } from "@/hooks/useJobItems";
 import { usePublishWooCommerce, type PublishResult } from "@/hooks/usePublishWooCommerce";
