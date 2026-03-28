@@ -405,8 +405,8 @@ function extractGeminiFunctionCalls(
 
 function buildMessages(
   params: InvokeParams,
-): Array<{ role: string; content: string }> {
-  const out: Array<{ role: string; content: string }> = [];
+): Array<{ role: string; content: string | unknown[] }> {
+  const out: Array<{ role: string; content: string | unknown[] }> = [];
   if (params.systemPrompt) out.push({ role: "system", content: params.systemPrompt });
   out.push(...params.messages.filter((m) => m.role !== "system"));
   return out;
@@ -424,9 +424,9 @@ function normalizeFinishReason(raw: string | undefined): InvokeResult["finishRea
   return "unknown";
 }
 
-async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(url, { ...init, signal: controller.signal });
   } finally {
