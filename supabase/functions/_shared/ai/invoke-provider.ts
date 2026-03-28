@@ -7,9 +7,10 @@ const ERROR_BODY_MAX = 1200;
 
 export async function invokeProvider(params: InvokeParams): Promise<InvokeResult> {
   switch (params.provider.format) {
-    case "openai_compatible": return await invokeOpenAICompatible(params);
-    case "anthropic":         return await invokeAnthropic(params);
-    case "gemini":            return await invokeGemini(params);
+    case "openai_compatible":  return await invokeOpenAICompatible(params);
+    case "lovable_gateway":    return await invokeOpenAICompatible(params);
+    case "anthropic":          return await invokeAnthropic(params);
+    case "gemini":             return await invokeGemini(params);
     default: throw new ProviderError(
       `Unknown provider format: ${(params.provider as { format: string }).format}`,
       "invalid_request",

@@ -100,7 +100,8 @@ export interface ResolvedRoute {
     | 'workspace_preference'
     | 'capability_default'
     | 'system_default'
-    | 'product_optimization_fixed';
+    | 'product_optimization_fixed'
+    | 'auto_provider_resolution';
 }
 
 export interface RunPromptParams {
