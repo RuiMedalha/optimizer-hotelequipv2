@@ -127,19 +127,18 @@ export function ProductDescriptionPreview({
                 <TabsContent value="description" className="mt-4">
                   <div
                     className="prose prose-sm max-w-none text-foreground
-                      [&_h2]:text-primary [&_h2]:font-bold [&_h2]:text-lg [&_h2]:border-b [&_h2]:border-primary/30 [&_h2]:pb-1 [&_h2]:mb-3 [&_h2]:mt-6 first:[&_h2]:mt-0
-                      [&_h3]:text-primary [&_h3]:font-bold [&_h3]:text-base [&_h3]:border-b [&_h3]:border-primary/30 [&_h3]:pb-1 [&_h3]:mb-2 [&_h3]:mt-5
+                      [&_.product-description]:text-[15px] [&_.product-description]:leading-relaxed
+                      [&_h3]:text-[#00526d] [&_h3]:font-bold [&_h3]:text-lg [&_h3]:border-b-2 [&_h3]:border-[#e5e7eb] [&_h3]:pb-1.5 [&_h3]:mb-2.5 [&_h3]:mt-0
+                      [&_h2]:text-[#00526d] [&_h2]:font-bold [&_h2]:text-lg [&_h2]:border-b-2 [&_h2]:border-[#e5e7eb] [&_h2]:pb-1.5 [&_h2]:mb-2.5 [&_h2]:mt-5 first:[&_h2]:mt-0
                       [&_p]:mb-3 [&_p]:leading-relaxed [&_p]:text-foreground/90
                       [&_table]:w-full [&_table]:border-collapse [&_table]:text-sm [&_table]:my-4
                       [&_td]:border [&_td]:border-border [&_td]:px-4 [&_td]:py-2
                       [&_th]:border [&_th]:border-border [&_th]:px-4 [&_th]:py-2 [&_th]:bg-muted/50 [&_th]:font-bold [&_th]:text-left [&_th]:uppercase [&_th]:text-xs [&_th]:tracking-wider
                       [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5
                       [&_li]:mb-1 [&_strong]:text-foreground [&_strong]:font-bold
-                      [&_details]:border-0 [&_details]:p-0 [&_details]:mb-3 [&_details]:rounded-none
-                      [&_summary]:font-bold [&_summary]:text-foreground [&_summary]:list-none [&_summary]:cursor-default [&_summary]:mb-1
-                      [&_summary::-webkit-details-marker]:hidden [&_summary::marker]:hidden
-                      [&_details>p]:italic [&_details>p]:text-muted-foreground [&_details>p]:mb-1 [&_details>p]:pl-0"
-                    dangerouslySetInnerHTML={{ __html: longDescription.replace(/<details(?=[>\s])/g, '<details open') }}
+                      [&_.product-faq]:bg-[#fcfcfd] [&_.product-faq]:border [&_.product-faq]:border-[#e5e7eb] [&_.product-faq]:rounded-lg [&_.product-faq]:p-4
+                      [&_.specs-table]:bg-[#f9fafb] [&_.specs-table]:border [&_.specs-table]:border-[#e5e7eb] [&_.specs-table]:rounded-lg [&_.specs-table]:overflow-hidden"
+                    dangerouslySetInnerHTML={{ __html: longDescription }}
                   />
                 </TabsContent>
               </Tabs>
