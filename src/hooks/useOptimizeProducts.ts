@@ -47,17 +47,17 @@ export const OPTIMIZATION_FIELDS: { key: OptimizationField; label: string; phase
 ];
 
 export const AI_MODELS = [
-  { key: "gemini-2.5-pro", label: "Gemini 2.5 Pro (Raciocínio)" },
-  { key: "gemini-2.5-flash", label: "Gemini 2.5 Flash (Equilibrado)" },
-  { key: "gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite (Económico)" },
-
-  { key: "gemini-3-flash", label: "Gemini 3 Flash (usa 2.5 Flash)" },
-  { key: "gemini-3-pro", label: "Gemini 3 Pro (usa 2.5 Pro)" },
-
-  { key: "gpt-5.2", label: "GPT-5.2 (não ativo)" },
-  { key: "gpt-5", label: "GPT-5 (não ativo)" },
-  { key: "gpt-5-mini", label: "GPT-5 Mini (não ativo)" },
-  { key: "gpt-5-nano", label: "GPT-5 Nano (não ativo)" },
+  // Lovable AI Gateway models (always available, no API key needed)
+  { key: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro (Raciocínio)" },
+  { key: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash (Equilibrado)" },
+  { key: "google/gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite (Económico)" },
+  { key: "google/gemini-3-flash-preview", label: "Gemini 3 Flash Preview" },
+  { key: "google/gemini-3.1-pro-preview", label: "Gemini 3.1 Pro Preview" },
+  { key: "google/gemini-3.1-flash-image-preview", label: "Gemini 3.1 Flash Image Preview" },
+  { key: "openai/gpt-5", label: "GPT-5 (Premium)" },
+  { key: "openai/gpt-5-mini", label: "GPT-5 Mini (Equilibrado)" },
+  { key: "openai/gpt-5-nano", label: "GPT-5 Nano (Económico)" },
+  { key: "openai/gpt-5.2", label: "GPT-5.2 (Latest)" },
 ];
 
 export interface OptimizationProgress {

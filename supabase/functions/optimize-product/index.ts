@@ -259,20 +259,28 @@ serve(async (req) => {
 
     // Fetch user's chosen AI model from settings
     // CANONICAL_MODEL_MAP: maps UI model keys to provider-registry format.
-    // Use { provider, model } pairs — never Lovable-gateway "google/..." strings.
     const CANONICAL_MODEL_MAP: Record<string, { provider: string; model: string }> = {
-      // Gemini models — primary optimization providers
-      "gemini-2.5-pro":        { provider: "gemini", model: "gemini-2.5-pro" },
-      "gemini-2.5-flash":      { provider: "gemini", model: "gemini-2.5-flash" },
-      "gemini-2.5-flash-lite": { provider: "gemini", model: "gemini-2.5-flash-lite" },
-      // Preview models — map to themselves (exist in STATIC_CATALOG)
-      "gemini-3-flash-preview":  { provider: "gemini", model: "gemini-3-flash-preview" },
-      "gemini-3-pro-preview":    { provider: "gemini", model: "gemini-3-pro-preview" },
-      // Legacy UI keys — remap to latest stable equivalents
-      "gemini-3-flash":        { provider: "gemini", model: "gemini-2.5-flash" },
-      "gemini-3-pro":          { provider: "gemini", model: "gemini-2.5-pro" },
+      // Lovable Gateway models (primary — always available via LOVABLE_API_KEY)
+      "google/gemini-2.5-pro":        { provider: "lovable_gateway", model: "google/gemini-2.5-pro" },
+      "google/gemini-2.5-flash":      { provider: "lovable_gateway", model: "google/gemini-2.5-flash" },
+      "google/gemini-2.5-flash-lite": { provider: "lovable_gateway", model: "google/gemini-2.5-flash-lite" },
+      "google/gemini-3-flash-preview":  { provider: "lovable_gateway", model: "google/gemini-3-flash-preview" },
+      "google/gemini-3.1-pro-preview":  { provider: "lovable_gateway", model: "google/gemini-3.1-pro-preview" },
+      "google/gemini-3.1-flash-image-preview": { provider: "lovable_gateway", model: "google/gemini-3.1-flash-image-preview" },
+      "openai/gpt-5":                 { provider: "lovable_gateway", model: "openai/gpt-5" },
+      "openai/gpt-5-mini":            { provider: "lovable_gateway", model: "openai/gpt-5-mini" },
+      "openai/gpt-5-nano":            { provider: "lovable_gateway", model: "openai/gpt-5-nano" },
+      "openai/gpt-5.2":               { provider: "lovable_gateway", model: "openai/gpt-5.2" },
+      // Legacy short-form keys (backward compat from old UI selections)
+      "gemini-2.5-pro":        { provider: "lovable_gateway", model: "google/gemini-2.5-pro" },
+      "gemini-2.5-flash":      { provider: "lovable_gateway", model: "google/gemini-2.5-flash" },
+      "gemini-2.5-flash-lite": { provider: "lovable_gateway", model: "google/gemini-2.5-flash-lite" },
+      "gemini-3-flash":        { provider: "lovable_gateway", model: "google/gemini-2.5-flash" },
+      "gemini-3-pro":          { provider: "lovable_gateway", model: "google/gemini-2.5-pro" },
+      "gemini-3-flash-preview":  { provider: "lovable_gateway", model: "google/gemini-3-flash-preview" },
+      "gemini-3-pro-preview":    { provider: "lovable_gateway", model: "google/gemini-3.1-pro-preview" },
     };
-    const DEFAULT_MODEL_KEY = "gemini-2.5-flash";
+    const DEFAULT_MODEL_KEY = "google/gemini-2.5-flash";
     const { data: modelSetting } = await supabase
       .from("settings")
       .select("value")

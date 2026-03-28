@@ -97,12 +97,8 @@ export function WorkflowRunSelector() {
     if (!window.confirm("Apagar esta sessão? Os produtos associados ficam sem sessão.")) return;
     setIsDeleting(runId);
     try {
-      // 1. Disconnect products from session (safe regardless of FK type)
-      const { error: productErr } = await (supabase
-        .from("products") as any)
-        .update({ workflow_run_id: null })
-        .eq("workflow_run_id", runId);
-      if (productErr) throw productErr;
+      // 1. Disconnect products from session — workflow_run_id column does not exist on products table
+      // Products are linked to sessions via source_file or other references, skip this step safely
 
       // 2. Delete the run
       const { error: runErr } = await supabase

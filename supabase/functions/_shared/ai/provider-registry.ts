@@ -106,34 +106,37 @@ export async function resolveRoute(
 ): Promise<ResolvedRoute> {
   const { taskType, modelOverride } = params;
 
-  // 🔥 FIX DEFINITIVO: product optimization routing
-  if (taskType === "product_optimization") {
-    const gemini = getProvider("gemini");
+  // Build a priority-ordered list of providers to try
+  // Lovable Gateway first (always available), then direct providers
+  const providerOrder = ["lovable_gateway", "gemini", "openai", "anthropic"];
 
-    if (gemini) {
-      const primaryModel =
-        modelOverride && isModelCompatibleWithProvider(modelOverride, "gemini")
-          ? modelOverride
-          : getDefaultModelForProvider("gemini");
+  for (const providerId of providerOrder) {
+    const provider = getProvider(providerId);
+    if (!provider || !isKeyAvailable(provider)) continue;
 
-      const chain = buildChain(gemini, primaryModel, [
-        { provider: "openai", model: getDefaultModelForProvider("openai") },
-        { provider: "anthropic", model: getDefaultModelForProvider("anthropic") },
-      ]);
+    const model = modelOverride && isModelCompatibleWithProvider(modelOverride, providerId)
+      ? modelOverride
+      : getDefaultModelForProvider(providerId);
 
-      if (chain.length > 0) {
-        console.log(
-          `[AI ROUTE] ${chain.map((c) => `${c.provider.id}/${c.model}`).join(" -> ")}`
-        );
+    // Build fallback chain from remaining providers
+    const fallbackSpecs = providerOrder
+      .filter(p => p !== providerId)
+      .map(p => ({ provider: p, model: getDefaultModelForProvider(p) }));
 
-        return {
-          selectedProvider: chain[0].provider,
-          selectedModel: chain[0].model,
-          fallbackChain: chain.slice(1),
-          finalParams: {},
-          decisionSource: "product_optimization_fixed",
-        };
-      }
+    const chain = buildChain(provider, model, fallbackSpecs);
+
+    if (chain.length > 0) {
+      console.log(
+        `[AI ROUTE] task=${taskType || "default"} | ${chain.map((c) => `${c.provider.id}/${c.model}`).join(" -> ")}`
+      );
+
+      return {
+        selectedProvider: chain[0].provider,
+        selectedModel: chain[0].model,
+        fallbackChain: chain.slice(1),
+        finalParams: {},
+        decisionSource: "auto_provider_resolution",
+      };
     }
   }
 
