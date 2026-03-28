@@ -301,9 +301,6 @@ Deno.serve(async (req) => {
                 // AI didn't return image, keep original
                 processedUrls.push(originalUrl);
               }
-            } else {
-              // No AI key, just keep originals
-              processedUrls.push(originalUrl);
             }
           } catch (imgErr) {
             const errMsg = imgErr instanceof Error ? imgErr.message : String(imgErr);
