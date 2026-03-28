@@ -230,7 +230,6 @@ function normalizeWooProduct(
     upsell_skus: upsellIds.length > 0 ? upsellIds : null,
     crosssell_skus: crosssellIds.length > 0 ? crosssellIds : null,
     source_confidence_profile: sourceProfile,
-    workflow_run_id: workflowRunId,
   };
 }
 
@@ -298,7 +297,6 @@ function normalizeWooVariation(
     source_file: "woocommerce-import",
     technical_specs: buildTechSpecs(v),
     source_confidence_profile: sourceProfile,
-    workflow_run_id: workflowRunId,
   };
 }
 
