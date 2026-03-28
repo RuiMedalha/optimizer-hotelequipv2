@@ -72,12 +72,22 @@ ESTRUTURA short_description:
 - Foca no benefício operacional principal + 1 spec diferenciadora
 - Deve funcionar como snippet em listagens de produtos
 
-ESTRUTURA long_description (HTML):
+ESTRUTURA long_description (HTML com estilos inline para compatibilidade WooCommerce):
 - <p> de abertura: O que é, para quem serve, que problema resolve (2-3 frases, sem dados técnicos)
 - <ul> com 4-6 características práticas (não apenas specs — explica o benefício de cada uma)
 - <p> com aplicações concretas: tipos de estabelecimento, volume, situações de uso
-- Se houver specs técnicas suficientes, inclui uma <table> limpa com as características principais
-- Opcional: 2-3 <details><summary>FAQ</summary> com perguntas reais que um comprador faria
+- Se houver specs técnicas suficientes, inclui uma <table> com estilos inline
+- OBRIGATÓRIO: 3 a 5 FAQs no final (nunca menos de 3, nunca mais de 5)
+
+ESTILOS INLINE OBRIGATÓRIOS (aplica SEMPRE no HTML):
+- Títulos h2: style="color: #2563eb; font-weight: bold; font-size: 1.15em; border-bottom: 2px solid rgba(37,99,235,0.3); padding-bottom: 4px; margin-top: 20px; margin-bottom: 12px;"
+- Títulos h3: style="color: #2563eb; font-weight: bold; font-size: 1.05em; border-bottom: 1px solid rgba(37,99,235,0.3); padding-bottom: 4px; margin-top: 16px; margin-bottom: 8px;"
+- Tabelas: <table style="width: 100%; border-collapse: collapse; font-size: 0.9em; margin: 16px 0;">
+- Células th: style="border: 1px solid #e5e7eb; padding: 8px 12px; background: #f3f4f6; font-weight: bold; text-align: left; text-transform: uppercase; font-size: 0.8em; letter-spacing: 0.05em;"
+- Células td: style="border: 1px solid #e5e7eb; padding: 8px 12px;"
+- FAQs: NÃO uses <details>/<summary>. Em vez disso, usa para cada FAQ:
+  <p style="font-weight: bold; margin-bottom: 4px; margin-top: 16px;">Pergunta aqui?</p>
+  <p style="font-style: italic; color: #6b7280; margin-bottom: 8px;">Resposta aqui.</p>
 
 REGRAS SEO:
 - Keywords naturais no texto, sem stuffing
