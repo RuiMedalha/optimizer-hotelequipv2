@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAllProductIds } from "@/hooks/useProducts";
 import { useProcessImages } from "@/hooks/useProcessImages";
+import { useActiveImageModels } from "@/hooks/useAiProviderCenter";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +27,8 @@ const ImagesPage = () => {
   const [filter, setFilter] = useState<ImageFilter>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [mode, setMode] = useState<"optimize" | "lifestyle">("optimize");
+  const [selectedImageModel, setSelectedImageModel] = useState<string>("default");
+  const IMAGE_MODELS = useActiveImageModels();
   const [processedFilter, setProcessedFilter] = useState<"all" | "optimized" | "lifestyle">("all");
 
   // Fetch processed images from images table
@@ -133,7 +136,12 @@ const ImagesPage = () => {
       toast.warning("Nenhum produto com imagens para processar.");
       return;
     }
-    processImages({ workspaceId: activeWorkspace.id, productIds: ids, mode });
+    processImages({
+      workspaceId: activeWorkspace.id,
+      productIds: ids,
+      mode,
+      modelOverride: selectedImageModel !== "default" ? selectedImageModel : undefined,
+    });
   };
 
   return (
