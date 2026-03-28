@@ -2,7 +2,8 @@
 import type { InvokeParams, InvokeResult } from "./provider-types.ts";
 import { classifyError, classifyNetworkError } from "./error-classifier.ts";
 
-const TIMEOUT_MS = 30_000; // 30s per spec. If Phase 3 vision tasks need longer, increase here only.
+const TIMEOUT_MS = 30_000;
+const IMAGE_TIMEOUT_MS = 120_000; // 2 min for image generation
 const ERROR_BODY_MAX = 1200;
 
 export async function invokeProvider(params: InvokeParams): Promise<InvokeResult> {
@@ -34,7 +35,11 @@ async function invokeOpenAICompatible(params: InvokeParams): Promise<InvokeResul
     ...(params.maxTokens != null ? { max_tokens: params.maxTokens } : {}),
     ...(params.jsonMode ? { response_format: { type: "json_object" } } : {}),
     ...(params.tools?.length ? { tools: params.tools, tool_choice: params.toolChoice ?? "auto" } : {}),
+    ...(params.modalities?.length ? { modalities: params.modalities } : {}),
   };
+
+  const isImageRequest = params.modalities?.includes("image");
+  const timeoutMs = isImageRequest ? IMAGE_TIMEOUT_MS : TIMEOUT_MS;
 
   const startMs = Date.now();
   let resp: Response;
@@ -46,7 +51,7 @@ async function invokeOpenAICompatible(params: InvokeParams): Promise<InvokeResul
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
-    });
+    }, timeoutMs);
   } catch (err) {
     throw new ProviderError("Network error", classifyNetworkError(err));
   }
