@@ -126,23 +126,21 @@ export function ProductDescriptionPreview({
                 </TabsList>
                 <TabsContent value="description" className="mt-4">
                   <div
-                    className="prose prose-sm max-w-none text-foreground 
-                      [&_table]:w-full [&_table]:border-collapse [&_table]:text-sm
-                      [&_td]:border [&_td]:border-border [&_td]:px-3 [&_td]:py-1.5
-                      [&_th]:border [&_th]:border-border [&_th]:px-3 [&_th]:py-1.5 [&_th]:bg-muted/50 [&_th]:font-medium
+                    className="prose prose-sm max-w-none text-foreground
+                      [&_h2]:text-primary [&_h2]:font-bold [&_h2]:text-lg [&_h2]:border-b [&_h2]:border-primary/30 [&_h2]:pb-1 [&_h2]:mb-3 [&_h2]:mt-6 first:[&_h2]:mt-0
+                      [&_h3]:text-primary [&_h3]:font-bold [&_h3]:text-base [&_h3]:border-b [&_h3]:border-primary/30 [&_h3]:pb-1 [&_h3]:mb-2 [&_h3]:mt-5
+                      [&_p]:mb-3 [&_p]:leading-relaxed [&_p]:text-foreground/90
+                      [&_table]:w-full [&_table]:border-collapse [&_table]:text-sm [&_table]:my-4
+                      [&_td]:border [&_td]:border-border [&_td]:px-4 [&_td]:py-2
+                      [&_th]:border [&_th]:border-border [&_th]:px-4 [&_th]:py-2 [&_th]:bg-muted/50 [&_th]:font-bold [&_th]:text-left [&_th]:uppercase [&_th]:text-xs [&_th]:tracking-wider
                       [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5
-                      [&_li]:mb-1 [&_p]:mb-3 [&_strong]:text-foreground
-                      [&_details]:border [&_details]:border-border [&_details]:rounded-lg [&_details]:p-3 [&_details]:mb-2 [&_details[open]]:border-primary/20
-                      [&_details]:open [&_details]:!block
-                      [&_summary]:font-bold [&_summary]:cursor-pointer [&_summary]:text-foreground [&_summary]:list-none [&_summary]:mb-2
+                      [&_li]:mb-1 [&_strong]:text-foreground [&_strong]:font-bold
+                      [&_details]:border-0 [&_details]:p-0 [&_details]:mb-3 [&_details]:rounded-none
+                      [&_summary]:font-bold [&_summary]:text-foreground [&_summary]:list-none [&_summary]:cursor-default [&_summary]:mb-1
                       [&_summary::-webkit-details-marker]:hidden [&_summary::marker]:hidden
-                      [&_details>*:not(summary)]:italic [&_details>*:not(summary)]:text-muted-foreground
-                      [&_details>p]:italic [&_details>p]:text-muted-foreground [&_details>p]:mb-1"
+                      [&_details>p]:italic [&_details>p]:text-muted-foreground [&_details>p]:mb-1 [&_details>p]:pl-0"
                     dangerouslySetInnerHTML={{ __html: longDescription.replace(/<details(?=[>\s])/g, '<details open') }}
                   />
-                </TabsContent>
-                <TabsContent value="specs" className="mt-4">
-                  <p className="text-sm text-muted-foreground">Especificações detalhadas extraídas da descrição.</p>
                 </TabsContent>
               </Tabs>
             </div>
