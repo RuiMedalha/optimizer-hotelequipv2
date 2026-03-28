@@ -1,5 +1,4 @@
 import { createRoot } from "react-dom/client";
-import App from "./App.tsx";
 import "./index.css";
 
 type ThemeMode = "light" | "dark";
@@ -27,4 +26,56 @@ const applyTheme = (theme: ThemeMode) => {
 
 applyTheme(getInitialTheme());
 
-createRoot(document.getElementById("root")!).render(<App />);
+const rootElement = document.getElementById("root");
+
+if (!rootElement) {
+  throw new Error("Root element not found");
+}
+
+const root = createRoot(rootElement);
+
+const renderBootError = (message: string) => {
+  root.render(
+    <div className="flex min-h-screen items-center justify-center bg-background px-6 py-10 text-foreground">
+      <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-8 shadow-lg">
+        <p className="text-sm font-medium text-muted-foreground">Arranque da aplicação</p>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight">Não foi possível carregar a app</h1>
+        <p className="mt-4 text-sm leading-6 text-muted-foreground">{message}</p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      </div>
+    </div>,
+  );
+};
+
+const requiredEnv = {
+  url: import.meta.env.VITE_SUPABASE_URL,
+  key: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+};
+
+if (!requiredEnv.url || !requiredEnv.key) {
+  console.error("[boot] Missing backend environment configuration", {
+    hasUrl: Boolean(requiredEnv.url),
+    hasKey: Boolean(requiredEnv.key),
+  });
+
+  renderBootError(
+    "A configuração de arranque do backend não está disponível neste build. Publique/atualize o projeto novamente para gerar um novo build com a configuração correta.",
+  );
+} else {
+  import("./App.tsx")
+    .then(({ default: App }) => {
+      root.render(<App />);
+    })
+    .catch((error) => {
+      console.error("[boot] Failed to load app bundle", error);
+      renderBootError("Ocorreu um erro ao iniciar a interface. Atualize a página para tentar novamente.");
+    });
+}
