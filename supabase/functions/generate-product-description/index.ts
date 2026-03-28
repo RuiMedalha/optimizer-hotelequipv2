@@ -73,33 +73,32 @@ ESTRUTURA short_description:
 - Deve funcionar como snippet em listagens de produtos
 
 ESTRUTURA long_description (HTML com estilos inline para compatibilidade WooCommerce):
-A descrição DEVE seguir esta estrutura de secções com cabeçalhos h2 obrigatórios:
+Envolve TUDO num div raiz: <div class="product-description" style="font-size:15px; line-height:1.65; color:#2c2c2c;">
 
-1. <h2>Principais Vantagens</h2>
-   - <p> de abertura: O que é, para quem serve, que problema resolve (2-3 frases)
-   - Destaca os benefícios-chave do equipamento de forma concisa e convincente
+Cada secção é um div com classe própria e margin-bottom:22px. Usa h3 (NÃO h2) com este estilo EXATO:
+style="margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;"
 
-2. <h2>Aplicações</h2>
-   - <p> com aplicações concretas: tipos de estabelecimento, volume, situações de uso
-   - Explica como o equipamento se integra numa operação real
+SECÇÕES OBRIGATÓRIAS (nesta ordem):
 
-3. <h2>Especificações Técnicas</h2>
-   - <table> com specs técnicas organizadas (CARACTERÍSTICA | DETALHE)
-   - Inclui apenas specs reais fornecidas — NÃO inventes valores
+1. <div class="product-benefits"> com <h3>Principais Vantagens</h3>
+   - Dentro de <div style="margin-top:10px;">, parágrafos com benefícios-chave (2-4 bullets ou parágrafos)
 
-4. <h2>Perguntas Frequentes</h2>
-   - OBRIGATÓRIO: 3 a 5 FAQs (nunca menos de 3, nunca mais de 5)
-   - Cada FAQ como par de parágrafos (pergunta bold + resposta italic)
+2. <div class="product-applications"> com <h3>Aplicações</h3>
+   - Dentro de <div style="margin-top:10px;">, aplicações concretas: tipos de estabelecimento, volume, situações
 
-ESTILOS INLINE OBRIGATÓRIOS (aplica SEMPRE no HTML):
-- Títulos h2: style="color: #2563eb; font-weight: bold; font-size: 1.15em; border-bottom: 2px solid rgba(37,99,235,0.3); padding-bottom: 4px; margin-top: 20px; margin-bottom: 12px;"
-- Títulos h3: style="color: #2563eb; font-weight: bold; font-size: 1.05em; border-bottom: 1px solid rgba(37,99,235,0.3); padding-bottom: 4px; margin-top: 16px; margin-bottom: 8px;"
-- Tabelas: <table style="width: 100%; border-collapse: collapse; font-size: 0.9em; margin: 16px 0;">
-- Células th: style="border: 1px solid #e5e7eb; padding: 8px 12px; background: #f3f4f6; font-weight: bold; text-align: left; text-transform: uppercase; font-size: 0.8em; letter-spacing: 0.05em;"
-- Células td: style="border: 1px solid #e5e7eb; padding: 8px 12px;"
-- FAQs: NÃO uses <details>/<summary>. Em vez disso, usa para cada FAQ:
-  <p style="font-weight: bold; margin-bottom: 4px; margin-top: 16px;">Pergunta aqui?</p>
-  <p style="font-style: italic; color: #6b7280; margin-bottom: 8px;">Resposta aqui.</p>
+3. <div class="product-specs"> com <h3>Especificações Técnicas</h3>
+   - <div class="specs-table" style="margin-top:10px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden;">
+   - Dentro, <table style="width:100%; border-collapse:collapse; font-size:0.9em;">
+   - th: style="border:1px solid #e5e7eb; padding:8px 12px; background:#f3f4f6; font-weight:bold; text-align:left; text-transform:uppercase; font-size:0.8em; letter-spacing:0.05em;"
+   - td: style="border:1px solid #e5e7eb; padding:8px 12px;"
+
+4. <div class="product-faq"> com <h3>Perguntas Frequentes</h3>
+   - MÁXIMO 4 perguntas (nunca mais de 4, mínimo 2)
+   - Dentro de <div style="margin-top:10px; background:#fcfcfd; border:1px solid #e5e7eb; border-radius:8px; padding:14px 16px;">
+   - NÃO uses <details>/<summary> — as respostas são SEMPRE visíveis
+   - Cada FAQ como:
+     <p style="font-weight:bold; margin:0 0 4px; color:#2c2c2c;">Pergunta aqui?</p>
+     <p style="font-style:italic; color:#6b7280; margin:0 0 14px;">Resposta aqui.</p>
 
 REGRAS SEO:
 - Keywords naturais no texto, sem stuffing
