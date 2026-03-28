@@ -333,6 +333,36 @@ export function useActiveAiModels(): { key: string; label: string }[] {
   return catalogModels;
 }
 
+// ═══ Active Image Models (for image optimization/generation) ═══
+export function useActiveImageModels(): { key: string; label: string }[] {
+  const providers = useAiProviders();
+  const modelCatalog = useAiModelCatalog();
+
+  const activeProviderTypes = new Set(
+    (providers.data || []).filter((p: any) => p.is_active).map((p: any) => p.provider_type)
+  );
+
+  const LOVABLE_IMAGE_MODELS = [
+    { key: "google/gemini-3.1-flash-image-preview", label: "⚡ Lovable AI — Gemini 3.1 Flash Image (Rápido + Qualidade)" },
+    { key: "google/gemini-3-pro-image-preview", label: "⚡ Lovable AI — Gemini 3 Pro Image (Máxima Qualidade)" },
+    { key: "google/gemini-2.5-flash-image", label: "⚡ Lovable AI — Gemini 2.5 Flash Image (Económico)" },
+  ];
+
+  const models: { key: string; label: string }[] = [...LOVABLE_IMAGE_MODELS];
+  const seenKeys = new Set(models.map((m) => m.key));
+
+  for (const model of (modelCatalog.data || []) as any[]) {
+    if (!activeProviderTypes.has(model.provider_type)) continue;
+    if (!model.supports_vision) continue;
+    const key = model.model_id;
+    if (seenKeys.has(key)) continue;
+    seenKeys.add(key);
+    models.push({ key, label: `${model.display_name || key} (Visão)` });
+  }
+
+  return models;
+}
+
 // ═══ Provider Health ═══
 export function useAiProviderHealth(providerId: string | null) {
   return useQuery({

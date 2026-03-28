@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useProducts, useAllProductIds, useUpdateProductStatus, useProductFilterOptions, type Product, type ProductFilters } from "@/hooks/useProducts";
 import { useOptimizeProducts, OPTIMIZATION_FIELDS, OPTIMIZATION_PHASES, CancellationToken, type OptimizationField } from "@/hooks/useOptimizeProducts";
-import { useActiveAiModels } from "@/hooks/useAiProviderCenter";
+import { useActiveAiModels, useActiveImageModels } from "@/hooks/useAiProviderCenter";
 import { useOptimizationJob } from "@/hooks/useOptimizationJob";
 import { useOptimizationJobItems } from "@/hooks/useJobItems";
 import { usePublishWooCommerce, type PublishResult } from "@/hooks/usePublishWooCommerce";
@@ -68,7 +68,7 @@ const ProductsPage = () => {
   const { processImages, isProcessing: isProcessingImages, progress: imgProgress } = useProcessImages();
   const { data: settings } = useSettings();
   const AI_MODELS = useActiveAiModels();
-
+  const IMAGE_MODELS = useActiveImageModels();
   // Fetch which products have optimized/lifestyle images
   const { data: imageStatusMap } = useQuery({
     queryKey: ["product-image-status", activeWorkspace?.id],
@@ -125,6 +125,7 @@ const ProductsPage = () => {
   const [selectedPhases, setSelectedPhases] = useState<Set<number>>(new Set(ALL_PHASES));
   const [pendingOptimizeIds, setPendingOptimizeIds] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>("default");
+  const [selectedImageModel, setSelectedImageModel] = useState<string>("default");
   const [confirmReoptimize, setConfirmReoptimize] = useState(false);
   const [backgroundMode, setBackgroundMode] = useState(true);
   const [skipKnowledge, setSkipKnowledge] = useState(false);
@@ -875,24 +876,42 @@ const ProductsPage = () => {
             {isEnriching ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Globe className="w-3.5 h-3.5 mr-1" />}
             <span className="hidden sm:inline">Enriquecer </span>Web{selected.size > 0 ? ` (${selected.size})` : ""}
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-xs h-8"
-            onClick={() => {
-              if (!activeWorkspace) return;
-              const ids = selected.size > 0 ? Array.from(selected) : (allProductsLight ?? []).filter((p: any) => p.image_urls?.length > 0).map((p: any) => p.id).slice(0, 50);
-              if (ids.length === 0) {
-                toast.warning("Nenhum produto com imagens para processar.");
-                return;
-              }
-              processImages({ workspaceId: activeWorkspace.id, productIds: ids, mode: "optimize" });
-            }}
-            disabled={isProcessingImages}
-          >
-            {isProcessingImages ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5 mr-1" />}
-            <span className="hidden sm:inline">Otimizar </span>Imagens{selected.size > 0 ? ` (${selected.size})` : ""}
-          </Button>
+          <div className="flex items-center gap-1">
+            <Select value={selectedImageModel} onValueChange={setSelectedImageModel}>
+              <SelectTrigger className="h-8 text-xs w-[180px]">
+                <SelectValue placeholder="Modelo Imagem" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">Auto (Flash Image)</SelectItem>
+                {IMAGE_MODELS.map((m) => (
+                  <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs h-8"
+              onClick={() => {
+                if (!activeWorkspace) return;
+                const ids = selected.size > 0 ? Array.from(selected) : (allProductsLight ?? []).filter((p: any) => p.image_urls?.length > 0).map((p: any) => p.id).slice(0, 50);
+                if (ids.length === 0) {
+                  toast.warning("Nenhum produto com imagens para processar.");
+                  return;
+                }
+                processImages({
+                  workspaceId: activeWorkspace.id,
+                  productIds: ids,
+                  mode: "optimize",
+                  modelOverride: selectedImageModel !== "default" ? selectedImageModel : undefined,
+                });
+              }}
+              disabled={isProcessingImages}
+            >
+              {isProcessingImages ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5 mr-1" />}
+              <span className="hidden sm:inline">Otimizar </span>Imagens{selected.size > 0 ? ` (${selected.size})` : ""}
+            </Button>
+          </div>
           {activeWorkspace?.has_variable_products && (
             <Button
               size="sm"

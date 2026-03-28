@@ -29,8 +29,10 @@ Deno.serve(async (req) => {
     const { data: { user }, error: userError } = await userClient.auth.getUser(token);
     if (userError || !user) throw new Error("Não autenticado");
 
-    const { productIds, workspaceId, mode = "optimize" } = await req.json();
+    const { productIds, workspaceId, mode = "optimize", modelOverride } = await req.json();
     // mode: "optimize" = pad+enhance, "lifestyle" = generate contextual image
+    // modelOverride: optional AI model to use (e.g. "google/gemini-3-pro-image-preview")
+    const imageModel = modelOverride || "gemini-3.1-flash-image-preview";
 
     if (!productIds?.length || !workspaceId) {
       throw new Error("productIds e workspaceId são obrigatórios");
@@ -141,8 +143,7 @@ Deno.serve(async (req) => {
                     body: JSON.stringify({
                       taskType: "image_lifestyle_generation",
                       workspaceId,
-                      modelOverride: "gemini-3.1-flash-image-preview",
-                      providerOverride: "gemini",
+                      modelOverride: imageModel,
                       messages: [
                         {
                           role: "user",
@@ -229,8 +230,7 @@ Deno.serve(async (req) => {
                   body: JSON.stringify({
                     taskType: "image_optimization",
                     workspaceId,
-                    modelOverride: "gemini-3.1-flash-image-preview",
-                    providerOverride: "gemini",
+                    modelOverride: imageModel,
                     messages: [
                       {
                         role: "user",

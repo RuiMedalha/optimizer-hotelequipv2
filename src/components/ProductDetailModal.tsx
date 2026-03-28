@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Check, X, ExternalLink, RotateCcw, History, Send, ArrowUpRight, Shuffle, AlertTriangle, Brain, BookOpen, Globe, Database, Loader2, BarChart3, Columns, GitBranch, PackageSearch, ImageIcon, Sparkles, Camera, ShieldCheck, ClipboardCheck, Languages } from "lucide-react";
 import { useProcessImages } from "@/hooks/useProcessImages";
+import { useActiveImageModels } from "@/hooks/useAiProviderCenter";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { VariationsPanel } from "@/components/VariationsPanel";
@@ -50,6 +51,8 @@ export function ProductDetailModal({ product, onClose }: Props) {
   const restoreVersion = useRestoreVersion();
   const { processImages, isProcessing, progress: imgProgress } = useProcessImages();
   const { activeWorkspace } = useWorkspaceContext();
+  const IMAGE_MODELS = useActiveImageModels();
+  const [selectedImageModel, setSelectedImageModel] = useState<string>("default");
   const { data: gateResults } = useQualityGateResults(product?.id ?? null);
   const { data: publishLocks } = usePublishLocks(product?.id ?? null);
   const evaluateGate = useEvaluateQualityGate();
@@ -460,9 +463,20 @@ export function ProductDetailModal({ product, onClose }: Props) {
           <TabsContent value="imagens" className="mt-4">
             {product.image_urls && product.image_urls.length > 0 ? (
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <p className="text-sm text-muted-foreground">{product.image_urls.length} imagem(ns)</p>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Select value={selectedImageModel} onValueChange={setSelectedImageModel}>
+                      <SelectTrigger className="h-8 text-xs w-[170px]">
+                        <SelectValue placeholder="Modelo IA" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="default">Auto (Flash Image)</SelectItem>
+                        {IMAGE_MODELS.map((m) => (
+                          <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <Button
                       size="sm"
                       variant="outline"
@@ -471,10 +485,11 @@ export function ProductDetailModal({ product, onClose }: Props) {
                         workspaceId: activeWorkspace.id,
                         productIds: [product.id],
                         mode: "optimize",
+                        modelOverride: selectedImageModel !== "default" ? selectedImageModel : undefined,
                       })}
                     >
                       {isProcessing ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <ImageIcon className="w-3 h-3 mr-1" />}
-                      Otimizar Imagens
+                      Otimizar
                     </Button>
                     <Button
                       size="sm"
@@ -484,10 +499,11 @@ export function ProductDetailModal({ product, onClose }: Props) {
                         workspaceId: activeWorkspace.id,
                         productIds: [product.id],
                         mode: "lifestyle",
+                        modelOverride: selectedImageModel !== "default" ? selectedImageModel : undefined,
                       })}
                     >
                       {isProcessing ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
-                      Gerar Lifestyle
+                      Lifestyle
                     </Button>
                   </div>
                 </div>
