@@ -4,6 +4,7 @@ import type { ModelConfig, CapabilityType } from "./provider-types.ts";
 
 // Static fallback — used when DB is unreachable. Must be kept in sync with seed data.
 export const STATIC_CATALOG: ModelConfig[] = [
+  // ── Anthropic ──
   {
     providerId: "anthropic", modelId: "claude-sonnet-4-6", displayName: "Claude Sonnet 4.6",
     contextWindow: 200000, maxOutputTokens: 8192, supportsVision: true, supportsFunctionCalling: true,
@@ -11,21 +12,94 @@ export const STATIC_CATALOG: ModelConfig[] = [
     recommendedFor: ["content_generation", "reasoning", "extraction"], enabled: true,
   },
   {
-    providerId: "anthropic", modelId: "claude-haiku-4-5-20251001", displayName: "Claude Haiku 4.5",
+    providerId: "anthropic", modelId: "claude-sonnet-4-5", displayName: "Claude Sonnet 4.5",
+    contextWindow: 200000, maxOutputTokens: 8192, supportsVision: true, supportsFunctionCalling: true,
+    supportsJsonMode: false, inputCostPer1k: 0.003, outputCostPer1k: 0.015, status: "active",
+    recommendedFor: ["content_generation", "reasoning"], enabled: true,
+  },
+  {
+    providerId: "anthropic", modelId: "claude-sonnet-4", displayName: "Claude Sonnet 4",
+    contextWindow: 200000, maxOutputTokens: 8192, supportsVision: true, supportsFunctionCalling: true,
+    supportsJsonMode: false, inputCostPer1k: 0.003, outputCostPer1k: 0.015, status: "active",
+    recommendedFor: ["content_generation", "reasoning"], enabled: true,
+  },
+  {
+    providerId: "anthropic", modelId: "claude-haiku-4-5", displayName: "Claude Haiku 4.5",
     contextWindow: 200000, maxOutputTokens: 8192, supportsVision: false, supportsFunctionCalling: true,
     supportsJsonMode: false, inputCostPer1k: 0.001, outputCostPer1k: 0.005, status: "active",
     recommendedFor: ["seo_generation", "translation", "summarization"], enabled: true,
   },
   {
+    providerId: "anthropic", modelId: "claude-haiku-3-5", displayName: "Claude Haiku 3.5",
+    contextWindow: 200000, maxOutputTokens: 4096, supportsVision: false, supportsFunctionCalling: true,
+    supportsJsonMode: false, inputCostPer1k: 0.0008, outputCostPer1k: 0.004, status: "active",
+    recommendedFor: ["classification", "summarization"], enabled: true,
+  },
+  {
     providerId: "anthropic", modelId: "claude-opus-4-6", displayName: "Claude Opus 4.6",
+    contextWindow: 200000, maxOutputTokens: 4096, supportsVision: true, supportsFunctionCalling: true,
+    supportsJsonMode: false, inputCostPer1k: 0.005, outputCostPer1k: 0.025, status: "active",
+    recommendedFor: ["reasoning"], enabled: true,
+  },
+  {
+    providerId: "anthropic", modelId: "claude-opus-4-5", displayName: "Claude Opus 4.5",
+    contextWindow: 200000, maxOutputTokens: 4096, supportsVision: true, supportsFunctionCalling: true,
+    supportsJsonMode: false, inputCostPer1k: 0.005, outputCostPer1k: 0.025, status: "active",
+    recommendedFor: ["reasoning"], enabled: true,
+  },
+  {
+    providerId: "anthropic", modelId: "claude-opus-4-1", displayName: "Claude Opus 4.1",
     contextWindow: 200000, maxOutputTokens: 4096, supportsVision: true, supportsFunctionCalling: true,
     supportsJsonMode: false, inputCostPer1k: 0.015, outputCostPer1k: 0.075, status: "active",
     recommendedFor: ["reasoning"], enabled: true,
   },
+  // ── OpenAI ──
+  {
+    providerId: "openai", modelId: "gpt-5.4", displayName: "GPT-5.4",
+    contextWindow: 128000, maxOutputTokens: 16384, supportsVision: true, supportsFunctionCalling: true,
+    supportsJsonMode: true, inputCostPer1k: 0.0025, outputCostPer1k: 0.015, status: "active",
+    recommendedFor: ["reasoning", "content_generation"], enabled: true,
+  },
+  {
+    providerId: "openai", modelId: "gpt-5.4-mini", displayName: "GPT-5.4 Mini",
+    contextWindow: 128000, maxOutputTokens: 16384, supportsVision: true, supportsFunctionCalling: true,
+    supportsJsonMode: true, inputCostPer1k: 0.00075, outputCostPer1k: 0.0045, status: "active",
+    recommendedFor: ["classification", "seo_generation", "summarization"], enabled: true,
+  },
+  {
+    providerId: "openai", modelId: "gpt-5.4-nano", displayName: "GPT-5.4 Nano",
+    contextWindow: 128000, maxOutputTokens: 16384, supportsVision: false, supportsFunctionCalling: true,
+    supportsJsonMode: true, inputCostPer1k: 0.0002, outputCostPer1k: 0.00125, status: "active",
+    recommendedFor: ["classification"], enabled: true,
+  },
+  {
+    providerId: "openai", modelId: "gpt-5.2", displayName: "GPT-5.2",
+    contextWindow: 128000, maxOutputTokens: 16384, supportsVision: true, supportsFunctionCalling: true,
+    supportsJsonMode: true, inputCostPer1k: 0.00175, outputCostPer1k: 0.014, status: "active",
+    recommendedFor: ["reasoning", "content_generation"], enabled: true,
+  },
+  {
+    providerId: "openai", modelId: "gpt-5", displayName: "GPT-5",
+    contextWindow: 128000, maxOutputTokens: 16384, supportsVision: true, supportsFunctionCalling: true,
+    supportsJsonMode: true, inputCostPer1k: 0.00125, outputCostPer1k: 0.01, status: "active",
+    recommendedFor: ["reasoning", "extraction"], enabled: true,
+  },
+  {
+    providerId: "openai", modelId: "gpt-5-mini", displayName: "GPT-5 Mini",
+    contextWindow: 128000, maxOutputTokens: 16384, supportsVision: true, supportsFunctionCalling: true,
+    supportsJsonMode: true, inputCostPer1k: 0.00025, outputCostPer1k: 0.002, status: "active",
+    recommendedFor: ["seo_generation", "translation"], enabled: true,
+  },
+  {
+    providerId: "openai", modelId: "gpt-5-nano", displayName: "GPT-5 Nano",
+    contextWindow: 128000, maxOutputTokens: 16384, supportsVision: false, supportsFunctionCalling: true,
+    supportsJsonMode: true, inputCostPer1k: 0.00005, outputCostPer1k: 0.0004, status: "active",
+    recommendedFor: ["classification"], enabled: true,
+  },
   {
     providerId: "openai", modelId: "gpt-4o", displayName: "GPT-4o",
     contextWindow: 128000, maxOutputTokens: 4096, supportsVision: true, supportsFunctionCalling: true,
-    supportsJsonMode: true, inputCostPer1k: 0.005, outputCostPer1k: 0.015, status: "active",
+    supportsJsonMode: true, inputCostPer1k: 0.0025, outputCostPer1k: 0.01, status: "active",
     recommendedFor: ["extraction", "reasoning", "multimodal_vision"], enabled: true,
   },
   {
@@ -35,21 +109,52 @@ export const STATIC_CATALOG: ModelConfig[] = [
     recommendedFor: ["classification", "seo_generation"], enabled: true,
   },
   {
+    providerId: "openai", modelId: "gpt-4.1", displayName: "GPT-4.1",
+    contextWindow: 128000, maxOutputTokens: 8192, supportsVision: true, supportsFunctionCalling: true,
+    supportsJsonMode: true, inputCostPer1k: 0.002, outputCostPer1k: 0.008, status: "active",
+    recommendedFor: ["extraction", "enrichment"], enabled: true,
+  },
+  {
+    providerId: "openai", modelId: "gpt-4.1-mini", displayName: "GPT-4.1 Mini",
+    contextWindow: 128000, maxOutputTokens: 8192, supportsVision: true, supportsFunctionCalling: true,
+    supportsJsonMode: true, inputCostPer1k: 0.0004, outputCostPer1k: 0.0016, status: "active",
+    recommendedFor: ["classification", "seo_generation"], enabled: true,
+  },
+  {
+    providerId: "openai", modelId: "gpt-4.1-nano", displayName: "GPT-4.1 Nano",
+    contextWindow: 128000, maxOutputTokens: 8192, supportsVision: false, supportsFunctionCalling: true,
+    supportsJsonMode: true, inputCostPer1k: 0.0001, outputCostPer1k: 0.0004, status: "active",
+    recommendedFor: ["classification"], enabled: true,
+  },
+  {
+    providerId: "openai", modelId: "o3", displayName: "O3",
+    contextWindow: 128000, maxOutputTokens: 8192, supportsVision: true, supportsFunctionCalling: true,
+    supportsJsonMode: true, inputCostPer1k: 0.002, outputCostPer1k: 0.008, status: "active",
+    recommendedFor: ["reasoning"], enabled: true,
+  },
+  {
+    providerId: "openai", modelId: "o4-mini", displayName: "O4 Mini",
+    contextWindow: 128000, maxOutputTokens: 8192, supportsVision: true, supportsFunctionCalling: true,
+    supportsJsonMode: true, inputCostPer1k: 0.0011, outputCostPer1k: 0.0044, status: "active",
+    recommendedFor: ["reasoning"], enabled: true,
+  },
+  // ── Gemini ──
+  {
     providerId: "gemini", modelId: "gemini-2.5-pro", displayName: "Gemini 2.5 Pro",
     contextWindow: 1000000, maxOutputTokens: 8192, supportsVision: true, supportsFunctionCalling: true,
-    supportsJsonMode: true, inputCostPer1k: 0.00125, outputCostPer1k: 0.005, status: "active",
+    supportsJsonMode: true, inputCostPer1k: 0.00125, outputCostPer1k: 0.01, status: "active",
     recommendedFor: ["web_research", "reasoning"], enabled: true,
   },
   {
     providerId: "gemini", modelId: "gemini-2.5-flash", displayName: "Gemini 2.5 Flash",
     contextWindow: 1000000, maxOutputTokens: 8192, supportsVision: true, supportsFunctionCalling: true,
-    supportsJsonMode: true, inputCostPer1k: 0.00015, outputCostPer1k: 0.0006, status: "active",
+    supportsJsonMode: true, inputCostPer1k: 0.00015, outputCostPer1k: 0.0035, status: "active",
     recommendedFor: ["multimodal_vision", "enrichment"], enabled: true,
   },
   {
     providerId: "gemini", modelId: "gemini-2.5-flash-lite", displayName: "Gemini 2.5 Flash Lite",
     contextWindow: 1000000, maxOutputTokens: 8192, supportsVision: true, supportsFunctionCalling: true,
-    supportsJsonMode: true, inputCostPer1k: 0.0001, outputCostPer1k: 0.0004, status: "active",
+    supportsJsonMode: true, inputCostPer1k: 0.0000375, outputCostPer1k: 0.00015, status: "active",
     recommendedFor: ["classification", "seo_generation", "summarization"], enabled: true,
   },
   {
@@ -59,7 +164,7 @@ export const STATIC_CATALOG: ModelConfig[] = [
     recommendedFor: ["content_generation", "enrichment"], enabled: true,
   },
   {
-    providerId: "gemini", modelId: "gemini-3-pro-preview", displayName: "Gemini 3 Pro (preview)",
+    providerId: "gemini", modelId: "gemini-3.1-pro-preview", displayName: "Gemini 3.1 Pro (preview)",
     contextWindow: 1000000, maxOutputTokens: 8192, supportsVision: true, supportsFunctionCalling: true,
     supportsJsonMode: true, inputCostPer1k: 0.00125, outputCostPer1k: 0.01, status: "active",
     recommendedFor: ["reasoning", "web_research"], enabled: true,
