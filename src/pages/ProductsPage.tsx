@@ -67,6 +67,7 @@ const ProductsPage = () => {
   const { enrich, isEnriching, missingVariations, createMissingVariations, progress: enrichProgress } = useEnrichProducts();
   const { processImages, isProcessing: isProcessingImages, progress: imgProgress } = useProcessImages();
   const { data: settings } = useSettings();
+  const AI_MODELS = useActiveAiModels();
 
   // Fetch which products have optimized/lifestyle images
   const { data: imageStatusMap } = useQuery({
