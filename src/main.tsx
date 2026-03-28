@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
 import "./index.css";
+import { hasRequiredBackendConfig } from "@/lib/backendConfig";
 
 type ThemeMode = "light" | "dark";
 
@@ -55,17 +56,7 @@ const renderBootError = (message: string) => {
   );
 };
 
-const requiredEnv = {
-  url: import.meta.env.VITE_SUPABASE_URL,
-  key: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-};
-
-if (!requiredEnv.url || !requiredEnv.key) {
-  console.error("[boot] Missing backend environment configuration", {
-    hasUrl: Boolean(requiredEnv.url),
-    hasKey: Boolean(requiredEnv.key),
-  });
-
+if (!hasRequiredBackendConfig) {
   renderBootError(
     "A configuração de arranque do backend não está disponível neste build. Publique/atualize o projeto novamente para gerar um novo build com a configuração correta.",
   );
