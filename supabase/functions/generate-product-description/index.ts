@@ -73,11 +73,23 @@ ESTRUTURA short_description:
 - Deve funcionar como snippet em listagens de produtos
 
 ESTRUTURA long_description (HTML com estilos inline para compatibilidade WooCommerce):
-- <p> de abertura: O que é, para quem serve, que problema resolve (2-3 frases, sem dados técnicos)
-- <ul> com 4-6 características práticas (não apenas specs — explica o benefício de cada uma)
-- <p> com aplicações concretas: tipos de estabelecimento, volume, situações de uso
-- Se houver specs técnicas suficientes, inclui uma <table> com estilos inline
-- OBRIGATÓRIO: 3 a 5 FAQs no final (nunca menos de 3, nunca mais de 5)
+A descrição DEVE seguir esta estrutura de secções com cabeçalhos h2 obrigatórios:
+
+1. <h2>Principais Vantagens</h2>
+   - <p> de abertura: O que é, para quem serve, que problema resolve (2-3 frases)
+   - Destaca os benefícios-chave do equipamento de forma concisa e convincente
+
+2. <h2>Aplicações</h2>
+   - <p> com aplicações concretas: tipos de estabelecimento, volume, situações de uso
+   - Explica como o equipamento se integra numa operação real
+
+3. <h2>Especificações Técnicas</h2>
+   - <table> com specs técnicas organizadas (CARACTERÍSTICA | DETALHE)
+   - Inclui apenas specs reais fornecidas — NÃO inventes valores
+
+4. <h2>Perguntas Frequentes</h2>
+   - OBRIGATÓRIO: 3 a 5 FAQs (nunca menos de 3, nunca mais de 5)
+   - Cada FAQ como par de parágrafos (pergunta bold + resposta italic)
 
 ESTILOS INLINE OBRIGATÓRIOS (aplica SEMPRE no HTML):
 - Títulos h2: style="color: #2563eb; font-weight: bold; font-size: 1.15em; border-bottom: 2px solid rgba(37,99,235,0.3); padding-bottom: 4px; margin-top: 20px; margin-bottom: 12px;"
