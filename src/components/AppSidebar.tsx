@@ -43,19 +43,16 @@ import {
 } from "@/components/ui/select";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { navGroups, type NavGroup } from "@/config/navigation";
+import { getStorageJson, setStorageItem } from "@/lib/safeStorage";
 
 const STORAGE_KEY = "sidebar-groups-state";
 
 function loadGroupState(): Record<string, boolean> {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return {};
+  return getStorageJson<Record<string, boolean>>(STORAGE_KEY, {});
 }
 
 function saveGroupState(state: Record<string, boolean>) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  setStorageItem(STORAGE_KEY, JSON.stringify(state));
 }
 
 export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
