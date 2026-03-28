@@ -291,15 +291,15 @@ export function useActiveAiModels(): { key: string; label: string }[] {
 
   // Always include Lovable Gateway models
   const LOVABLE_GATEWAY_MODELS = [
-    { key: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro (Raciocínio)" },
-    { key: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash (Equilibrado)" },
-    { key: "google/gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite (Económico)" },
-    { key: "google/gemini-3-flash-preview", label: "Gemini 3 Flash Preview" },
-    { key: "google/gemini-3.1-pro-preview", label: "Gemini 3.1 Pro Preview" },
-    { key: "openai/gpt-5", label: "GPT-5 (Premium)" },
-    { key: "openai/gpt-5-mini", label: "GPT-5 Mini (Equilibrado)" },
-    { key: "openai/gpt-5-nano", label: "GPT-5 Nano (Económico)" },
-    { key: "openai/gpt-5.2", label: "GPT-5.2 (Latest)" },
+    { key: "google/gemini-2.5-pro", label: "⚡ Lovable AI — Gemini 2.5 Pro (Raciocínio)" },
+    { key: "google/gemini-2.5-flash", label: "⚡ Lovable AI — Gemini 2.5 Flash (Equilibrado)" },
+    { key: "google/gemini-2.5-flash-lite", label: "⚡ Lovable AI — Gemini 2.5 Flash Lite (Económico)" },
+    { key: "google/gemini-3-flash-preview", label: "⚡ Lovable AI — Gemini 3 Flash Preview" },
+    { key: "google/gemini-3.1-pro-preview", label: "⚡ Lovable AI — Gemini 3.1 Pro Preview" },
+    { key: "openai/gpt-5", label: "⚡ Lovable AI — GPT-5 (Premium)" },
+    { key: "openai/gpt-5-mini", label: "⚡ Lovable AI — GPT-5 Mini (Equilibrado)" },
+    { key: "openai/gpt-5-nano", label: "⚡ Lovable AI — GPT-5 Nano (Económico)" },
+    { key: "openai/gpt-5.2", label: "⚡ Lovable AI — GPT-5.2 (Latest)" },
   ];
 
   // Build models from active providers' catalogs
