@@ -11,7 +11,6 @@ import { Check, X, ExternalLink, RotateCcw, History, Send, ArrowUpRight, Shuffle
 import { useProcessImages } from "@/hooks/useProcessImages";
 import { useActiveImageModels } from "@/hooks/useAiProviderCenter";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { VariationsPanel } from "@/components/VariationsPanel";
 import { QualityGatePanel } from "@/components/QualityGatePanel";
