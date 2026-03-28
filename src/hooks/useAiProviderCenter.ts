@@ -280,6 +280,59 @@ export function useDeleteAiRoutingRule() {
   });
 }
 
+// ═══ Active Models for Optimization (dynamic from Provider Center) ═══
+export function useActiveAiModels(): { key: string; label: string }[] {
+  const providers = useAiProviders();
+  const modelCatalog = useAiModelCatalog();
+
+  const activeProviderTypes = new Set(
+    (providers.data || []).filter(p => p.is_active).map(p => p.provider_type)
+  );
+
+  // Always include Lovable Gateway models
+  const LOVABLE_GATEWAY_MODELS = [
+    { key: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro (Raciocínio)" },
+    { key: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash (Equilibrado)" },
+    { key: "google/gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite (Económico)" },
+    { key: "google/gemini-3-flash-preview", label: "Gemini 3 Flash Preview" },
+    { key: "google/gemini-3.1-pro-preview", label: "Gemini 3.1 Pro Preview" },
+    { key: "openai/gpt-5", label: "GPT-5 (Premium)" },
+    { key: "openai/gpt-5-mini", label: "GPT-5 Mini (Equilibrado)" },
+    { key: "openai/gpt-5-nano", label: "GPT-5 Nano (Económico)" },
+    { key: "openai/gpt-5.2", label: "GPT-5.2 (Latest)" },
+  ];
+
+  // Build models from active providers' catalogs
+  const catalogModels: { key: string; label: string }[] = [];
+  const seenKeys = new Set<string>();
+
+  // Add Lovable Gateway models always (they use LOVABLE_API_KEY which is always available)
+  for (const m of LOVABLE_GATEWAY_MODELS) {
+    seenKeys.add(m.key);
+    catalogModels.push(m);
+  }
+
+  // Add models from active providers in the catalog
+  for (const model of modelCatalog.data || []) {
+    if (!activeProviderTypes.has(model.provider_type)) continue;
+    if (!model.supports_text) continue;
+    const key = model.model_id;
+    if (seenKeys.has(key)) continue;
+    seenKeys.add(key);
+    catalogModels.push({ key, label: model.display_name || key });
+  }
+
+  // Also add default_model from active providers that might not be in catalog
+  for (const p of providers.data || []) {
+    if (!p.is_active || !p.default_model) continue;
+    if (seenKeys.has(p.default_model)) continue;
+    seenKeys.add(p.default_model);
+    catalogModels.push({ key: p.default_model, label: `${p.provider_name} — ${p.default_model}` });
+  }
+
+  return catalogModels;
+}
+
 // ═══ Provider Health ═══
 export function useAiProviderHealth(providerId: string | null) {
   return useQuery({
