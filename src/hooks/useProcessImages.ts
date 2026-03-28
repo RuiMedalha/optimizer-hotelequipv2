@@ -20,10 +20,12 @@ export function useProcessImages() {
     workspaceId,
     productIds,
     mode = "optimize",
+    modelOverride,
   }: {
     workspaceId: string;
     productIds: string[];
     mode?: "optimize" | "lifestyle";
+    modelOverride?: string;
   }) => {
     setIsProcessing(true);
     setProgress({ total: productIds.length, done: 0, currentProduct: "" });
@@ -43,9 +45,12 @@ export function useProcessImages() {
           currentProduct: `Lote ${Math.floor(i / batchSize) + 1}`,
         });
 
+        const body: Record<string, unknown> = { productIds: batch, workspaceId, mode };
+        if (modelOverride) body.modelOverride = modelOverride;
+
         const { data, error } = await supabase.functions.invoke(
           "process-product-images",
-          { body: { productIds: batch, workspaceId, mode } }
+          { body }
         );
 
         if (error) {
