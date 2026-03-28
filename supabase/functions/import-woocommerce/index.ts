@@ -297,7 +297,6 @@ function normalizeWooVariation(
     source_file: "woocommerce-import",
     technical_specs: buildTechSpecs(v),
     source_confidence_profile: sourceProfile,
-    workflow_run_id: workflowRunId,
   };
 }
 
