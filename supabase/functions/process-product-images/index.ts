@@ -215,9 +215,9 @@ Deno.serve(async (req) => {
               continue;
             }
 
-            // Standard optimization mode: pad to square with white background
+            // Optimize/Upscale mode: enhance quality, sharpen, brighten — NO layout changes
             {
-              const padPrompt = `Pega nesta imagem de produto e coloca-a centrada sobre um fundo quadrado branco puro. Mantém as proporções originais sem cortar nem distorcer. Adiciona margens brancas iguais em todos os lados para que a imagem final seja perfeitamente quadrada. O produto deve ocupar cerca de 80% da área. Estilo limpo e profissional de e-commerce. Não adiciones texto, marcas de água nem elementos extra.`;
+              const upscalePrompt = `Melhora a qualidade desta imagem de produto. Torna-a mais nítida, com melhor definição e resolução. Aumenta ligeiramente o brilho e a saturação para cores mais vivas e vibrantes. Remove qualquer desfocagem ou ruído. Mantém o enquadramento, fundo e composição EXATAMENTE como estão — não alteres a posição do produto, não adiciones fundo branco, não recortes. Apenas melhora a qualidade visual da imagem existente. Resultado profissional de e-commerce.`;
 
               const aiResp = await fetch(
                 `${supabaseUrl}/functions/v1/resolve-ai-route`,
@@ -228,14 +228,14 @@ Deno.serve(async (req) => {
                     "Authorization": `Bearer ${serviceKey}`,
                   },
                   body: JSON.stringify({
-                    taskType: "image_optimization",
+                    taskType: "image_upscale",
                     workspaceId,
                     modelOverride: imageModel,
                     messages: [
                       {
                         role: "user",
                         content: [
-                          { type: "text", text: padPrompt },
+                          { type: "text", text: upscalePrompt },
                           {
                             type: "image_url",
                             image_url: { url: originalUrl },
@@ -272,7 +272,8 @@ Deno.serve(async (req) => {
                 }
                 const bytes = new Uint8Array(chunks);
 
-                const path = `${workspaceId}/${productId}/optimized_${i}.webp`;
+                const upscaleId = `${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
+                const path = `${workspaceId}/${productId}/upscale_${upscaleId}.webp`;
                 await sb.storage
                   .from("product-images")
                   .upload(path, bytes, {
