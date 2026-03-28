@@ -1042,37 +1042,64 @@ export type Database = {
       ai_usage_logs: {
         Row: {
           agent_id: string | null
+          capability: string | null
           created_at: string
+          decision_source: string | null
+          error_category: string | null
           estimated_cost: number | null
+          fallback_used: boolean | null
           id: string
           images_generated: number | null
           input_tokens: number | null
+          is_shadow: boolean | null
+          latency_ms: number | null
           model_name: string | null
           output_tokens: number | null
+          prompt_version_id: string | null
+          provider_id: string | null
+          task_type: string | null
           vision_pages: number | null
           workspace_id: string
         }
         Insert: {
           agent_id?: string | null
+          capability?: string | null
           created_at?: string
+          decision_source?: string | null
+          error_category?: string | null
           estimated_cost?: number | null
+          fallback_used?: boolean | null
           id?: string
           images_generated?: number | null
           input_tokens?: number | null
+          is_shadow?: boolean | null
+          latency_ms?: number | null
           model_name?: string | null
           output_tokens?: number | null
+          prompt_version_id?: string | null
+          provider_id?: string | null
+          task_type?: string | null
           vision_pages?: number | null
           workspace_id: string
         }
         Update: {
           agent_id?: string | null
+          capability?: string | null
           created_at?: string
+          decision_source?: string | null
+          error_category?: string | null
           estimated_cost?: number | null
+          fallback_used?: boolean | null
           id?: string
           images_generated?: number | null
           input_tokens?: number | null
+          is_shadow?: boolean | null
+          latency_ms?: number | null
           model_name?: string | null
           output_tokens?: number | null
+          prompt_version_id?: string | null
+          provider_id?: string | null
+          task_type?: string | null
           vision_pages?: number | null
           workspace_id?: string
         }
@@ -7747,6 +7774,8 @@ export type Database = {
           chunks_used: number | null
           completion_tokens: number | null
           created_at: string
+          fallback_reason: string | null
+          fallback_used: boolean | null
           fields_optimized: string[] | null
           had_catalog: boolean | null
           had_knowledge: boolean | null
@@ -7757,18 +7786,23 @@ export type Database = {
           product_id: string
           prompt_length: number | null
           prompt_tokens: number | null
+          prompt_version_id: string | null
           rag_match_types: Json | null
+          requested_model: string | null
           supplier_id: string | null
           supplier_name: string | null
           supplier_profile_version: string | null
           supplier_url: string | null
           total_tokens: number | null
+          used_provider: string | null
           user_id: string
         }
         Insert: {
           chunks_used?: number | null
           completion_tokens?: number | null
           created_at?: string
+          fallback_reason?: string | null
+          fallback_used?: boolean | null
           fields_optimized?: string[] | null
           had_catalog?: boolean | null
           had_knowledge?: boolean | null
@@ -7779,18 +7813,23 @@ export type Database = {
           product_id: string
           prompt_length?: number | null
           prompt_tokens?: number | null
+          prompt_version_id?: string | null
           rag_match_types?: Json | null
+          requested_model?: string | null
           supplier_id?: string | null
           supplier_name?: string | null
           supplier_profile_version?: string | null
           supplier_url?: string | null
           total_tokens?: number | null
+          used_provider?: string | null
           user_id: string
         }
         Update: {
           chunks_used?: number | null
           completion_tokens?: number | null
           created_at?: string
+          fallback_reason?: string | null
+          fallback_used?: boolean | null
           fields_optimized?: string[] | null
           had_catalog?: boolean | null
           had_knowledge?: boolean | null
@@ -7801,12 +7840,15 @@ export type Database = {
           product_id?: string
           prompt_length?: number | null
           prompt_tokens?: number | null
+          prompt_version_id?: string | null
           rag_match_types?: Json | null
+          requested_model?: string | null
           supplier_id?: string | null
           supplier_name?: string | null
           supplier_profile_version?: string | null
           supplier_url?: string | null
           total_tokens?: number | null
+          used_provider?: string | null
           user_id?: string
         }
         Relationships: [
