@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
                     body: JSON.stringify({
                       taskType: "image_lifestyle_generation",
                       workspaceId,
-                      modelOverride: imageModel,
+                      ...(imageModel ? { modelOverride: imageModel } : {}),
                       messages: [
                         {
                           role: "user",
@@ -231,7 +231,7 @@ Deno.serve(async (req) => {
                   body: JSON.stringify({
                     taskType: "image_upscale",
                     workspaceId,
-                    modelOverride: imageModel,
+                    ...(imageModel ? { modelOverride: imageModel } : {}),
                     messages: [
                       {
                         role: "user",
