@@ -89,6 +89,15 @@ function getDefaultModelForProvider(providerId: string): string {
   return defaults[providerId] ?? "gpt-4o";
 }
 
+function getDefaultImageModelForProvider(providerId: string): string | null {
+  const defaults: Record<string, string> = {
+    lovable_gateway: "google/gemini-3.1-flash-image-preview",
+    gemini: "gemini-2.0-flash-exp",
+    openai: "gpt-image-1-mini",
+  };
+  return defaults[providerId] ?? null;
+}
+
 function isModelCompatibleWithProvider(modelId: string, providerId: string): boolean {
   const m = String(modelId || "").toLowerCase();
 
