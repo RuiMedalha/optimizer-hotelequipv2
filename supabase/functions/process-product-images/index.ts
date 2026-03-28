@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
               // Lifestyle mode: generate only from first image
               if (i > 0) continue;
 
-              if (lovableKey) {
+              {
                 const productName = product.original_title || product.sku || "produto";
                 const prompt = `Coloca este produto num ambiente comercial realista e profissional. O produto deve ser o foco principal, centrado e em destaque. O ambiente deve corresponder à categoria do produto — por exemplo, equipamento de cozinha numa cozinha profissional moderna, mobiliário num espaço elegante. Iluminação profissional, estilo de fotografia comercial de alta qualidade. Produto: ${productName}`;
 
@@ -209,15 +209,13 @@ Deno.serve(async (req) => {
                 } else {
                   processedUrls.push(originalUrl);
                 }
-              } else {
-                processedUrls.push(originalUrl);
               }
 
               continue;
             }
 
             // Standard optimization mode: pad to square with white background
-            if (lovableKey) {
+            {
               const padPrompt = `Pega nesta imagem de produto e coloca-a centrada sobre um fundo quadrado branco puro. Mantém as proporções originais sem cortar nem distorcer. Adiciona margens brancas iguais em todos os lados para que a imagem final seja perfeitamente quadrada. O produto deve ocupar cerca de 80% da área. Estilo limpo e profissional de e-commerce. Não adiciones texto, marcas de água nem elementos extra.`;
 
               const aiResp = await fetch(
@@ -303,9 +301,6 @@ Deno.serve(async (req) => {
                 // AI didn't return image, keep original
                 processedUrls.push(originalUrl);
               }
-            } else {
-              // No AI key, just keep originals
-              processedUrls.push(originalUrl);
             }
           } catch (imgErr) {
             const errMsg = imgErr instanceof Error ? imgErr.message : String(imgErr);
@@ -378,6 +373,11 @@ Deno.serve(async (req) => {
           }
         }
 
+        // Check if any image was actually changed (not just kept as original)
+        const hasOptimizedImages = processedUrls.some((url, idx) => 
+          url !== product.image_urls[idx]
+        ) || lifestyleUrls.length > 0;
+
         if (processedUrls.length > 0) {
           // Write optimized URLs back to products.image_urls
           // Normalize: deduplicate, trim whitespace, filter empty
@@ -390,10 +390,12 @@ Deno.serve(async (req) => {
             .eq("id", productId);
           console.log(`📸 Updated products.image_urls for ${productId}: ${normalizedUrls.length} URLs`);
 
-          // Increment credits
-          await sb.rpc("increment_image_credits", {
-            _workspace_id: workspaceId,
-          });
+          // Only increment credits if images were actually processed by AI
+          if (hasOptimizedImages) {
+            await sb.rpc("increment_image_credits", {
+              _workspace_id: workspaceId,
+            });
+          }
         }
 
         results.push({
