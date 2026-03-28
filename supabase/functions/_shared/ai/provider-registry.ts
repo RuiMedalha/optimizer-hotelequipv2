@@ -114,29 +114,54 @@ export async function resolveRoute(
   params: RunPromptParams
 ): Promise<ResolvedRoute> {
   const { taskType, modelOverride } = params;
+  const isImageTask = params.modalities?.includes("image") ||
+    params.capability === "image_generation";
 
-  // Build a priority-ordered list of providers to try
-  // Lovable Gateway first (always available), then direct providers
-  const providerOrder = ["lovable_gateway", "gemini", "openai", "anthropic"];
+  // For image tasks, only use providers that support image generation
+  const imageProviders = ["lovable_gateway", "gemini", "openai"];
+  const textProviders = ["lovable_gateway", "gemini", "openai", "anthropic"];
+  const providerOrder = isImageTask ? imageProviders : textProviders;
+
+  // Normalize modelOverride: ensure gateway-compatible prefix
+  let normalizedModelOverride = modelOverride;
+  if (normalizedModelOverride && isImageTask) {
+    // If user passes "gemini-3.1-flash-image-preview", normalize to "google/gemini-3.1-flash-image-preview" for gateway
+    if (normalizedModelOverride.startsWith("gemini-") && !normalizedModelOverride.startsWith("google/")) {
+      normalizedModelOverride = `google/${normalizedModelOverride}`;
+    }
+  }
 
   for (const providerId of providerOrder) {
     const provider = getProvider(providerId);
     if (!provider || !isKeyAvailable(provider)) continue;
 
-    const model = modelOverride && isModelCompatibleWithProvider(modelOverride, providerId)
-      ? modelOverride
-      : getDefaultModelForProvider(providerId);
+    let model: string;
+    if (normalizedModelOverride && isModelCompatibleWithProvider(normalizedModelOverride, providerId)) {
+      model = normalizedModelOverride;
+    } else if (isImageTask) {
+      const imgModel = getDefaultImageModelForProvider(providerId);
+      if (!imgModel) continue; // Provider doesn't support image generation
+      model = imgModel;
+    } else {
+      model = getDefaultModelForProvider(providerId);
+    }
 
     // Build fallback chain from remaining providers
     const fallbackSpecs = providerOrder
       .filter(p => p !== providerId)
-      .map(p => ({ provider: p, model: getDefaultModelForProvider(p) }));
+      .map(p => {
+        const m = isImageTask
+          ? getDefaultImageModelForProvider(p)
+          : getDefaultModelForProvider(p);
+        return m ? { provider: p, model: m } : null;
+      })
+      .filter((x): x is { provider: string; model: string } => x !== null);
 
     const chain = buildChain(provider, model, fallbackSpecs);
 
     if (chain.length > 0) {
       console.log(
-        `[AI ROUTE] task=${taskType || "default"} | ${chain.map((c) => `${c.provider.id}/${c.model}`).join(" -> ")}`
+        `[AI ROUTE] task=${taskType || "default"} | image=${isImageTask} | ${chain.map((c) => `${c.provider.id}/${c.model}`).join(" -> ")}`
       );
 
       return {
