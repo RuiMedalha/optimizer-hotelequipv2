@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
+import { getStorageItem, setStorageItem } from "@/lib/safeStorage";
 
 type Theme = "light" | "dark";
 
 function getInitialTheme(): Theme {
   if (typeof window === "undefined") return "light";
-  const stored = localStorage.getItem("he-theme") as Theme | null;
+  const stored = getStorageItem("he-theme") as Theme | null;
   if (stored === "light" || stored === "dark") return stored;
   return "light";
 }
@@ -21,7 +22,7 @@ export function useTheme() {
 
   useEffect(() => {
     applyTheme(theme);
-    localStorage.setItem("he-theme", theme);
+    setStorageItem("he-theme", theme);
   }, [theme]);
 
   const toggleTheme = () => setTheme((t) => (t === "light" ? "dark" : "light"));

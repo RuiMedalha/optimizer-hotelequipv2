@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { getStorageItem, setStorageItem } from "@/lib/safeStorage";
 
 export interface Workspace {
   id: string;
@@ -39,7 +40,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [activeId, setActiveId] = useState<string | null>(() => {
-    return localStorage.getItem("active_workspace_id");
+    return getStorageItem("active_workspace_id");
   });
 
   const { data: workspaces = [], isLoading } = useQuery({
@@ -76,7 +77,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     if (workspaces.length > 0 && (!activeId || !workspaces.find((w) => w.id === activeId))) {
       const id = workspaces[0].id;
       setActiveId(id);
-      localStorage.setItem("active_workspace_id", id);
+      setStorageItem("active_workspace_id", id);
     }
   }, [workspaces, activeId]);
 
@@ -85,7 +86,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const setActiveWorkspaceId = (id: string) => {
     const previousId = activeId;
     setActiveId(id);
-    localStorage.setItem("active_workspace_id", id);
+    setStorageItem("active_workspace_id", id);
     if (previousId && previousId !== id) {
       qc.invalidateQueries({
         predicate: (query) => query.queryKey.includes(previousId),
