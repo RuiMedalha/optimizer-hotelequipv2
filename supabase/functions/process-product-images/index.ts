@@ -32,7 +32,8 @@ Deno.serve(async (req) => {
     const { productIds, workspaceId, mode = "optimize", modelOverride } = await req.json();
     // mode: "optimize" = pad+enhance, "lifestyle" = generate contextual image
     // modelOverride: optional AI model to use (e.g. "google/gemini-3-pro-image-preview")
-    const imageModel = modelOverride || "gemini-3.1-flash-image-preview";
+    // Model is passed through to resolve-ai-route which handles provider routing
+    const imageModel = modelOverride || undefined; // let resolve-ai-route pick the best default
 
     if (!productIds?.length || !workspaceId) {
       throw new Error("productIds e workspaceId são obrigatórios");
