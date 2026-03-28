@@ -143,8 +143,7 @@ Deno.serve(async (req) => {
                     body: JSON.stringify({
                       taskType: "image_lifestyle_generation",
                       workspaceId,
-                      modelOverride: "gemini-3.1-flash-image-preview",
-                      providerOverride: "gemini",
+                      modelOverride: imageModel,
                       messages: [
                         {
                           role: "user",
@@ -231,8 +230,7 @@ Deno.serve(async (req) => {
                   body: JSON.stringify({
                     taskType: "image_optimization",
                     workspaceId,
-                    modelOverride: "gemini-3.1-flash-image-preview",
-                    providerOverride: "gemini",
+                    modelOverride: imageModel,
                     messages: [
                       {
                         role: "user",
