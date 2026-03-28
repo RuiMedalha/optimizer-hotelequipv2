@@ -983,9 +983,33 @@ REGRAS OBRIGATÓRIAS:
 - Nunca uses palavras genéricas como "Profissional" sem contexto técnico`,
           description: `Gera uma descrição otimizada com ESTRUTURA OBRIGATÓRIA:
 CONTEXTO: Estes são equipamentos PROFISSIONAIS para hotelaria, restauração, cozinhas industriais e bares.
-1. PARÁGRAFO COMERCIAL (150-250 chars): Benefícios, aplicações, diferenciais. Sem dados técnicos. NÃO menciones a marca.
-2. TABELA HTML de specs: <table> com TODAS as características técnicas (dimensões, peso, material, potência, voltagem, etc.)
-3. FAQ HTML: 3-5 perguntas frequentes em <details><summary>Pergunta</summary><p>Resposta</p></details>
+
+Envolve TUDO num div raiz: <div class="product-description" style="font-size:15px; line-height:1.65; color:#2c2c2c;">
+
+Cada secção é um div com classe própria e margin-bottom:22px. Usa h3 (NÃO h2) com este estilo EXATO:
+style="margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;"
+
+SECÇÕES OBRIGATÓRIAS (nesta ordem):
+
+1. <div class="product-benefits" style="margin-bottom:22px;"> com <h3>Principais Vantagens</h3>
+   - Dentro de <div style="margin-top:10px;">, parágrafos com benefícios-chave (2-4 parágrafos)
+
+2. <div class="product-applications" style="margin-bottom:22px;"> com <h3>Aplicações</h3>
+   - Dentro de <div style="margin-top:10px;">, aplicações concretas: tipos de estabelecimento, volume, situações
+
+3. <div class="product-specs" style="margin-bottom:22px;"> com <h3>Especificações Técnicas</h3>
+   - <div class="specs-table" style="margin-top:10px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden;">
+   - Dentro, <table style="width:100%; border-collapse:collapse; font-size:0.9em;">
+   - th: style="border:1px solid #e5e7eb; padding:8px 12px; background:#f3f4f6; font-weight:bold; text-align:left;"
+   - td: style="border:1px solid #e5e7eb; padding:8px 12px;"
+
+4. <div class="product-faq" style="margin-bottom:22px;"> com <h3>Perguntas Frequentes</h3>
+   - MÁXIMO 4 perguntas (nunca mais de 4, mínimo 2)
+   - Dentro de <div style="margin-top:10px; background:#fcfcfd; border:1px solid #e5e7eb; border-radius:8px; padding:14px 16px;">
+   - NÃO uses <details>/<summary> — as respostas são SEMPRE visíveis
+   - Cada FAQ como:
+     <p style="font-weight:bold; margin:0 0 4px; color:#2c2c2c;">Pergunta aqui?</p>
+     <p style="font-style:italic; color:#6b7280; margin:0 0 14px;">Resposta aqui.</p>
 
 REGRAS OBRIGATÓRIAS:
 - NÃO incluas o nome da marca no texto comercial — foca no equipamento e nas suas capacidades
@@ -1389,8 +1413,9 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           const hadFaqPlaceholder = /\{\{faq\}\}/i.test(optimized.optimized_description);
           // Replace {{faq}} with actual FAQ HTML if we have FAQ data
           if (optimized.faq && Array.isArray(optimized.faq) && optimized.faq.length > 0) {
-            const faqHtml = optimized.faq.map((f: any) =>
-              `<details><summary>${f.question}</summary><p>${f.answer}</p></details>`
+            const limitedFaq = optimized.faq.slice(0, 4);
+            const faqHtml = limitedFaq.map((f: any) =>
+              `<p style="font-weight:bold; margin:0 0 4px; color:#2c2c2c;">${f.question}</p>\n<p style="font-style:italic; color:#6b7280; margin:0 0 14px;">${f.answer}</p>`
             ).join("\n");
             optimized.optimized_description = optimized.optimized_description.replace(/\{\{faq\}\}/gi, faqHtml);
 
@@ -1398,7 +1423,7 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
             // and no FAQ wrapper is present yet, append FAQ block at the end.
             const hasFaqWrapper = /class=["'][^"']*product-faq[^"']*["']/i.test(optimized.optimized_description);
             if (!hadFaqPlaceholder && !hasFaqWrapper) {
-              optimized.optimized_description = `${optimized.optimized_description}\n<div class="product-faq">\n${faqHtml}\n</div>`;
+              optimized.optimized_description = `${optimized.optimized_description}\n<div class="product-faq" style="margin-bottom:22px;"><h3 style="margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;">Perguntas Frequentes</h3><div style="margin-top:10px; background:#fcfcfd; border:1px solid #e5e7eb; border-radius:8px; padding:14px 16px;">\n${faqHtml}\n</div></div>`;
             }
           }
           // Replace {{tabela_specs}} with specs table from product data if available
