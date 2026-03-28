@@ -126,7 +126,7 @@ function normalizeWooProduct(
   wp: any,
   userId: string,
   workspaceId: string,
-  workflowRunId: string | null,
+  _workflowRunId: string | null,
   catMap: Map<number, { name: string; parent: number }>,
 ): Record<string, unknown> {
   const meta = parseMeta(wp.meta_data);
@@ -242,7 +242,7 @@ function normalizeWooVariation(
   parentDbId: string,
   userId: string,
   workspaceId: string,
-  workflowRunId: string | null,
+  _workflowRunId: string | null,
 ): Record<string, unknown> {
   const meta = parseMeta(v.meta_data);
 
