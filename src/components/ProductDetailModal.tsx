@@ -463,9 +463,20 @@ export function ProductDetailModal({ product, onClose }: Props) {
           <TabsContent value="imagens" className="mt-4">
             {product.image_urls && product.image_urls.length > 0 ? (
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <p className="text-sm text-muted-foreground">{product.image_urls.length} imagem(ns)</p>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Select value={selectedImageModel} onValueChange={setSelectedImageModel}>
+                      <SelectTrigger className="h-8 text-xs w-[170px]">
+                        <SelectValue placeholder="Modelo IA" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="default">Auto (Flash Image)</SelectItem>
+                        {IMAGE_MODELS.map((m) => (
+                          <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <Button
                       size="sm"
                       variant="outline"
@@ -474,10 +485,11 @@ export function ProductDetailModal({ product, onClose }: Props) {
                         workspaceId: activeWorkspace.id,
                         productIds: [product.id],
                         mode: "optimize",
+                        modelOverride: selectedImageModel !== "default" ? selectedImageModel : undefined,
                       })}
                     >
                       {isProcessing ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <ImageIcon className="w-3 h-3 mr-1" />}
-                      Otimizar Imagens
+                      Otimizar
                     </Button>
                     <Button
                       size="sm"
@@ -487,10 +499,11 @@ export function ProductDetailModal({ product, onClose }: Props) {
                         workspaceId: activeWorkspace.id,
                         productIds: [product.id],
                         mode: "lifestyle",
+                        modelOverride: selectedImageModel !== "default" ? selectedImageModel : undefined,
                       })}
                     >
                       {isProcessing ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
-                      Gerar Lifestyle
+                      Lifestyle
                     </Button>
                   </div>
                 </div>
