@@ -233,7 +233,7 @@ async function insertProducts(
         productData.workspace_id = workspaceId || null;
         productData.source_file = fileName;
         productData.status = "pending";
-        productData.workflow_run_id = workflowRunId || null;
+        // workflow_run_id removed - column does not exist in products table
         if (!productData.sku) productData.sku = toStr(p.sku, 100);
         if (!productData.product_type) productData.product_type = "simple";
         if (!productData.original_title) productData.original_title = toStr(p.title, 500);
