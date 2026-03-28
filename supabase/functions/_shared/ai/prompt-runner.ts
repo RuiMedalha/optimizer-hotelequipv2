@@ -54,6 +54,7 @@ export async function runPrompt(
     jsonMode: params.jsonMode ?? finalParams.jsonMode,
     tools: params.tools,
     toolChoice: params.toolChoice,
+    modalities: params.modalities,
   };
 
   const invokeFn = (

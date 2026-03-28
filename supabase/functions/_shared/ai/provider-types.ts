@@ -63,12 +63,14 @@ export interface InvokeParams {
   provider: ProviderConfig;
   model: string;
   systemPrompt: string;
-  messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
+  messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string | unknown[] }>;
   temperature?: number;
   maxTokens?: number;
   jsonMode?: boolean;
   tools?: unknown[];
   toolChoice?: unknown;
+  /** For image generation models — e.g. ["image", "text"] */
+  modalities?: string[];
 }
 
 export interface InvokeResult {
@@ -110,7 +112,7 @@ export interface RunPromptParams {
   taskType?: string;
   systemPrompt: string;
   userPrompt?: string;
-  messages?: Array<{ role: string; content: string }>;
+  messages?: Array<{ role: string; content: string | unknown[] }>;
   temperature?: number;
   maxTokens?: number;
   jsonMode?: boolean;
@@ -119,6 +121,8 @@ export interface RunPromptParams {
   tools?: unknown[];
   toolChoice?: unknown;
   promptVersionId?: string;
+  /** For image generation models — e.g. ["image", "text"] */
+  modalities?: string[];
 }
 
 export interface RunMeta {

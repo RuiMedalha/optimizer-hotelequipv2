@@ -2,7 +2,8 @@
 import type { InvokeParams, InvokeResult } from "./provider-types.ts";
 import { classifyError, classifyNetworkError } from "./error-classifier.ts";
 
-const TIMEOUT_MS = 30_000; // 30s per spec. If Phase 3 vision tasks need longer, increase here only.
+const TIMEOUT_MS = 30_000;
+const IMAGE_TIMEOUT_MS = 120_000; // 2 min for image generation
 const ERROR_BODY_MAX = 1200;
 
 export async function invokeProvider(params: InvokeParams): Promise<InvokeResult> {
@@ -34,7 +35,11 @@ async function invokeOpenAICompatible(params: InvokeParams): Promise<InvokeResul
     ...(params.maxTokens != null ? { max_tokens: params.maxTokens } : {}),
     ...(params.jsonMode ? { response_format: { type: "json_object" } } : {}),
     ...(params.tools?.length ? { tools: params.tools, tool_choice: params.toolChoice ?? "auto" } : {}),
+    ...(params.modalities?.length ? { modalities: params.modalities } : {}),
   };
+
+  const isImageRequest = params.modalities?.includes("image");
+  const timeoutMs = isImageRequest ? IMAGE_TIMEOUT_MS : TIMEOUT_MS;
 
   const startMs = Date.now();
   let resp: Response;
@@ -46,7 +51,7 @@ async function invokeOpenAICompatible(params: InvokeParams): Promise<InvokeResul
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
-    });
+    }, timeoutMs);
   } catch (err) {
     throw new ProviderError("Network error", classifyNetworkError(err));
   }
@@ -73,6 +78,7 @@ async function invokeOpenAICompatible(params: InvokeParams): Promise<InvokeResul
   const choice = (raw.choices as Array<Record<string, unknown>>)?.[0];
   const message = choice?.message as Record<string, unknown> | undefined;
   const content = (message?.content as string) ?? "";
+  const images = message?.images as unknown[] | undefined;
   const finishReason = normalizeFinishReason(choice?.finish_reason as string);
   const usage = raw.usage as Record<string, number> | undefined;
 
@@ -91,6 +97,7 @@ async function invokeOpenAICompatible(params: InvokeParams): Promise<InvokeResul
           role: "assistant",
           content,
           tool_calls: message?.tool_calls as unknown[] | undefined,
+          ...(images?.length ? { images } : {}),
         },
         finish_reason: finishReason,
       }],
@@ -400,8 +407,8 @@ function extractGeminiFunctionCalls(
 
 function buildMessages(
   params: InvokeParams,
-): Array<{ role: string; content: string }> {
-  const out: Array<{ role: string; content: string }> = [];
+): Array<{ role: string; content: string | unknown[] }> {
+  const out: Array<{ role: string; content: string | unknown[] }> = [];
   if (params.systemPrompt) out.push({ role: "system", content: params.systemPrompt });
   out.push(...params.messages.filter((m) => m.role !== "system"));
   return out;
@@ -419,9 +426,9 @@ function normalizeFinishReason(raw: string | undefined): InvokeResult["finishRea
   return "unknown";
 }
 
-async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(url, { ...init, signal: controller.signal });
   } finally {

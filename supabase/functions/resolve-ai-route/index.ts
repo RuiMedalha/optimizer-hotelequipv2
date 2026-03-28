@@ -48,6 +48,7 @@ Deno.serve(async (req) => {
       tools: options?.tools,
       toolChoice: options?.tool_choice,
       promptVersionId: promptVersionId ?? undefined,
+      modalities: options?.modalities,
     });
 
     return new Response(
