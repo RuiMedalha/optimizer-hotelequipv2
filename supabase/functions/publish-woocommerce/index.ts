@@ -1004,7 +1004,19 @@ async function buildBasePayload(
   }
 
   if (has("tags")) {
-    wooProduct.tags = (product.tags || []).map((t: string) => ({ name: t }));
+    let rawTags: string[] = [];
+    if (Array.isArray(product.tags)) {
+      rawTags = product.tags;
+    } else if (typeof product.tags === "string") {
+      try { rawTags = JSON.parse(product.tags); } catch { rawTags = product.tags.split(",").map((s: string) => s.trim()); }
+    }
+    const cleanTags = rawTags
+      .map((t: any) => typeof t === "string" ? t.trim() : typeof t === "object" && t?.name ? String(t.name).trim() : "")
+      .filter((t: string) => t.length > 0);
+    if (cleanTags.length > 0) {
+      wooProduct.tags = cleanTags.map((name: string) => ({ name }));
+      console.log(`[publish] Tags for ${product.id}: ${cleanTags.join(", ")}`);
+    }
   }
 
   if (has("meta_title") || has("meta_description")) {
