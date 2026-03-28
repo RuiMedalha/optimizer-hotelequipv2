@@ -8,6 +8,7 @@ export type CapabilityType =
   | 'extraction'
   | 'reasoning'
   | 'multimodal_vision'
+  | 'image_generation'
   | 'web_research'
   | 'enrichment'
   | 'translation'

@@ -206,7 +206,7 @@ async function invokeGemini(params: InvokeParams): Promise<InvokeResult> {
     .filter((m) => m.role !== "system")
     .map((m) => ({
       role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: m.content }],
+      parts: convertToGeminiParts(m.content),
     }));
 
   // Convert OpenAI-format tools to Gemini functionDeclarations
@@ -412,6 +412,42 @@ function buildMessages(
   if (params.systemPrompt) out.push({ role: "system", content: params.systemPrompt });
   out.push(...params.messages.filter((m) => m.role !== "system"));
   return out;
+}
+
+/** Convert message content (string or multimodal array) to Gemini parts format. */
+function convertToGeminiParts(content: string | unknown[]): Array<Record<string, unknown>> {
+  if (typeof content === "string") {
+    return [{ text: content }];
+  }
+
+  if (!Array.isArray(content)) {
+    return [{ text: String(content) }];
+  }
+
+  const parts: Array<Record<string, unknown>> = [];
+  for (const item of content) {
+    const typed = item as { type?: string; text?: string; image_url?: { url?: string } };
+    if (typed.type === "text" && typed.text) {
+      parts.push({ text: typed.text });
+    } else if (typed.type === "image_url" && typed.image_url?.url) {
+      const url = typed.image_url.url;
+      if (url.startsWith("data:")) {
+        // Base64 inline image
+        const match = url.match(/^data:(image\/\w+);base64,(.+)$/);
+        if (match) {
+          parts.push({
+            inlineData: { mimeType: match[1], data: match[2] },
+          });
+        }
+      } else {
+        // URL-based image — Gemini supports fileUri for some URLs
+        // but for HTTP URLs we need to fetch and inline
+        parts.push({ text: `[Image: ${url}]` });
+      }
+    }
+  }
+
+  return parts.length > 0 ? parts : [{ text: "" }];
 }
 
 function normalizeFinishReason(raw: string | undefined): InvokeResult["finishReason"] {

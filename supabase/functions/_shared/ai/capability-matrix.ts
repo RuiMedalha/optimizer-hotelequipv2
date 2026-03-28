@@ -30,6 +30,13 @@ export const CAPABILITY_DEFAULTS: Record<
     provider: "gemini", model: "gemini-2.5-flash",
     fallback: [{ provider: "openai", model: "gpt-4o" }],
   },
+  image_generation: {
+    provider: "lovable_gateway", model: "google/gemini-3.1-flash-image-preview",
+    fallback: [
+      { provider: "lovable_gateway", model: "google/gemini-3-pro-image-preview" },
+      { provider: "gemini", model: "gemini-2.0-flash-exp" },
+    ],
+  },
   web_research: {
     provider: "gemini", model: "gemini-2.5-pro",
     fallback: [{ provider: "openai", model: "gpt-4o" }],
@@ -77,6 +84,12 @@ const TASK_TYPE_TO_CAPABILITY: Record<string, CapabilityType> = {
   vision: "multimodal_vision",
   parse_pdf: "multimodal_vision",
   vision_parse: "multimodal_vision",
+  image_analysis: "multimodal_vision",
+  // Image generation
+  image_generation: "image_generation",
+  image_upscale: "image_generation",
+  image_lifestyle_generation: "image_generation",
+  image_edit: "image_generation",
   // Web research
   web_research: "web_research",
   enrich_from_web: "web_research",
