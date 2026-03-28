@@ -62,6 +62,12 @@ const MODEL_DESCRIPTIONS: Record<string, string> = {
   "claude-3-haiku-20240307": "Rápido e económico. Bom para tarefas simples e respostas rápidas.",
   "claude-3-opus-20240229": "Máxima capacidade Anthropic. Raciocínio profundo e nuance.",
   "claude-sonnet-4-20250514": "Última geração Anthropic. Raciocínio superior e fiabilidade.",
+  "deepseek-chat": "DeepSeek V3. Modelo conversacional competitivo, bom custo-benefício.",
+  "deepseek-reasoner": "DeepSeek R1. Raciocínio avançado com chain-of-thought.",
+  "deepseek-coder": "DeepSeek Coder. Especializado em código e tarefas técnicas.",
+  "grok-3": "xAI Grok 3. Modelo flagship com raciocínio avançado e contexto longo.",
+  "grok-3-mini": "xAI Grok 3 Mini. Mais rápido e económico, bom para tarefas simples.",
+  "grok-2": "xAI Grok 2. Versátil com bom equilíbrio custo/qualidade.",
 };
 
 export default function AiProviderCenterPage() {
@@ -107,6 +113,8 @@ export default function AiProviderCenterPage() {
         openai_direct: "openai_api_key",
         anthropic_direct: "anthropic_api_key",
         azure_openai: "azure_openai_api_key",
+      deepseek_direct: "deepseek_api_key",
+      xai_direct: "xai_api_key",
       };
       const settingKey = keyMap[editProvider.provider_type || ""];
       if (settingKey) {
@@ -537,6 +545,9 @@ export default function AiProviderCenterPage() {
                   {editProvider.provider_type === "openai_direct" && <p>Obtém em: <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" className="underline text-primary">platform.openai.com → API Keys</a></p>}
                   {editProvider.provider_type === "anthropic_direct" && <p>Obtém em: <a href="https://console.anthropic.com/" target="_blank" rel="noopener" className="underline text-primary">console.anthropic.com → API Keys</a></p>}
                   {editProvider.provider_type === "azure_openai" && <p>Obtém no portal Azure</p>}
+                  {editProvider.provider_type === "deepseek_direct" && <p>Obtém em: <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener" className="underline text-primary">platform.deepseek.com → API Keys</a></p>}
+                  {editProvider.provider_type === "xai_direct" && <p>Obtém em: <a href="https://console.x.ai/" target="_blank" rel="noopener" className="underline text-primary">console.x.ai → API Keys</a></p>}
+                  {editProvider.provider_type === "lovable_gateway" && <p>Não necessita de API Key — usa a chave automática do Lovable Cloud.</p>}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">

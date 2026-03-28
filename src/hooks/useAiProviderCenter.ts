@@ -303,6 +303,8 @@ export const PROVIDER_TYPES = [
   { value: "gemini_direct", label: "Google Gemini Direct", description: "API direta do Google Gemini (requer GEMINI_API_KEY)" },
   { value: "openai_direct", label: "OpenAI Direct", description: "API direta da OpenAI (requer OPENAI_API_KEY)" },
   { value: "anthropic_direct", label: "Anthropic Direct", description: "API direta da Anthropic Claude (requer ANTHROPIC_API_KEY)" },
+  { value: "deepseek_direct", label: "DeepSeek Direct", description: "API direta do DeepSeek (requer DEEPSEEK_API_KEY)" },
+  { value: "xai_direct", label: "xAI / Grok", description: "API direta do xAI Grok (requer XAI_API_KEY)" },
   { value: "azure_openai", label: "Azure OpenAI", description: "Azure OpenAI Service (requer endpoint + key)" },
   { value: "ocr_fallback", label: "OCR Engine", description: "Extração apenas por OCR/texto" },
 ];
