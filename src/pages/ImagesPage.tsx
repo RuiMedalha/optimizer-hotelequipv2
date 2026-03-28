@@ -153,7 +153,18 @@ const ImagesPage = () => {
             Processe e otimize as imagens dos seus produtos com IA
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={selectedImageModel} onValueChange={setSelectedImageModel}>
+            <SelectTrigger className="w-[180px] h-9 text-xs">
+              <SelectValue placeholder="Modelo IA" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="default">Auto (Flash Image)</SelectItem>
+              {IMAGE_MODELS.map((m) => (
+                <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={mode} onValueChange={(v) => setMode(v as "optimize" | "lifestyle")}>
             <SelectTrigger className="w-40 h-9 text-xs">
               <SelectValue />
