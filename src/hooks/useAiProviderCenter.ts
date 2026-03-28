@@ -334,14 +334,15 @@ export function useActiveAiModels(): { key: string; label: string }[] {
 }
 
 // ═══ Active Image Models (for image optimization/generation) ═══
+// Shows Lovable AI image models + ALL image-capable models from active external providers
 export function useActiveImageModels(): { key: string; label: string }[] {
   const providers = useAiProviders();
   const modelCatalog = useAiModelCatalog();
 
-  const activeProviderTypes = new Set(
-    (providers.data || []).filter((p: any) => p.is_active).map((p: any) => p.provider_type)
-  );
+  const activeProviders = (providers.data || []).filter((p: any) => p.is_active);
+  const activeProviderTypes = new Set(activeProviders.map((p: any) => p.provider_type));
 
+  // Lovable AI Gateway image models (always available)
   const LOVABLE_IMAGE_MODELS = [
     { key: "google/gemini-3.1-flash-image-preview", label: "⚡ Lovable AI — Gemini 3.1 Flash Image (Rápido + Qualidade)" },
     { key: "google/gemini-3-pro-image-preview", label: "⚡ Lovable AI — Gemini 3 Pro Image (Máxima Qualidade)" },
@@ -351,6 +352,7 @@ export function useActiveImageModels(): { key: string; label: string }[] {
   const models: { key: string; label: string }[] = [...LOVABLE_IMAGE_MODELS];
   const seenKeys = new Set(models.map((m) => m.key));
 
+  // Add models from catalog that support vision (from active providers)
   for (const model of (modelCatalog.data || []) as any[]) {
     if (!activeProviderTypes.has(model.provider_type)) continue;
     if (!model.supports_vision) continue;
@@ -358,6 +360,22 @@ export function useActiveImageModels(): { key: string; label: string }[] {
     if (seenKeys.has(key)) continue;
     seenKeys.add(key);
     models.push({ key, label: `${model.display_name || key} (Visão)` });
+  }
+
+  // Add default/fallback models from active external providers (not lovable_gateway)
+  // This ensures users can pick ANY model from their configured providers
+  for (const provider of activeProviders) {
+    if (provider.provider_type === "lovable_gateway") continue;
+    const providerLabel = provider.provider_name || provider.provider_type;
+
+    if (provider.default_model && !seenKeys.has(provider.default_model)) {
+      seenKeys.add(provider.default_model);
+      models.push({ key: provider.default_model, label: `${providerLabel} — ${provider.default_model}` });
+    }
+    if (provider.fallback_model && !seenKeys.has(provider.fallback_model)) {
+      seenKeys.add(provider.fallback_model);
+      models.push({ key: provider.fallback_model, label: `${providerLabel} — ${provider.fallback_model} (Fallback)` });
+    }
   }
 
   return models;
