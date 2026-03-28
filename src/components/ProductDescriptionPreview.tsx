@@ -132,9 +132,13 @@ export function ProductDescriptionPreview({
                       [&_th]:border [&_th]:border-border [&_th]:px-3 [&_th]:py-1.5 [&_th]:bg-muted/50 [&_th]:font-medium
                       [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5
                       [&_li]:mb-1 [&_p]:mb-3 [&_strong]:text-foreground
-                      [&_details]:border [&_details]:border-border [&_details]:rounded-lg [&_details]:p-3 [&_details]:mb-2
-                      [&_summary]:font-medium [&_summary]:cursor-pointer"
-                    dangerouslySetInnerHTML={{ __html: longDescription }}
+                      [&_details]:border [&_details]:border-border [&_details]:rounded-lg [&_details]:p-3 [&_details]:mb-2 [&_details[open]]:border-primary/20
+                      [&_details]:open [&_details]:!block
+                      [&_summary]:font-bold [&_summary]:cursor-pointer [&_summary]:text-foreground [&_summary]:list-none [&_summary]:mb-2
+                      [&_summary::-webkit-details-marker]:hidden [&_summary::marker]:hidden
+                      [&_details>*:not(summary)]:italic [&_details>*:not(summary)]:text-muted-foreground
+                      [&_details>p]:italic [&_details>p]:text-muted-foreground [&_details>p]:mb-1"
+                    dangerouslySetInnerHTML={{ __html: longDescription.replace(/<details(?=[>\s])/g, '<details open') }}
                   />
                 </TabsContent>
                 <TabsContent value="specs" className="mt-4">
