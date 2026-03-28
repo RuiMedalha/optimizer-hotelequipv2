@@ -78,6 +78,7 @@ async function invokeOpenAICompatible(params: InvokeParams): Promise<InvokeResul
   const choice = (raw.choices as Array<Record<string, unknown>>)?.[0];
   const message = choice?.message as Record<string, unknown> | undefined;
   const content = (message?.content as string) ?? "";
+  const images = message?.images as unknown[] | undefined;
   const finishReason = normalizeFinishReason(choice?.finish_reason as string);
   const usage = raw.usage as Record<string, number> | undefined;
 
@@ -96,6 +97,7 @@ async function invokeOpenAICompatible(params: InvokeParams): Promise<InvokeResul
           role: "assistant",
           content,
           tool_calls: message?.tool_calls as unknown[] | undefined,
+          ...(images?.length ? { images } : {}),
         },
         finish_reason: finishReason,
       }],
