@@ -22,9 +22,9 @@ export async function invokeProvider(params: InvokeParams): Promise<InvokeResult
 // ─── Adapter 1: OpenAI-compatible (OpenAI, Mistral, Perplexity, DeepSeek, Grok) ───
 
 async function invokeOpenAICompatible(params: InvokeParams): Promise<InvokeResult> {
-  const apiKey = Deno.env.get(params.provider.apiKeyEnvVar);
+  const apiKey = params.apiKeyOverride || Deno.env.get(params.provider.apiKeyEnvVar);
   if (!apiKey) {
-    throw new ProviderError(`Missing env var: ${params.provider.apiKeyEnvVar}`, "auth_error");
+    throw new ProviderError(`Missing API key for ${params.provider.id} (no env var ${params.provider.apiKeyEnvVar} and no DB key)`, "auth_error");
   }
 
   const messages = buildMessages(params);
@@ -114,9 +114,9 @@ async function invokeOpenAICompatible(params: InvokeParams): Promise<InvokeResul
 // ─── Adapter 2: Anthropic native ───
 
 async function invokeAnthropic(params: InvokeParams): Promise<InvokeResult> {
-  const apiKey = Deno.env.get(params.provider.apiKeyEnvVar);
+  const apiKey = params.apiKeyOverride || Deno.env.get(params.provider.apiKeyEnvVar);
   if (!apiKey) {
-    throw new ProviderError(`Missing env var: ${params.provider.apiKeyEnvVar}`, "auth_error");
+    throw new ProviderError(`Missing API key for anthropic (no env var ${params.provider.apiKeyEnvVar} and no DB key)`, "auth_error");
   }
 
   const userMessages = params.messages.filter((m) => m.role !== "system");
@@ -195,9 +195,9 @@ async function invokeAnthropic(params: InvokeParams): Promise<InvokeResult> {
 // ─── Adapter 3: Gemini native ───
 
 async function invokeGemini(params: InvokeParams): Promise<InvokeResult> {
-  const apiKey = Deno.env.get(params.provider.apiKeyEnvVar);
+  const apiKey = params.apiKeyOverride || Deno.env.get(params.provider.apiKeyEnvVar);
   if (!apiKey) {
-    throw new ProviderError(`Missing env var: ${params.provider.apiKeyEnvVar}`, "auth_error");
+    throw new ProviderError(`Missing API key for gemini (no env var ${params.provider.apiKeyEnvVar} and no DB key)`, "auth_error");
   }
 
   const url = `${params.provider.apiBaseUrl}/models/${params.model}:generateContent?key=${apiKey}`;

@@ -61,7 +61,7 @@ export async function runPrompt(
     provider: typeof selectedProvider,
     model: string,
     p: typeof baseInvokeParams,
-  ) => invokeProvider({ provider, model, ...p });
+  ) => invokeProvider({ provider, model, ...p, apiKeyOverride: route.apiKeyOverride });
 
   const raw = await executeWithFallback(
     chain,
