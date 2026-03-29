@@ -177,15 +177,19 @@ export default function AgentControlCenterPage() {
   const updateStatus = useUpdateAgentStatus();
   const runCycle = useRunAgentCycle();
   const runAnalysis = useRunAgentAnalysis();
+  const runPublishAudit = useRunPublishAudit();
   const approveAction = useApproveAction();
   const createPolicy = useCreatePolicy();
   const { processImages, isProcessing } = useProcessImages();
+  const publishWoo = usePublishWooCommerce();
 
   const [newAgentName, setNewAgentName] = useState("");
   const [newAgentType, setNewAgentType] = useState("");
   const [newPolicyName, setNewPolicyName] = useState("");
   const [newPolicyType, setNewPolicyType] = useState("");
   const [newPolicyApproval, setNewPolicyApproval] = useState(true);
+  const [auditReoptimizing, setAuditReoptimizing] = useState(false);
+  const [auditRepublishing, setAuditRepublishing] = useState(false);
 
   const pendingActions = actions.filter((a: any) => !a.approved_by_user);
   const completedTasks = tasks.filter((t: any) => t.status === "completed").length;
@@ -195,6 +199,10 @@ export default function AgentControlCenterPage() {
   // Get latest analysis run
   const latestAnalysis = analysisRuns.find((r: any) => r.agent_name === "agent_analysis_cycle");
   const latestOutput = latestAnalysis?.output_payload || {};
+
+  // Get latest publish audit
+  const latestAudit = analysisRuns.find((r: any) => r.agent_name === "publish_audit_agent");
+  const auditOutput = latestAudit?.output_payload || {};
 
   const handleAction = async (productIds: string[], action: string) => {
     if (!wsId) return;
