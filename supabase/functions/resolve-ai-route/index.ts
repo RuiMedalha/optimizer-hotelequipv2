@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
 
     // Resolve system prompt from prompt_templates/prompt_versions if a routing rule
     // specifies one. Checks workspace-specific rule first, then global (workspace_id IS NULL).
-    const { text: resolvedPrompt, versionId: promptVersionId } = await resolvePromptTemplate(
+    const { text: resolvedPrompt, versionId: promptVersionId, promptSource } = await resolvePromptTemplate(
       supabase,
       workspaceId,
       taskType,
@@ -67,6 +67,7 @@ Deno.serve(async (req) => {
           latencyMs: meta.latencyMs,
           taskType,
           promptVersionId: promptVersionId ?? null,
+          promptSource: promptSource,
         },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
