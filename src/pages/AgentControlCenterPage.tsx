@@ -5,8 +5,10 @@ import {
   useAgentTasks, useAgentActions, useAgentPolicies,
   useRunAgentCycle, useApproveAction, useCreatePolicy,
   useRunAgentAnalysis, useAgentAnalysisResults,
+  useRunPublishAudit,
 } from "@/hooks/useAgents";
 import { useProcessImages } from "@/hooks/useProcessImages";
+import { usePublishWooCommerce } from "@/hooks/usePublishWooCommerce";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
-import { Bot, Play, CheckCircle, XCircle, Clock, AlertTriangle, Zap, Shield, ListTodo, Activity, Search, Image, FileText, Wand2, ImagePlus, RefreshCw } from "lucide-react";
+import { Bot, Play, CheckCircle, XCircle, Clock, AlertTriangle, Zap, Shield, ListTodo, Activity, Search, Image, FileText, Wand2, ImagePlus, RefreshCw, ShoppingCart, Upload, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -30,6 +32,7 @@ const AGENT_TYPES = [
   { value: "supplier_learning_agent", label: "Supplier Learning" },
   { value: "pricing_analyzer", label: "Pricing Analyzer" },
   { value: "channel_performance_agent", label: "Channel Performance" },
+  { value: "publish_audit_agent", label: "Publish Audit (WC)" },
 ];
 
 const statusColors: Record<string, string> = {
