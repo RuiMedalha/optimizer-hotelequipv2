@@ -15,12 +15,19 @@ export interface Workspace {
   updated_at: string;
 }
 
+interface CopyOptions {
+  providers: boolean;
+  routing: boolean;
+  prompts: boolean;
+  categories: boolean;
+}
+
 interface WorkspaceContextType {
   workspaces: Workspace[];
   activeWorkspace: Workspace | null;
   setActiveWorkspaceId: (id: string) => void;
   isLoading: boolean;
-  createWorkspace: (name: string, description?: string) => void;
+  createWorkspace: (name: string, description?: string, copyFromWorkspaceId?: string, copyOptions?: CopyOptions) => void;
   updateWorkspace: (id: string, name: string, description?: string) => void;
   toggleVariableProducts: (id: string, value: boolean) => void;
   deleteWorkspace: (id: string) => void;
@@ -96,7 +103,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   };
 
   const createMutation = useMutation({
-    mutationFn: async ({ name, description }: { name: string; description?: string }) => {
+    mutationFn: async ({ name, description, copyFromWorkspaceId, copyOpts }: { name: string; description?: string; copyFromWorkspaceId?: string; copyOpts?: CopyOptions }) => {
       if (!user) throw new Error("Não autenticado");
       const { data, error } = await supabase
         .from("workspaces")
@@ -104,7 +111,39 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         .select()
         .single();
       if (error) throw error;
-      return data as unknown as Workspace;
+      const newWs = data as unknown as Workspace;
+
+      // Copy config from source workspace if requested
+      if (copyFromWorkspaceId && copyOpts) {
+        const anyCopy = copyOpts.providers || copyOpts.routing || copyOpts.prompts || copyOpts.categories;
+        if (anyCopy) {
+          const { data: copyResult, error: copyError } = await supabase.functions.invoke("copy-workspace-config", {
+            body: {
+              sourceWorkspaceId: copyFromWorkspaceId,
+              targetWorkspaceId: newWs.id,
+              copyProviders: copyOpts.providers,
+              copyRouting: copyOpts.routing,
+              copyPrompts: copyOpts.prompts,
+              copyCategories: copyOpts.categories,
+            },
+          });
+          if (copyError) {
+            console.warn("Failed to copy workspace config:", copyError);
+          } else if (copyResult?.stats) {
+            const s = copyResult.stats;
+            const parts: string[] = [];
+            if (s.providers > 0) parts.push(`${s.providers} providers`);
+            if (s.routing > 0) parts.push(`${s.routing} regras`);
+            if (s.prompts > 0) parts.push(`${s.prompts} prompts`);
+            if (s.categories > 0) parts.push(`${s.categories} categorias`);
+            if (parts.length > 0) {
+              toast.info(`Configuração copiada: ${parts.join(", ")}`);
+            }
+          }
+        }
+      }
+
+      return newWs;
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["workspaces"] });
@@ -174,7 +213,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         activeWorkspace,
         setActiveWorkspaceId,
         isLoading,
-        createWorkspace: (name, description) => createMutation.mutate({ name, description }),
+        createWorkspace: (name, description, copyFromWorkspaceId, copyOpts) => createMutation.mutate({ name, description, copyFromWorkspaceId, copyOpts }),
         updateWorkspace: (id, name, description) => updateMutation.mutate({ id, name, description }),
         toggleVariableProducts: (id: string, value: boolean) => {
           const ws = workspaces.find((w) => w.id === id);

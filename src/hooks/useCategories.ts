@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { toast } from "sonner";
 
 export interface Category {
@@ -36,14 +37,19 @@ function buildTree(categories: Category[], parentId: string | null = null, depth
     }));
 }
 
-// Categories are now GLOBAL (per user), not workspace-scoped
+// Categories are now WORKSPACE-SCOPED — each site has its own categories
 export function useCategories() {
+  const { activeWorkspace } = useWorkspaceContext();
+  const workspaceId = activeWorkspace?.id;
+
   return useQuery({
-    queryKey: ["categories"],
+    queryKey: ["categories", workspaceId],
+    enabled: !!workspaceId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("categories")
         .select("*")
+        .eq("workspace_id", workspaceId!)
         .order("sort_order", { ascending: true });
       if (error) throw error;
       return data as Category[];
@@ -59,14 +65,17 @@ export function useCategoryTree() {
 
 export function useCreateCategory() {
   const qc = useQueryClient();
+  const { activeWorkspace } = useWorkspaceContext();
+
   return useMutation({
     mutationFn: async (cat: { name: string; parent_id?: string | null; slug?: string; description?: string; meta_title?: string; meta_description?: string }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
+      if (!activeWorkspace) throw new Error("No active workspace");
       const { error } = await supabase.from("categories").insert({
         ...cat,
         user_id: user.id,
-        workspace_id: null, // Global — shared across all workspaces
+        workspace_id: activeWorkspace.id,
         parent_id: cat.parent_id ?? null,
       });
       if (error) throw error;
@@ -111,11 +120,13 @@ export function useDeleteCategory() {
 
 export function useSyncWooCategories() {
   const qc = useQueryClient();
+  const { activeWorkspace } = useWorkspaceContext();
 
   return useMutation({
     mutationFn: async () => {
+      if (!activeWorkspace) throw new Error("No active workspace");
       const { data, error } = await supabase.functions.invoke("sync-woo-categories", {
-        body: {},
+        body: { workspaceId: activeWorkspace.id },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);

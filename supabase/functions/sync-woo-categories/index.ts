@@ -38,8 +38,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    // workspaceId is no longer required — categories are global per user
-    // Accept it for backward compat but don't use it for scoping
+    // workspaceId is now REQUIRED — categories are workspace-scoped
+    const body = await req.json().catch(() => ({}));
+    const workspaceId = body.workspaceId;
+    if (!workspaceId) {
+      return new Response(JSON.stringify({ error: "workspaceId é obrigatório" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Get WooCommerce credentials
     const { data: settings } = await supabase
@@ -83,11 +90,11 @@ Deno.serve(async (req) => {
       if (cats.length < 100) break;
     }
 
-    // Get existing categories for this user (global, no workspace filter)
+    // Get existing categories for this workspace
     const { data: existingCats } = await supabase
       .from("categories")
       .select("id, woocommerce_id, name")
-      .is("workspace_id", null);
+      .eq("workspace_id", workspaceId);
 
     const existingByWooId = new Map<number, string>();
     (existingCats || []).forEach((c: any) => {
@@ -95,7 +102,6 @@ Deno.serve(async (req) => {
     });
 
     // Build a map from WooCommerce parent ID → our internal parent ID
-    // Process in order: parents first (parent === 0), then children
     const wooIdToInternalId = new Map<number, string>();
 
     // Copy existing mappings
@@ -128,10 +134,10 @@ Deno.serve(async (req) => {
         }).eq("id", internalId);
         updated++;
       } else {
-        // Create new
+        // Create new — scoped to workspace
         const { data: newCat, error: insertErr } = await supabase.from("categories").insert({
           user_id: user.id,
-          workspace_id: null, // Global — shared across all workspaces
+          workspace_id: workspaceId,
           woocommerce_id: wooCat.id,
           name: wooCat.name,
           slug: wooCat.slug,
