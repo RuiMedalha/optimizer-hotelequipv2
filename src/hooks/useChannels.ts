@@ -50,7 +50,7 @@ export function useChannelConnections(channelId: string | null) {
     queryKey: ["channel-connections", channelId],
     enabled: !!channelId,
     queryFn: async () => {
-      const { data, error } = await supabase.from("channel_connections").select("*").eq("channel_id", channelId!);
+      const { data, error } = await supabase.from("channel_connections_safe" as any).select("*").eq("channel_id", channelId!);
       if (error) throw error;
       return data;
     },

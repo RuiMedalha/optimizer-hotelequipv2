@@ -13749,7 +13749,107 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      channel_connections_safe: {
+        Row: {
+          channel_id: string | null
+          connection_name: string | null
+          created_at: string | null
+          has_credentials: boolean | null
+          id: string | null
+          last_sync_at: string | null
+          settings: Json | null
+          status: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          channel_id?: string | null
+          connection_name?: string | null
+          created_at?: string | null
+          has_credentials?: never
+          id?: string | null
+          last_sync_at?: string | null
+          settings?: Json | null
+          status?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          channel_id?: string | null
+          connection_name?: string | null
+          created_at?: string | null
+          has_credentials?: never
+          id?: string | null
+          last_sync_at?: string | null
+          settings?: Json | null
+          status?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_connections_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_connections_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workspace_invitations_safe: {
+        Row: {
+          accepted_at: string | null
+          created_at: string | null
+          email: string | null
+          expires_at: string | null
+          id: string | null
+          invited_by: string | null
+          role: Database["public"]["Enums"]["workspace_role"] | null
+          status:
+            | Database["public"]["Enums"]["workspace_invitation_status"]
+            | null
+          workspace_id: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string | null
+          email?: string | null
+          expires_at?: string | null
+          id?: string | null
+          invited_by?: string | null
+          role?: Database["public"]["Enums"]["workspace_role"] | null
+          status?:
+            | Database["public"]["Enums"]["workspace_invitation_status"]
+            | null
+          workspace_id?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string | null
+          email?: string | null
+          expires_at?: string | null
+          id?: string | null
+          invited_by?: string | null
+          role?: Database["public"]["Enums"]["workspace_role"] | null
+          status?:
+            | Database["public"]["Enums"]["workspace_invitation_status"]
+            | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_invitations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       can_assign_workspace_role: {
