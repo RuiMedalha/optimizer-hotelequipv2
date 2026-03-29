@@ -1,6 +1,6 @@
 // src/hooks/useAiPricingDashboard.ts
-// Fetches ai_model_pricing and computes cost breakdowns from optimization_logs
-// and ai_usage_logs. Pricing is DB-driven — no hardcoded cost map.
+// Fetches pricing from ai_model_catalog and computes cost breakdowns
+// from optimization_logs and ai_usage_logs. Pricing is DB-driven.
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -56,7 +56,6 @@ export interface AiCostSummary {
 }
 
 // Normalize model names: strip "google/", "openai/", "anthropic/" prefixes
-// so new-format IDs ("gemini-2.5-flash") match old-format ("google/gemini-2.5-flash").
 function normalizeModelId(raw: string): string {
   return raw
     .replace(/^(google|openai|anthropic|mistral|meta-llama|cohere|deepseek)\//, "")
@@ -65,7 +64,7 @@ function normalizeModelId(raw: string): string {
 
 function providerFromModelId(raw: string): string {
   if (raw.startsWith("google/") || raw.includes("gemini")) return "gemini";
-  if (raw.startsWith("openai/") || raw.includes("gpt")) return "openai";
+  if (raw.startsWith("openai/") || raw.includes("gpt") || raw.includes("o4")) return "openai";
   if (raw.startsWith("anthropic/") || raw.includes("claude")) return "anthropic";
   if (raw.startsWith("deepseek/") || raw.includes("deepseek")) return "deepseek";
   return "unknown";
@@ -73,20 +72,38 @@ function providerFromModelId(raw: string): string {
 
 // ── Public hooks ──────────────────────────────────────────────────────────────
 
-/** All active pricing rows — for admin/settings display. */
+/** All active pricing rows from ai_model_catalog. */
 export function useAiModelPricing() {
   return useQuery({
-    queryKey: ["ai-model-pricing"],
+    queryKey: ["ai-model-pricing-catalog"],
     staleTime: 5 * 60_000,
     queryFn: async () => {
+      // Read from ai_model_catalog which has cost_input_per_mtok / cost_output_per_mtok
       const { data, error } = await supabase
-        .from("ai_model_pricing" as any)
-        .select("*")
-        .eq("is_active", true)
-        .order("provider_id")
+        .from("ai_model_catalog")
+        .select("id, model_id, display_name, provider_type, cost_input_per_mtok, cost_output_per_mtok")
+        .order("provider_type")
         .order("model_id");
       if (error) throw error;
-      return (data || []) as unknown as AiModelPricing[];
+
+      // Map to AiModelPricing interface
+      return (data || [])
+        .filter((m: any) => m.cost_input_per_mtok != null || m.cost_output_per_mtok != null)
+        .map((m: any) => ({
+          id: m.id,
+          provider_id: m.provider_type,
+          model_id: m.model_id,
+          display_name: m.display_name,
+          input_cost_per_1m: Number(m.cost_input_per_mtok) || 0,
+          output_cost_per_1m: Number(m.cost_output_per_mtok) || 0,
+          cached_input_cost_per_1m: null,
+          currency: "USD",
+          effective_from: "",
+          is_active: true,
+          source_url: null,
+          notes: null,
+          metadata: {} as ModelMetadata,
+        })) as AiModelPricing[];
     },
   });
 }
@@ -103,7 +120,6 @@ export function useAiPricingDashboard() {
     enabled: !!activeWorkspace,
     staleTime: 2 * 60_000,
     queryFn: async () => {
-      // Get product IDs for workspace (optimization_logs is product-scoped)
       const { data: products } = await supabase
         .from("products")
         .select("id")
@@ -126,7 +142,7 @@ export function useAiPricingDashboard() {
     },
   });
 
-  // Also fetch ai_usage_logs (populated by resolve-ai-route — newer, may be sparse)
+  // Also fetch ai_usage_logs (populated by resolve-ai-route)
   const usageLogsQuery = useQuery({
     queryKey: ["ai-usage-logs-cost", activeWorkspace?.id],
     enabled: !!activeWorkspace,
@@ -145,9 +161,7 @@ export function useAiPricingDashboard() {
     const optLogs = logsQuery.data ?? [];
     const aiLogs = usageLogsQuery.data ?? [];
 
-    // Build two pricing maps:
-    // 1. Exact match (model_id as stored in DB)
-    // 2. Normalized match (strip provider prefix)
+    // Build pricing maps (exact + normalized)
     const exactMap = new Map<string, AiModelPricing>();
     const normMap = new Map<string, AiModelPricing>();
     for (const p of pricing) {
@@ -168,7 +182,6 @@ export function useAiPricingDashboard() {
           (outputTokens / 1_000_000) * Number(p.output_cost_per_1m)
         : 0;
 
-      // Use canonical (normalized) key so old/new format records merge
       const key = normalizeModelId(raw);
       const existing = modelMap.get(key) ?? {
         modelId: key,
@@ -191,12 +204,10 @@ export function useAiPricingDashboard() {
       modelMap.set(key, existing);
     }
 
-    // Process optimization_logs (prompt_tokens / completion_tokens)
     for (const l of optLogs) {
       accumulate(l.model || "unknown", l.prompt_tokens ?? 0, l.completion_tokens ?? 0);
     }
 
-    // Process ai_usage_logs (input_tokens / output_tokens, model_name)
     for (const l of aiLogs) {
       accumulate(l.model_name || "unknown", l.input_tokens ?? 0, l.output_tokens ?? 0);
     }
@@ -210,7 +221,6 @@ export function useAiPricingDashboard() {
     const totalOutputTokens = costByModel.reduce((s, m) => s + m.outputTokens, 0);
     const totalOptimizations = optLogs.length + aiLogs.length;
 
-    // Cost by provider (merge model rows)
     const providerMap = new Map<string, number>();
     for (const m of costByModel) {
       providerMap.set(m.provider, (providerMap.get(m.provider) ?? 0) + m.estimatedCostUsd);
