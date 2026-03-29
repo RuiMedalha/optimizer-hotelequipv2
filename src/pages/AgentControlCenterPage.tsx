@@ -6,6 +6,7 @@ import {
   useRunAgentCycle, useApproveAction, useCreatePolicy,
   useRunAgentAnalysis, useAgentAnalysisResults,
 } from "@/hooks/useAgents";
+import { useProcessImages } from "@/hooks/useProcessImages";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,8 +14,10 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Bot, Play, CheckCircle, XCircle, Clock, AlertTriangle, Zap, Shield, ListTodo, Activity, Search, Image, FileText } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Bot, Play, CheckCircle, XCircle, Clock, AlertTriangle, Zap, Shield, ListTodo, Activity, Search, Image, FileText, Wand2, ImagePlus, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const AGENT_TYPES = [
   { value: "seo_optimizer", label: "SEO Optimizer" },
@@ -40,6 +43,123 @@ const statusColors: Record<string, string> = {
   cancelled: "bg-muted text-muted-foreground",
 };
 
+const severityColors: Record<string, string> = {
+  high: "destructive",
+  medium: "secondary",
+  low: "outline",
+};
+
+/* ─── Reusable recommendation list ─── */
+function RecommendationList({ items, type, onAction }: { items: any[]; type: "seo" | "attr" | "img"; onAction?: (ids: string[], action: string) => void }) {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const toggleId = (id: string) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const selectAll = () => setSelectedIds(new Set(items.map(i => i.product_id)));
+  const selectNone = () => setSelectedIds(new Set());
+
+  if (!items?.length) return <p className="text-xs text-muted-foreground py-2">Sem problemas encontrados ✓</p>;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-muted-foreground">{items.length} produto(s) com problemas</span>
+        <div className="flex gap-1">
+          <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={selectAll}>Selecionar Todos</Button>
+          <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={selectNone}>Limpar</Button>
+        </div>
+      </div>
+
+      {/* Action buttons */}
+      {selectedIds.size > 0 && onAction && (
+        <div className="flex gap-2 bg-primary/5 p-2 rounded-lg border border-primary/20">
+          <span className="text-xs font-medium text-primary self-center">{selectedIds.size} selecionado(s)</span>
+          {type === "seo" && (
+            <Button size="sm" className="h-7 text-xs ml-auto" onClick={() => onAction(Array.from(selectedIds), "optimize_seo")}>
+              <Wand2 className="w-3 h-3 mr-1" /> Re-otimizar SEO
+            </Button>
+          )}
+          {type === "attr" && (
+            <Button size="sm" className="h-7 text-xs ml-auto" onClick={() => onAction(Array.from(selectedIds), "optimize_product")}>
+              <RefreshCw className="w-3 h-3 mr-1" /> Re-otimizar Produtos
+            </Button>
+          )}
+          {type === "img" && (
+            <>
+              <Button size="sm" variant="outline" className="h-7 text-xs ml-auto" onClick={() => onAction(Array.from(selectedIds), "optimize_images")}>
+                <Wand2 className="w-3 h-3 mr-1" /> Otimizar Imagens
+              </Button>
+              <Button size="sm" className="h-7 text-xs" onClick={() => onAction(Array.from(selectedIds), "lifestyle_images")}>
+                <ImagePlus className="w-3 h-3 mr-1" /> Gerar Lifestyle
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+
+      <div className="max-h-64 overflow-y-auto space-y-1">
+        {items.map((r: any, idx: number) => (
+          <div key={idx}
+            className={`flex items-center gap-2 text-xs p-1.5 rounded cursor-pointer hover:bg-muted/50 transition-colors ${selectedIds.has(r.product_id) ? "bg-primary/5 border border-primary/20" : ""}`}
+            onClick={() => toggleId(r.product_id)}
+          >
+            <input type="checkbox" checked={selectedIds.has(r.product_id)} readOnly className="w-3 h-3 accent-primary" />
+            <Badge variant={severityColors[r.severity] as any || "secondary"} className="text-[10px] h-4 min-w-[3rem] justify-center">{r.severity}</Badge>
+
+            {type === "seo" && (
+              <>
+                <span className="truncate flex-1 font-medium">{r.title}</span>
+                <span className="text-muted-foreground text-[10px]">Score: {r.score}%</span>
+                <span className="text-muted-foreground text-[10px] hidden md:inline">{r.issues?.length} problema(s)</span>
+              </>
+            )}
+            {type === "attr" && (
+              <>
+                <span className="truncate flex-1 font-medium">{r.title}</span>
+                <Progress value={r.score} className="w-16 h-1.5" />
+                <span className="text-muted-foreground text-[10px] w-8">{r.score}%</span>
+                <span className="text-muted-foreground text-[10px] hidden md:inline">{r.missing?.length} em falta</span>
+              </>
+            )}
+            {type === "img" && (
+              <>
+                <span className="truncate flex-1 font-medium">{r.title}</span>
+                <span className="text-muted-foreground text-[10px]">{r.suggestion}</span>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Expandable detail for SEO/Attr */}
+      {type === "seo" && selectedIds.size === 1 && (() => {
+        const item = items.find(i => selectedIds.has(i.product_id));
+        if (!item) return null;
+        return (
+          <div className="bg-muted/30 rounded p-2 text-xs space-y-1">
+            <p className="font-semibold">{item.title} — Problemas SEO:</p>
+            {item.issues?.map((issue: string, i: number) => (
+              <p key={i} className="text-muted-foreground">• {issue}</p>
+            ))}
+          </div>
+        );
+      })()}
+      {type === "attr" && selectedIds.size === 1 && (() => {
+        const item = items.find(i => selectedIds.has(i.product_id));
+        if (!item) return null;
+        return (
+          <div className="bg-muted/30 rounded p-2 text-xs space-y-1">
+            <p className="font-semibold">{item.title} — Campos em falta:</p>
+            <div className="flex flex-wrap gap-1">
+              {item.missing?.map((field: string, i: number) => (
+                <Badge key={i} variant="outline" className="text-[10px] h-4">{field}</Badge>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
 export default function AgentControlCenterPage() {
   const { activeWorkspace } = useWorkspaceContext();
   const wsId = activeWorkspace?.id;
@@ -56,6 +176,7 @@ export default function AgentControlCenterPage() {
   const runAnalysis = useRunAgentAnalysis();
   const approveAction = useApproveAction();
   const createPolicy = useCreatePolicy();
+  const { processImages, isProcessing } = useProcessImages();
 
   const [newAgentName, setNewAgentName] = useState("");
   const [newAgentType, setNewAgentType] = useState("");
@@ -68,26 +189,60 @@ export default function AgentControlCenterPage() {
   const failedTasks = tasks.filter((t: any) => t.status === "failed").length;
   const queuedTasks = tasks.filter((t: any) => t.status === "queued").length;
 
+  // Get latest analysis run
+  const latestAnalysis = analysisRuns.find((r: any) => r.agent_name === "agent_analysis_cycle");
+  const latestOutput = latestAnalysis?.output_payload || {};
+
+  const handleAction = async (productIds: string[], action: string) => {
+    if (!wsId) return;
+    if (action === "optimize_seo") {
+      toast.info(`A re-otimizar SEO de ${productIds.length} produto(s)...`);
+      for (const pid of productIds) {
+        try {
+          await supabase.functions.invoke("optimize-product-seo", {
+            body: { workspace_id: wsId, product_id: pid, language: "pt" },
+          });
+        } catch (e) { console.error(e); }
+      }
+      toast.success("SEO re-otimizado! Execute nova análise para verificar.");
+    } else if (action === "optimize_product") {
+      toast.info(`A re-otimizar ${productIds.length} produto(s)...`);
+      try {
+        await supabase.functions.invoke("optimize-batch", {
+          body: { productIds, workspaceId: wsId },
+        });
+        toast.success("Produtos re-otimizados!");
+      } catch (e) { toast.error("Erro ao otimizar produtos"); }
+    } else if (action === "optimize_images") {
+      toast.info(`A otimizar imagens de ${productIds.length} produto(s)...`);
+      await processImages({ workspaceId: wsId, productIds, mode: "optimize" });
+    } else if (action === "lifestyle_images") {
+      toast.info(`A gerar imagens lifestyle de ${productIds.length} produto(s)...`);
+      await processImages({ workspaceId: wsId, productIds, mode: "lifestyle" });
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Bot className="w-6 h-6" /> Centro de Controlo de Agentes
           </h1>
           <p className="text-muted-foreground text-sm">Sistema autónomo de otimização do catálogo</p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => wsId && runAnalysis.mutate({ workspaceId: wsId, agentTypes: ["seo_optimizer", "attribute_completeness_agent", "image_optimizer"] })}
-          disabled={runAnalysis.isPending || !wsId}
-          className="mr-2"
-        >
-          <Search className="w-4 h-4 mr-2" /> {runAnalysis.isPending ? "A analisar..." : "Analisar Catálogo"}
-        </Button>
-        <Button onClick={() => wsId && runCycle.mutate({ workspaceId: wsId })} disabled={runCycle.isPending || !wsId}>
-          <Play className="w-4 h-4 mr-2" /> {runCycle.isPending ? "A executar..." : "Executar Ciclo"}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => wsId && runAnalysis.mutate({ workspaceId: wsId, agentTypes: ["seo_optimizer", "attribute_completeness_agent", "image_optimizer"] })}
+            disabled={runAnalysis.isPending || !wsId}
+          >
+            <Search className="w-4 h-4 mr-2" /> {runAnalysis.isPending ? "A analisar..." : "Analisar Catálogo"}
+          </Button>
+          <Button onClick={() => wsId && runCycle.mutate({ workspaceId: wsId })} disabled={runCycle.isPending || !wsId}>
+            <Play className="w-4 h-4 mr-2" /> {runCycle.isPending ? "A executar..." : "Executar Ciclo"}
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -128,9 +283,9 @@ export default function AgentControlCenterPage() {
           <TabsTrigger value="policies"><Shield className="w-4 h-4 mr-1" /> Políticas</TabsTrigger>
         </TabsList>
 
-        {/* Analysis Results Tab */}
+        {/* ─── Analysis Results Tab ─── */}
         <TabsContent value="analysis" className="space-y-4">
-          {analysisRuns.length === 0 ? (
+          {!latestAnalysis ? (
             <Card>
               <CardContent className="py-12 text-center">
                 <Search className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
@@ -146,86 +301,86 @@ export default function AgentControlCenterPage() {
               </CardContent>
             </Card>
           ) : (
-            analysisRuns.map((run: any) => {
-              const output = run.output_payload || {};
-              const isFullCycle = run.agent_name === "agent_analysis_cycle";
-              
-              return (
-                <Card key={run.id}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm font-medium flex items-center gap-2">
-                        {isFullCycle ? <Search className="w-4 h-4 text-primary" /> : 
-                         run.agent_name === "image_optimizer" ? <Image className="w-4 h-4 text-primary" /> :
-                         <FileText className="w-4 h-4 text-primary" />}
-                        {isFullCycle ? "Análise Completa do Catálogo" : 
-                         run.agent_name === "image_optimizer" ? "Análise de Imagens" :
-                         "Otimização SEO"}
-                      </CardTitle>
-                      <span className="text-xs text-muted-foreground">{new Date(run.created_at).toLocaleString("pt-PT")}</span>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {isFullCycle && output.seo_optimizer && (
-                      <div className="bg-muted/50 rounded-lg p-3">
-                        <p className="text-xs font-semibold mb-1 flex items-center gap-1"><FileText className="w-3 h-3" /> SEO Optimizer</p>
-                        <div className="grid grid-cols-3 gap-2 text-xs">
-                          <div><span className="text-muted-foreground">Analisados:</span> {output.seo_optimizer.analyzed}</div>
-                          <div><span className="text-muted-foreground">Problemas:</span> {output.seo_optimizer.issues_found}</div>
-                          <div><span className="text-muted-foreground">Recomendações:</span> {output.seo_optimizer.recommendations_created}</div>
-                        </div>
-                      </div>
+            <>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">
+                  Última análise: {new Date(latestAnalysis.created_at).toLocaleString("pt-PT")}
+                </p>
+                <Button variant="ghost" size="sm" className="h-7 text-xs"
+                  onClick={() => wsId && runAnalysis.mutate({ workspaceId: wsId, agentTypes: ["seo_optimizer", "attribute_completeness_agent", "image_optimizer"] })}
+                  disabled={runAnalysis.isPending}
+                >
+                  <RefreshCw className="w-3 h-3 mr-1" /> Re-analisar
+                </Button>
+              </div>
+
+              {/* SEO Section */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-primary" /> SEO Optimizer
+                    {latestOutput.seo_optimizer && (
+                      <Badge variant="secondary" className="text-[10px] ml-auto">
+                        {latestOutput.seo_optimizer.issues_found}/{latestOutput.seo_optimizer.analyzed} com problemas
+                      </Badge>
                     )}
-                    {isFullCycle && output.attribute_completeness_agent && (
-                      <div className="bg-muted/50 rounded-lg p-3">
-                        <p className="text-xs font-semibold mb-1 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Completude de Atributos</p>
-                        <div className="grid grid-cols-3 gap-2 text-xs">
-                          <div><span className="text-muted-foreground">Analisados:</span> {output.attribute_completeness_agent.analyzed}</div>
-                          <div><span className="text-muted-foreground">Incompletos:</span> {output.attribute_completeness_agent.incomplete}</div>
-                          <div><span className="text-muted-foreground">Atualizados:</span> {output.attribute_completeness_agent.scores_updated}</div>
-                        </div>
-                      </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <RecommendationList
+                    items={latestOutput.seo_optimizer?.recommendations || []}
+                    type="seo"
+                    onAction={handleAction}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Attribute Completeness Section */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-primary" /> Completude de Atributos
+                    {latestOutput.attribute_completeness_agent && (
+                      <Badge variant="secondary" className="text-[10px] ml-auto">
+                        {latestOutput.attribute_completeness_agent.incomplete}/{latestOutput.attribute_completeness_agent.analyzed} incompletos
+                      </Badge>
                     )}
-                    {(isFullCycle ? output.image_optimizer : run.agent_name === "image_optimizer" ? output : null) && (() => {
-                      const imgData = isFullCycle ? output.image_optimizer : output;
-                      return (
-                        <div className="bg-muted/50 rounded-lg p-3">
-                          <p className="text-xs font-semibold mb-1 flex items-center gap-1"><Image className="w-3 h-3" /> Image Optimizer</p>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                            <div><span className="text-muted-foreground">Analisados:</span> {imgData.analyzed}</div>
-                            <div><span className="text-muted-foreground">Sem imagens:</span> {imgData.no_images}</div>
-                            <div><span className="text-muted-foreground">Poucas imagens:</span> {imgData.few_images}</div>
-                            <div><span className="text-muted-foreground">Sem lifestyle:</span> {imgData.needs_lifestyle}</div>
-                          </div>
-                          {imgData.recommendations?.length > 0 && (
-                            <div className="mt-2 space-y-1 max-h-48 overflow-y-auto">
-                              {imgData.recommendations.slice(0, 10).map((r: any, idx: number) => (
-                                <div key={idx} className="flex items-center gap-2 text-xs">
-                                  <Badge variant={r.severity === "high" ? "destructive" : "secondary"} className="text-[10px] h-4">{r.severity}</Badge>
-                                  <span className="truncate flex-1">{r.title}</span>
-                                  <span className="text-muted-foreground">{r.suggestion}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-                    {!isFullCycle && run.agent_name === "seo_optimization" && (
-                      <div className="text-xs">
-                        <p><span className="text-muted-foreground">Confiança:</span> {Math.round((run.confidence_score || 0) * 100)}%</p>
-                        {output.meta_title && <p><span className="text-muted-foreground">Título:</span> {output.meta_title}</p>}
-                        {output.meta_description && <p><span className="text-muted-foreground">Descrição:</span> {output.meta_description}</p>}
-                      </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <RecommendationList
+                    items={latestOutput.attribute_completeness_agent?.recommendations || []}
+                    type="attr"
+                    onAction={handleAction}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Image Optimizer Section */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Image className="w-4 h-4 text-primary" /> Image Optimizer
+                    {latestOutput.image_optimizer && (
+                      <Badge variant="secondary" className="text-[10px] ml-auto">
+                        {latestOutput.image_optimizer.no_images} sem imagens · {latestOutput.image_optimizer.needs_lifestyle} sem lifestyle
+                      </Badge>
                     )}
-                  </CardContent>
-                </Card>
-              );
-            })
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <RecommendationList
+                    items={latestOutput.image_optimizer?.recommendations || []}
+                    type="img"
+                    onAction={handleAction}
+                  />
+                </CardContent>
+              </Card>
+            </>
           )}
         </TabsContent>
 
-        {/* Agents Tab */}
+        {/* ─── Agents Tab ─── */}
         <TabsContent value="agents" className="space-y-4">
           <Card>
             <CardHeader><CardTitle className="text-base">Criar Agente</CardTitle></CardHeader>
@@ -276,7 +431,7 @@ export default function AgentControlCenterPage() {
           </div>
         </TabsContent>
 
-        {/* Tasks Tab */}
+        {/* ─── Tasks Tab ─── */}
         <TabsContent value="tasks" className="space-y-3">
           {tasks.map((task: any) => (
             <Card key={task.id}>
@@ -295,7 +450,7 @@ export default function AgentControlCenterPage() {
           {!tasks.length && <p className="text-sm text-muted-foreground text-center py-8">Nenhuma tarefa registada.</p>}
         </TabsContent>
 
-        {/* Actions Tab */}
+        {/* ─── Actions Tab ─── */}
         <TabsContent value="actions" className="space-y-3">
           {actions.map((action: any) => (
             <Card key={action.id}>
@@ -326,26 +481,26 @@ export default function AgentControlCenterPage() {
           {!actions.length && <p className="text-sm text-muted-foreground text-center py-8">Nenhuma ação registada.</p>}
         </TabsContent>
 
-        {/* Policies Tab */}
+        {/* ─── Policies Tab ─── */}
         <TabsContent value="policies" className="space-y-4">
           <Card>
-            <CardHeader><CardTitle className="text-base">Nova Política</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Criar Política</CardTitle></CardHeader>
             <CardContent>
               <div className="flex gap-2 items-center">
                 <Input placeholder="Nome da política" value={newPolicyName} onChange={(e) => setNewPolicyName(e.target.value)} className="flex-1" />
                 <Select value={newPolicyType} onValueChange={setNewPolicyType}>
-                  <SelectTrigger className="w-56"><SelectValue placeholder="Tipo de agente" /></SelectTrigger>
+                  <SelectTrigger className="w-48"><SelectValue placeholder="Tipo agente" /></SelectTrigger>
                   <SelectContent>
                     {AGENT_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1 text-xs">
                   <Switch checked={newPolicyApproval} onCheckedChange={setNewPolicyApproval} />
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">Aprovação</span>
+                  <span>Aprovação</span>
                 </div>
                 <Button onClick={() => {
                   if (!newPolicyName.trim() || !newPolicyType || !wsId) return;
-                  createPolicy.mutate({ workspace_id: wsId, agent_type: newPolicyType, policy_name: newPolicyName.trim(), requires_approval: newPolicyApproval });
+                  createPolicy.mutate({ workspace_id: wsId, policy_name: newPolicyName.trim(), agent_type: newPolicyType, requires_approval: newPolicyApproval });
                   setNewPolicyName(""); setNewPolicyType("");
                 }} disabled={!newPolicyName.trim() || !newPolicyType}>Criar</Button>
               </div>
@@ -353,20 +508,20 @@ export default function AgentControlCenterPage() {
           </Card>
 
           <div className="grid gap-3">
-            {policies.map((p: any) => (
-              <Card key={p.id}>
-                <CardContent className="py-3 flex items-center justify-between">
+            {policies.map((policy: any) => (
+              <Card key={policy.id}>
+                <CardContent className="py-4 flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium">{p.policy_name}</p>
-                    <p className="text-xs text-muted-foreground">{AGENT_TYPES.find(t => t.value === p.agent_type)?.label || p.agent_type}</p>
+                    <p className="font-medium text-sm">{policy.policy_name}</p>
+                    <p className="text-xs text-muted-foreground">{AGENT_TYPES.find(t => t.value === policy.agent_type)?.label || policy.agent_type}</p>
                   </div>
-                  <Badge variant={p.requires_approval ? "secondary" : "default"}>
-                    {p.requires_approval ? "Requer Aprovação" : "Automático"}
+                  <Badge className={policy.requires_approval ? "bg-yellow-500/10 text-yellow-700 dark:text-yellow-400" : "bg-green-500/10 text-green-700 dark:text-green-400"}>
+                    {policy.requires_approval ? "Aprovação Manual" : "Automático"}
                   </Badge>
                 </CardContent>
               </Card>
             ))}
-            {!policies.length && <p className="text-sm text-muted-foreground text-center py-8">Nenhuma política definida.</p>}
+            {!policies.length && <p className="text-sm text-muted-foreground text-center py-8">Nenhuma política configurada.</p>}
           </div>
         </TabsContent>
       </Tabs>
