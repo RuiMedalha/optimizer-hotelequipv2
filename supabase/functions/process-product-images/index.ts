@@ -70,6 +70,60 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Helper: generate SEO alt text for an image URL
+    async function generateAltText(imageUrl: string, productName: string): Promise<string | null> {
+      try {
+        // Try to get prompt from prompt_templates
+        const { data: altPromptRow } = await sb
+          .from("prompt_templates")
+          .select("prompt_text")
+          .eq("workspace_id", workspaceId)
+          .eq("task_type", "image_alt_text")
+          .eq("is_active", true)
+          .order("version", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const altSystemPrompt = altPromptRow?.prompt_text ||
+          `Gera um texto alternativo (alt text) otimizado para SEO em Português de Portugal para esta imagem de produto.
+O alt text deve:
+- Ter no máximo 125 caracteres
+- Descrever o produto de forma clara e concisa
+- Incluir palavras-chave relevantes para e-commerce
+- Ser útil para acessibilidade
+Responde APENAS com o texto alt, sem aspas nem formatação extra.`;
+
+        const promptSource = altPromptRow ? "db_version" : "hardcoded_fallback";
+        console.log(`🏷️ [alt-text] Prompt source: ${promptSource} for product: ${productName}`);
+
+        const aiResp = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+          body: JSON.stringify({
+            taskType: "image_alt_text",
+            workspaceId,
+            systemPrompt: altSystemPrompt,
+            messages: [{
+              role: "user",
+              content: [
+                { type: "image_url", image_url: { url: imageUrl } },
+                { type: "text", text: `Produto: ${productName}. Gera o alt text para esta imagem.` },
+              ],
+            }],
+            options: { max_tokens: 200 },
+          }),
+        });
+
+        if (!aiResp.ok) return null;
+        const aiWrapper = await aiResp.json();
+        const altText = (aiWrapper.result?.choices?.[0]?.message?.content || "").trim().slice(0, 125);
+        return altText || null;
+      } catch (e) {
+        console.warn(`[alt-text] Failed for ${productName}:`, e);
+        return null;
+      }
+    }
+
     const results: any[] = [];
 
     for (const productId of productIds) {
