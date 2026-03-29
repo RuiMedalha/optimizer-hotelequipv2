@@ -15,12 +15,19 @@ export interface Workspace {
   updated_at: string;
 }
 
+interface CopyOptions {
+  providers: boolean;
+  routing: boolean;
+  prompts: boolean;
+  categories: boolean;
+}
+
 interface WorkspaceContextType {
   workspaces: Workspace[];
   activeWorkspace: Workspace | null;
   setActiveWorkspaceId: (id: string) => void;
   isLoading: boolean;
-  createWorkspace: (name: string, description?: string) => void;
+  createWorkspace: (name: string, description?: string, copyFromWorkspaceId?: string, copyOptions?: CopyOptions) => void;
   updateWorkspace: (id: string, name: string, description?: string) => void;
   toggleVariableProducts: (id: string, value: boolean) => void;
   deleteWorkspace: (id: string) => void;
