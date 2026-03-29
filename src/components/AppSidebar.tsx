@@ -363,11 +363,12 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       {/* New Workspace Dialog */}
       <Dialog open={showNewWs} onOpenChange={setShowNewWs}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Novo Workspace</DialogTitle>
+            <DialogDescription>Cada workspace isola categorias, produtos e configurações por site/fornecedor.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="space-y-1">
               <Label className="text-xs">Nome</Label>
               <Input
@@ -378,6 +379,49 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                 autoFocus
               />
             </div>
+
+            {workspaces.length > 0 && (
+              <div className="space-y-3 rounded-lg border border-border p-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Copiar configuração de</Label>
+                  <Select value={copyFromWsId} onValueChange={setCopyFromWsId}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Começar do zero" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Começar do zero</SelectItem>
+                      {workspaces.map((ws) => (
+                        <SelectItem key={ws.id} value={ws.id}>{ws.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {copyFromWsId && copyFromWsId !== "none" && (
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">O que copiar:</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {([
+                        { key: "providers" as const, label: "AI Providers" },
+                        { key: "routing" as const, label: "Routing Rules" },
+                        { key: "prompts" as const, label: "Prompts" },
+                        { key: "categories" as const, label: "Categorias" },
+                      ]).map(({ key, label }) => (
+                        <label key={key} className="flex items-center gap-2 text-xs cursor-pointer">
+                          <Checkbox
+                            checked={copyOptions[key]}
+                            onCheckedChange={(checked) =>
+                              setCopyOptions((prev) => ({ ...prev, [key]: !!checked }))
+                            }
+                          />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowNewWs(false)}>
