@@ -574,6 +574,61 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Copy Config to Existing Workspace Dialog */}
+      <Dialog open={!!copyToWs} onOpenChange={(open) => !open && setCopyToWs(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Copiar Configuração para "{copyToWs?.name}"</DialogTitle>
+            <DialogDescription>Importar AI providers, regras de routing, prompts ou categorias de outro workspace.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label className="text-xs font-medium">Copiar de</Label>
+              <Select value={copySourceId} onValueChange={setCopySourceId}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Selecionar workspace de origem..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {workspaces
+                    .filter((ws) => ws.id !== copyToWs?.id)
+                    .map((ws) => (
+                      <SelectItem key={ws.id} value={ws.id}>{ws.name}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {copySourceId && (
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">O que copiar:</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    { key: "providers" as const, label: "AI Providers" },
+                    { key: "routing" as const, label: "Routing Rules" },
+                    { key: "prompts" as const, label: "Prompts" },
+                    { key: "categories" as const, label: "Categorias" },
+                  ]).map(({ key, label }) => (
+                    <label key={key} className="flex items-center gap-2 text-xs cursor-pointer">
+                      <Checkbox
+                        checked={copyToOptions[key]}
+                        onCheckedChange={(checked) =>
+                          setCopyToOptions((prev) => ({ ...prev, [key]: !!checked }))
+                        }
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCopyToWs(null)}>Cancelar</Button>
+            <Button onClick={handleCopyConfigToWorkspace} disabled={!copySourceId}>Copiar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
