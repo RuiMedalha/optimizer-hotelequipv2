@@ -4,6 +4,7 @@ import {
   useAgents, useCreateAgent, useUpdateAgentStatus,
   useAgentTasks, useAgentActions, useAgentPolicies,
   useRunAgentCycle, useApproveAction, useCreatePolicy,
+  useRunAgentAnalysis, useAgentAnalysisResults,
 } from "@/hooks/useAgents";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Bot, Play, CheckCircle, XCircle, Clock, AlertTriangle, Zap, Shield, ListTodo, Activity } from "lucide-react";
+import { Bot, Play, CheckCircle, XCircle, Clock, AlertTriangle, Zap, Shield, ListTodo, Activity, Search, Image, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 const AGENT_TYPES = [
@@ -47,10 +48,12 @@ export default function AgentControlCenterPage() {
   const { data: tasks = [] } = useAgentTasks(wsId);
   const { data: actions = [] } = useAgentActions(wsId);
   const { data: policies = [] } = useAgentPolicies(wsId);
+  const { data: analysisRuns = [] } = useAgentAnalysisResults(wsId);
 
   const createAgent = useCreateAgent();
   const updateStatus = useUpdateAgentStatus();
   const runCycle = useRunAgentCycle();
+  const runAnalysis = useRunAgentAnalysis();
   const approveAction = useApproveAction();
   const createPolicy = useCreatePolicy();
 
@@ -74,6 +77,14 @@ export default function AgentControlCenterPage() {
           </h1>
           <p className="text-muted-foreground text-sm">Sistema autónomo de otimização do catálogo</p>
         </div>
+        <Button
+          variant="outline"
+          onClick={() => wsId && runAnalysis.mutate({ workspaceId: wsId, agentTypes: ["seo_optimizer", "attribute_completeness_agent", "image_optimizer"] })}
+          disabled={runAnalysis.isPending || !wsId}
+          className="mr-2"
+        >
+          <Search className="w-4 h-4 mr-2" /> {runAnalysis.isPending ? "A analisar..." : "Analisar Catálogo"}
+        </Button>
         <Button onClick={() => wsId && runCycle.mutate({ workspaceId: wsId })} disabled={runCycle.isPending || !wsId}>
           <Play className="w-4 h-4 mr-2" /> {runCycle.isPending ? "A executar..." : "Executar Ciclo"}
         </Button>
@@ -108,13 +119,111 @@ export default function AgentControlCenterPage() {
         </CardContent></Card>
       </div>
 
-      <Tabs defaultValue="agents">
+      <Tabs defaultValue="analysis">
         <TabsList>
+          <TabsTrigger value="analysis"><Search className="w-4 h-4 mr-1" /> Análise</TabsTrigger>
           <TabsTrigger value="agents"><Bot className="w-4 h-4 mr-1" /> Agentes</TabsTrigger>
           <TabsTrigger value="tasks"><ListTodo className="w-4 h-4 mr-1" /> Tarefas</TabsTrigger>
           <TabsTrigger value="actions"><Activity className="w-4 h-4 mr-1" /> Ações</TabsTrigger>
           <TabsTrigger value="policies"><Shield className="w-4 h-4 mr-1" /> Políticas</TabsTrigger>
         </TabsList>
+
+        {/* Analysis Results Tab */}
+        <TabsContent value="analysis" className="space-y-4">
+          {analysisRuns.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Search className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground mb-4">
+                  Ainda não foram executadas análises. Clique em "Analisar Catálogo" para iniciar.
+                </p>
+                <Button
+                  onClick={() => wsId && runAnalysis.mutate({ workspaceId: wsId, agentTypes: ["seo_optimizer", "attribute_completeness_agent", "image_optimizer"] })}
+                  disabled={runAnalysis.isPending || !wsId}
+                >
+                  <Search className="w-4 h-4 mr-2" /> Iniciar Análise
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            analysisRuns.map((run: any) => {
+              const output = run.output_payload || {};
+              const isFullCycle = run.agent_name === "agent_analysis_cycle";
+              
+              return (
+                <Card key={run.id}>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-medium flex items-center gap-2">
+                        {isFullCycle ? <Search className="w-4 h-4 text-primary" /> : 
+                         run.agent_name === "image_optimizer" ? <Image className="w-4 h-4 text-primary" /> :
+                         <FileText className="w-4 h-4 text-primary" />}
+                        {isFullCycle ? "Análise Completa do Catálogo" : 
+                         run.agent_name === "image_optimizer" ? "Análise de Imagens" :
+                         "Otimização SEO"}
+                      </CardTitle>
+                      <span className="text-xs text-muted-foreground">{new Date(run.created_at).toLocaleString("pt-PT")}</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {isFullCycle && output.seo_optimizer && (
+                      <div className="bg-muted/50 rounded-lg p-3">
+                        <p className="text-xs font-semibold mb-1 flex items-center gap-1"><FileText className="w-3 h-3" /> SEO Optimizer</p>
+                        <div className="grid grid-cols-3 gap-2 text-xs">
+                          <div><span className="text-muted-foreground">Analisados:</span> {output.seo_optimizer.analyzed}</div>
+                          <div><span className="text-muted-foreground">Problemas:</span> {output.seo_optimizer.issues_found}</div>
+                          <div><span className="text-muted-foreground">Recomendações:</span> {output.seo_optimizer.recommendations_created}</div>
+                        </div>
+                      </div>
+                    )}
+                    {isFullCycle && output.attribute_completeness_agent && (
+                      <div className="bg-muted/50 rounded-lg p-3">
+                        <p className="text-xs font-semibold mb-1 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Completude de Atributos</p>
+                        <div className="grid grid-cols-3 gap-2 text-xs">
+                          <div><span className="text-muted-foreground">Analisados:</span> {output.attribute_completeness_agent.analyzed}</div>
+                          <div><span className="text-muted-foreground">Incompletos:</span> {output.attribute_completeness_agent.incomplete}</div>
+                          <div><span className="text-muted-foreground">Atualizados:</span> {output.attribute_completeness_agent.scores_updated}</div>
+                        </div>
+                      </div>
+                    )}
+                    {(isFullCycle ? output.image_optimizer : run.agent_name === "image_optimizer" ? output : null) && (() => {
+                      const imgData = isFullCycle ? output.image_optimizer : output;
+                      return (
+                        <div className="bg-muted/50 rounded-lg p-3">
+                          <p className="text-xs font-semibold mb-1 flex items-center gap-1"><Image className="w-3 h-3" /> Image Optimizer</p>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                            <div><span className="text-muted-foreground">Analisados:</span> {imgData.analyzed}</div>
+                            <div><span className="text-muted-foreground">Sem imagens:</span> {imgData.no_images}</div>
+                            <div><span className="text-muted-foreground">Poucas imagens:</span> {imgData.few_images}</div>
+                            <div><span className="text-muted-foreground">Sem lifestyle:</span> {imgData.needs_lifestyle}</div>
+                          </div>
+                          {imgData.recommendations?.length > 0 && (
+                            <div className="mt-2 space-y-1 max-h-48 overflow-y-auto">
+                              {imgData.recommendations.slice(0, 10).map((r: any, idx: number) => (
+                                <div key={idx} className="flex items-center gap-2 text-xs">
+                                  <Badge variant={r.severity === "high" ? "destructive" : "secondary"} className="text-[10px] h-4">{r.severity}</Badge>
+                                  <span className="truncate flex-1">{r.title}</span>
+                                  <span className="text-muted-foreground">{r.suggestion}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                    {!isFullCycle && run.agent_name === "seo_optimization" && (
+                      <div className="text-xs">
+                        <p><span className="text-muted-foreground">Confiança:</span> {Math.round((run.confidence_score || 0) * 100)}%</p>
+                        {output.meta_title && <p><span className="text-muted-foreground">Título:</span> {output.meta_title}</p>}
+                        {output.meta_description && <p><span className="text-muted-foreground">Descrição:</span> {output.meta_description}</p>}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })
+          )}
+        </TabsContent>
 
         {/* Agents Tab */}
         <TabsContent value="agents" className="space-y-4">
