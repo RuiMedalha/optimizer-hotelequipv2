@@ -252,6 +252,11 @@ Responde APENAS com o texto alt, sem aspas nem formatação extra.`;
                   lifestyleUrls.push(lifestyleUrl);
                   processedUrls.push(lifestyleUrl);
 
+                  // Generate alt text for the lifestyle image
+                  const productName = product.original_title || product.sku || "produto";
+                  const lifestyleAlt = await generateAltText(lifestyleUrl, productName);
+                  console.log(`🏷️ [lifestyle] Alt text generated: "${lifestyleAlt}" for ${productId}`);
+
                   await sb.from("images").insert({
                     product_id: productId,
                     original_url: originalUrl,
@@ -259,6 +264,7 @@ Responde APENAS com o texto alt, sem aspas nem formatação extra.`;
                     s3_key: path,
                     sort_order: nextSortOrder,
                     status: "done",
+                    alt_text: lifestyleAlt,
                   });
 
                   nextSortOrder += 1;
