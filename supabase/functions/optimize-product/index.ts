@@ -1938,6 +1938,7 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
             rag_match_types: ragMatchTypeCounts,
             prompt_version_id: promptVersionId,
             decision_source: aiMeta.decisionSource || null,
+            prompt_source: promptSource || null,
           } as any);
         } catch (logErr) {
           console.warn(

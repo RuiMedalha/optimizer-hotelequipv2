@@ -7785,6 +7785,7 @@ export type Database = {
           model: string
           product_id: string
           prompt_length: number | null
+          prompt_source: string | null
           prompt_tokens: number | null
           prompt_version_id: string | null
           rag_match_types: Json | null
@@ -7812,6 +7813,7 @@ export type Database = {
           model?: string
           product_id: string
           prompt_length?: number | null
+          prompt_source?: string | null
           prompt_tokens?: number | null
           prompt_version_id?: string | null
           rag_match_types?: Json | null
@@ -7839,6 +7841,7 @@ export type Database = {
           model?: string
           product_id?: string
           prompt_length?: number | null
+          prompt_source?: string | null
           prompt_tokens?: number | null
           prompt_version_id?: string | null
           rag_match_types?: Json | null
