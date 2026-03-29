@@ -519,72 +519,109 @@ export default function AgentControlCenterPage() {
 
                       if (!recs.length) return <p className="text-xs text-muted-foreground py-4 text-center">🎉 Todos os produtos publicados estão em bom estado!</p>;
 
+                      const pendingFix = recs.filter((r: any) => !reoptimizedProducts.has(r.product_id));
+                      const readyToPublish = recs.filter((r: any) => reoptimizedProducts.has(r.product_id));
+
                       return (
                         <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-muted-foreground">{recs.length} produto(s) com problemas</span>
-                            <div className="flex gap-1">
-                              <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={selectAll}>Selecionar Todos</Button>
-                              <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={selectNone}>Limpar</Button>
-                            </div>
-                          </div>
-
-                          {selectedIds.size > 0 && (
-                            <div className="flex gap-2 flex-wrap bg-primary/5 p-3 rounded-lg border border-primary/20">
-                              <span className="text-xs font-medium text-primary self-center">{selectedIds.size} selecionado(s)</span>
-                                <div className="ml-auto flex gap-2 flex-wrap">
-                                <Button size="sm" variant="outline" className="h-7 text-xs"
-                                  disabled={auditReoptimizing || auditReoptimizingWithImages}
-                                  onClick={() => handleAction(Array.from(selectedIds), "audit_reoptimize")}
-                                >
-                                  <Wand2 className="w-3 h-3 mr-1" /> {auditReoptimizing ? "A otimizar..." : "1. Só Produto"}
-                                </Button>
-                                <Button size="sm" variant="outline" className="h-7 text-xs border-orange-300 text-orange-700 hover:bg-orange-50"
-                                  disabled={auditReoptimizing || auditReoptimizingWithImages}
-                                  onClick={() => handleAction(Array.from(selectedIds), "audit_reoptimize_with_images")}
-                                >
-                                  <ImageIcon className="w-3 h-3 mr-1" /> {auditReoptimizingWithImages ? "A otimizar..." : "1b. Produto + Imagens"}
-                                </Button>
+                          {/* Ready to Republish section */}
+                          {readyToPublish.length > 0 && (
+                            <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-3 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-medium text-green-700 dark:text-green-400 flex items-center gap-1">
+                                  <CheckCircle className="w-3.5 h-3.5" /> {readyToPublish.length} corrigido(s) — pronto(s) para republicar
+                                </span>
                                 <Button size="sm" className="h-7 text-xs"
                                   disabled={auditRepublishing}
                                   onClick={() => {
-                                    if (confirm(`Tem a certeza que deseja republicar ${selectedIds.size} produto(s) no WooCommerce?`)) {
-                                      handleAction(Array.from(selectedIds), "audit_republish");
+                                    const ids = readyToPublish.map((r: any) => r.product_id);
+                                    if (confirm(`Republicar ${ids.length} produto(s) corrigidos no WooCommerce?`)) {
+                                      handleAction(ids, "audit_republish");
                                     }
                                   }}
                                 >
-                                  <Upload className="w-3 h-3 mr-1" /> {auditRepublishing ? "A publicar..." : "2. Republicar no WC"}
+                                  <Upload className="w-3 h-3 mr-1" /> {auditRepublishing ? "A publicar..." : "Republicar no WC"}
                                 </Button>
+                              </div>
+                              <div className="max-h-32 overflow-y-auto space-y-1">
+                                {readyToPublish.map((r: any, idx: number) => {
+                                  const result = reoptimizeResults.find((res: any) => res.productId === r.product_id);
+                                  return (
+                                    <div key={idx} className="flex items-center gap-2 text-xs p-1.5 rounded bg-green-100/50 dark:bg-green-900/20">
+                                      <CheckCircle className="w-3 h-3 text-green-600 shrink-0" />
+                                      <span className="font-medium truncate flex-1">{r.title}</span>
+                                      <span className="text-[10px] text-green-600">{result?.auto_fixed?.length || 0} corrigido(s)</span>
+                                      {result?.needs_full_optimization?.length > 0 && (
+                                        <Badge variant="outline" className="text-[9px] h-3.5 border-orange-300 text-orange-600">
+                                          {result.needs_full_optimization.length} pendente(s)
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
 
-                          <div className="max-h-96 overflow-y-auto space-y-1">
-                            {recs.map((r: any, idx: number) => (
-                              <div key={idx}
-                                className={`flex items-start gap-2 text-xs p-2 rounded cursor-pointer hover:bg-muted/50 transition-colors ${selectedIds.has(r.product_id) ? "bg-primary/5 border border-primary/20" : "border border-transparent"}`}
-                                onClick={() => toggleId(r.product_id)}
-                              >
-                                <input type="checkbox" checked={selectedIds.has(r.product_id)} readOnly className="w-3 h-3 accent-primary mt-0.5" />
-                                <Badge variant={r.severity === "critical" ? "destructive" : r.severity === "high" ? "destructive" : "secondary"} className="text-[10px] h-4 min-w-[3.5rem] justify-center shrink-0">
-                                  {r.severity}
-                                </Badge>
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-medium truncate">{r.title}</p>
-                                  <p className="text-muted-foreground text-[10px]">SKU: {r.sku} · WC#{r.woocommerce_id} · {r.issue_count} problema(s)</p>
-                                  {selectedIds.has(r.product_id) && (
-                                    <div className="mt-1 flex flex-wrap gap-1">
-                                      {r.issues?.map((issue: any, i: number) => (
-                                        <Badge key={i} variant={issue.severity === "high" ? "destructive" : "outline"} className="text-[9px] h-3.5">
-                                          {issue.label}
-                                        </Badge>
-                                      ))}
-                                    </div>
-                                  )}
+                          {/* Products still needing fixes */}
+                          {pendingFix.length > 0 && (
+                            <>
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs text-muted-foreground">{pendingFix.length} produto(s) por corrigir</span>
+                                <div className="flex gap-1">
+                                  <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={selectAll}>Selecionar Todos</Button>
+                                  <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={selectNone}>Limpar</Button>
                                 </div>
                               </div>
-                            ))}
-                          </div>
+
+                              {selectedIds.size > 0 && (
+                                <div className="flex gap-2 flex-wrap bg-primary/5 p-3 rounded-lg border border-primary/20">
+                                  <span className="text-xs font-medium text-primary self-center">{selectedIds.size} selecionado(s)</span>
+                                  <div className="ml-auto flex gap-2 flex-wrap">
+                                    <Button size="sm" variant="outline" className="h-7 text-xs"
+                                      disabled={auditReoptimizing || auditReoptimizingWithImages}
+                                      onClick={() => handleAction(Array.from(selectedIds), "audit_reoptimize")}
+                                    >
+                                      <Wand2 className="w-3 h-3 mr-1" /> {auditReoptimizing ? "A corrigir..." : "Corrigir Produto"}
+                                    </Button>
+                                    <Button size="sm" variant="outline" className="h-7 text-xs border-orange-300 text-orange-700 hover:bg-orange-50"
+                                      disabled={auditReoptimizing || auditReoptimizingWithImages}
+                                      onClick={() => handleAction(Array.from(selectedIds), "audit_reoptimize_with_images")}
+                                    >
+                                      <ImageIcon className="w-3 h-3 mr-1" /> {auditReoptimizingWithImages ? "A corrigir..." : "Corrigir + Imagens"}
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+
+                              <div className="max-h-96 overflow-y-auto space-y-1">
+                                {pendingFix.map((r: any, idx: number) => (
+                                  <div key={idx}
+                                    className={`flex items-start gap-2 text-xs p-2 rounded cursor-pointer hover:bg-muted/50 transition-colors ${selectedIds.has(r.product_id) ? "bg-primary/5 border border-primary/20" : "border border-transparent"}`}
+                                    onClick={() => toggleId(r.product_id)}
+                                  >
+                                    <input type="checkbox" checked={selectedIds.has(r.product_id)} readOnly className="w-3 h-3 accent-primary mt-0.5" />
+                                    <Badge variant={r.severity === "critical" ? "destructive" : r.severity === "high" ? "destructive" : "secondary"} className="text-[10px] h-4 min-w-[3.5rem] justify-center shrink-0">
+                                      {r.severity}
+                                    </Badge>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-medium truncate">{r.title}</p>
+                                      <p className="text-muted-foreground text-[10px]">SKU: {r.sku} · WC#{r.woocommerce_id} · {r.issue_count} problema(s)</p>
+                                      {selectedIds.has(r.product_id) && (
+                                        <div className="mt-1 flex flex-wrap gap-1">
+                                          {r.issues?.map((issue: any, i: number) => (
+                                            <Badge key={i} variant={issue.severity === "high" ? "destructive" : "outline"} className="text-[9px] h-3.5">
+                                              {issue.label}
+                                            </Badge>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          )}
                         </div>
                       );
                     };
