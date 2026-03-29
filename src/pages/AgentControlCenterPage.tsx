@@ -304,8 +304,9 @@ export default function AgentControlCenterPage() {
       </div>
 
       <Tabs defaultValue="analysis">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="analysis"><Search className="w-4 h-4 mr-1" /> Análise</TabsTrigger>
+          <TabsTrigger value="audit"><ShoppingCart className="w-4 h-4 mr-1" /> Auditoria WC</TabsTrigger>
           <TabsTrigger value="agents"><Bot className="w-4 h-4 mr-1" /> Agentes</TabsTrigger>
           <TabsTrigger value="tasks"><ListTodo className="w-4 h-4 mr-1" /> Tarefas</TabsTrigger>
           <TabsTrigger value="actions"><Activity className="w-4 h-4 mr-1" /> Ações</TabsTrigger>
