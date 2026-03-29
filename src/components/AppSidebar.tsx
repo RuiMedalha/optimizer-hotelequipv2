@@ -11,12 +11,15 @@ import {
   MoreHorizontal,
   Plus,
   ChevronDown,
+  Copy,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentUserProfile } from "@/hooks/useUserManagement";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -79,6 +82,9 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const [deleteWs, setDeleteWs] = useState<{ id: string; name: string } | null>(null);
   const [mergeWs, setMergeWs] = useState<{ sourceId: string; sourceName: string } | null>(null);
   const [mergeTargetId, setMergeTargetId] = useState<string>("");
+  const [copyToWs, setCopyToWs] = useState<{ id: string; name: string } | null>(null);
+  const [copySourceId, setCopySourceId] = useState<string>("");
+  const [copyToOptions, setCopyToOptions] = useState({ providers: true, routing: true, prompts: true, categories: false });
 
   // Group open/close state with localStorage persistence
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
@@ -153,6 +159,39 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
     }
   };
 
+  const handleCopyConfigToWorkspace = async () => {
+    if (!copyToWs || !copySourceId || copySourceId === "none") return;
+    const anyCopy = copyToOptions.providers || copyToOptions.routing || copyToOptions.prompts || copyToOptions.categories;
+    if (!anyCopy) { toast.error("Selecione pelo menos uma opção para copiar."); return; }
+    try {
+      const { data: copyResult, error: copyError } = await supabase.functions.invoke("copy-workspace-config", {
+        body: {
+          sourceWorkspaceId: copySourceId,
+          targetWorkspaceId: copyToWs.id,
+          copyProviders: copyToOptions.providers,
+          copyRouting: copyToOptions.routing,
+          copyPrompts: copyToOptions.prompts,
+          copyCategories: copyToOptions.categories,
+        },
+      });
+      if (copyError) throw copyError;
+      const s = copyResult?.stats;
+      if (s) {
+        const parts: string[] = [];
+        if (s.providers > 0) parts.push(`${s.providers} providers`);
+        if (s.routing > 0) parts.push(`${s.routing} regras`);
+        if (s.prompts > 0) parts.push(`${s.prompts} prompts`);
+        if (s.categories > 0) parts.push(`${s.categories} categorias`);
+        toast.success(parts.length > 0 ? `Copiado para "${copyToWs.name}": ${parts.join(", ")}` : "Nenhum item encontrado para copiar.");
+      }
+    } catch (err: any) {
+      toast.error(`Erro ao copiar: ${err.message || "desconhecido"}`);
+    }
+    setCopyToWs(null);
+    setCopySourceId("");
+    setCopyToOptions({ providers: true, routing: true, prompts: true, categories: false });
+  };
+
   return (
     <>
       <aside
@@ -218,6 +257,14 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                       >
                         <Pencil className="w-3.5 h-3.5 mr-2" /> Renomear
                       </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setCopyToWs({ id: ws.id, name: ws.name });
+                            setCopySourceId("");
+                          }}
+                        >
+                          <Copy className="w-3.5 h-3.5 mr-2" /> Copiar config para aqui
+                        </DropdownMenuItem>
                       {workspaces.length > 1 && (
                         <DropdownMenuItem
                           onClick={() => {
@@ -524,6 +571,61 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
             <Button onClick={handleMergeWorkspaces} disabled={!mergeTargetId}>
               Fundir
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Copy Config to Existing Workspace Dialog */}
+      <Dialog open={!!copyToWs} onOpenChange={(open) => !open && setCopyToWs(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Copiar Configuração para "{copyToWs?.name}"</DialogTitle>
+            <DialogDescription>Importar AI providers, regras de routing, prompts ou categorias de outro workspace.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label className="text-xs font-medium">Copiar de</Label>
+              <Select value={copySourceId} onValueChange={setCopySourceId}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Selecionar workspace de origem..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {workspaces
+                    .filter((ws) => ws.id !== copyToWs?.id)
+                    .map((ws) => (
+                      <SelectItem key={ws.id} value={ws.id}>{ws.name}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {copySourceId && (
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">O que copiar:</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    { key: "providers" as const, label: "AI Providers" },
+                    { key: "routing" as const, label: "Routing Rules" },
+                    { key: "prompts" as const, label: "Prompts" },
+                    { key: "categories" as const, label: "Categorias" },
+                  ]).map(({ key, label }) => (
+                    <label key={key} className="flex items-center gap-2 text-xs cursor-pointer">
+                      <Checkbox
+                        checked={copyToOptions[key]}
+                        onCheckedChange={(checked) =>
+                          setCopyToOptions((prev) => ({ ...prev, [key]: !!checked }))
+                        }
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCopyToWs(null)}>Cancelar</Button>
+            <Button onClick={handleCopyConfigToWorkspace} disabled={!copySourceId}>Copiar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
