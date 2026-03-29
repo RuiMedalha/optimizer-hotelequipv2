@@ -1934,6 +1934,7 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
             chunks_used: topChunks.length,
             rag_match_types: ragMatchTypeCounts,
             prompt_version_id: promptVersionId,
+            decision_source: aiMeta.decisionSource || null,
           } as any);
         } catch (logErr) {
           console.warn(
