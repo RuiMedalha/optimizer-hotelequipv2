@@ -257,6 +257,14 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                       >
                         <Pencil className="w-3.5 h-3.5 mr-2" /> Renomear
                       </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setCopyToWs({ id: ws.id, name: ws.name });
+                            setCopySourceId("");
+                          }}
+                        >
+                          <Copy className="w-3.5 h-3.5 mr-2" /> Copiar config para aqui
+                        </DropdownMenuItem>
                       {workspaces.length > 1 && (
                         <DropdownMenuItem
                           onClick={() => {
