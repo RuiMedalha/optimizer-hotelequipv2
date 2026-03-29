@@ -72,6 +72,8 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   } = useWorkspaceContext();
   const [showNewWs, setShowNewWs] = useState(false);
   const [newWsName, setNewWsName] = useState("");
+  const [copyFromWsId, setCopyFromWsId] = useState<string>("");
+  const [copyOptions, setCopyOptions] = useState({ providers: true, routing: true, prompts: true, categories: false });
   const [editWs, setEditWs] = useState<{ id: string; name: string } | null>(null);
   const [deleteWs, setDeleteWs] = useState<{ id: string; name: string } | null>(null);
   const [mergeWs, setMergeWs] = useState<{ sourceId: string; sourceName: string } | null>(null);
@@ -117,10 +119,12 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
     return location.pathname === route;
   };
 
-  const handleCreateWorkspace = () => {
+  const handleCreateWorkspace = async () => {
     if (newWsName.trim()) {
-      createWorkspace(newWsName.trim());
+      createWorkspace(newWsName.trim(), undefined, copyFromWsId || undefined, copyFromWsId ? copyOptions : undefined);
       setNewWsName("");
+      setCopyFromWsId("");
+      setCopyOptions({ providers: true, routing: true, prompts: true, categories: false });
       setShowNewWs(false);
     }
   };
