@@ -191,6 +191,8 @@ export default function AgentControlCenterPage() {
   const [auditReoptimizing, setAuditReoptimizing] = useState(false);
   const [auditReoptimizingWithImages, setAuditReoptimizingWithImages] = useState(false);
   const [auditRepublishing, setAuditRepublishing] = useState(false);
+  const [reoptimizedProducts, setReoptimizedProducts] = useState<Set<string>>(new Set());
+  const [reoptimizeResults, setReoptimizeResults] = useState<any[]>([]);
 
   const pendingActions = actions.filter((a: any) => !a.approved_by_user);
   const completedTasks = tasks.filter((t: any) => t.status === "completed").length;
@@ -231,29 +233,46 @@ export default function AgentControlCenterPage() {
     } else if (action === "lifestyle_images") {
       toast.info(`A gerar imagens lifestyle de ${productIds.length} produto(s)...`);
       await processImages({ workspaceId: wsId, productIds, mode: "lifestyle" });
-    } else if (action === "audit_reoptimize") {
-      setAuditReoptimizing(true);
-      toast.info(`A re-otimizar conteúdo de ${productIds.length} produto(s) (só texto/SEO)...`);
+    } else if (action === "audit_reoptimize" || action === "audit_reoptimize_with_images") {
+      const withImages = action === "audit_reoptimize_with_images";
+      if (withImages) setAuditReoptimizingWithImages(true); else setAuditReoptimizing(true);
+
+      // Build targeted list: only pass the specific issues each product has
+      const recs = auditOutput.recommendations || [];
+      const targetedProducts = productIds.map(pid => {
+        const rec = recs.find((r: any) => r.product_id === pid);
+        return { productId: pid, issues: rec?.issues?.map((i: any) => i.code) || [] };
+      }).filter(p => p.issues.length > 0);
+
+      toast.info(`A corrigir problemas específicos de ${targetedProducts.length} produto(s)...`);
       try {
-        await supabase.functions.invoke("optimize-batch", {
-          body: { productIds, workspaceId: wsId },
+        const { data, error } = await supabase.functions.invoke("audit-reoptimize", {
+          body: { workspaceId: wsId, products: targetedProducts, includeImages: withImages },
         });
-        toast.success("Conteúdo re-otimizado! Verifique e depois republique.");
-      } catch (e) { toast.error("Erro ao otimizar"); }
-      finally { setAuditReoptimizing(false); }
-    } else if (action === "audit_reoptimize_with_images") {
-      setAuditReoptimizingWithImages(true);
-      toast.info(`A re-otimizar conteúdo + imagens de ${productIds.length} produto(s)...`);
-      try {
-        await supabase.functions.invoke("optimize-batch", {
-          body: { productIds, workspaceId: wsId },
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+
+        const results = data?.results || [];
+        setReoptimizeResults(prev => [...prev, ...results]);
+        setReoptimizedProducts(prev => {
+          const next = new Set(prev);
+          results.filter((r: any) => r.status === "fixed").forEach((r: any) => next.add(r.productId));
+          return next;
         });
-        toast.success("Conteúdo re-otimizado!");
-        toast.info("A gerar imagens lifestyle...");
-        await processImages({ workspaceId: wsId, productIds, mode: "lifestyle" });
-        toast.success("Imagens lifestyle geradas! Verifique e depois republique.");
-      } catch (e) { toast.error("Erro ao otimizar com imagens"); }
-      finally { setAuditReoptimizingWithImages(false); }
+
+        const summary = data?.summary || {};
+        toast.success(`Corrigidos: ${summary.auto_fixed || 0} produto(s). ${summary.needs_full_optimization ? `${summary.needs_full_optimization} precisam otimização completa.` : ""}`);
+
+        if (withImages) {
+          const fixedIds = results.filter((r: any) => r.status === "fixed").map((r: any) => r.productId);
+          if (fixedIds.length > 0) {
+            toast.info("A gerar imagens lifestyle...");
+            await processImages({ workspaceId: wsId, productIds: fixedIds, mode: "lifestyle" });
+            toast.success("Imagens lifestyle geradas!");
+          }
+        }
+      } catch (e: any) { toast.error(`Erro: ${e.message}`); }
+      finally { setAuditReoptimizing(false); setAuditReoptimizingWithImages(false); }
     } else if (action === "audit_republish") {
       setAuditRepublishing(true);
       toast.info(`A republicar ${productIds.length} produto(s) no WooCommerce...`);
