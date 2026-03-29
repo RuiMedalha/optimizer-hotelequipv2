@@ -122,7 +122,8 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   const handleCreateWorkspace = async () => {
     if (newWsName.trim()) {
-      createWorkspace(newWsName.trim(), undefined, copyFromWsId || undefined, copyFromWsId ? copyOptions : undefined);
+      const sourceId = copyFromWsId && copyFromWsId !== "none" ? copyFromWsId : undefined;
+      createWorkspace(newWsName.trim(), undefined, sourceId, sourceId ? copyOptions : undefined);
       setNewWsName("");
       setCopyFromWsId("");
       setCopyOptions({ providers: true, routing: true, prompts: true, categories: false });
