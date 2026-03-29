@@ -146,6 +146,9 @@ Preço: ${product.price || product.original_price || "N/A"}`;
     }
 
     const routeData = await aiResponse.json();
+    const aiMeta = routeData.meta || {};
+    const promptSource = aiMeta.promptSource || "unknown";
+    console.log(`📋 [generate-description] Prompt source: ${promptSource} | Provider: ${aiMeta.usedProvider || "?"} | Model: ${aiMeta.usedModel || "?"}`);
     const content = (routeData.result?.choices?.[0]?.message?.content || "")
       .replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
 
