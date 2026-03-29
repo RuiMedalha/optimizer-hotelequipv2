@@ -41,6 +41,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { navGroups, type NavGroup } from "@/config/navigation";
 import { getStorageJson, setStorageItem } from "@/lib/safeStorage";
