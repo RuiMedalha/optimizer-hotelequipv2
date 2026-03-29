@@ -17,11 +17,13 @@ Deno.serve(async (req) => {
     if (!workspaceId) throw new Error("workspaceId is required");
 
     // Get all published products (with woocommerce_id)
+    // Only audit products that were optimized AND published to WC
     const { data: products, error } = await sb
       .from("products")
-      .select("id, sku, original_title, optimized_title, optimized_description, optimized_short_description, meta_title, meta_description, seo_slug, focus_keyword, tags, faq, image_urls, attributes, woocommerce_id, updated_at")
+      .select("id, sku, original_title, optimized_title, optimized_description, optimized_short_description, meta_title, meta_description, seo_slug, focus_keyword, tags, faq, image_urls, attributes, woocommerce_id, updated_at, status")
       .eq("workspace_id", workspaceId)
       .not("woocommerce_id", "is", null)
+      .in("status", ["optimized", "published"])
       .is("parent_product_id", null)
       .order("updated_at", { ascending: true })
       .limit(limit);
