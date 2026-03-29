@@ -17,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
-import { Bot, Play, CheckCircle, XCircle, Clock, AlertTriangle, Zap, Shield, ListTodo, Activity, Search, Image, FileText, Wand2, ImagePlus, RefreshCw, ShoppingCart, Upload, Eye } from "lucide-react";
+import { Bot, Play, CheckCircle, XCircle, Clock, AlertTriangle, Zap, Shield, ListTodo, Activity, Search, Image, FileText, Wand2, ImagePlus, RefreshCw, ShoppingCart, Upload, Eye, ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -189,6 +189,7 @@ export default function AgentControlCenterPage() {
   const [newPolicyType, setNewPolicyType] = useState("");
   const [newPolicyApproval, setNewPolicyApproval] = useState(true);
   const [auditReoptimizing, setAuditReoptimizing] = useState(false);
+  const [auditReoptimizingWithImages, setAuditReoptimizingWithImages] = useState(false);
   const [auditRepublishing, setAuditRepublishing] = useState(false);
 
   const pendingActions = actions.filter((a: any) => !a.approved_by_user);
@@ -232,14 +233,27 @@ export default function AgentControlCenterPage() {
       await processImages({ workspaceId: wsId, productIds, mode: "lifestyle" });
     } else if (action === "audit_reoptimize") {
       setAuditReoptimizing(true);
-      toast.info(`A re-otimizar ${productIds.length} produto(s) publicados...`);
+      toast.info(`A re-otimizar conteúdo de ${productIds.length} produto(s) (só texto/SEO)...`);
       try {
         await supabase.functions.invoke("optimize-batch", {
           body: { productIds, workspaceId: wsId },
         });
-        toast.success("Produtos re-otimizados! Verifique e depois republique.");
+        toast.success("Conteúdo re-otimizado! Verifique e depois republique.");
       } catch (e) { toast.error("Erro ao otimizar"); }
       finally { setAuditReoptimizing(false); }
+    } else if (action === "audit_reoptimize_with_images") {
+      setAuditReoptimizingWithImages(true);
+      toast.info(`A re-otimizar conteúdo + imagens de ${productIds.length} produto(s)...`);
+      try {
+        await supabase.functions.invoke("optimize-batch", {
+          body: { productIds, workspaceId: wsId },
+        });
+        toast.success("Conteúdo re-otimizado!");
+        toast.info("A gerar imagens lifestyle...");
+        await processImages({ workspaceId: wsId, productIds, mode: "lifestyle" });
+        toast.success("Imagens lifestyle geradas! Verifique e depois republique.");
+      } catch (e) { toast.error("Erro ao otimizar com imagens"); }
+      finally { setAuditReoptimizingWithImages(false); }
     } else if (action === "audit_republish") {
       setAuditRepublishing(true);
       toast.info(`A republicar ${productIds.length} produto(s) no WooCommerce...`);
@@ -499,12 +513,18 @@ export default function AgentControlCenterPage() {
                           {selectedIds.size > 0 && (
                             <div className="flex gap-2 flex-wrap bg-primary/5 p-3 rounded-lg border border-primary/20">
                               <span className="text-xs font-medium text-primary self-center">{selectedIds.size} selecionado(s)</span>
-                              <div className="ml-auto flex gap-2 flex-wrap">
+                                <div className="ml-auto flex gap-2 flex-wrap">
                                 <Button size="sm" variant="outline" className="h-7 text-xs"
-                                  disabled={auditReoptimizing}
+                                  disabled={auditReoptimizing || auditReoptimizingWithImages}
                                   onClick={() => handleAction(Array.from(selectedIds), "audit_reoptimize")}
                                 >
-                                  <Wand2 className="w-3 h-3 mr-1" /> {auditReoptimizing ? "A otimizar..." : "1. Re-otimizar"}
+                                  <Wand2 className="w-3 h-3 mr-1" /> {auditReoptimizing ? "A otimizar..." : "1. Só Produto"}
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-7 text-xs border-orange-300 text-orange-700 hover:bg-orange-50"
+                                  disabled={auditReoptimizing || auditReoptimizingWithImages}
+                                  onClick={() => handleAction(Array.from(selectedIds), "audit_reoptimize_with_images")}
+                                >
+                                  <ImageIcon className="w-3 h-3 mr-1" /> {auditReoptimizingWithImages ? "A otimizar..." : "1b. Produto + Imagens"}
                                 </Button>
                                 <Button size="sm" className="h-7 text-xs"
                                   disabled={auditRepublishing}
