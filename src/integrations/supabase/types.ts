@@ -9644,7 +9644,7 @@ export type Database = {
           prompt_name: string
           prompt_type: string
           updated_at: string
-          workspace_id: string
+          workspace_id: string | null
         }
         Insert: {
           archived_at?: string | null
@@ -9656,7 +9656,7 @@ export type Database = {
           prompt_name: string
           prompt_type?: string
           updated_at?: string
-          workspace_id: string
+          workspace_id?: string | null
         }
         Update: {
           archived_at?: string | null
@@ -9668,7 +9668,7 @@ export type Database = {
           prompt_name?: string
           prompt_type?: string
           updated_at?: string
-          workspace_id?: string
+          workspace_id?: string | null
         }
         Relationships: [
           {
