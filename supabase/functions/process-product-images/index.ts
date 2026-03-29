@@ -70,6 +70,60 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Helper: generate SEO alt text for an image URL
+    async function generateAltText(imageUrl: string, productName: string): Promise<string | null> {
+      try {
+        // Try to get prompt from prompt_templates
+        const { data: altPromptRow } = await sb
+          .from("prompt_templates")
+          .select("prompt_text")
+          .eq("workspace_id", workspaceId)
+          .eq("task_type", "image_alt_text")
+          .eq("is_active", true)
+          .order("version", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const altSystemPrompt = altPromptRow?.prompt_text ||
+          `Gera um texto alternativo (alt text) otimizado para SEO em Português de Portugal para esta imagem de produto.
+O alt text deve:
+- Ter no máximo 125 caracteres
+- Descrever o produto de forma clara e concisa
+- Incluir palavras-chave relevantes para e-commerce
+- Ser útil para acessibilidade
+Responde APENAS com o texto alt, sem aspas nem formatação extra.`;
+
+        const promptSource = altPromptRow ? "db_version" : "hardcoded_fallback";
+        console.log(`🏷️ [alt-text] Prompt source: ${promptSource} for product: ${productName}`);
+
+        const aiResp = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+          body: JSON.stringify({
+            taskType: "image_alt_text",
+            workspaceId,
+            systemPrompt: altSystemPrompt,
+            messages: [{
+              role: "user",
+              content: [
+                { type: "image_url", image_url: { url: imageUrl } },
+                { type: "text", text: `Produto: ${productName}. Gera o alt text para esta imagem.` },
+              ],
+            }],
+            options: { max_tokens: 200 },
+          }),
+        });
+
+        if (!aiResp.ok) return null;
+        const aiWrapper = await aiResp.json();
+        const altText = (aiWrapper.result?.choices?.[0]?.message?.content || "").trim().slice(0, 125);
+        return altText || null;
+      } catch (e) {
+        console.warn(`[alt-text] Failed for ${productName}:`, e);
+        return null;
+      }
+    }
+
     const results: any[] = [];
 
     for (const productId of productIds) {
@@ -198,6 +252,11 @@ Deno.serve(async (req) => {
                   lifestyleUrls.push(lifestyleUrl);
                   processedUrls.push(lifestyleUrl);
 
+                  // Generate alt text for the lifestyle image
+                  const productName = product.original_title || product.sku || "produto";
+                  const lifestyleAlt = await generateAltText(lifestyleUrl, productName);
+                  console.log(`🏷️ [lifestyle] Alt text generated: "${lifestyleAlt}" for ${productId}`);
+
                   await sb.from("images").insert({
                     product_id: productId,
                     original_url: originalUrl,
@@ -205,6 +264,7 @@ Deno.serve(async (req) => {
                     s3_key: path,
                     sort_order: nextSortOrder,
                     status: "done",
+                    alt_text: lifestyleAlt,
                   });
 
                   nextSortOrder += 1;
@@ -287,6 +347,11 @@ Deno.serve(async (req) => {
                   .getPublicUrl(path);
                 processedUrls.push(urlData.publicUrl);
 
+                // Generate alt text for the optimized image
+                const productName = product.original_title || product.sku || "produto";
+                const optimizedAlt = await generateAltText(urlData.publicUrl, productName);
+                console.log(`🏷️ [optimize] Alt text generated: "${optimizedAlt}" for ${productId} image ${i}`);
+
                 // Update images table
                 await sb.from("images").upsert(
                   {
@@ -296,6 +361,7 @@ Deno.serve(async (req) => {
                     s3_key: path,
                     sort_order: i,
                     status: "done",
+                    alt_text: optimizedAlt,
                   },
                   { onConflict: "product_id,sort_order", ignoreDuplicates: false }
                 );
@@ -360,6 +426,14 @@ Deno.serve(async (req) => {
 
             if (fid !== productId) {
               for (const url of lifestyleUrls) {
+                // Reuse the alt text from the original lifestyle image
+                const { data: srcImg } = await sb
+                  .from("images")
+                  .select("alt_text")
+                  .eq("product_id", productId)
+                  .eq("optimized_url", url)
+                  .maybeSingle();
+
                 await sb.from("images").insert({
                   product_id: fid,
                   original_url: product.image_urls?.[0] || null,
@@ -367,6 +441,7 @@ Deno.serve(async (req) => {
                   s3_key: `lifestyle_shared_from_${productId}`,
                   sort_order: (existing.length + lifestyleUrls.indexOf(url)),
                   status: "done",
+                  alt_text: srcImg?.alt_text || null,
                 });
               }
             }
@@ -390,6 +465,24 @@ Deno.serve(async (req) => {
             await sb.from("products").update({ image_urls: merged }).eq("id", productId);
             console.log(`📸 Appended ${newGeneratedUrls.length} optimized images for ${productId}. Total: ${merged.length}`);
           }
+        }
+
+        // Sync image_alt_texts JSONB on the product from images table
+        const { data: allImgs } = await sb
+          .from("images")
+          .select("optimized_url, alt_text")
+          .eq("product_id", productId)
+          .not("alt_text", "is", null);
+
+        if (allImgs && allImgs.length > 0) {
+          const altTextsObj: Record<string, string> = {};
+          for (const img of allImgs) {
+            if (img.optimized_url && img.alt_text) {
+              altTextsObj[img.optimized_url] = img.alt_text;
+            }
+          }
+          await sb.from("products").update({ image_alt_texts: altTextsObj }).eq("id", productId);
+          console.log(`🏷️ Synced ${Object.keys(altTextsObj).length} alt texts to product ${productId}`);
         }
 
         // Only increment credits if images were actually generated by AI
