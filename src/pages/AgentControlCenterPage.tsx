@@ -48,10 +48,12 @@ export default function AgentControlCenterPage() {
   const { data: tasks = [] } = useAgentTasks(wsId);
   const { data: actions = [] } = useAgentActions(wsId);
   const { data: policies = [] } = useAgentPolicies(wsId);
+  const { data: analysisRuns = [] } = useAgentAnalysisResults(wsId);
 
   const createAgent = useCreateAgent();
   const updateStatus = useUpdateAgentStatus();
   const runCycle = useRunAgentCycle();
+  const runAnalysis = useRunAgentAnalysis();
   const approveAction = useApproveAction();
   const createPolicy = useCreatePolicy();
 
@@ -75,6 +77,14 @@ export default function AgentControlCenterPage() {
           </h1>
           <p className="text-muted-foreground text-sm">Sistema autónomo de otimização do catálogo</p>
         </div>
+        <Button
+          variant="outline"
+          onClick={() => wsId && runAnalysis.mutate({ workspaceId: wsId, agentTypes: ["seo_optimizer", "attribute_completeness_agent", "image_optimizer"] })}
+          disabled={runAnalysis.isPending || !wsId}
+          className="mr-2"
+        >
+          <Search className="w-4 h-4 mr-2" /> {runAnalysis.isPending ? "A analisar..." : "Analisar Catálogo"}
+        </Button>
         <Button onClick={() => wsId && runCycle.mutate({ workspaceId: wsId })} disabled={runCycle.isPending || !wsId}>
           <Play className="w-4 h-4 mr-2" /> {runCycle.isPending ? "A executar..." : "Executar Ciclo"}
         </Button>
