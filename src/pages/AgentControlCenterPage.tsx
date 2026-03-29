@@ -5,8 +5,10 @@ import {
   useAgentTasks, useAgentActions, useAgentPolicies,
   useRunAgentCycle, useApproveAction, useCreatePolicy,
   useRunAgentAnalysis, useAgentAnalysisResults,
+  useRunPublishAudit,
 } from "@/hooks/useAgents";
 import { useProcessImages } from "@/hooks/useProcessImages";
+import { usePublishWooCommerce } from "@/hooks/usePublishWooCommerce";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
-import { Bot, Play, CheckCircle, XCircle, Clock, AlertTriangle, Zap, Shield, ListTodo, Activity, Search, Image, FileText, Wand2, ImagePlus, RefreshCw } from "lucide-react";
+import { Bot, Play, CheckCircle, XCircle, Clock, AlertTriangle, Zap, Shield, ListTodo, Activity, Search, Image, FileText, Wand2, ImagePlus, RefreshCw, ShoppingCart, Upload, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -30,6 +32,7 @@ const AGENT_TYPES = [
   { value: "supplier_learning_agent", label: "Supplier Learning" },
   { value: "pricing_analyzer", label: "Pricing Analyzer" },
   { value: "channel_performance_agent", label: "Channel Performance" },
+  { value: "publish_audit_agent", label: "Publish Audit (WC)" },
 ];
 
 const statusColors: Record<string, string> = {
@@ -174,15 +177,19 @@ export default function AgentControlCenterPage() {
   const updateStatus = useUpdateAgentStatus();
   const runCycle = useRunAgentCycle();
   const runAnalysis = useRunAgentAnalysis();
+  const runPublishAudit = useRunPublishAudit();
   const approveAction = useApproveAction();
   const createPolicy = useCreatePolicy();
   const { processImages, isProcessing } = useProcessImages();
+  const publishWoo = usePublishWooCommerce();
 
   const [newAgentName, setNewAgentName] = useState("");
   const [newAgentType, setNewAgentType] = useState("");
   const [newPolicyName, setNewPolicyName] = useState("");
   const [newPolicyType, setNewPolicyType] = useState("");
   const [newPolicyApproval, setNewPolicyApproval] = useState(true);
+  const [auditReoptimizing, setAuditReoptimizing] = useState(false);
+  const [auditRepublishing, setAuditRepublishing] = useState(false);
 
   const pendingActions = actions.filter((a: any) => !a.approved_by_user);
   const completedTasks = tasks.filter((t: any) => t.status === "completed").length;
@@ -192,6 +199,10 @@ export default function AgentControlCenterPage() {
   // Get latest analysis run
   const latestAnalysis = analysisRuns.find((r: any) => r.agent_name === "agent_analysis_cycle");
   const latestOutput = latestAnalysis?.output_payload || {};
+
+  // Get latest publish audit
+  const latestAudit = analysisRuns.find((r: any) => r.agent_name === "publish_audit_agent");
+  const auditOutput = latestAudit?.output_payload || {};
 
   const handleAction = async (productIds: string[], action: string) => {
     if (!wsId) return;
@@ -219,6 +230,24 @@ export default function AgentControlCenterPage() {
     } else if (action === "lifestyle_images") {
       toast.info(`A gerar imagens lifestyle de ${productIds.length} produto(s)...`);
       await processImages({ workspaceId: wsId, productIds, mode: "lifestyle" });
+    } else if (action === "audit_reoptimize") {
+      setAuditReoptimizing(true);
+      toast.info(`A re-otimizar ${productIds.length} produto(s) publicados...`);
+      try {
+        await supabase.functions.invoke("optimize-batch", {
+          body: { productIds, workspaceId: wsId },
+        });
+        toast.success("Produtos re-otimizados! Verifique e depois republique.");
+      } catch (e) { toast.error("Erro ao otimizar"); }
+      finally { setAuditReoptimizing(false); }
+    } else if (action === "audit_republish") {
+      setAuditRepublishing(true);
+      toast.info(`A republicar ${productIds.length} produto(s) no WooCommerce...`);
+      try {
+        publishWoo.mutate({ productIds, workspaceId: wsId });
+        toast.success("Republicação iniciada! Verifique o progresso nos Jobs.");
+      } catch (e) { toast.error("Erro ao republicar"); }
+      finally { setAuditRepublishing(false); }
     }
   };
 
@@ -275,8 +304,9 @@ export default function AgentControlCenterPage() {
       </div>
 
       <Tabs defaultValue="analysis">
-        <TabsList>
+        <TabsList className="flex-wrap">
           <TabsTrigger value="analysis"><Search className="w-4 h-4 mr-1" /> Análise</TabsTrigger>
+          <TabsTrigger value="audit"><ShoppingCart className="w-4 h-4 mr-1" /> Auditoria WC</TabsTrigger>
           <TabsTrigger value="agents"><Bot className="w-4 h-4 mr-1" /> Agentes</TabsTrigger>
           <TabsTrigger value="tasks"><ListTodo className="w-4 h-4 mr-1" /> Tarefas</TabsTrigger>
           <TabsTrigger value="actions"><Activity className="w-4 h-4 mr-1" /> Ações</TabsTrigger>
@@ -374,6 +404,153 @@ export default function AgentControlCenterPage() {
                     type="img"
                     onAction={handleAction}
                   />
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </TabsContent>
+
+        {/* ─── Publish Audit Tab ─── */}
+        <TabsContent value="audit" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold">Auditoria de Produtos Publicados (WooCommerce)</h3>
+              <p className="text-xs text-muted-foreground">Verifica produtos já publicados contra os padrões atuais de qualidade</p>
+            </div>
+            <Button
+              onClick={() => wsId && runPublishAudit.mutate({ workspaceId: wsId })}
+              disabled={runPublishAudit.isPending || !wsId}
+            >
+              <Eye className="w-4 h-4 mr-2" /> {runPublishAudit.isPending ? "A auditar..." : "Auditar Produtos Publicados"}
+            </Button>
+          </div>
+
+          {!latestAudit ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <ShoppingCart className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground mb-4">
+                  Clique em "Auditar Produtos Publicados" para verificar a qualidade dos seus produtos no WooCommerce.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {/* Summary stats */}
+              {auditOutput.summary && (
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <Card><CardContent className="pt-3 text-center">
+                    <p className="text-xl font-bold">{auditOutput.summary.total_published}</p>
+                    <p className="text-[10px] text-muted-foreground">Publicados</p>
+                  </CardContent></Card>
+                  <Card><CardContent className="pt-3 text-center">
+                    <p className="text-xl font-bold text-green-600">{auditOutput.summary.ok_count}</p>
+                    <p className="text-[10px] text-muted-foreground">OK ✓</p>
+                  </CardContent></Card>
+                  <Card><CardContent className="pt-3 text-center">
+                    <p className="text-xl font-bold text-destructive">{auditOutput.summary.total_with_issues}</p>
+                    <p className="text-[10px] text-muted-foreground">Com problemas</p>
+                  </CardContent></Card>
+                  <Card><CardContent className="pt-3 text-center">
+                    <p className="text-xl font-bold text-orange-600">{auditOutput.summary.needs_reoptimize}</p>
+                    <p className="text-[10px] text-muted-foreground">Precisam re-otimizar</p>
+                  </CardContent></Card>
+                  <Card><CardContent className="pt-3 text-center">
+                    <p className="text-xl font-bold text-blue-600">{auditOutput.summary.needs_seo}</p>
+                    <p className="text-[10px] text-muted-foreground">SEO fraco</p>
+                  </CardContent></Card>
+                </div>
+              )}
+
+              {/* Recommendations list */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-destructive" /> Produtos com problemas
+                    <span className="text-xs text-muted-foreground ml-auto">
+                      Última auditoria: {new Date(latestAudit.created_at).toLocaleString("pt-PT")}
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {(() => {
+                    const recs = auditOutput.recommendations || [];
+                    const AuditList = () => {
+                      const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+                      const toggleId = (id: string) => setSelectedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+                      const selectAll = () => setSelectedIds(new Set(recs.map((r: any) => r.product_id)));
+                      const selectNone = () => setSelectedIds(new Set());
+
+                      const needsReopt = recs.filter((r: any) => r.needs_reoptimize);
+                      const selectedNeedsReopt = Array.from(selectedIds).filter(id => needsReopt.some((r: any) => r.product_id === id));
+
+                      if (!recs.length) return <p className="text-xs text-muted-foreground py-4 text-center">🎉 Todos os produtos publicados estão em bom estado!</p>;
+
+                      return (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground">{recs.length} produto(s) com problemas</span>
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={selectAll}>Selecionar Todos</Button>
+                              <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={selectNone}>Limpar</Button>
+                            </div>
+                          </div>
+
+                          {selectedIds.size > 0 && (
+                            <div className="flex gap-2 flex-wrap bg-primary/5 p-3 rounded-lg border border-primary/20">
+                              <span className="text-xs font-medium text-primary self-center">{selectedIds.size} selecionado(s)</span>
+                              <div className="ml-auto flex gap-2 flex-wrap">
+                                <Button size="sm" variant="outline" className="h-7 text-xs"
+                                  disabled={auditReoptimizing}
+                                  onClick={() => handleAction(Array.from(selectedIds), "audit_reoptimize")}
+                                >
+                                  <Wand2 className="w-3 h-3 mr-1" /> {auditReoptimizing ? "A otimizar..." : "1. Re-otimizar"}
+                                </Button>
+                                <Button size="sm" className="h-7 text-xs"
+                                  disabled={auditRepublishing}
+                                  onClick={() => {
+                                    if (confirm(`Tem a certeza que deseja republicar ${selectedIds.size} produto(s) no WooCommerce?`)) {
+                                      handleAction(Array.from(selectedIds), "audit_republish");
+                                    }
+                                  }}
+                                >
+                                  <Upload className="w-3 h-3 mr-1" /> {auditRepublishing ? "A publicar..." : "2. Republicar no WC"}
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="max-h-96 overflow-y-auto space-y-1">
+                            {recs.map((r: any, idx: number) => (
+                              <div key={idx}
+                                className={`flex items-start gap-2 text-xs p-2 rounded cursor-pointer hover:bg-muted/50 transition-colors ${selectedIds.has(r.product_id) ? "bg-primary/5 border border-primary/20" : "border border-transparent"}`}
+                                onClick={() => toggleId(r.product_id)}
+                              >
+                                <input type="checkbox" checked={selectedIds.has(r.product_id)} readOnly className="w-3 h-3 accent-primary mt-0.5" />
+                                <Badge variant={r.severity === "critical" ? "destructive" : r.severity === "high" ? "destructive" : "secondary"} className="text-[10px] h-4 min-w-[3.5rem] justify-center shrink-0">
+                                  {r.severity}
+                                </Badge>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium truncate">{r.title}</p>
+                                  <p className="text-muted-foreground text-[10px]">SKU: {r.sku} · WC#{r.woocommerce_id} · {r.issue_count} problema(s)</p>
+                                  {selectedIds.has(r.product_id) && (
+                                    <div className="mt-1 flex flex-wrap gap-1">
+                                      {r.issues?.map((issue: any, i: number) => (
+                                        <Badge key={i} variant={issue.severity === "high" ? "destructive" : "outline"} className="text-[9px] h-3.5">
+                                          {issue.label}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    };
+                    return <AuditList />;
+                  })()}
                 </CardContent>
               </Card>
             </>

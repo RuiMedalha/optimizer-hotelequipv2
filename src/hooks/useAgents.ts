@@ -186,12 +186,35 @@ export function useAgentAnalysisResults(workspaceId: string | undefined) {
         .from("agent_runs" as any)
         .select("*")
         .eq("workspace_id", workspaceId)
-        .in("agent_name", ["seo_optimization", "image_optimizer", "agent_analysis_cycle"])
+        .in("agent_name", ["seo_optimization", "image_optimizer", "agent_analysis_cycle", "publish_audit_agent"])
         .order("created_at", { ascending: false })
         .limit(20);
       if (error) throw error;
       return (data || []) as any[];
     },
+  });
+}
+
+// ── Publish Audit Agent ──
+export function useRunPublishAudit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ workspaceId, limit }: { workspaceId: string; limit?: number }) => {
+      const { data, error } = await supabase.functions.invoke("run-publish-audit", {
+        body: { workspaceId, limit },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["agent-analysis"] });
+      const s = data?.summary;
+      if (s) {
+        toast.success(`Auditoria concluída — ${s.total_with_issues}/${s.total_published} produtos com problemas`);
+      }
+    },
+    onError: (e: Error) => toast.error(`Erro na auditoria: ${e.message}`),
   });
 }
 
