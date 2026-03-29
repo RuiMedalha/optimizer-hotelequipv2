@@ -1419,11 +1419,40 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
             ).join("\n");
             optimized.optimized_description = optimized.optimized_description.replace(/\{\{faq\}\}/gi, faqHtml);
 
-            // Fallback embed: if FAQ exists but template has no {{faq}} placeholder
-            // and no FAQ wrapper is present yet, append FAQ block at the end.
+            // Check if FAQ section exists but is truncated/incomplete
             const hasFaqWrapper = /class=["'][^"']*product-faq[^"']*["']/i.test(optimized.optimized_description);
-            if (!hadFaqPlaceholder && !hasFaqWrapper) {
-              optimized.optimized_description = `${optimized.optimized_description}\n<div class="product-faq" style="margin-bottom:22px;"><h3 style="margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;">Perguntas Frequentes</h3><div style="margin-top:10px; background:#fcfcfd; border:1px solid #e5e7eb; border-radius:8px; padding:14px 16px;">\n${faqHtml}\n</div></div>`;
+            const faqWrapperClosed = /<\/div>\s*<\/div>\s*$/.test(optimized.optimized_description.trim()) || 
+              (hasFaqWrapper && (optimized.optimized_description.match(/<div/g) || []).length <= (optimized.optimized_description.match(/<\/div>/g) || []).length);
+            
+            if (hasFaqWrapper && !faqWrapperClosed) {
+              // FAQ section was truncated — remove the broken part and rebuild
+              console.log(`[optimize-product] FAQ section truncated — rebuilding from structured data`);
+              // Remove everything from the incomplete FAQ div onwards
+              optimized.optimized_description = optimized.optimized_description.replace(
+                /<div class="product-faq"[\s\S]*$/i,
+                ""
+              ).trim();
+              // Close the root div if it was left open
+              const rootDivOpen = (optimized.optimized_description.match(/<div/g) || []).length;
+              const rootDivClose = (optimized.optimized_description.match(/<\/div>/g) || []).length;
+              // Don't close root — we'll append FAQ then close
+            }
+
+            // Re-check after potential rebuild
+            const hasFaqWrapperAfter = /class=["'][^"']*product-faq[^"']*["']/i.test(optimized.optimized_description);
+            if (!hadFaqPlaceholder && !hasFaqWrapperAfter) {
+              // Ensure we're inside the root div
+              const endsWithRootClose = /(<\/div>)\s*$/.test(optimized.optimized_description);
+              const faqBlock = `<div class="product-faq" style="margin-bottom:22px;"><h3 style="margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;">Perguntas Frequentes</h3><div style="margin-top:10px; background:#fcfcfd; border:1px solid #e5e7eb; border-radius:8px; padding:14px 16px;">\n${faqHtml}\n</div></div>`;
+              if (endsWithRootClose) {
+                // Insert FAQ before the closing root </div>
+                optimized.optimized_description = optimized.optimized_description.replace(
+                  /(<\/div>)\s*$/,
+                  `\n${faqBlock}\n$1`
+                );
+              } else {
+                optimized.optimized_description = `${optimized.optimized_description}\n${faqBlock}`;
+              }
             }
           }
           // Replace {{tabela_specs}} with specs table from product data if available

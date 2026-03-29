@@ -83,6 +83,39 @@ function normalizeSlug(value: string, maxLen: number): string {
     .replace(/-+$/, ""); // remove trailing hyphens
 }
 
+/**
+ * Replace all <details><summary>Q</summary>A</details> patterns
+ * with always-visible FAQ format: bold question + italic answer.
+ */
+function sanitizeDetailsSummary(html: string): string {
+  if (!html) return html;
+  // Match <details><summary>Question</summary>Answer</details>
+  // Handle optional whitespace and nested HTML
+  const detailsRegex = /<details[^>]*>\s*<summary[^>]*>([\s\S]*?)<\/summary>\s*([\s\S]*?)<\/details>/gi;
+  let result = html;
+  let match;
+  while ((match = detailsRegex.exec(html)) !== null) {
+    const question = match[1].replace(/<[^>]*>/g, "").trim();
+    const answer = match[2].replace(/<[^>]*>/g, "").trim();
+    if (question && answer) {
+      const replacement = `<p style="font-weight:bold; margin:0 0 4px; color:#2c2c2c;">${question}</p>\n<p style="font-style:italic; color:#6b7280; margin:0 0 14px;">${answer}</p>`;
+      result = result.replace(match[0], replacement);
+    }
+  }
+  // Re-run regex on result in case the first pass missed due to exec index
+  result = result.replace(/<details[^>]*>\s*<summary[^>]*>([\s\S]*?)<\/summary>\s*([\s\S]*?)<\/details>/gi, 
+    (_match, q, a) => {
+      const question = q.replace(/<[^>]*>/g, "").trim();
+      const answer = a.replace(/<[^>]*>/g, "").trim();
+      if (question && answer) {
+        return `<p style="font-weight:bold; margin:0 0 4px; color:#2c2c2c;">${question}</p>\n<p style="font-style:italic; color:#6b7280; margin:0 0 14px;">${answer}</p>`;
+      }
+      return "";
+    }
+  );
+  return result;
+}
+
 export interface OptimizedFields {
   optimized_title?: string;
   meta_title?: string;
@@ -127,9 +160,11 @@ export function enforceFieldLimits(fields: OptimizedFields): OptimizedFields {
     );
   }
   if (typeof result.optimized_description === "string") {
+    // Sanitize <details><summary> tags → always-visible FAQ format
+    result.optimized_description = sanitizeDetailsSummary(result.optimized_description);
     result.optimized_description = trimHtmlSafe(
       result.optimized_description,
-      5000,
+      15000,
       trimToWord,
     );
   }
