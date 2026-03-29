@@ -347,6 +347,11 @@ Responde APENAS com o texto alt, sem aspas nem formatação extra.`;
                   .getPublicUrl(path);
                 processedUrls.push(urlData.publicUrl);
 
+                // Generate alt text for the optimized image
+                const productName = product.original_title || product.sku || "produto";
+                const optimizedAlt = await generateAltText(urlData.publicUrl, productName);
+                console.log(`🏷️ [optimize] Alt text generated: "${optimizedAlt}" for ${productId} image ${i}`);
+
                 // Update images table
                 await sb.from("images").upsert(
                   {
@@ -356,6 +361,7 @@ Responde APENAS com o texto alt, sem aspas nem formatação extra.`;
                     s3_key: path,
                     sort_order: i,
                     status: "done",
+                    alt_text: optimizedAlt,
                   },
                   { onConflict: "product_id,sort_order", ignoreDuplicates: false }
                 );
