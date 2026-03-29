@@ -1322,6 +1322,9 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
         const aiWrapper = await aiResponse.json();
         const promptVersionId: string | null = aiWrapper.meta?.promptVersionId ?? null;
         const aiMeta = aiWrapper.meta || {};
+        const promptSource = aiMeta.promptSource || "unknown";
+        console.log(`📋 [optimize-product] Prompt source for "${product.original_title || product.sku}": ${promptSource} | Provider: ${aiMeta.usedProvider || "?"} | Model: ${aiMeta.usedModel || "?"} | Decision: ${aiMeta.decisionSource || "?"}`);
+        
         const aiData = aiWrapper.result || aiWrapper;
         const message = aiData.choices?.[0]?.message;
         const toolCall = message?.tool_calls?.[0];
