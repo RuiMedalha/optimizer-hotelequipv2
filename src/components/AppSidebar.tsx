@@ -156,6 +156,39 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
     }
   };
 
+  const handleCopyConfigToWorkspace = async () => {
+    if (!copyToWs || !copySourceId || copySourceId === "none") return;
+    const anyCopy = copyToOptions.providers || copyToOptions.routing || copyToOptions.prompts || copyToOptions.categories;
+    if (!anyCopy) { toast.error("Selecione pelo menos uma opção para copiar."); return; }
+    try {
+      const { data: copyResult, error: copyError } = await supabase.functions.invoke("copy-workspace-config", {
+        body: {
+          sourceWorkspaceId: copySourceId,
+          targetWorkspaceId: copyToWs.id,
+          copyProviders: copyToOptions.providers,
+          copyRouting: copyToOptions.routing,
+          copyPrompts: copyToOptions.prompts,
+          copyCategories: copyToOptions.categories,
+        },
+      });
+      if (copyError) throw copyError;
+      const s = copyResult?.stats;
+      if (s) {
+        const parts: string[] = [];
+        if (s.providers > 0) parts.push(`${s.providers} providers`);
+        if (s.routing > 0) parts.push(`${s.routing} regras`);
+        if (s.prompts > 0) parts.push(`${s.prompts} prompts`);
+        if (s.categories > 0) parts.push(`${s.categories} categorias`);
+        toast.success(parts.length > 0 ? `Copiado para "${copyToWs.name}": ${parts.join(", ")}` : "Nenhum item encontrado para copiar.");
+      }
+    } catch (err: any) {
+      toast.error(`Erro ao copiar: ${err.message || "desconhecido"}`);
+    }
+    setCopyToWs(null);
+    setCopySourceId("");
+    setCopyToOptions({ providers: true, routing: true, prompts: true, categories: false });
+  };
+
   return (
     <>
       <aside
