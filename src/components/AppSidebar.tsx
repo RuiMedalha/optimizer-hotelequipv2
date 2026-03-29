@@ -79,6 +79,9 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const [deleteWs, setDeleteWs] = useState<{ id: string; name: string } | null>(null);
   const [mergeWs, setMergeWs] = useState<{ sourceId: string; sourceName: string } | null>(null);
   const [mergeTargetId, setMergeTargetId] = useState<string>("");
+  const [copyToWs, setCopyToWs] = useState<{ id: string; name: string } | null>(null);
+  const [copySourceId, setCopySourceId] = useState<string>("");
+  const [copyToOptions, setCopyToOptions] = useState({ providers: true, routing: true, prompts: true, categories: false });
 
   // Group open/close state with localStorage persistence
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
