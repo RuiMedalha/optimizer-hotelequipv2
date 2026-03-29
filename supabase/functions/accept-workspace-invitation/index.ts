@@ -6,6 +6,14 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+async function hashToken(token: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(token);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -31,17 +39,20 @@ Deno.serve(async (req) => {
     }
 
     const { token } = await req.json();
-    if (!token) {
+    if (!token || typeof token !== "string" || token.length < 10) {
       return new Response(JSON.stringify({ error: "Token é obrigatório" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Find invitation
+    // Hash the incoming token and compare against stored hash
+    const hashedToken = await hashToken(token);
+
+    // Find invitation by hashed token
     const { data: invitation, error: invErr } = await adminClient
       .from("workspace_invitations")
       .select("*")
-      .eq("token", token)
+      .eq("token", hashedToken)
       .single();
 
     if (invErr || !invitation) {

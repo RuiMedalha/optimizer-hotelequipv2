@@ -6,6 +6,14 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+async function hashToken(token: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(token);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -73,18 +81,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Generate unique token
-    const token = crypto.randomUUID() + "-" + crypto.randomUUID();
+    // Generate unique token and hash it for storage
+    const rawToken = crypto.randomUUID() + "-" + crypto.randomUUID();
+    const hashedToken = await hashToken(rawToken);
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
 
-    // Create invitation
+    // Create invitation - store HASHED token, not plaintext
     const { data: invitation, error: invErr } = await adminClient
       .from("workspace_invitations")
       .insert({
         workspace_id: workspaceId,
         email: email.toLowerCase(),
         role,
-        token,
+        token: hashedToken,
         invited_by: user.id,
         expires_at: expiresAt,
       })
@@ -111,20 +120,21 @@ Deno.serve(async (req) => {
         });
     }
 
-    // Audit trail
+    // Audit trail - DO NOT log the token
     await adminClient.from("audit_trail").insert({
       user_id: user.id,
       workspace_id: workspaceId,
       entity_type: "member",
       entity_id: invitation.id,
       action: "create",
-      metadata: { email: email.toLowerCase(), role, invitation_token: token },
+      metadata: { email: email.toLowerCase(), role },
     });
 
+    // Return the RAW token to the caller (only time it's visible)
     return new Response(JSON.stringify({ 
       success: true, 
       invitationId: invitation.id,
-      token,
+      token: rawToken,
       expiresAt 
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
