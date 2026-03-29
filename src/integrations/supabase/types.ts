@@ -13752,12 +13752,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_assign_workspace_role: {
+        Args: {
+          _target_role: Database["public"]["Enums"]["workspace_role"]
+          _workspace_id: string
+        }
+        Returns: boolean
+      }
       can_edit_workspace_content: {
         Args: { _workspace_id: string }
         Returns: boolean
       }
       can_manage_workspace: {
         Args: { _workspace_id: string }
+        Returns: boolean
+      }
+      can_manage_workspace_member_row: {
+        Args: {
+          _member_role: Database["public"]["Enums"]["workspace_role"]
+          _member_user_id?: string
+          _workspace_id: string
+        }
         Returns: boolean
       }
       can_publish_in_workspace: {
