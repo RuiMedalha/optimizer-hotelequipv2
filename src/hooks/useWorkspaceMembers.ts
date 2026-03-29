@@ -55,7 +55,7 @@ export function useWorkspaceInvitations(workspaceId: string | undefined) {
     enabled: !!workspaceId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("workspace_invitations")
+        .from("workspace_invitations_safe" as any)
         .select("*")
         .eq("workspace_id", workspaceId!)
         .eq("status", "pending")
