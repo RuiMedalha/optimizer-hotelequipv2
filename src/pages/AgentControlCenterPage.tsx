@@ -4,6 +4,7 @@ import {
   useAgents, useCreateAgent, useUpdateAgentStatus,
   useAgentTasks, useAgentActions, useAgentPolicies,
   useRunAgentCycle, useApproveAction, useCreatePolicy,
+  useRunAgentAnalysis, useAgentAnalysisResults,
 } from "@/hooks/useAgents";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Bot, Play, CheckCircle, XCircle, Clock, AlertTriangle, Zap, Shield, ListTodo, Activity } from "lucide-react";
+import { Bot, Play, CheckCircle, XCircle, Clock, AlertTriangle, Zap, Shield, ListTodo, Activity, Search, Image, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 const AGENT_TYPES = [

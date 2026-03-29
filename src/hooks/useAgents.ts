@@ -146,6 +146,55 @@ export function useRunAgentCycle() {
   });
 }
 
+// ── Run Agent Analysis ──
+export function useRunAgentAnalysis() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ workspaceId, agentTypes, limit }: { workspaceId: string; agentTypes?: string[]; limit?: number }) => {
+      const { data, error } = await supabase.functions.invoke("run-agent-analysis", {
+        body: { workspaceId, agentTypes, limit },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["agent-tasks"] });
+      qc.invalidateQueries({ queryKey: ["agent-actions"] });
+      qc.invalidateQueries({ queryKey: ["agent-analysis"] });
+      const results = data?.results || {};
+      const seo = results.seo_optimizer;
+      const attr = results.attribute_completeness_agent;
+      const img = results.image_optimizer;
+      const parts: string[] = [];
+      if (seo) parts.push(`SEO: ${seo.recommendations_created} recomendações`);
+      if (attr) parts.push(`Atributos: ${attr.incomplete} incompletos`);
+      if (img) parts.push(`Imagens: ${img.needs_lifestyle} sem lifestyle`);
+      toast.success(`Análise concluída — ${parts.join(" · ") || "sem resultados"}`);
+    },
+    onError: (e: Error) => toast.error(`Erro na análise: ${e.message}`),
+  });
+}
+
+// ── Agent Analysis Results ──
+export function useAgentAnalysisResults(workspaceId: string | undefined) {
+  return useQuery({
+    queryKey: ["agent-analysis", workspaceId],
+    enabled: !!workspaceId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("agent_runs" as any)
+        .select("*")
+        .eq("workspace_id", workspaceId)
+        .in("agent_name", ["seo_optimization", "image_optimizer", "agent_analysis_cycle"])
+        .order("created_at", { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+}
+
 // ── Approve/Reject Action ──
 export function useApproveAction() {
   const qc = useQueryClient();
