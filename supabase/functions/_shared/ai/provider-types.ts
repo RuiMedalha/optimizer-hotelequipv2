@@ -72,6 +72,8 @@ export interface InvokeParams {
   toolChoice?: unknown;
   /** For image generation models — e.g. ["image", "text"] */
   modalities?: string[];
+  /** Pre-resolved API key (from DB or env). If set, used instead of Deno.env.get(). */
+  apiKeyOverride?: string;
 }
 
 export interface InvokeResult {
@@ -104,7 +106,15 @@ export interface ResolvedRoute {
     | 'capability_default'
     | 'system_default'
     | 'product_optimization_fixed'
-    | 'auto_provider_resolution';
+    | 'auto_provider_resolution'
+    | 'default_provider_order'
+    | 'model_override';
+  /** Pre-resolved API key from DB config, if routing rule matched. */
+  apiKeyOverride?: string;
+  /** Where the API key came from: "env" or "db". */
+  apiKeySource?: 'env' | 'db';
+  /** The routing rule UUID if one was used. */
+  routingRuleId?: string;
 }
 
 export interface RunPromptParams {
