@@ -230,6 +230,24 @@ export default function AgentControlCenterPage() {
     } else if (action === "lifestyle_images") {
       toast.info(`A gerar imagens lifestyle de ${productIds.length} produto(s)...`);
       await processImages({ workspaceId: wsId, productIds, mode: "lifestyle" });
+    } else if (action === "audit_reoptimize") {
+      setAuditReoptimizing(true);
+      toast.info(`A re-otimizar ${productIds.length} produto(s) publicados...`);
+      try {
+        await supabase.functions.invoke("optimize-batch", {
+          body: { productIds, workspaceId: wsId },
+        });
+        toast.success("Produtos re-otimizados! Verifique e depois republique.");
+      } catch (e) { toast.error("Erro ao otimizar"); }
+      finally { setAuditReoptimizing(false); }
+    } else if (action === "audit_republish") {
+      setAuditRepublishing(true);
+      toast.info(`A republicar ${productIds.length} produto(s) no WooCommerce...`);
+      try {
+        publishWoo.mutate({ productIds, workspaceId: wsId });
+        toast.success("Republicação iniciada! Verifique o progresso nos Jobs.");
+      } catch (e) { toast.error("Erro ao republicar"); }
+      finally { setAuditRepublishing(false); }
     }
   };
 
