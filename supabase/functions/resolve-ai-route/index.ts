@@ -84,19 +84,18 @@ Deno.serve(async (req) => {
 // Resolves the system prompt via prompt_templates / prompt_versions.
 // Precedence: workspace-specific active version > global active version >
 //             base_prompt from template > caller's systemPrompt.
-// Returns { text, versionId } — versionId is null when falling back to
-// base_prompt or the caller's hardcoded systemPrompt.
+// Returns { text, versionId, promptSource } for full transparency.
 async function resolvePromptTemplate(
   supabase: ReturnType<typeof createClient>,
   workspaceId: string,
   taskType: string,
   fallbackPrompt: string,
-): Promise<{ text: string; versionId: string | null }> {
+): Promise<{ text: string; versionId: string | null; promptSource: string }> {
   try {
     // 1. Workspace-specific rule
     const { data: wsRule } = await supabase
       .from("ai_routing_rules")
-      .select("prompt_template_id, prompt:prompt_template_id(base_prompt)")
+      .select("id, prompt_template_id, prompt:prompt_template_id(id, prompt_name, base_prompt)")
       .eq("workspace_id", workspaceId)
       .eq("task_type", taskType)
       .eq("is_active", true)
@@ -107,18 +106,22 @@ async function resolvePromptTemplate(
       ? { data: null }
       : await supabase
           .from("ai_routing_rules")
-          .select("prompt_template_id, prompt:prompt_template_id(base_prompt)")
+          .select("id, prompt_template_id, prompt:prompt_template_id(id, prompt_name, base_prompt)")
           .is("workspace_id", null)
           .eq("task_type", taskType)
           .eq("is_active", true)
           .maybeSingle();
 
     const rule = wsRule?.prompt_template_id ? wsRule : globalRule;
+    const ruleScope = wsRule?.prompt_template_id ? "workspace" : (globalRule ? "global" : "none");
 
     if (rule?.prompt_template_id) {
+      const promptMeta = rule.prompt as { id?: string; prompt_name?: string; base_prompt?: string } | null;
+      const templateName = promptMeta?.prompt_name || "unknown";
+
       const { data: version } = await supabase
         .from("prompt_versions")
-        .select("id, prompt_text")
+        .select("id, prompt_text, version_number")
         .eq("template_id", rule.prompt_template_id)
         .eq("is_active", true)
         .order("version_number", { ascending: false })
@@ -126,20 +129,23 @@ async function resolvePromptTemplate(
         .maybeSingle();
 
       if (version?.prompt_text) {
-        console.log(`[resolve-ai-route] Using DB prompt version ${version.id} for task "${taskType}" (workspace: ${workspaceId}). Caller prompt overridden.`);
-        return { text: version.prompt_text, versionId: version.id as string };
+        const source = `db_version (${ruleScope} rule → template "${templateName}" → version v${version.version_number})`;
+        console.log(`🟢 [prompt-governance] task="${taskType}" → SOURCE: ${source}`);
+        return { text: version.prompt_text, versionId: version.id as string, promptSource: source };
       }
 
-      const basePrompt = (rule.prompt as { base_prompt?: string } | null)?.base_prompt;
+      const basePrompt = promptMeta?.base_prompt;
       if (basePrompt) {
-        console.log(`[resolve-ai-route] Using base_prompt from template for task "${taskType}" (workspace: ${workspaceId}). No active version found.`);
-        return { text: basePrompt, versionId: null };
+        const source = `db_base_prompt (${ruleScope} rule → template "${templateName}" base_prompt)`;
+        console.log(`🟡 [prompt-governance] task="${taskType}" → SOURCE: ${source} (no active version found)`);
+        return { text: basePrompt, versionId: null, promptSource: source };
       }
     }
-  } catch {
-    /* no rule or template — use caller's prompt */
+  } catch (err) {
+    console.warn(`⚠️ [prompt-governance] DB lookup failed for task="${taskType}": ${err instanceof Error ? err.message : err}`);
   }
 
-  console.log(`[resolve-ai-route] No DB prompt found for task "${taskType}" (workspace: ${workspaceId}). Using caller's hardcoded prompt.`);
-  return { text: fallbackPrompt || "", versionId: null };
+  const source = "hardcoded_fallback (no DB template/rule found)";
+  console.log(`🔴 [prompt-governance] task="${taskType}" → SOURCE: ${source}`);
+  return { text: fallbackPrompt || "", versionId: null, promptSource: source };
 }
