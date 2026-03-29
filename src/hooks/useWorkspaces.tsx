@@ -213,7 +213,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         activeWorkspace,
         setActiveWorkspaceId,
         isLoading,
-        createWorkspace: (name, description) => createMutation.mutate({ name, description }),
+        createWorkspace: (name, description, copyFromWorkspaceId, copyOpts) => createMutation.mutate({ name, description, copyFromWorkspaceId, copyOpts }),
         updateWorkspace: (id, name, description) => updateMutation.mutate({ id, name, description }),
         toggleVariableProducts: (id: string, value: boolean) => {
           const ws = workspaces.find((w) => w.id === id);
