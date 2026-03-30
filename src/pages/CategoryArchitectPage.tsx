@@ -51,11 +51,11 @@ function StatusBadge({ status }: { status: string }) {
     case "pending":
       return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />Pendente</Badge>;
     case "attribute_created":
-      return <Badge className="bg-green-600 text-white"><CheckCircle className="w-3 h-3 mr-1" />Criado</Badge>;
+      return <Badge variant="default"><CheckCircle className="w-3 h-3 mr-1" />Criado</Badge>;
     case "migrating":
-      return <Badge className="bg-blue-600 text-white"><Loader2 className="w-3 h-3 mr-1 animate-spin" />A migrar</Badge>;
+      return <Badge variant="outline"><Loader2 className="w-3 h-3 mr-1 animate-spin" />A migrar</Badge>;
     case "migrated":
-      return <Badge className="bg-green-600 text-white"><CheckCircle className="w-3 h-3 mr-1" />Concluído</Badge>;
+      return <Badge variant="default"><CheckCircle className="w-3 h-3 mr-1" />Concluído</Badge>;
     case "error":
       return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Erro</Badge>;
     default:
