@@ -142,7 +142,14 @@ function actionLabel(action: "keep" | "convert" | "merge", slug?: string | null,
 // ═══════════════════════════════════════════════════════════════════════
 // TAB 1 — MAPEAMENTO
 // ═══════════════════════════════════════════════════════════════════════
-function MapeamentoTab({ categories, allCategories }: { categories: { id: string; name: string }[]; allCategories: Category[] }) {
+function MapeamentoTab({ categories, allCategories, duplicateGroups, setDuplicateGroups, duplicateLoading, setDuplicateLoading }: {
+  categories: { id: string; name: string }[];
+  allCategories: Category[];
+  duplicateGroups: DuplicateGroup[];
+  setDuplicateGroups: (g: DuplicateGroup[]) => void;
+  duplicateLoading: boolean;
+  setDuplicateLoading: (v: boolean) => void;
+}) {
   const { data: savedRules = [] } = useArchitectRules();
   const saveRule = useSaveRule();
   const deleteRule = useDeleteRule();
