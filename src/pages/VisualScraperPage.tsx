@@ -35,6 +35,7 @@ import {
   summarizeVariationStructure,
 } from "@/lib/scraperIntelligence";
 import { ScrapingScheduleManager } from "@/components/scraper/ScrapingScheduleManager";
+import { ScrapingChangeMonitor } from "@/components/scraper/ScrapingChangeMonitor";
 
 /* ────────────────────────────────────────────────
    Types
