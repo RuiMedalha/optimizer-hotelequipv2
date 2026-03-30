@@ -302,11 +302,11 @@ function MapeamentoTab({ categories, allCategories, duplicateGroups, setDuplicat
         for (const c of g.categories) {
           newRes[c.id] = {
             catId: c.id,
-            action: c.suggestedAction === "keep" ? "keep" : "merge_into",
+            action: c.suggestedAction === "keep" ? "keep" : c.suggestedAction === "move_products" ? "convert_to_attribute" : "merge_into",
             targetCategoryId: c.mergeTarget,
-            attributeSlug: "",
-            attributeName: "",
-            attributeValues: "",
+            attributeSlug: c.suggestedAction === "move_products" ? "pa_profundidade_mm" : "",
+            attributeName: c.suggestedAction === "move_products" ? "Profundidade (mm)" : "",
+            attributeValues: c.suggestedAction === "move_products" ? (c.name.replace(/\D+/g, " ").trim().split(/\s+/)[0] || "") : "",
           };
         }
       }
