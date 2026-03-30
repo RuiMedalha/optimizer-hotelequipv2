@@ -127,19 +127,41 @@ function buildFallbackGroups(
       });
     } else if (classification === "dimensional") {
       // Linha 600/700/900, L500, a 600: dimensional specs → convert to attributes
+      // Context-aware: infer meaning per branch (mm depth vs liters vs position)
       const dimValue = sorted[0].name.replace(/\D+/g, " ").trim().split(/\s+/)[0] || sorted[0].name;
+      
+      // Build per-item context explanations
+      const contextDetails = sorted.map(item => {
+        const meaning = inferDimensionalMeaning(item.path);
+        return `• ${item.path} → ${meaning.slug} = ${dimValue}${meaning.unit ? meaning.unit : ""} (${meaning.label})`;
+      });
+
+      // Check if different branches have different meanings
+      const meanings = sorted.map(item => inferDimensionalMeaning(item.path));
+      const uniqueSlugs = new Set(meanings.map(m => m.slug));
+      const hasMixedMeaning = uniqueSlugs.size > 1;
+
       results.push({
-        groupName: `📐 ${sorted[0].name} (especificação dimensional)`,
-        categories: sorted.map(item => ({
-          id: item.id,
-          name: item.name,
-          path: item.path,
-          productCount: item.productCount,
-          suggestedAction: "move_products" as const,
-          mergeTarget: null,
-        })),
+        groupName: `📐 ${sorted[0].name} (especificação técnica${hasMixedMeaning ? " — significado varia por ramo" : ""})`,
+        categories: sorted.map(item => {
+          const meaning = inferDimensionalMeaning(item.path);
+          return {
+            id: item.id,
+            name: item.name,
+            path: item.path,
+            productCount: item.productCount,
+            suggestedAction: "move_products" as const,
+            mergeTarget: null,
+            // Extra context for the UI
+            attributeSlug: meaning.slug,
+            attributeLabel: meaning.label,
+            attributeValue: `${dimValue}${meaning.unit ? meaning.unit : ""}`,
+          };
+        }),
         confidence: "high" as const,
-        reason: `"${sorted[0].name}" é uma especificação dimensional/técnica (profundidade em mm), não uma categoria real. Aparece em ${uniquePaths.size} ramos diferentes (${[...new Set(sorted.map(s => s.path.split(" > ")[0]))].join(", ")}). Recomendação: converter para atributo (ex: pa_profundidade_mm = ${dimValue}) em cada ramo e mover os produtos para a categoria pai.`,
+        reason: hasMixedMeaning
+          ? `"${sorted[0].name}" é uma especificação técnica com SIGNIFICADO DIFERENTE conforme o ramo:\n${contextDetails.join("\n")}\nNÃO devem ser fundidas — cada uma converte para o atributo correto no seu contexto.`
+          : `"${sorted[0].name}" é uma especificação técnica (${meanings[0].label}). Converter para atributo ${meanings[0].slug} = ${dimValue}${meanings[0].unit} em cada ramo.`,
       });
     } else if (classification === "energy_source") {
       // Eletricos/Gaz/A vapor: energy source → convert to attributes
