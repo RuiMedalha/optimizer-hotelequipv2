@@ -58,6 +58,7 @@ import VisualScraperPage from "./pages/VisualScraperPage";
 import WebsiteExtractionAgentPage from "./pages/WebsiteExtractionAgentPage";
 import ScraperManualPage from "./pages/ScraperManualPage";
 import AiComparisonHistoryPage from "./pages/AiComparisonHistoryPage";
+import CategoryArchitectPage from "./pages/CategoryArchitectPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -89,6 +90,7 @@ function ProtectedRoutes() {
           <Route path="/produtos" element={<ProductsPage />} />
           <Route path="/variacoes" element={<VariationsPage />} />
           <Route path="/categorias" element={<CategoriesPage />} />
+          <Route path="/category-architect" element={<CategoryArchitectPage />} />
           <Route path="/importar-woo" element={<WooImportPage />} />
           <Route path="/imagens" element={<ImagesPage />} />
           <Route path="/configuracoes" element={<SettingsPage />} />

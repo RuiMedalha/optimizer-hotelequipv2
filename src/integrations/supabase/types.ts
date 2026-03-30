@@ -3915,6 +3915,88 @@ export type Database = {
           },
         ]
       }
+      category_architect_rules: {
+        Row: {
+          action: string
+          attribute_name: string | null
+          attribute_slug: string | null
+          attribute_values: string[] | null
+          attribute_woo_id: number | null
+          created_at: string
+          error_message: string | null
+          id: string
+          migration_progress: number | null
+          migration_status: string
+          migration_total: number | null
+          source_category_id: string | null
+          source_category_name: string
+          target_category_id: string | null
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          action: string
+          attribute_name?: string | null
+          attribute_slug?: string | null
+          attribute_values?: string[] | null
+          attribute_woo_id?: number | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          migration_progress?: number | null
+          migration_status?: string
+          migration_total?: number | null
+          source_category_id?: string | null
+          source_category_name: string
+          target_category_id?: string | null
+          updated_at?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          action?: string
+          attribute_name?: string | null
+          attribute_slug?: string | null
+          attribute_values?: string[] | null
+          attribute_woo_id?: number | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          migration_progress?: number | null
+          migration_status?: string
+          migration_total?: number | null
+          source_category_id?: string | null
+          source_category_name?: string
+          target_category_id?: string | null
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "category_architect_rules_source_category_id_fkey"
+            columns: ["source_category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "category_architect_rules_target_category_id_fkey"
+            columns: ["target_category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "category_architect_rules_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       category_schemas: {
         Row: {
           category_id: string | null
