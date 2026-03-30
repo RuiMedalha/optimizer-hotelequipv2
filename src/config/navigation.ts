@@ -85,6 +85,7 @@ export const navGroups: NavGroup[] = [
       { title: "Produtos", icon: Package, route: "/produtos" },
       { title: "Variações", icon: GitBranch, route: "/variacoes" },
       { title: "Categorias", icon: FolderTree, route: "/categorias" },
+      { title: "Category Architect", icon: Wand2, route: "/category-architect" },
       { title: "Canais", icon: Radio, route: "/canais" },
       { title: "Importar WooCommerce", icon: ShoppingCart, route: "/importar-woo" },
     ],
