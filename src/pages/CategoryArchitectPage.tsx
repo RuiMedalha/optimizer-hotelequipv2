@@ -39,6 +39,12 @@ interface AiSuggestion {
   productCount: number;
 }
 
+interface ExtractedAttribute {
+  slug: string;
+  label: string;
+  value: string;
+}
+
 interface DuplicateCategoryEntry {
   id: string;
   name: string;
@@ -46,10 +52,7 @@ interface DuplicateCategoryEntry {
   productCount: number;
   suggestedAction: "keep" | "merge_into" | "move_products";
   mergeTarget: string | null;
-  // Context-aware attribute info from HORECA engine
-  attributeSlug?: string;
-  attributeLabel?: string;
-  attributeValue?: string;
+  extractedAttributes: ExtractedAttribute[];
 }
 
 interface DuplicateGroup {
@@ -59,14 +62,15 @@ interface DuplicateGroup {
   reason: string;
 }
 
-// Per-category resolution choice for the enhanced UX
+// Per-category resolution choice
 interface DuplicateResolution {
   catId: string;
   action: "keep" | "merge_into" | "convert_to_attribute";
   targetCategoryId: string | null;
-  attributeSlug: string;
-  attributeName: string;
-  attributeValues: string;
+  // Support multiple attributes (e.g. pa_linha + pa_tipo_energia)
+  attributes: Array<{ slug: string; name: string; values: string }>;
+  // Track if this individual item has been accepted
+  accepted: boolean;
 }
 
 // ── Local draft state for new rules not yet saved ──
@@ -304,13 +308,17 @@ function MapeamentoTab({ categories, allCategories, duplicateGroups, setDuplicat
       const newRes: Record<string, DuplicateResolution> = {};
       for (const g of groups) {
         for (const c of g.categories) {
+          const attrs = (c.extractedAttributes || []).map((a: ExtractedAttribute) => ({
+            slug: a.slug,
+            name: a.label || a.slug.replace("pa_", "").replace(/_/g, " "),
+            values: a.value || "",
+          }));
           newRes[c.id] = {
             catId: c.id,
             action: c.suggestedAction === "keep" ? "keep" : c.suggestedAction === "move_products" ? "convert_to_attribute" : "merge_into",
             targetCategoryId: c.mergeTarget,
-            attributeSlug: c.suggestedAction === "move_products" ? (c.attributeSlug || "pa_profundidade_mm") : "",
-            attributeName: c.suggestedAction === "move_products" ? (c.attributeLabel || "Profundidade (mm)") : "",
-            attributeValues: c.suggestedAction === "move_products" ? (c.attributeValue || c.name.replace(/\D+/g, " ").trim().split(/\s+/)[0] || "") : "",
+            attributes: attrs.length > 0 ? attrs : [{ slug: "", name: "", values: "" }],
+            accepted: false,
           };
         }
       }
@@ -324,42 +332,101 @@ function MapeamentoTab({ categories, allCategories, duplicateGroups, setDuplicat
     }
   };
 
-  const updateResolution = (catId: string, field: keyof DuplicateResolution, value: string | null) => {
+  const updateResolution = (catId: string, field: keyof DuplicateResolution, value: any) => {
     setResolutions(prev => ({
       ...prev,
       [catId]: { ...prev[catId], [field]: value },
     }));
   };
 
+  const updateResolutionAttribute = (catId: string, attrIndex: number, field: string, value: string) => {
+    setResolutions(prev => {
+      const res = { ...prev[catId] };
+      const attrs = [...res.attributes];
+      attrs[attrIndex] = { ...attrs[attrIndex], [field]: value };
+      return { ...prev, [catId]: { ...res, attributes: attrs } };
+    });
+  };
+
+  const addResolutionAttribute = (catId: string) => {
+    setResolutions(prev => {
+      const res = { ...prev[catId] };
+      return { ...prev, [catId]: { ...res, attributes: [...res.attributes, { slug: "", name: "", values: "" }] } };
+    });
+  };
+
+  const removeResolutionAttribute = (catId: string, attrIndex: number) => {
+    setResolutions(prev => {
+      const res = { ...prev[catId] };
+      const attrs = res.attributes.filter((_, i) => i !== attrIndex);
+      return { ...prev, [catId]: { ...res, attributes: attrs.length > 0 ? attrs : [{ slug: "", name: "", values: "" }] } };
+    });
+  };
+
+  // Accept a SINGLE category from a group
+  const acceptSingleCategory = (cat: DuplicateCategoryEntry) => {
+    const res = resolutions[cat.id];
+    if (!res) return;
+
+    if (res.action === "keep") {
+      saveRule.mutate({
+        source_category_id: cat.id,
+        source_category_name: cat.name,
+        action: "keep",
+        target_category_id: null, attribute_slug: null, attribute_name: null, attribute_values: [],
+      });
+    } else if (res.action === "merge_into") {
+      // For merge_into with extracted attributes, create the merge rule
+      // AND attribute rules for each extracted attribute
+      saveRule.mutate({
+        source_category_id: cat.id,
+        source_category_name: cat.name,
+        action: "merge_into",
+        target_category_id: res.targetCategoryId || null,
+        attribute_slug: null, attribute_name: null, attribute_values: [],
+      });
+      // Also create attribute rules if there are extracted attributes
+      for (const attr of res.attributes) {
+        if (attr.slug && attr.values) {
+          saveRule.mutate({
+            source_category_id: cat.id,
+            source_category_name: `${cat.name} → ${attr.name}`,
+            action: "convert_to_attribute",
+            target_category_id: null,
+            attribute_slug: attr.slug,
+            attribute_name: attr.name,
+            attribute_values: attr.values.split(",").map(v => v.trim()).filter(Boolean),
+          });
+        }
+      }
+    } else if (res.action === "convert_to_attribute") {
+      for (const attr of res.attributes) {
+        if (attr.slug && attr.values) {
+          saveRule.mutate({
+            source_category_id: cat.id,
+            source_category_name: cat.name,
+            action: "convert_to_attribute",
+            target_category_id: null,
+            attribute_slug: attr.slug,
+            attribute_name: attr.name,
+            attribute_values: attr.values.split(",").map(v => v.trim()).filter(Boolean),
+          });
+        }
+      }
+    }
+
+    // Mark as accepted
+    updateResolution(cat.id, "accepted", true);
+    toast.success(`"${cat.name}" aceite e adicionado ao mapeamento`);
+  };
+
   const addGroupToMapping = (group: DuplicateGroup) => {
     let count = 0;
     for (const cat of group.categories) {
       const res = resolutions[cat.id];
-      if (!res || res.action === "keep") continue;
-
-      if (res.action === "merge_into") {
-        saveRule.mutate({
-          source_category_id: cat.id,
-          source_category_name: cat.name,
-          action: "merge_into",
-          target_category_id: res.targetCategoryId || null,
-          attribute_slug: null,
-          attribute_name: null,
-          attribute_values: [],
-        });
-        count++;
-      } else if (res.action === "convert_to_attribute") {
-        saveRule.mutate({
-          source_category_id: cat.id,
-          source_category_name: cat.name,
-          action: "convert_to_attribute",
-          target_category_id: null,
-          attribute_slug: res.attributeSlug || null,
-          attribute_name: res.attributeName || null,
-          attribute_values: res.attributeValues ? res.attributeValues.split(",").map(v => v.trim()).filter(Boolean) : [],
-        });
-        count++;
-      }
+      if (!res || res.accepted) continue;
+      acceptSingleCategory(cat);
+      count++;
     }
     toast.success(`${count} regras adicionadas do grupo "${group.groupName}"`);
   };
@@ -566,10 +633,10 @@ function MapeamentoTab({ categories, allCategories, duplicateGroups, setDuplicat
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-sm font-medium">{group.groupName}</CardTitle>
-                    <div className="flex items-center gap-2">
+                     <div className="flex items-center gap-2">
                       <ConfidenceBadge level={group.confidence} />
                       <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => addGroupToMapping(group)}>
-                        <Plus className="w-3 h-3" /> Adicionar ao mapeamento
+                        <Plus className="w-3 h-3" /> Aceitar todo o grupo
                       </Button>
                     </div>
                   </div>
@@ -579,69 +646,109 @@ function MapeamentoTab({ categories, allCategories, duplicateGroups, setDuplicat
                   {group.categories.map(c => {
                     const res = resolutions[c.id];
                     const action = res?.action || (c.suggestedAction === "keep" ? "keep" : "merge_into");
+                    const isAccepted = res?.accepted || false;
                     return (
-                      <div key={c.id} className="border rounded-lg p-3 space-y-2 bg-muted/30">
+                      <div key={c.id} className={`border rounded-lg p-3 space-y-2 ${isAccepted ? "bg-primary/5 border-primary/30 opacity-70" : "bg-muted/30"}`}>
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-xs text-muted-foreground flex-1 truncate">{c.path || c.name}</span>
                           <Badge variant="secondary" className="text-[10px] shrink-0">{c.productCount} prod.</Badge>
+                          {isAccepted && <Badge className="bg-primary/10 text-primary text-[10px]"><CheckCircle className="w-3 h-3 mr-1" />Aceite</Badge>}
                         </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Label className="text-[10px] text-muted-foreground shrink-0">Ação:</Label>
-                          <Select value={action} onValueChange={(v) => updateResolution(c.id, "action", v)}>
-                            <SelectTrigger className="h-7 text-xs w-[180px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="keep">Manter como categoria</SelectItem>
-                              <SelectItem value="merge_into">Fundir em outra categoria</SelectItem>
-                              <SelectItem value="convert_to_attribute">Converter para atributo/filtro</SelectItem>
-                            </SelectContent>
-                          </Select>
 
-                          {action === "merge_into" && (
-                            <Select
-                              value={res?.targetCategoryId || ""}
-                              onValueChange={(v) => updateResolution(c.id, "targetCategoryId", v)}
-                            >
-                              <SelectTrigger className="h-7 text-xs w-[220px]">
-                                <SelectValue placeholder="Categoria destino..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {/* Show group categories as quick targets */}
-                                {group.categories.filter(gc => gc.id !== c.id).map(gc => (
-                                  <SelectItem key={gc.id} value={gc.id}>{gc.name}</SelectItem>
-                                ))}
-                                {/* Also show all categories for flexibility */}
-                                {categories.filter(cat => cat.id !== c.id && !group.categories.some(gc => gc.id === cat.id)).map(cat => (
-                                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
+                        {/* Extracted attributes preview */}
+                        {(c.extractedAttributes || []).length > 0 && !isAccepted && (
+                          <div className="flex gap-1.5 flex-wrap">
+                            {c.extractedAttributes.map((attr, ai) => (
+                              <Badge key={ai} variant="outline" className="text-[10px] gap-1 font-mono">
+                                {attr.slug} = {attr.value}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
 
-                          {action === "convert_to_attribute" && (
-                            <div className="flex gap-1.5 flex-wrap">
-                              <Input
-                                className="h-7 text-xs w-[130px]"
-                                placeholder="pa_slug"
-                                value={res?.attributeSlug || ""}
-                                onChange={(e) => updateResolution(c.id, "attributeSlug", e.target.value)}
-                              />
-                              <Input
-                                className="h-7 text-xs w-[130px]"
-                                placeholder="Nome atributo"
-                                value={res?.attributeName || ""}
-                                onChange={(e) => updateResolution(c.id, "attributeName", e.target.value)}
-                              />
-                              <Input
-                                className="h-7 text-xs w-[160px]"
-                                placeholder="Valores (600,700,900)"
-                                value={res?.attributeValues || ""}
-                                onChange={(e) => updateResolution(c.id, "attributeValues", e.target.value)}
-                              />
+                        {!isAccepted && (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Label className="text-[10px] text-muted-foreground shrink-0">Ação:</Label>
+                              <Select value={action} onValueChange={(v) => updateResolution(c.id, "action", v)}>
+                                <SelectTrigger className="h-7 text-xs w-[180px]">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="keep">Manter como categoria</SelectItem>
+                                  <SelectItem value="merge_into">Fundir em outra categoria</SelectItem>
+                                  <SelectItem value="convert_to_attribute">Converter para atributo/filtro</SelectItem>
+                                </SelectContent>
+                              </Select>
+
+                              {action === "merge_into" && (
+                                <Select
+                                  value={res?.targetCategoryId || ""}
+                                  onValueChange={(v) => updateResolution(c.id, "targetCategoryId", v)}
+                                >
+                                  <SelectTrigger className="h-7 text-xs w-[220px]">
+                                    <SelectValue placeholder="Categoria destino..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {group.categories.filter(gc => gc.id !== c.id).map(gc => (
+                                      <SelectItem key={gc.id} value={gc.id}>{gc.name}</SelectItem>
+                                    ))}
+                                    {categories.filter(cat => cat.id !== c.id && !group.categories.some(gc => gc.id === cat.id)).map(cat => (
+                                      <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+
+                              {/* Accept individual button */}
+                              <Button
+                                size="sm"
+                                variant="default"
+                                className="h-7 text-xs gap-1 ml-auto"
+                                onClick={() => acceptSingleCategory(c)}
+                              >
+                                <CheckCircle className="w-3 h-3" /> Aceitar
+                              </Button>
                             </div>
-                          )}
-                        </div>
+
+                            {/* Attribute editors for merge_into (with attributes) or convert_to_attribute */}
+                            {(action === "convert_to_attribute" || (action === "merge_into" && (res?.attributes || []).some(a => a.slug))) && (
+                              <div className="pl-4 border-l-2 border-primary/20 space-y-1.5">
+                                <Label className="text-[10px] text-muted-foreground">Atributos a criar:</Label>
+                                {(res?.attributes || []).map((attr, ai) => (
+                                  <div key={ai} className="flex gap-1.5 items-center flex-wrap">
+                                    <Input
+                                      className="h-7 text-xs w-[120px] font-mono"
+                                      placeholder="pa_slug"
+                                      value={attr.slug}
+                                      onChange={(e) => updateResolutionAttribute(c.id, ai, "slug", e.target.value)}
+                                    />
+                                    <Input
+                                      className="h-7 text-xs w-[110px]"
+                                      placeholder="Nome"
+                                      value={attr.name}
+                                      onChange={(e) => updateResolutionAttribute(c.id, ai, "name", e.target.value)}
+                                    />
+                                    <Input
+                                      className="h-7 text-xs w-[140px]"
+                                      placeholder="Valores"
+                                      value={attr.values}
+                                      onChange={(e) => updateResolutionAttribute(c.id, ai, "values", e.target.value)}
+                                    />
+                                    {(res?.attributes || []).length > 1 && (
+                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeResolutionAttribute(c.id, ai)}>
+                                        <Trash2 className="w-3 h-3 text-destructive" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                ))}
+                                <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1" onClick={() => addResolutionAttribute(c.id)}>
+                                  <Plus className="w-3 h-3" /> Adicionar atributo
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
