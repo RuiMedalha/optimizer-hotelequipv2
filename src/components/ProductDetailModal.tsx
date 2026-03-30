@@ -516,9 +516,15 @@ export function ProductDetailModal({ product, onClose }: Props) {
                 )}
                 <div className="space-y-4">
                   {product.image_urls.map((url, i) => {
-                    const altTexts = Array.isArray((product as any).image_alt_texts) ? (product as any).image_alt_texts : [];
-                    const altEntry = altTexts.find((a: any) => a.url === url);
-                    const altText = altEntry?.alt_text || "";
+                    // Normalize: support both object { url: altText } and array [{ url, alt_text }] formats
+                    const rawAlts = (product as any).image_alt_texts;
+                    let altText = "";
+                    if (rawAlts && typeof rawAlts === "object" && !Array.isArray(rawAlts)) {
+                      altText = rawAlts[url] || "";
+                    } else if (Array.isArray(rawAlts)) {
+                      const entry = rawAlts.find((a: any) => a.url === url);
+                      altText = entry?.alt_text || "";
+                    }
                     const optimized = optimizedImages?.find((img) => img.sort_order === i);
                     return (
                       <div key={i} className="space-y-2">
