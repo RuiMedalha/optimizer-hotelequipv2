@@ -1210,7 +1210,7 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                                 {table.table_type === "pricing_table" && (
                                   <Tooltip>
                                     <TooltipTrigger>
-                                      <Badge variant="default" className="text-xs bg-green-600">💰 Preços Estruturados</Badge>
+                                      <Badge variant="default" className="text-xs">💰 Preços Estruturados</Badge>
                                     </TooltipTrigger>
                                     <TooltipContent><p>Tabela com preços unitários, escalões de quantidade, descontos ou preços de embalagem detetados automaticamente</p></TooltipContent>
                                   </Tooltip>
