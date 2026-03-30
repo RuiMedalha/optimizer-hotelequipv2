@@ -4,16 +4,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Loader2, Plus, Trash2, Wand2, Play, CheckCircle, XCircle, Clock, Sparkles, ArrowRight, Merge, ShieldCheck } from "lucide-react";
+import { Loader2, Plus, Trash2, Wand2, Play, CheckCircle, XCircle, Clock, Sparkles, ArrowRight, Merge, ShieldCheck, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCategories, type Category } from "@/hooks/useCategories";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { toast } from "sonner";
+import { getStorageItem, setStorageItem } from "@/lib/safeStorage";
 import {
   useArchitectRules,
   useSaveRule,
