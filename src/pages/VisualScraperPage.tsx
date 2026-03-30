@@ -34,6 +34,7 @@ import {
   computeFingerprintRatios,
   summarizeVariationStructure,
 } from "@/lib/scraperIntelligence";
+import { ScrapingScheduleManager } from "@/components/scraper/ScrapingScheduleManager";
 
 /* ────────────────────────────────────────────────
    Types
@@ -1228,73 +1229,80 @@ export default function VisualScraperPage() {
 
       {/* ═══ STEP: URL Entry ═══ */}
       {step === "url" && (
-        <div className="flex-1 flex items-center justify-center p-4">
-          <Card className="max-w-2xl w-full">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Navigation className="w-5 h-5" />
-                Abrir Página do Fornecedor
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  Insira o URL da homepage ou página de categorias. Vai poder navegar, identificar as camadas de categorias, recolher URLs de produtos e depois definir os campos a extrair.
-                </p>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="https://fornecedor.com/produtos"
-                    value={url}
-                    onChange={e => setUrl(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && handleLoadUrl()}
-                    className="font-mono text-sm"
-                  />
-                  <Button onClick={handleLoadUrl} disabled={loading || !url.trim()}>
-                    {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
-                    <span className="ml-1">Abrir</span>
-                  </Button>
-                </div>
-              </div>
-
-              <div className="border-t pt-4">
-                <p className="text-sm font-medium mb-3 flex items-center gap-2">
-                  <FileSpreadsheet className="w-4 h-4" />
-                  Ou importe URLs de produtos diretamente
-                </p>
-                <div className="space-y-3">
+        <ScrollArea className="flex-1">
+          <div className="flex flex-col items-center gap-6 p-4">
+            <Card className="max-w-2xl w-full">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Navigation className="w-5 h-5" />
+                  Abrir Página do Fornecedor
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    Insira o URL da homepage ou página de categorias. Vai poder navegar, identificar as camadas de categorias, recolher URLs de produtos e depois definir os campos a extrair.
+                  </p>
                   <div className="flex gap-2">
-                    <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls,.txt" onChange={handleFileImport} className="hidden" />
-                    <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-                      <Upload className="w-4 h-4 mr-1" /> Importar CSV/Excel
-                    </Button>
-                    <span className="text-xs text-muted-foreground self-center">Ficheiro com URLs (CSV, TXT)</span>
-                  </div>
-                  <div className="space-y-2">
-                    <Textarea
-                      placeholder={"Cole aqui URLs de produtos (um por linha):\nhttps://loja.com/produto-1\nhttps://loja.com/produto-2"}
-                      value={manualUrls}
-                      onChange={e => setManualUrls(e.target.value)}
-                      rows={4}
-                      className="font-mono text-xs"
+                    <Input
+                      placeholder="https://fornecedor.com/produtos"
+                      value={url}
+                      onChange={e => setUrl(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && handleLoadUrl()}
+                      className="font-mono text-sm"
                     />
-                    <Button variant="secondary" size="sm" onClick={handleManualUrlImport} disabled={!manualUrls.trim()}>
-                      <Plus className="w-3 h-3 mr-1" /> Adicionar URLs
+                    <Button onClick={handleLoadUrl} disabled={loading || !url.trim()}>
+                      {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
+                      <span className="ml-1">Abrir</span>
                     </Button>
                   </div>
                 </div>
-              </div>
 
-              <div className="border rounded-lg p-3 bg-muted/30 space-y-2 text-xs text-muted-foreground">
-                <p className="font-medium text-foreground text-sm">Fluxo por camadas:</p>
-                <div className="flex items-center gap-1"><Badge variant="outline" className="text-[10px]">1</Badge> Navegar o site e extrair links</div>
-                <div className="flex items-center gap-1"><Badge variant="outline" className="text-[10px]">2</Badge> Classificar links como categorias (níveis) ou produtos</div>
-                <div className="flex items-center gap-1"><Badge variant="outline" className="text-[10px]">3</Badge> Entrar nas categorias → marcar paginação → recolher produtos</div>
-                <div className="flex items-center gap-1"><Badge variant="outline" className="text-[10px]">4</Badge> Abrir um produto → selecionar/mapear campos visualmente</div>
-                <div className="flex items-center gap-1"><Badge variant="outline" className="text-[10px]">5</Badge> Executar extração em lote</div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                <div className="border-t pt-4">
+                  <p className="text-sm font-medium mb-3 flex items-center gap-2">
+                    <FileSpreadsheet className="w-4 h-4" />
+                    Ou importe URLs de produtos diretamente
+                  </p>
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls,.txt" onChange={handleFileImport} className="hidden" />
+                      <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+                        <Upload className="w-4 h-4 mr-1" /> Importar CSV/Excel
+                      </Button>
+                      <span className="text-xs text-muted-foreground self-center">Ficheiro com URLs (CSV, TXT)</span>
+                    </div>
+                    <div className="space-y-2">
+                      <Textarea
+                        placeholder={"Cole aqui URLs de produtos (um por linha):\nhttps://loja.com/produto-1\nhttps://loja.com/produto-2"}
+                        value={manualUrls}
+                        onChange={e => setManualUrls(e.target.value)}
+                        rows={4}
+                        className="font-mono text-xs"
+                      />
+                      <Button variant="secondary" size="sm" onClick={handleManualUrlImport} disabled={!manualUrls.trim()}>
+                        <Plus className="w-3 h-3 mr-1" /> Adicionar URLs
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border rounded-lg p-3 bg-muted/30 space-y-2 text-xs text-muted-foreground">
+                  <p className="font-medium text-foreground text-sm">Fluxo por camadas:</p>
+                  <div className="flex items-center gap-1"><Badge variant="outline" className="text-[10px]">1</Badge> Navegar o site e extrair links</div>
+                  <div className="flex items-center gap-1"><Badge variant="outline" className="text-[10px]">2</Badge> Classificar links como categorias (níveis) ou produtos</div>
+                  <div className="flex items-center gap-1"><Badge variant="outline" className="text-[10px]">3</Badge> Entrar nas categorias → marcar paginação → recolher produtos</div>
+                  <div className="flex items-center gap-1"><Badge variant="outline" className="text-[10px]">4</Badge> Abrir um produto → selecionar/mapear campos visualmente</div>
+                  <div className="flex items-center gap-1"><Badge variant="outline" className="text-[10px]">5</Badge> Executar extração em lote</div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Scraping Schedule Manager */}
+            <div className="max-w-4xl w-full">
+              <ScrapingScheduleManager />
+            </div>
+          </div>
+        </ScrollArea>
       )}
 
       {/* ═══ STEP: Browse / Fields (iframe) ═══ */}
