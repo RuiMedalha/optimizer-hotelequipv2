@@ -71,7 +71,8 @@ serve(async (req) => {
           {
             type: "text",
             text: `Quickly analyze this PDF. Return JSON:
-{"total_pages":N,"document_type":"product_catalog"|"price_list"|"technical_sheet"|"mixed","language":"xx","supplier_name":"...","has_images":bool,"estimated_products":N,"table_format":"tabular"|"cards"|"list"|"mixed","page_ranges":[{"start":1,"end":N,"content_type":"products"|"cover"|"index"|"notes"|"empty"}]}
+{"total_pages":N,"document_type":"product_catalog"|"price_list"|"technical_sheet"|"mixed"|"scanned_catalog","language":"xx","supplier_name":"...","has_images":bool,"is_scanned":bool,"estimated_products":N,"table_format":"tabular"|"cards"|"list"|"mixed","page_ranges":[{"start":1,"end":N,"content_type":"products"|"cover"|"index"|"notes"|"empty"}]}
+Note: set "is_scanned":true and "document_type":"scanned_catalog" if the PDF pages are images/scans with no selectable text layer.
 Return ONLY valid JSON.`,
           },
         ],
