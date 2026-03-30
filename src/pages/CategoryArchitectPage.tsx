@@ -288,16 +288,31 @@ function MapeamentoTab({ categories, allCategories, duplicateGroups, setDuplicat
   const runDuplicateDetection = async () => {
     if (!activeWorkspace) return;
     setDuplicateLoading(true);
-    setDuplicateGroups([]);
     try {
       const { data, error } = await supabase.functions.invoke("detect-duplicate-categories", {
         body: { workspaceId: activeWorkspace.id, aiProvider },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      setDuplicateGroups(data.groups || []);
+      const groups = data.groups || [];
+      setDuplicateGroups(groups);
+      // Initialize resolutions from AI suggestions
+      const newRes: Record<string, DuplicateResolution> = {};
+      for (const g of groups) {
+        for (const c of g.categories) {
+          newRes[c.id] = {
+            catId: c.id,
+            action: c.suggestedAction === "keep" ? "keep" : "merge_into",
+            targetCategoryId: c.mergeTarget,
+            attributeSlug: "",
+            attributeName: "",
+            attributeValues: "",
+          };
+        }
+      }
+      setResolutions(prev => ({ ...prev, ...newRes }));
       if (data?.warning) toast.info(data.warning);
-      toast.success(`${(data.groups || []).length} grupos de duplicados encontrados`);
+      toast.success(`${groups.length} grupos de duplicados encontrados`);
     } catch (err: any) {
       toast.error(err.message || "Erro na detecção de duplicados");
     } finally {
@@ -305,20 +320,42 @@ function MapeamentoTab({ categories, allCategories, duplicateGroups, setDuplicat
     }
   };
 
-  const addDuplicateToMapping = (group: DuplicateGroup) => {
+  const updateResolution = (catId: string, field: keyof DuplicateResolution, value: string | null) => {
+    setResolutions(prev => ({
+      ...prev,
+      [catId]: { ...prev[catId], [field]: value },
+    }));
+  };
+
+  const addGroupToMapping = (group: DuplicateGroup) => {
     let count = 0;
     for (const cat of group.categories) {
-      if (cat.suggestedAction === "keep") continue;
-      saveRule.mutate({
-        source_category_id: cat.id,
-        source_category_name: cat.name,
-        action: cat.suggestedAction === "merge_into" ? "merge_into" : "merge_into",
-        target_category_id: cat.mergeTarget || null,
-        attribute_slug: null,
-        attribute_name: null,
-        attribute_values: [],
-      });
-      count++;
+      const res = resolutions[cat.id];
+      if (!res || res.action === "keep") continue;
+
+      if (res.action === "merge_into") {
+        saveRule.mutate({
+          source_category_id: cat.id,
+          source_category_name: cat.name,
+          action: "merge_into",
+          target_category_id: res.targetCategoryId || null,
+          attribute_slug: null,
+          attribute_name: null,
+          attribute_values: [],
+        });
+        count++;
+      } else if (res.action === "convert_to_attribute") {
+        saveRule.mutate({
+          source_category_id: cat.id,
+          source_category_name: cat.name,
+          action: "convert_to_attribute",
+          target_category_id: null,
+          attribute_slug: res.attributeSlug || null,
+          attribute_name: res.attributeName || null,
+          attribute_values: res.attributeValues ? res.attributeValues.split(",").map(v => v.trim()).filter(Boolean) : [],
+        });
+        count++;
+      }
     }
     toast.success(`${count} regras adicionadas do grupo "${group.groupName}"`);
   };
