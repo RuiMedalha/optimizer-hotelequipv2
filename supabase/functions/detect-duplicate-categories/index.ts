@@ -256,8 +256,12 @@ For each group return:
   } catch (err) {
     console.error("detect-duplicate-categories error:", err);
     return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({
+        groups: [],
+        warning: "O serviço de análise está temporariamente indisponível. Tente novamente dentro de instantes.",
+        error: err instanceof Error ? err.message : "Unknown error",
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
