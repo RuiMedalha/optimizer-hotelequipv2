@@ -10383,6 +10383,73 @@ export type Database = {
           },
         ]
       }
+      scraping_change_logs: {
+        Row: {
+          change_magnitude: number | null
+          change_type: string
+          created_at: string
+          field_name: string | null
+          id: string
+          new_value: string | null
+          old_value: string | null
+          product_sku: string | null
+          product_title: string | null
+          run_id: string | null
+          schedule_id: string
+          workspace_id: string
+        }
+        Insert: {
+          change_magnitude?: number | null
+          change_type: string
+          created_at?: string
+          field_name?: string | null
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          product_sku?: string | null
+          product_title?: string | null
+          run_id?: string | null
+          schedule_id: string
+          workspace_id: string
+        }
+        Update: {
+          change_magnitude?: number | null
+          change_type?: string
+          created_at?: string
+          field_name?: string | null
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          product_sku?: string | null
+          product_title?: string | null
+          run_id?: string | null
+          schedule_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scraping_change_logs_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "scraping_schedule_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scraping_change_logs_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "scraping_schedules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scraping_change_logs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scraping_credits: {
         Row: {
           id: string
