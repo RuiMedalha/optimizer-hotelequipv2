@@ -10418,6 +10418,131 @@ export type Database = {
           },
         ]
       }
+      scraping_schedule_runs: {
+        Row: {
+          completed_at: string | null
+          error_message: string | null
+          id: string
+          products_found: number | null
+          products_new: number | null
+          products_removed: number | null
+          products_updated: number | null
+          run_payload: Json | null
+          schedule_id: string
+          started_at: string
+          status: string
+          workspace_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          products_found?: number | null
+          products_new?: number | null
+          products_removed?: number | null
+          products_updated?: number | null
+          run_payload?: Json | null
+          schedule_id: string
+          started_at?: string
+          status?: string
+          workspace_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          products_found?: number | null
+          products_new?: number | null
+          products_removed?: number | null
+          products_updated?: number | null
+          run_payload?: Json | null
+          schedule_id?: string
+          started_at?: string
+          status?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scraping_schedule_runs_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "scraping_schedules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scraping_schedule_runs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scraping_schedules: {
+        Row: {
+          created_at: string
+          cron_expression: string
+          field_mapping: Json | null
+          frequency: string
+          id: string
+          is_active: boolean
+          last_run_at: string | null
+          last_run_products_count: number | null
+          last_run_status: string | null
+          next_run_at: string | null
+          notify_on_changes: boolean
+          schedule_name: string
+          selectors: Json | null
+          source_url: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          cron_expression?: string
+          field_mapping?: Json | null
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          last_run_at?: string | null
+          last_run_products_count?: number | null
+          last_run_status?: string | null
+          next_run_at?: string | null
+          notify_on_changes?: boolean
+          schedule_name: string
+          selectors?: Json | null
+          source_url: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          cron_expression?: string
+          field_mapping?: Json | null
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          last_run_at?: string | null
+          last_run_products_count?: number | null
+          last_run_status?: string | null
+          next_run_at?: string | null
+          notify_on_changes?: boolean
+          schedule_name?: string
+          selectors?: Json | null
+          source_url?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scraping_schedules_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       seo_recommendations: {
         Row: {
           confidence: number | null
