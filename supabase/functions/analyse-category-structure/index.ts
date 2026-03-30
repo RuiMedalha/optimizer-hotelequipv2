@@ -220,7 +220,7 @@ Suggest what to do with each subcategory. For each one return:
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: aiModel,
           messages: [
             { role: "system", content: systemPrompt + "\n\nCRITICAL: Output ONLY a raw JSON array. No markdown fences, no text before or after." },
             { role: "user", content: userPrompt },
