@@ -948,6 +948,8 @@ function MigrarProdutosTab() {
 // ═══════════════════════════════════════════════════════════════════════
 export default function CategoryArchitectPage() {
   const { data: categories = [], isLoading } = useCategories();
+  const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroup[]>([]);
+  const [duplicateLoading, setDuplicateLoading] = useState(false);
 
   if (isLoading) {
     return (
@@ -973,7 +975,14 @@ export default function CategoryArchitectPage() {
           <TabsTrigger value="migrar">Migrar Produtos</TabsTrigger>
         </TabsList>
         <TabsContent value="mapeamento">
-          <MapeamentoTab categories={flatCats} allCategories={categories} />
+          <MapeamentoTab
+            categories={flatCats}
+            allCategories={categories}
+            duplicateGroups={duplicateGroups}
+            setDuplicateGroups={setDuplicateGroups}
+            duplicateLoading={duplicateLoading}
+            setDuplicateLoading={setDuplicateLoading}
+          />
         </TabsContent>
         <TabsContent value="atributos">
           <CriarAtributosTab />
