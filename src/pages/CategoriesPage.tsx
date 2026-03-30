@@ -447,6 +447,83 @@ const CategoriesPage = () => {
         </CollapsibleContent>
       </Collapsible>
 
+      {/* Corrupted categories panel */}
+      {corruptedCats.length > 0 && (
+        <Card className="border-amber-500/30">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600" />
+                Categorias com problemas detectados ({corruptedCats.length})
+              </CardTitle>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2"
+                onClick={fixCorruptedWithAI}
+                disabled={fixingCorrupted}
+              >
+                {fixingCorrupted ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="w-3.5 h-3.5" />
+                )}
+                Corrigir automaticamente
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1.5 max-h-60 overflow-y-auto">
+              <TooltipProvider>
+                {corruptedCats.map(({ cat, problem }) => (
+                  <div key={cat.id} className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-muted/50 group text-xs">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="text-muted-foreground flex-1 truncate max-w-[300px]">
+                          {cat.name.length > 60 ? cat.name.substring(0, 60) + "…" : cat.name}
+                        </span>
+                      </TooltipTrigger>
+                      {cat.name.length > 60 && (
+                        <TooltipContent side="top" className="max-w-sm">
+                          <p className="text-xs break-all">{cat.name}</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                    {problem === "hierarchy_path" && (
+                      <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px] shrink-0">
+                        Caminho completo
+                      </Badge>
+                    )}
+                    {problem === "multi_category" && (
+                      <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-[10px] shrink-0">
+                        Multi-categoria
+                      </Badge>
+                    )}
+                    {problem === "duplicate" && (
+                      <Badge className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] shrink-0">
+                        Duplicado
+                      </Badge>
+                    )}
+                    <Badge variant="secondary" className="text-[10px] shrink-0">
+                      {productCounts[cat.name] ?? 0}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => ignoreCorrupted(cat.id)}
+                    >
+                      <EyeOff className="w-3 h-3 mr-1" />
+                      Ignorar
+                    </Button>
+                  </div>
+                ))}
+              </TooltipProvider>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardContent className="p-4">
           {isLoading ? (
