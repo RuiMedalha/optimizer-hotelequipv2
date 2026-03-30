@@ -43,6 +43,7 @@ import {
   GitMerge,
   GitCompare,
   MousePointerClick,
+  Wand2,
   type LucideIcon,
 } from "lucide-react";
 
