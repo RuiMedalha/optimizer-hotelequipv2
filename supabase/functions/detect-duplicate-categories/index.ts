@@ -31,12 +31,40 @@ function normalizeCategoryName(name: string) {
     .trim();
 }
 
+// ─── HORECA dimensional patterns ─────────────────────────────────
+const DIMENSIONAL_PATTERNS = /^(linha\s*\d+|l\s*\d+|a\s*\d+|\d+\/\d+)/i;
+const ENERGY_PATTERNS = /^(eletricos?|electricos?|gas|gaz|a\s+vapor)$/i;
+const ACCESSORY_PATTERNS = /^(acessorios?|acessórios?|complementos?)$/i;
+const FORMAT_PATTERNS = /^(snack|bar|gastronorm|pastelaria\s*\/?\s*padaria)$/i;
+
+type CatClassification = "dimensional" | "energy_source" | "accessory" | "format_variant" | "real_duplicate";
+
+function classifyDuplicateGroup(
+  name: string,
+  entries: Array<{ id: string; name: string; path: string; parentName: string | null }>,
+): CatClassification {
+  const norm = normalizeCategoryName(name);
+  if (DIMENSIONAL_PATTERNS.test(norm) || DIMENSIONAL_PATTERNS.test(name)) return "dimensional";
+  if (ENERGY_PATTERNS.test(norm) || ENERGY_PATTERNS.test(name)) return "energy_source";
+  if (ACCESSORY_PATTERNS.test(norm) || ACCESSORY_PATTERNS.test(name)) return "accessory";
+  if (FORMAT_PATTERNS.test(norm) || FORMAT_PATTERNS.test(name)) return "format_variant";
+
+  // Check if all entries share the same parent branch — if not, they're contextual, not duplicates
+  const rootBranches = new Set(entries.map(e => e.path.split(" > ")[0]));
+  if (rootBranches.size > 1) {
+    // Same name in completely different root branches — likely contextual subcategories
+    if (ACCESSORY_PATTERNS.test(norm)) return "accessory";
+  }
+  return "real_duplicate";
+}
+
 function buildFallbackGroups(
   allCats: Array<{ id: string; name: string; parent_id: string | null }>,
   getPath: (catId: string) => string,
+  getParentName: (catId: string) => string | null,
   productCounts: Record<string, number>,
 ) {
-  const grouped = new Map<string, Array<{ id: string; name: string; path: string; productCount: number }>>();
+  const grouped = new Map<string, Array<{ id: string; name: string; path: string; parentName: string | null; productCount: number }>>();
 
   for (const cat of allCats) {
     const normalized = normalizeCategoryName(cat.name);
@@ -45,6 +73,7 @@ function buildFallbackGroups(
       id: cat.id,
       name: cat.name,
       path: getPath(cat.id),
+      parentName: getParentName(cat.id),
       productCount: productCounts[cat.name] ?? 0,
     };
     const existing = grouped.get(normalized) ?? [];
@@ -52,29 +81,111 @@ function buildFallbackGroups(
     grouped.set(normalized, existing);
   }
 
-  return Array.from(grouped.values())
-    .map((items) => {
-      const uniquePaths = new Set(items.map((item) => item.path));
-      if (items.length < 2 || uniquePaths.size < 2) return null;
+  const results: any[] = [];
 
-      const sorted = [...items].sort((a, b) => b.productCount - a.productCount || a.path.localeCompare(b.path));
+  for (const [normName, items] of grouped) {
+    // Need at least 2 entries in different paths
+    const uniquePaths = new Set(items.map((item) => item.path));
+    if (items.length < 2 || uniquePaths.size < 2) continue;
+
+    const classification = classifyDuplicateGroup(items[0].name, items);
+    const sorted = [...items].sort((a, b) => b.productCount - a.productCount || a.path.localeCompare(b.path));
+
+    if (classification === "accessory") {
+      // Acessórios/Complementos: NOT duplicates — they're contextual subcategories
+      // Group them but suggest "keep" for all, with explanation
+      results.push({
+        groupName: `⚙️ ${sorted[0].name} (contextual)`,
+        categories: sorted.map(item => ({
+          id: item.id,
+          name: item.name,
+          path: item.path,
+          productCount: item.productCount,
+          suggestedAction: "keep" as const,
+          mergeTarget: null,
+        })),
+        confidence: "low" as const,
+        reason: `"${sorted[0].name}" existe em ${uniquePaths.size} ramos diferentes porque cada equipamento tem os seus próprios acessórios. NÃO são duplicados — são subcategorias contextuais (ex: Acessórios de Fornos ≠ Acessórios de Frio). Considere manter como estão ou converter para tags/atributos dentro de cada ramo.`,
+      });
+    } else if (classification === "dimensional") {
+      // Linha 600/700/900, L500, a 600: dimensional specs → convert to attributes
+      const dimValue = sorted[0].name.replace(/\D+/g, " ").trim().split(/\s+/)[0] || sorted[0].name;
+      results.push({
+        groupName: `📐 ${sorted[0].name} (especificação dimensional)`,
+        categories: sorted.map(item => ({
+          id: item.id,
+          name: item.name,
+          path: item.path,
+          productCount: item.productCount,
+          suggestedAction: "move_products" as const,
+          mergeTarget: null,
+        })),
+        confidence: "high" as const,
+        reason: `"${sorted[0].name}" é uma especificação dimensional/técnica (profundidade em mm), não uma categoria real. Aparece em ${uniquePaths.size} ramos diferentes (${[...new Set(sorted.map(s => s.path.split(" > ")[0]))].join(", ")}). Recomendação: converter para atributo (ex: pa_profundidade_mm = ${dimValue}) em cada ramo e mover os produtos para a categoria pai.`,
+      });
+    } else if (classification === "energy_source") {
+      // Eletricos/Gaz/A vapor: energy source → convert to attributes
+      results.push({
+        groupName: `⚡ ${sorted[0].name} (tipo de energia)`,
+        categories: sorted.map(item => ({
+          id: item.id,
+          name: item.name,
+          path: item.path,
+          productCount: item.productCount,
+          suggestedAction: "move_products" as const,
+          mergeTarget: null,
+        })),
+        confidence: "high" as const,
+        reason: `"${sorted[0].name}" é um tipo de energia/alimentação, não uma categoria funcional. Recomendação: converter para atributo pa_tipo_energia = "${sorted[0].name}" e mover os produtos para a categoria pai funcional (ex: Fogões, Fritadeiras).`,
+      });
+    } else if (classification === "format_variant") {
+      // Snack, Bar, Gastronorm: format/application context
+      results.push({
+        groupName: `🏷️ ${sorted[0].name} (formato/aplicação)`,
+        categories: sorted.map((item, index) => ({
+          id: item.id,
+          name: item.name,
+          path: item.path,
+          productCount: item.productCount,
+          suggestedAction: index === 0 ? ("keep" as const) : ("merge_into" as const),
+          mergeTarget: index === 0 ? null : sorted[0].id,
+        })),
+        confidence: "medium" as const,
+        reason: `"${sorted[0].name}" aparece em ${uniquePaths.size} ramos. Pode representar um formato/aplicação (ex: equipamento Snack vs linha completa). Verifique se faz sentido unificar ou se cada instância serve um contexto diferente.`,
+      });
+    } else {
+      // real_duplicate: same concept in different branches
       const keep = sorted[0];
-
-      return {
+      results.push({
         groupName: keep.name,
         categories: sorted.map((item, index) => ({
           id: item.id,
           name: item.name,
           path: item.path,
           productCount: item.productCount,
-          suggestedAction: index === 0 ? "keep" : "merge_into",
+          suggestedAction: index === 0 ? ("keep" as const) : ("merge_into" as const),
           mergeTarget: index === 0 ? null : keep.id,
         })),
-        confidence: sorted.length >= 3 ? "high" : "medium",
-        reason: "Análise de fallback: categorias com o mesmo nome normalizado foram encontradas em ramos diferentes do catálogo.",
-      };
-    })
-    .filter(Boolean);
+        confidence: sorted.length >= 3 ? ("high" as const) : ("medium" as const),
+        reason: `Categorias com o mesmo nome em ramos diferentes. A de maior volume (${keep.path}) é sugerida como principal.`,
+      });
+    }
+  }
+
+  // Sort: real duplicates first, then dimensional, then energy, then format, then accessories
+  const classOrder: Record<CatClassification, number> = {
+    real_duplicate: 0,
+    dimensional: 1,
+    energy_source: 2,
+    format_variant: 3,
+    accessory: 4,
+  };
+
+  return results.sort((a, b) => {
+    const aClass = a.groupName.startsWith("📐") ? 1 : a.groupName.startsWith("⚡") ? 2 : a.groupName.startsWith("🏷️") ? 3 : a.groupName.startsWith("⚙️") ? 4 : 0;
+    const bClass = b.groupName.startsWith("📐") ? 1 : b.groupName.startsWith("⚡") ? 2 : b.groupName.startsWith("🏷️") ? 3 : b.groupName.startsWith("⚙️") ? 4 : 0;
+    return aClass - bClass;
+  });
 }
 
 serve(async (req) => {
@@ -105,7 +216,7 @@ serve(async (req) => {
       });
     }
 
-    // 2. Build parent paths
+    // 2. Build parent paths & helpers
     const catById = new Map(allCats.map(c => [c.id, c]));
     function getPath(catId: string): string {
       const parts: string[] = [];
@@ -115,6 +226,11 @@ serve(async (req) => {
         current = current.parent_id ? catById.get(current.parent_id) : undefined;
       }
       return parts.join(" > ");
+    }
+    function getParentName(catId: string): string | null {
+      const cat = catById.get(catId);
+      if (!cat?.parent_id) return null;
+      return catById.get(cat.parent_id)?.name ?? null;
     }
 
     // 3. Load product counts
@@ -134,7 +250,7 @@ serve(async (req) => {
       }
     }
 
-    // 4. Build prompt — prioritize categories with product volume to reduce gateway failures
+    // 4. Build HORECA-aware prompt
     const catsForAi = [...allCats]
       .sort((a, b) => (productCounts[b.name] ?? 0) - (productCounts[a.name] ?? 0))
       .slice(0, 120);
@@ -142,87 +258,116 @@ serve(async (req) => {
       `- ${c.name} | path: ${getPath(c.id)} | products: ${productCounts[c.name] ?? 0}`
     ).join("\n");
 
-    const systemPrompt = `You are an e-commerce taxonomy expert. Identify categories that represent the same concept but exist in different parts of the catalogue tree. Focus on: same equipment type in different parent categories, same product type with slightly different names, subcategories that clearly belong together.
+    const systemPrompt = `You are a HORECA (Hotel, Restaurant, Catering) equipment taxonomy expert specializing in commercial kitchen and foodservice equipment catalogues.
 
-Respond ONLY with a valid JSON array, no markdown, no explanation outside JSON.`;
+## CRITICAL CLASSIFICATION RULES FOR HORECA CATALOGUES:
 
-    const userPrompt = `Here is the full category list with product counts:
-${catList}
+### 1. DIMENSIONAL SPECIFICATIONS (NEVER real categories):
+- "Linha 550", "Linha 600", "Linha 700", "Linha 900", "Linha 1400" → These are EQUIPMENT DEPTH in mm
+- "L500", "L600", "L700", "L800" → Same thing, depth/width specs
+- "a 600" → depth specification
+- "400/600/700/1400" → Combined dimension options
+- ACTION: Always suggest converting to attribute (pa_profundidade_mm or pa_largura_mm) — NEVER merge across branches. "Linha 700" under CONFEÇÃO is about cooking equipment depth, "Linha 700" under FRIO COMERCIAL is about refrigeration unit depth — same spec, different product families.
 
-Find groups of categories that are semantic duplicates or overlaps.
-For each group return:
+### 2. ENERGY SOURCE (convert to attribute, NOT a category):
+- "Eletricos", "Eléctricos", "Gaz", "Gás", "A vapor" → Energy/power source
+- ACTION: Convert to attribute pa_tipo_energia = "Elétrico" / "Gás" / "Vapor". These split the same equipment type by power source.
+
+### 3. ACCESSORIES & COMPLEMENTS (contextual, usually NOT duplicates):
+- "Acessórios", "Acessorios", "Complementos" under different parents
+- "Acessórios" under FORNOS ≠ "Acessórios" under FRIO COMERCIAL ≠ "Acessórios" under LAVAGEM LOUÇA
+- ACTION: These are contextual subcategories — each equipment family has its own accessories. Do NOT merge across different equipment families. If the parent equipment categories are the same, THEN they may be duplicates.
+
+### 4. FORMAT/APPLICATION VARIANTS:
+- "Snack", "Bar", "Gastronorm", "Pastelaria / Padaria" appearing under different parents
+- ACTION: Check if they represent the same products in different contexts or genuinely different product applications.
+
+### 5. REAL DUPLICATES (should be merged):
+- Same equipment type with identical names in different branches (e.g., "Abatedores de Temperatura" appearing 3x under FRIO COMERCIAL)
+- Same concept with slight name variations (e.g., "Fornos Micro-Ondas" under both CONFEÇÃO and FORNOS)
+- Corrupted names with ">" or "|" that represent broken hierarchy imports
+
+## RESPONSE FORMAT:
+Respond ONLY with a valid JSON array. For each group:
 {
-  "groupName": string,
+  "groupName": "descriptive name with emoji prefix: 📐 for dimensional, ⚡ for energy, ⚙️ for accessories, 🏷️ for format, ❌ for real duplicates",
   "categories": [{
-    "id": string,
-    "name": string,
-    "path": string,
+    "id": "category UUID",
+    "name": "category name",
+    "path": "full > path",
     "productCount": number,
     "suggestedAction": "keep" | "merge_into" | "move_products",
-    "mergeTarget": string | null
+    "mergeTarget": "target category UUID" | null
   }],
   "confidence": "high" | "medium" | "low",
-  "reason": string
-}`;
+  "reason": "Portuguese explanation of why these are grouped and what to do"
+}
+
+For dimensional/energy categories, suggestedAction should be "move_products" (move to parent, then convert category to attribute).
+For accessories, suggestedAction should be "keep" (they are NOT duplicates).
+For real duplicates, one should be "keep" and others "merge_into".`;
+
+    const userPrompt = `Analisa estas categorias de um catálogo de equipamentos HORECA profissional e identifica:
+1. Especificações dimensionais disfarçadas de categorias (Linha XXX, LXXX)
+2. Fontes de energia como categorias (Eletricos, Gaz)
+3. Acessórios/Complementos contextuais (mesmos nomes em ramos diferentes)
+4. Duplicados reais (mesmo conceito repetido desnecessariamente)
+
+${catList}`;
 
     const ai = getAiConfig(aiProvider);
     if (!ai.key) {
-      return new Response(JSON.stringify({ error: "AI API key not configured" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const aiResponse = await fetch(ai.url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${ai.key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: ai.model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Try again later." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const t = await aiResponse.text();
-      console.error("AI error:", aiResponse.status, t);
-      const fallbackGroups = buildFallbackGroups(allCats, getPath, productCounts);
+      // No AI key — use heuristic fallback
+      const fallbackGroups = buildFallbackGroups(allCats, getPath, getParentName, productCounts);
       return new Response(JSON.stringify({
         groups: fallbackGroups,
-        warning: "A análise com IA falhou temporariamente; mostrei os duplicados detetados por heurística.",
+        warning: "Análise heurística HORECA (sem chave IA configurada).",
       }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const aiData = await aiResponse.json();
-    const rawContent = aiData.choices?.[0]?.message?.content || "";
 
     let groups: any[];
     try {
+      const aiResponse = await fetch(ai.url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${ai.key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: ai.model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+        }),
+      });
+
+      if (!aiResponse.ok) {
+        if (aiResponse.status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limit exceeded. Try again later." }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (aiResponse.status === 402) {
+          return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds." }), {
+            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        throw new Error(`AI returned ${aiResponse.status}`);
+      }
+
+      const aiData = await aiResponse.json();
+      const rawContent = aiData.choices?.[0]?.message?.content || "";
       const cleaned = rawContent.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
       groups = JSON.parse(cleaned);
-    } catch {
-      console.error("Failed to parse duplicate detection response:", rawContent.substring(0, 300));
-      groups = buildFallbackGroups(allCats, getPath, productCounts);
+    } catch (aiErr) {
+      console.error("AI analysis failed, using HORECA-aware fallback:", aiErr);
+      const fallbackGroups = buildFallbackGroups(allCats, getPath, getParentName, productCounts);
       return new Response(JSON.stringify({
-        groups,
-        warning: "A IA devolveu um formato inválido; mostrei os duplicados detetados por heurística.",
+        groups: fallbackGroups,
+        warning: "A IA falhou temporariamente; a análise HORECA heurística identificou os padrões automaticamente.",
       }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
