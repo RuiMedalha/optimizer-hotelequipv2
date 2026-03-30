@@ -351,22 +351,28 @@ async function processChunk(opts: {
 
   console.log(`Chunk: extracting pages ${chunkStart}-${chunkEnd}`);
 
+  // Detect if this chunk likely contains scanned/image-only pages
+  const isLikelyScanned = overviewData?.is_scanned === true || overviewData?.document_type === "scanned_catalog";
+
   let aiResult: any;
   try {
     aiResult = await directAICall({
-      systemPrompt: "És um especialista em extração de dados de catálogos. Extrai TODOS os produtos deste catálogo PDF. Sê rigoroso e sistemático.",
+      systemPrompt: isLikelyScanned
+        ? "És um especialista em OCR e extração de dados de catálogos digitalizados (scanned). Usa a tua capacidade de visão para LER TODO o texto visível nas imagens das páginas, incluindo texto em tabelas, cabeçalhos, rodapés e notas. Extrai TODOS os produtos com máxima precisão."
+        : "És um especialista em extração de dados de catálogos. Extrai TODOS os produtos deste catálogo PDF. Sê rigoroso e sistemático.",
       messages: [{
         role: "user",
         content: [
           { type: "image_url", image_url: { url: `data:application/pdf;base64,${chunkPdfBase64}` } },
           {
             type: "text",
-            text: `Extrai TODOS os produtos das páginas ${chunkStart} a ${chunkEnd} deste PDF.
+            text: `${isLikelyScanned ? "[MODO OCR] Este PDF é digitalizado/escaneado. Usa visão para ler TODO o texto nas imagens.\n\n" : ""}Extrai TODOS os produtos das páginas ${chunkStart} a ${chunkEnd} deste PDF.
 Idioma: ${overviewData?.language || "auto-detect"}
 Fornecedor: ${overviewData?.supplier_name || "desconhecido"}
 
 Para cada produto devolve:
 - sku, title, description, price (number), currency, category, dimensions, weight, material, color_options (array), technical_specs (object), confidence (0-100)
+- is_scanned: true se o texto foi extraído por OCR de uma imagem digitalizada
 - images (array de objetos): Para CADA imagem de produto visível na página, indica:
   - image_description: descrição detalhada do que a imagem mostra (ângulo do produto, contexto, estilo)
   - alt_text: texto alternativo otimizado para SEO (máx 125 caracteres)
@@ -377,7 +383,7 @@ Para cada produto devolve:
   - background: "white"|"transparent"|"lifestyle"|"colored"|"studio"
 
 Formato JSON:
-{"pages":[{"page_number":N,"page_type":"product_listing","zones":["header","table","images"],"section_title":"...","page_images_count":N,"products":[{...}]}]}
+{"pages":[{"page_number":N,"page_type":"product_listing","is_scanned":bool,"ocr_text":"raw OCR text if scanned","zones":["header","table","images"],"section_title":"...","page_images_count":N,"products":[{...}]}]}
 Devolve APENAS JSON válido.`,
           },
         ],
