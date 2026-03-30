@@ -200,8 +200,13 @@ For each group return:
       }
       const t = await aiResponse.text();
       console.error("AI error:", aiResponse.status, t);
-      return new Response(JSON.stringify({ error: "AI analysis failed" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      const fallbackGroups = buildFallbackGroups(allCats, getPath, productCounts);
+      return new Response(JSON.stringify({
+        groups: fallbackGroups,
+        warning: "A análise com IA falhou temporariamente; mostrei os duplicados detetados por heurística.",
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
