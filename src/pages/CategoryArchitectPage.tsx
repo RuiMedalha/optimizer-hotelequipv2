@@ -137,12 +137,25 @@ function MapeamentoTab({ categories, allCategories }: { categories: { id: string
   const { activeWorkspace } = useWorkspaceContext();
   const [drafts, setDrafts] = useState<DraftRule[]>([]);
 
+  // AI provider state
+  const [aiProvider, setAiProvider] = useState<string>(
+    () => getStorageItem("category-architect-ai-provider") || "gemini"
+  );
+  const handleProviderChange = (v: string) => {
+    setAiProvider(v);
+    setStorageItem("category-architect-ai-provider", v);
+  };
+
   // AI analysis state
   const [selectedRootCat, setSelectedRootCat] = useState<string>("");
   const [aiSuggestions, setAiSuggestions] = useState<AiSuggestion[]>([]);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [selectedSuggestions, setSelectedSuggestions] = useState<Set<string>>(new Set());
   const [showCheckboxes, setShowCheckboxes] = useState(false);
+
+  // Duplicate detection state
+  const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroup[]>([]);
+  const [duplicateLoading, setDuplicateLoading] = useState(false);
 
   // Root categories
   const rootCategories = allCategories.filter(c => c.parent_id === null);
