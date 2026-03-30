@@ -177,6 +177,7 @@ function MapeamentoTab({ categories, allCategories }: { categories: { id: string
         body: {
           workspaceId: activeWorkspace.id,
           parentCategoryId: selectedRootCat,
+          aiProvider,
         },
       });
 
