@@ -1089,7 +1089,7 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                                  {(page as any).is_scanned && (
                                    <Tooltip>
                                      <TooltipTrigger>
-                                       <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-700 border-amber-300 flex items-center gap-1">
+                                       <Badge variant="outline" className="text-xs bg-warning/10 text-warning border-warning/30 flex items-center gap-1">
                                          <ScanEye className="h-3 w-3" /> OCR
                                        </Badge>
                                      </TooltipTrigger>
