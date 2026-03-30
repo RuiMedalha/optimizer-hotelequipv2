@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   FileText, Upload, Eye, Brain, Send, Loader2, CheckCircle, AlertTriangle, XCircle,
   Table2, Layers, GitCompare, Shield, BarChart3, Languages, Settings2, ArrowRight,
-  Scan, MapPin, Database, Package, Trash2, Square,
+  Scan, MapPin, Database, Package, Trash2, Square, Download,
 } from "lucide-react";
 import { usePdfExtractions, usePdfPages, usePdfTables, useStartPdfExtraction, useVisionParsePage, useMapPdfToProducts, useDeletePdfExtraction } from "@/hooks/usePdfExtraction";
 import { useUploadedFiles } from "@/hooks/useUploadedFiles";
@@ -713,6 +713,42 @@ export default function PDFExtractionPage() {
                 <Button variant="outline" onClick={() => persistReviewDraft()} disabled={!hasReviewDraftChanges || isSavingReviewDraft}>
                   {isSavingReviewDraft ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                   Guardar alterações
+                </Button>
+                <Button variant="outline" onClick={() => {
+                  const data = productsForReview;
+                  if (!data || data.length === 0) { toast.error("Sem produtos para exportar"); return; }
+                  import("xlsx").then(XLSX => {
+                    const exportRows = data.map((p: any, idx: number) => ({
+                      "#": idx + 1,
+                      "SKU": p.sku || p.ref || "",
+                      "Título": p.title || p.name || "",
+                      "Preço": p.price || "",
+                      "Categoria": p.category || "",
+                      "Descrição": (p.description || "").slice(0, 500),
+                      "Descrição Curta": (p.short_description || "").slice(0, 300),
+                      "Material": p.material || "",
+                      "Dimensões": p.dimensions || "",
+                      "Peso": p.weight || "",
+                      "Marca": p.brand || "",
+                      "Modelo": p.model || "",
+                      "EAN": p.ean || p.gtin || "",
+                      "Imagens": Array.isArray(p.images) ? p.images.join(" | ") : (p.image || ""),
+                      "Aprovado": p._approved ? "Sim" : "Não",
+                    }));
+                    const ws = XLSX.utils.json_to_sheet(exportRows);
+                    // Auto-width columns
+                    const colWidths = Object.keys(exportRows[0] || {}).map(key => ({
+                      wch: Math.max(key.length, ...exportRows.map(r => String((r as any)[key] || "").length).slice(0, 50)) + 2
+                    }));
+                    ws["!cols"] = colWidths.map(c => ({ wch: Math.min(c.wch, 60) }));
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "Produtos PDF");
+                    const fileName = wizardExtraction?.uploaded_files?.file_name?.replace(/\.pdf$/i, "") || "pdf-extraction";
+                    XLSX.writeFile(wb, `${fileName}-produtos.xlsx`);
+                    toast.success(`${exportRows.length} produtos exportados para Excel`);
+                  });
+                }}>
+                  <Download className="h-4 w-4 mr-2" /> Exportar Excel
                 </Button>
                 <Button onClick={handleProceedToIngestion} disabled={isSavingReviewDraft}>
                   <ArrowRight className="h-4 w-4 mr-2" /> Avançar para Ingestão
