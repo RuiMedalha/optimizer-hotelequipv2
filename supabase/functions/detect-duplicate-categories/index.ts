@@ -37,6 +37,26 @@ const ENERGY_PATTERNS = /^(eletricos?|electricos?|gas|gaz|a\s+vapor)$/i;
 const ACCESSORY_PATTERNS = /^(acessorios?|acessórios?|complementos?)$/i;
 const FORMAT_PATTERNS = /^(snack|bar|gastronorm|pastelaria\s*\/?\s*padaria)$/i;
 
+// ─── Context-aware attribute inference for HORECA ────────────────
+// Maps parent branch keywords to the correct attribute meaning
+const CAPACITY_CONTEXTS = /armarios?|armários?|vitrines?|arcas?|abatedores?|camaras?|câmaras?/i;
+const DEPTH_CONTEXTS = /bancadas?|confecao|confeção|fogoes|fogões|fornos?|fritadeiras?|grelhadores?|basculantes?|marmitas?/i;
+const POSITION_CONTEXTS = /portas?|modulos?|módulos?|gavetas?/i;
+
+type DimMeaning = { slug: string; label: string; unit: string };
+
+function inferDimensionalMeaning(path: string): DimMeaning {
+  const pathNorm = path.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (CAPACITY_CONTEXTS.test(pathNorm)) {
+    return { slug: "pa_capacidade_litros", label: "Capacidade (litros)", unit: "L" };
+  }
+  if (POSITION_CONTEXTS.test(pathNorm)) {
+    return { slug: "pa_numero_portas", label: "Número/Posição", unit: "" };
+  }
+  // Default for bancadas, confeção, etc.
+  return { slug: "pa_profundidade_mm", label: "Profundidade (mm)", unit: "mm" };
+}
+
 type CatClassification = "dimensional" | "energy_source" | "accessory" | "format_variant" | "real_duplicate";
 
 function classifyDuplicateGroup(
@@ -49,10 +69,8 @@ function classifyDuplicateGroup(
   if (ACCESSORY_PATTERNS.test(norm) || ACCESSORY_PATTERNS.test(name)) return "accessory";
   if (FORMAT_PATTERNS.test(norm) || FORMAT_PATTERNS.test(name)) return "format_variant";
 
-  // Check if all entries share the same parent branch — if not, they're contextual, not duplicates
   const rootBranches = new Set(entries.map(e => e.path.split(" > ")[0]));
   if (rootBranches.size > 1) {
-    // Same name in completely different root branches — likely contextual subcategories
     if (ACCESSORY_PATTERNS.test(norm)) return "accessory";
   }
   return "real_duplicate";
@@ -109,19 +127,41 @@ function buildFallbackGroups(
       });
     } else if (classification === "dimensional") {
       // Linha 600/700/900, L500, a 600: dimensional specs → convert to attributes
+      // Context-aware: infer meaning per branch (mm depth vs liters vs position)
       const dimValue = sorted[0].name.replace(/\D+/g, " ").trim().split(/\s+/)[0] || sorted[0].name;
+      
+      // Build per-item context explanations
+      const contextDetails = sorted.map(item => {
+        const meaning = inferDimensionalMeaning(item.path);
+        return `• ${item.path} → ${meaning.slug} = ${dimValue}${meaning.unit ? meaning.unit : ""} (${meaning.label})`;
+      });
+
+      // Check if different branches have different meanings
+      const meanings = sorted.map(item => inferDimensionalMeaning(item.path));
+      const uniqueSlugs = new Set(meanings.map(m => m.slug));
+      const hasMixedMeaning = uniqueSlugs.size > 1;
+
       results.push({
-        groupName: `📐 ${sorted[0].name} (especificação dimensional)`,
-        categories: sorted.map(item => ({
-          id: item.id,
-          name: item.name,
-          path: item.path,
-          productCount: item.productCount,
-          suggestedAction: "move_products" as const,
-          mergeTarget: null,
-        })),
+        groupName: `📐 ${sorted[0].name} (especificação técnica${hasMixedMeaning ? " — significado varia por ramo" : ""})`,
+        categories: sorted.map(item => {
+          const meaning = inferDimensionalMeaning(item.path);
+          return {
+            id: item.id,
+            name: item.name,
+            path: item.path,
+            productCount: item.productCount,
+            suggestedAction: "move_products" as const,
+            mergeTarget: null,
+            // Extra context for the UI
+            attributeSlug: meaning.slug,
+            attributeLabel: meaning.label,
+            attributeValue: `${dimValue}${meaning.unit ? meaning.unit : ""}`,
+          };
+        }),
         confidence: "high" as const,
-        reason: `"${sorted[0].name}" é uma especificação dimensional/técnica (profundidade em mm), não uma categoria real. Aparece em ${uniquePaths.size} ramos diferentes (${[...new Set(sorted.map(s => s.path.split(" > ")[0]))].join(", ")}). Recomendação: converter para atributo (ex: pa_profundidade_mm = ${dimValue}) em cada ramo e mover os produtos para a categoria pai.`,
+        reason: hasMixedMeaning
+          ? `"${sorted[0].name}" é uma especificação técnica com SIGNIFICADO DIFERENTE conforme o ramo:\n${contextDetails.join("\n")}\nNÃO devem ser fundidas — cada uma converte para o atributo correto no seu contexto.`
+          : `"${sorted[0].name}" é uma especificação técnica (${meanings[0].label}). Converter para atributo ${meanings[0].slug} = ${dimValue}${meanings[0].unit} em cada ramo.`,
       });
     } else if (classification === "energy_source") {
       // Eletricos/Gaz/A vapor: energy source → convert to attributes
