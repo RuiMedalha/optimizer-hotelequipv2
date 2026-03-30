@@ -7,7 +7,7 @@ import { PromptTemplateActionsDropdown } from "./PromptTemplateActionsDropdown";
 import { Search } from "lucide-react";
 import type { PromptTemplate } from "@/hooks/usePromptGovernance";
 
-const PROMPT_TYPES = ["all", "enrichment", "description", "seo", "categorization", "validation", "translation", "general"];
+const PROMPT_TYPES = ["all", "enrichment", "description", "seo", "categorization", "validation", "translation", "general", "image"];
 const STATUS_FILTERS = ["all", "active", "archived"];
 
 interface Props {
