@@ -10,7 +10,6 @@ const corsHeaders = {
 function getAiConfig(provider?: string) {
   const gateway = "https://ai.gateway.lovable.dev/v1/chat/completions";
   const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-
   switch (provider) {
     case "claude":
       return { url: gateway, key: lovableKey, model: "google/gemini-2.5-flash" };
@@ -23,22 +22,16 @@ function getAiConfig(provider?: string) {
 }
 
 function normalizeCategoryName(name: string) {
-  return name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
+  return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
-// ─── HORECA dimensional patterns ─────────────────────────────────
+// ─── HORECA patterns ─────────────────────────────────────
 const DIMENSIONAL_PATTERNS = /^(linha\s*\d+|l\s*\d+|a\s*\d+|\d+\/\d+)/i;
 const ENERGY_PATTERNS = /^(eletricos?|electricos?|gas|gaz|a\s+vapor)$/i;
 const ACCESSORY_PATTERNS = /^(acessorios?|acessórios?|complementos?)$/i;
 const FORMAT_PATTERNS = /^(snack|bar|gastronorm|pastelaria\s*\/?\s*padaria)$/i;
 
-// ─── Context-aware attribute inference for HORECA ────────────────
-// Maps parent branch keywords to the correct attribute meaning
+// Context-aware attribute inference
 const CAPACITY_CONTEXTS = /armarios?|armários?|vitrines?|arcas?|abatedores?|camaras?|câmaras?/i;
 const DEPTH_CONTEXTS = /bancadas?|confecao|confeção|fogoes|fogões|fornos?|fritadeiras?|grelhadores?|basculantes?|marmitas?/i;
 const POSITION_CONTEXTS = /portas?|modulos?|módulos?|gavetas?/i;
@@ -47,17 +40,60 @@ type DimMeaning = { slug: string; label: string; unit: string };
 
 function inferDimensionalMeaning(path: string): DimMeaning {
   const pathNorm = path.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  if (CAPACITY_CONTEXTS.test(pathNorm)) {
-    return { slug: "pa_capacidade_litros", label: "Capacidade (litros)", unit: "L" };
-  }
-  if (POSITION_CONTEXTS.test(pathNorm)) {
-    return { slug: "pa_numero_portas", label: "Número/Posição", unit: "" };
-  }
-  // Default for bancadas, confeção, etc.
+  if (CAPACITY_CONTEXTS.test(pathNorm)) return { slug: "pa_capacidade_litros", label: "Capacidade (litros)", unit: "L" };
+  if (POSITION_CONTEXTS.test(pathNorm)) return { slug: "pa_numero_portas", label: "Número/Posição", unit: "" };
   return { slug: "pa_profundidade_mm", label: "Profundidade (mm)", unit: "mm" };
 }
 
-type CatClassification = "dimensional" | "energy_source" | "accessory" | "format_variant" | "real_duplicate";
+// ─── Extract crossed attributes from path segments ──────
+// e.g. path "CONFEÇÃO > Linha 700 > Eletricos > Fogões"
+//   → attributes: [{ slug: "pa_linha", value: "700" }, { slug: "pa_tipo_energia", value: "Elétrico" }]
+interface ExtractedAttribute {
+  slug: string;
+  label: string;
+  value: string;
+}
+
+function extractCrossedAttributes(path: string): ExtractedAttribute[] {
+  const attrs: ExtractedAttribute[] = [];
+  const segments = path.split(" > ").map(s => s.trim());
+
+  for (const seg of segments) {
+    const segNorm = seg.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+    // Dimensional: "Linha 700", "Linha 550 / 600", "Snack / Sob Bancada"
+    if (DIMENSIONAL_PATTERNS.test(segNorm)) {
+      const nums = seg.replace(/\D+/g, " ").trim();
+      const meaning = inferDimensionalMeaning(path);
+      attrs.push({
+        slug: "pa_linha",
+        label: "Linha",
+        value: seg.replace(/^linha\s*/i, "").trim() || nums,
+      });
+    }
+    // Special: "Snack / Sob Bancada" → a format/line variant
+    else if (/^snack\s*\/?\s*sob\s*bancada$/i.test(segNorm)) {
+      attrs.push({ slug: "pa_linha", label: "Linha", value: "Snack / Sob Bancada" });
+    }
+    // Special: "Linha 900 Top/Suspensão"
+    else if (/^linha\s*\d+\s*top/i.test(segNorm)) {
+      const nums = seg.match(/\d+/)?.[0] || "";
+      attrs.push({ slug: "pa_linha", label: "Linha", value: `${nums} Top/Suspensão` });
+    }
+    // Energy: "Eletricos", "Gaz", "A vapor"
+    else if (ENERGY_PATTERNS.test(segNorm)) {
+      const normalized = segNorm.includes("eletric") || segNorm.includes("electri") ? "Elétrico"
+        : segNorm.includes("gaz") || segNorm.includes("gas") ? "Gás"
+        : segNorm.includes("vapor") ? "Vapor"
+        : seg;
+      attrs.push({ slug: "pa_tipo_energia", label: "Tipo de Energia", value: normalized });
+    }
+  }
+
+  return attrs;
+}
+
+type CatClassification = "dimensional" | "energy_source" | "accessory" | "format_variant" | "crossed_subcategories" | "real_duplicate";
 
 function classifyDuplicateGroup(
   name: string,
@@ -69,10 +105,15 @@ function classifyDuplicateGroup(
   if (ACCESSORY_PATTERNS.test(norm) || ACCESSORY_PATTERNS.test(name)) return "accessory";
   if (FORMAT_PATTERNS.test(norm) || FORMAT_PATTERNS.test(name)) return "format_variant";
 
-  const rootBranches = new Set(entries.map(e => e.path.split(" > ")[0]));
-  if (rootBranches.size > 1) {
-    if (ACCESSORY_PATTERNS.test(norm)) return "accessory";
+  // Check if this is a "leaf" equipment type (e.g. Fogões) repeated under
+  // crossed dimensional+energy subcategories
+  const hasLinhaInPaths = entries.some(e => DIMENSIONAL_PATTERNS.test(normalizeCategoryName(e.path.split(" > ").find(s => DIMENSIONAL_PATTERNS.test(normalizeCategoryName(s))) || "")));
+  const hasEnergyInPaths = entries.some(e => e.path.split(" > ").some(s => ENERGY_PATTERNS.test(normalizeCategoryName(s))));
+  if (hasLinhaInPaths || hasEnergyInPaths) {
+    // Equipment type under crossed subcategories — extract attributes
+    return "crossed_subcategories";
   }
+
   return "real_duplicate";
 }
 
@@ -102,41 +143,26 @@ function buildFallbackGroups(
   const results: any[] = [];
 
   for (const [normName, items] of grouped) {
-    // Need at least 2 entries in different paths
-    const uniquePaths = new Set(items.map((item) => item.path));
+    const uniquePaths = new Set(items.map(item => item.path));
     if (items.length < 2 || uniquePaths.size < 2) continue;
 
     const classification = classifyDuplicateGroup(items[0].name, items);
     const sorted = [...items].sort((a, b) => b.productCount - a.productCount || a.path.localeCompare(b.path));
 
     if (classification === "accessory") {
-      // Acessórios/Complementos: NOT duplicates — they're contextual subcategories
-      // Group them but suggest "keep" for all, with explanation
       results.push({
         groupName: `⚙️ ${sorted[0].name} (contextual)`,
         categories: sorted.map(item => ({
-          id: item.id,
-          name: item.name,
-          path: item.path,
+          id: item.id, name: item.name, path: item.path,
           productCount: item.productCount,
-          suggestedAction: "keep" as const,
-          mergeTarget: null,
+          suggestedAction: "keep" as const, mergeTarget: null,
+          extractedAttributes: [],
         })),
         confidence: "low" as const,
-        reason: `"${sorted[0].name}" existe em ${uniquePaths.size} ramos diferentes porque cada equipamento tem os seus próprios acessórios. NÃO são duplicados — são subcategorias contextuais (ex: Acessórios de Fornos ≠ Acessórios de Frio). Considere manter como estão ou converter para tags/atributos dentro de cada ramo.`,
+        reason: `"${sorted[0].name}" existe em ${uniquePaths.size} ramos diferentes — cada equipamento tem os seus próprios acessórios. NÃO são duplicados.`,
       });
     } else if (classification === "dimensional") {
-      // Linha 600/700/900, L500, a 600: dimensional specs → convert to attributes
-      // Context-aware: infer meaning per branch (mm depth vs liters vs position)
       const dimValue = sorted[0].name.replace(/\D+/g, " ").trim().split(/\s+/)[0] || sorted[0].name;
-      
-      // Build per-item context explanations
-      const contextDetails = sorted.map(item => {
-        const meaning = inferDimensionalMeaning(item.path);
-        return `• ${item.path} → ${meaning.slug} = ${dimValue}${meaning.unit ? meaning.unit : ""} (${meaning.label})`;
-      });
-
-      // Check if different branches have different meanings
       const meanings = sorted.map(item => inferDimensionalMeaning(item.path));
       const uniqueSlugs = new Set(meanings.map(m => m.slug));
       const hasMixedMeaning = uniqueSlugs.size > 1;
@@ -146,65 +172,82 @@ function buildFallbackGroups(
         categories: sorted.map(item => {
           const meaning = inferDimensionalMeaning(item.path);
           return {
-            id: item.id,
-            name: item.name,
-            path: item.path,
+            id: item.id, name: item.name, path: item.path,
             productCount: item.productCount,
-            suggestedAction: "move_products" as const,
-            mergeTarget: null,
-            // Extra context for the UI
-            attributeSlug: meaning.slug,
-            attributeLabel: meaning.label,
-            attributeValue: `${dimValue}${meaning.unit ? meaning.unit : ""}`,
+            suggestedAction: "move_products" as const, mergeTarget: null,
+            extractedAttributes: [{ slug: meaning.slug, label: meaning.label, value: `${dimValue}${meaning.unit}` }],
           };
         }),
         confidence: "high" as const,
         reason: hasMixedMeaning
-          ? `"${sorted[0].name}" é uma especificação técnica com SIGNIFICADO DIFERENTE conforme o ramo:\n${contextDetails.join("\n")}\nNÃO devem ser fundidas — cada uma converte para o atributo correto no seu contexto.`
-          : `"${sorted[0].name}" é uma especificação técnica (${meanings[0].label}). Converter para atributo ${meanings[0].slug} = ${dimValue}${meanings[0].unit} em cada ramo.`,
+          ? `"${sorted[0].name}" tem significado diferente conforme o ramo. Converter para o atributo correto em cada contexto.`
+          : `"${sorted[0].name}" é uma especificação técnica (${meanings[0].label}). Converter para atributo.`,
       });
     } else if (classification === "energy_source") {
-      // Eletricos/Gaz/A vapor: energy source → convert to attributes
+      const energyValue = sorted[0].name;
+      const normalized = normalizeCategoryName(energyValue).includes("eletric") ? "Elétrico"
+        : normalizeCategoryName(energyValue).includes("gaz") || normalizeCategoryName(energyValue).includes("gas") ? "Gás"
+        : normalizeCategoryName(energyValue).includes("vapor") ? "Vapor" : energyValue;
+
       results.push({
         groupName: `⚡ ${sorted[0].name} (tipo de energia)`,
         categories: sorted.map(item => ({
-          id: item.id,
-          name: item.name,
-          path: item.path,
+          id: item.id, name: item.name, path: item.path,
           productCount: item.productCount,
-          suggestedAction: "move_products" as const,
-          mergeTarget: null,
+          suggestedAction: "move_products" as const, mergeTarget: null,
+          extractedAttributes: [{ slug: "pa_tipo_energia", label: "Tipo de Energia", value: normalized }],
         })),
         confidence: "high" as const,
-        reason: `"${sorted[0].name}" é um tipo de energia/alimentação, não uma categoria funcional. Recomendação: converter para atributo pa_tipo_energia = "${sorted[0].name}" e mover os produtos para a categoria pai funcional (ex: Fogões, Fritadeiras).`,
+        reason: `"${sorted[0].name}" é um tipo de energia. Converter para atributo pa_tipo_energia = "${normalized}".`,
+      });
+    } else if (classification === "crossed_subcategories") {
+      // KEY FEATURE: Equipment type (Fogões, Fritadeiras, etc.) repeated under
+      // crossed Linha x Energia subcategories
+      // → Merge all into the simplest path, extract pa_linha + pa_tipo_energia per item
+
+      // Find the "cleanest" category (shortest path, usually "CONFEÇÃO > Fogões")
+      const byPathLen = [...sorted].sort((a, b) => a.path.split(" > ").length - b.path.split(" > ").length);
+      const keepTarget = byPathLen[0];
+
+      results.push({
+        groupName: `❌ ${sorted[0].name} (duplicados com atributos cruzados)`,
+        categories: sorted.map(item => {
+          const attrs = extractCrossedAttributes(item.path);
+          const isKeep = item.id === keepTarget.id;
+          return {
+            id: item.id, name: item.name, path: item.path,
+            productCount: item.productCount,
+            suggestedAction: isKeep ? ("keep" as const) : ("merge_into" as const),
+            mergeTarget: isKeep ? null : keepTarget.id,
+            extractedAttributes: attrs,
+          };
+        }),
+        confidence: "high" as const,
+        reason: `"${sorted[0].name}" aparece ${sorted.length}x debaixo de combinações Linha × Energia. Estrutura ideal: manter "${keepTarget.path}" como categoria principal e converter Linha/Energia em atributos-filtro (pa_linha, pa_tipo_energia) para cada produto migrado.`,
       });
     } else if (classification === "format_variant") {
-      // Snack, Bar, Gastronorm: format/application context
       results.push({
         groupName: `🏷️ ${sorted[0].name} (formato/aplicação)`,
         categories: sorted.map((item, index) => ({
-          id: item.id,
-          name: item.name,
-          path: item.path,
+          id: item.id, name: item.name, path: item.path,
           productCount: item.productCount,
           suggestedAction: index === 0 ? ("keep" as const) : ("merge_into" as const),
           mergeTarget: index === 0 ? null : sorted[0].id,
+          extractedAttributes: [],
         })),
         confidence: "medium" as const,
-        reason: `"${sorted[0].name}" aparece em ${uniquePaths.size} ramos. Pode representar um formato/aplicação (ex: equipamento Snack vs linha completa). Verifique se faz sentido unificar ou se cada instância serve um contexto diferente.`,
+        reason: `"${sorted[0].name}" aparece em ${uniquePaths.size} ramos. Verifique se cada instância serve um contexto diferente.`,
       });
     } else {
-      // real_duplicate: same concept in different branches
       const keep = sorted[0];
       results.push({
-        groupName: keep.name,
+        groupName: `❌ ${keep.name} (duplicados reais)`,
         categories: sorted.map((item, index) => ({
-          id: item.id,
-          name: item.name,
-          path: item.path,
+          id: item.id, name: item.name, path: item.path,
           productCount: item.productCount,
           suggestedAction: index === 0 ? ("keep" as const) : ("merge_into" as const),
           mergeTarget: index === 0 ? null : keep.id,
+          extractedAttributes: [],
         })),
         confidence: sorted.length >= 3 ? ("high" as const) : ("medium" as const),
         reason: `Categorias com o mesmo nome em ramos diferentes. A de maior volume (${keep.path}) é sugerida como principal.`,
@@ -212,19 +255,11 @@ function buildFallbackGroups(
     }
   }
 
-  // Sort: real duplicates first, then dimensional, then energy, then format, then accessories
-  const classOrder: Record<CatClassification, number> = {
-    real_duplicate: 0,
-    dimensional: 1,
-    energy_source: 2,
-    format_variant: 3,
-    accessory: 4,
-  };
-
+  const orderMap: Record<string, number> = { "❌": 0, "📐": 1, "⚡": 2, "🏷️": 3, "⚙️": 4 };
   return results.sort((a, b) => {
-    const aClass = a.groupName.startsWith("📐") ? 1 : a.groupName.startsWith("⚡") ? 2 : a.groupName.startsWith("🏷️") ? 3 : a.groupName.startsWith("⚙️") ? 4 : 0;
-    const bClass = b.groupName.startsWith("📐") ? 1 : b.groupName.startsWith("⚡") ? 2 : b.groupName.startsWith("🏷️") ? 3 : b.groupName.startsWith("⚙️") ? 4 : 0;
-    return aClass - bClass;
+    const aO = orderMap[a.groupName.substring(0, 2)] ?? 5;
+    const bO = orderMap[b.groupName.substring(0, 2)] ?? 5;
+    return aO - bO;
   });
 }
 
@@ -244,11 +279,8 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // 1. Load ALL categories
     const { data: allCats, error: catsErr } = await supabase
-      .from("categories")
-      .select("id, name, slug, parent_id")
-      .eq("workspace_id", workspaceId);
+      .from("categories").select("id, name, slug, parent_id").eq("workspace_id", workspaceId);
     if (catsErr) throw catsErr;
     if (!allCats || allCats.length < 2) {
       return new Response(JSON.stringify({ groups: [] }), {
@@ -256,15 +288,11 @@ serve(async (req) => {
       });
     }
 
-    // 2. Build parent paths & helpers
     const catById = new Map(allCats.map(c => [c.id, c]));
     function getPath(catId: string): string {
       const parts: string[] = [];
       let current = catById.get(catId);
-      while (current) {
-        parts.unshift(current.name);
-        current = current.parent_id ? catById.get(current.parent_id) : undefined;
-      }
+      while (current) { parts.unshift(current.name); current = current.parent_id ? catById.get(current.parent_id) : undefined; }
       return parts.join(" > ");
     }
     function getParentName(catId: string): string | null {
@@ -273,96 +301,64 @@ serve(async (req) => {
       return catById.get(cat.parent_id)?.name ?? null;
     }
 
-    // 3. Load product counts
     const { data: products } = await supabase
-      .from("products")
-      .select("category")
-      .eq("workspace_id", workspaceId)
-      .not("category", "is", null);
-
+      .from("products").select("category").eq("workspace_id", workspaceId).not("category", "is", null);
     const productCounts: Record<string, number> = {};
     for (const p of products || []) {
       if (p.category) {
-        const parts = (p.category as string).split(">").map((s: string) => s.trim());
-        for (const part of parts) {
+        for (const part of (p.category as string).split(">").map((s: string) => s.trim())) {
           productCounts[part] = (productCounts[part] || 0) + 1;
         }
       }
     }
 
-    // 4. Build HORECA-aware prompt
-    const catsForAi = [...allCats]
-      .sort((a, b) => (productCounts[b.name] ?? 0) - (productCounts[a.name] ?? 0))
-      .slice(0, 120);
-    const catList = catsForAi.map(c =>
-      `- ${c.name} | path: ${getPath(c.id)} | products: ${productCounts[c.name] ?? 0}`
-    ).join("\n");
+    // Build HORECA-aware prompt
+    const catsForAi = [...allCats].sort((a, b) => (productCounts[b.name] ?? 0) - (productCounts[a.name] ?? 0)).slice(0, 120);
+    const catList = catsForAi.map(c => `- ${c.name} | path: ${getPath(c.id)} | products: ${productCounts[c.name] ?? 0}`).join("\n");
 
-    const systemPrompt = `You are a HORECA (Hotel, Restaurant, Catering) equipment taxonomy expert specializing in commercial kitchen and foodservice equipment catalogues.
+    const systemPrompt = `You are a HORECA equipment taxonomy expert.
 
-## CRITICAL CLASSIFICATION RULES FOR HORECA CATALOGUES:
+## CRITICAL RULES:
 
-### 1. DIMENSIONAL SPECIFICATIONS (NEVER real categories):
-- "Linha 550", "Linha 600", "Linha 700", "Linha 900", "Linha 1400" → These are EQUIPMENT DEPTH in mm
-- "L500", "L600", "L700", "L800" → Same thing, depth/width specs
-- "a 600" → depth specification
-- "400/600/700/1400" → Combined dimension options
-- ACTION: Always suggest converting to attribute (pa_profundidade_mm or pa_largura_mm) — NEVER merge across branches. "Linha 700" under CONFEÇÃO is about cooking equipment depth, "Linha 700" under FRIO COMERCIAL is about refrigeration unit depth — same spec, different product families.
+### CROSSED SUBCATEGORIES (most important pattern):
+Equipment types like "Fogões", "Fry-Tops", "Fritadeiras", "Fornos", "Banhos-Maria" often appear multiple times under CROSSED combinations of:
+- Line/depth: "Linha 550/600", "Linha 700", "Linha 900", "Linha 900 Top/Suspensão", "Snack / Sob Bancada"
+- Energy: "Eletricos", "Gaz"
 
-### 2. ENERGY SOURCE (convert to attribute, NOT a category):
-- "Eletricos", "Eléctricos", "Gaz", "Gás", "A vapor" → Energy/power source
-- ACTION: Convert to attribute pa_tipo_energia = "Elétrico" / "Gás" / "Vapor". These split the same equipment type by power source.
+Example: "CONFEÇÃO > Linha 700 > Gaz > Fogões" and "CONFEÇÃO > Linha 900 > Eletricos > Fogões"
+These are the SAME equipment type split by crossed attributes. 
+ACTION: Keep the simplest path (e.g. "CONFEÇÃO > Fogões"), merge others into it, and for each merged category extract TWO attributes from its path segments:
+- pa_linha = value from dimensional segment
+- pa_tipo_energia = value from energy segment
 
-### 3. ACCESSORIES & COMPLEMENTS (contextual, usually NOT duplicates):
-- "Acessórios", "Acessorios", "Complementos" under different parents
-- "Acessórios" under FORNOS ≠ "Acessórios" under FRIO COMERCIAL ≠ "Acessórios" under LAVAGEM LOUÇA
-- ACTION: These are contextual subcategories — each equipment family has its own accessories. Do NOT merge across different equipment families. If the parent equipment categories are the same, THEN they may be duplicates.
+### DIMENSIONAL SPECS: "Linha XXX" → pa_profundidade_mm or pa_linha attribute
+### ENERGY SOURCE: "Eletricos"/"Gaz" → pa_tipo_energia attribute  
+### ACCESSORIES: Different parents = NOT duplicates, keep separate
+### REAL DUPLICATES: Same concept repeated → merge
 
-### 4. FORMAT/APPLICATION VARIANTS:
-- "Snack", "Bar", "Gastronorm", "Pastelaria / Padaria" appearing under different parents
-- ACTION: Check if they represent the same products in different contexts or genuinely different product applications.
+## RESPONSE: JSON array of groups. Each category MUST include:
+- extractedAttributes: array of {slug, label, value} extracted from path segments
+For crossed subcategories, extract BOTH pa_linha and pa_tipo_energia from the path.
 
-### 5. REAL DUPLICATES (should be merged):
-- Same equipment type with identical names in different branches (e.g., "Abatedores de Temperatura" appearing 3x under FRIO COMERCIAL)
-- Same concept with slight name variations (e.g., "Fornos Micro-Ondas" under both CONFEÇÃO and FORNOS)
-- Corrupted names with ">" or "|" that represent broken hierarchy imports
-
-## RESPONSE FORMAT:
-Respond ONLY with a valid JSON array. For each group:
 {
-  "groupName": "descriptive name with emoji prefix: 📐 for dimensional, ⚡ for energy, ⚙️ for accessories, 🏷️ for format, ❌ for real duplicates",
+  "groupName": "emoji + name",
   "categories": [{
-    "id": "category UUID",
-    "name": "category name",
-    "path": "full > path",
-    "productCount": number,
+    "id": "uuid", "name": "name", "path": "full > path",
+    "productCount": N,
     "suggestedAction": "keep" | "merge_into" | "move_products",
-    "mergeTarget": "target category UUID" | null
+    "mergeTarget": "uuid" | null,
+    "extractedAttributes": [{"slug": "pa_linha", "label": "Linha", "value": "700"}, {"slug": "pa_tipo_energia", "label": "Tipo de Energia", "value": "Gás"}]
   }],
-  "confidence": "high" | "medium" | "low",
-  "reason": "Portuguese explanation of why these are grouped and what to do"
-}
+  "confidence": "high"|"medium"|"low",
+  "reason": "Portuguese explanation"
+}`;
 
-For dimensional/energy categories, suggestedAction should be "move_products" (move to parent, then convert category to attribute).
-For accessories, suggestedAction should be "keep" (they are NOT duplicates).
-For real duplicates, one should be "keep" and others "merge_into".`;
-
-    const userPrompt = `Analisa estas categorias de um catálogo de equipamentos HORECA profissional e identifica:
-1. Especificações dimensionais disfarçadas de categorias (Linha XXX, LXXX)
-2. Fontes de energia como categorias (Eletricos, Gaz)
-3. Acessórios/Complementos contextuais (mesmos nomes em ramos diferentes)
-4. Duplicados reais (mesmo conceito repetido desnecessariamente)
-
-${catList}`;
+    const userPrompt = `Analisa estas categorias HORECA e identifica padrões cruzados (Linha × Energia × Tipo de Equipamento), especificações técnicas, fontes de energia, acessórios contextuais e duplicados reais:\n\n${catList}`;
 
     const ai = getAiConfig(aiProvider);
     if (!ai.key) {
-      // No AI key — use heuristic fallback
       const fallbackGroups = buildFallbackGroups(allCats, getPath, getParentName, productCounts);
-      return new Response(JSON.stringify({
-        groups: fallbackGroups,
-        warning: "Análise heurística HORECA (sem chave IA configurada).",
-      }), {
+      return new Response(JSON.stringify({ groups: fallbackGroups, warning: "Análise heurística HORECA (sem chave IA)." }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -371,30 +367,13 @@ ${catList}`;
     try {
       const aiResponse = await fetch(ai.url, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${ai.key}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: ai.model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-        }),
+        headers: { Authorization: `Bearer ${ai.key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model: ai.model, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }] }),
       });
 
       if (!aiResponse.ok) {
-        if (aiResponse.status === 429) {
-          return new Response(JSON.stringify({ error: "Rate limit exceeded. Try again later." }), {
-            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        if (aiResponse.status === 402) {
-          return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds." }), {
-            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
+        if (aiResponse.status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        if (aiResponse.status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         throw new Error(`AI returned ${aiResponse.status}`);
       }
 
@@ -403,19 +382,15 @@ ${catList}`;
       const cleaned = rawContent.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
       groups = JSON.parse(cleaned);
     } catch (aiErr) {
-      console.error("AI analysis failed, using HORECA-aware fallback:", aiErr);
+      console.error("AI failed, using HORECA fallback:", aiErr);
       const fallbackGroups = buildFallbackGroups(allCats, getPath, getParentName, productCounts);
-      return new Response(JSON.stringify({
-        groups: fallbackGroups,
-        warning: "A IA falhou temporariamente; a análise HORECA heurística identificou os padrões automaticamente.",
-      }), {
+      return new Response(JSON.stringify({ groups: fallbackGroups, warning: "Análise heurística HORECA aplicada." }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     if (!Array.isArray(groups)) groups = [];
 
-    // Validate and enrich
     const validGroups = groups
       .filter((g: any) => g && g.groupName && Array.isArray(g.categories))
       .map((g: any) => ({
@@ -423,12 +398,11 @@ ${catList}`;
         categories: g.categories
           .filter((c: any) => c && c.id)
           .map((c: any) => ({
-            id: c.id,
-            name: c.name || "",
-            path: c.path || "",
+            id: c.id, name: c.name || "", path: c.path || "",
             productCount: productCounts[c.name] ?? c.productCount ?? 0,
             suggestedAction: ["keep", "merge_into", "move_products"].includes(c.suggestedAction) ? c.suggestedAction : "keep",
             mergeTarget: c.mergeTarget || null,
+            extractedAttributes: Array.isArray(c.extractedAttributes) ? c.extractedAttributes : [],
           })),
         confidence: ["high", "medium", "low"].includes(g.confidence) ? g.confidence : "medium",
         reason: g.reason || "",
@@ -441,11 +415,7 @@ ${catList}`;
   } catch (err) {
     console.error("detect-duplicate-categories error:", err);
     return new Response(
-      JSON.stringify({
-        groups: [],
-        warning: "O serviço de análise está temporariamente indisponível. Tente novamente dentro de instantes.",
-        error: err instanceof Error ? err.message : "Unknown error",
-      }),
+      JSON.stringify({ groups: [], warning: "Serviço temporariamente indisponível.", error: err instanceof Error ? err.message : "Unknown error" }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
