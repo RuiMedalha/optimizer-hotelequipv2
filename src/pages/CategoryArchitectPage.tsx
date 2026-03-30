@@ -331,9 +331,22 @@ function MapeamentoTab({ categories, allCategories }: { categories: { id: string
     <div className="space-y-4">
       {/* ── AI Analysis Section ── */}
       <div className="border border-primary/20 bg-primary/5 rounded-lg p-4 space-y-4">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Sparkles className="w-5 h-5 text-primary" />
-          <h3 className="font-semibold text-sm">Análise com IA</h3>
+          <h3 className="font-semibold text-sm flex-1">Análise com IA</h3>
+          <div className="flex items-center gap-1.5">
+            <Label className="text-[10px] text-muted-foreground">IA:</Label>
+            <Select value={aiProvider} onValueChange={handleProviderChange}>
+              <SelectTrigger className="h-7 text-xs w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="gemini">Gemini (Google)</SelectItem>
+                <SelectItem value="claude">Claude (Anthropic)</SelectItem>
+                <SelectItem value="openai">GPT (OpenAI)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Step 1 — Category selector */}
