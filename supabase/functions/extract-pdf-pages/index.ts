@@ -469,6 +469,24 @@ Devolve APENAS JSON válido.`,
       if (prod.title) parts.push(`Title: ${prod.title}`);
       if (prod.description) parts.push(`Description: ${prod.description}`);
       if (prod.price) parts.push(`Price: ${prod.currency || "€"}${prod.price}`);
+      // Include structured pricing
+      if (prod.pricing) {
+        const pr = prod.pricing;
+        if (pr.unit_price) parts.push(`Unit Price: ${pr.currency || "€"}${pr.unit_price}`);
+        if (pr.rrp) parts.push(`RRP: ${pr.currency || "€"}${pr.rrp}`);
+        if (pr.pack_size && pr.pack_price) parts.push(`Pack: ${pr.pack_size}x → ${pr.currency || "€"}${pr.pack_price}`);
+        if (pr.bulk_price) parts.push(`Bulk Price: ${pr.currency || "€"}${pr.bulk_price}`);
+        if (pr.margin_pct) parts.push(`Margin: ${pr.margin_pct}%`);
+        if (Array.isArray(pr.price_tiers) && pr.price_tiers.length > 0) {
+          parts.push(`Price Tiers:`);
+          pr.price_tiers.forEach((t: any) => {
+            const range = t.max_qty ? `${t.min_qty}-${t.max_qty}` : `${t.min_qty}+`;
+            const disc = t.discount_pct ? ` (-${t.discount_pct}%)` : "";
+            parts.push(`  ${range} units: ${pr.currency || "€"}${t.price}${disc}`);
+          });
+        }
+        if (pr.price_notes) parts.push(`Price Notes: ${pr.price_notes}`);
+      }
       if (prod.category) parts.push(`Category: ${prod.category}`);
       if (prod.dimensions) parts.push(`Dimensions: ${prod.dimensions}`);
       if (prod.material) parts.push(`Material: ${prod.material}`);
