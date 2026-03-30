@@ -4,16 +4,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Loader2, Plus, Trash2, Wand2, Play, CheckCircle, XCircle, Clock, Sparkles, ArrowRight, Merge, ShieldCheck } from "lucide-react";
+import { Loader2, Plus, Trash2, Wand2, Play, CheckCircle, XCircle, Clock, Sparkles, ArrowRight, Merge, ShieldCheck, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCategories, type Category } from "@/hooks/useCategories";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { toast } from "sonner";
+import { getStorageItem, setStorageItem } from "@/lib/safeStorage";
 import {
   useArchitectRules,
   useSaveRule,
@@ -35,6 +37,20 @@ interface AiSuggestion {
   confidence: "high" | "medium" | "low";
   reason: string;
   productCount: number;
+}
+
+interface DuplicateGroup {
+  groupName: string;
+  categories: Array<{
+    id: string;
+    name: string;
+    path: string;
+    productCount: number;
+    suggestedAction: "keep" | "merge_into" | "move_products";
+    mergeTarget: string | null;
+  }>;
+  confidence: "high" | "medium" | "low";
+  reason: string;
 }
 
 // ── Local draft state for new rules not yet saved ──
@@ -121,12 +137,25 @@ function MapeamentoTab({ categories, allCategories }: { categories: { id: string
   const { activeWorkspace } = useWorkspaceContext();
   const [drafts, setDrafts] = useState<DraftRule[]>([]);
 
+  // AI provider state
+  const [aiProvider, setAiProvider] = useState<string>(
+    () => getStorageItem("category-architect-ai-provider") || "gemini"
+  );
+  const handleProviderChange = (v: string) => {
+    setAiProvider(v);
+    setStorageItem("category-architect-ai-provider", v);
+  };
+
   // AI analysis state
   const [selectedRootCat, setSelectedRootCat] = useState<string>("");
   const [aiSuggestions, setAiSuggestions] = useState<AiSuggestion[]>([]);
   const [analysisLoading, setAnalysisLoading] = useState(false);
   const [selectedSuggestions, setSelectedSuggestions] = useState<Set<string>>(new Set());
   const [showCheckboxes, setShowCheckboxes] = useState(false);
+
+  // Duplicate detection state
+  const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroup[]>([]);
+  const [duplicateLoading, setDuplicateLoading] = useState(false);
 
   // Root categories
   const rootCategories = allCategories.filter(c => c.parent_id === null);
@@ -148,6 +177,7 @@ function MapeamentoTab({ categories, allCategories }: { categories: { id: string
         body: {
           workspaceId: activeWorkspace.id,
           parentCategoryId: selectedRootCat,
+          aiProvider,
         },
       });
 
@@ -236,6 +266,44 @@ function MapeamentoTab({ categories, allCategories }: { categories: { id: string
     });
   };
 
+  // Duplicate detection handler
+  const runDuplicateDetection = async () => {
+    if (!activeWorkspace) return;
+    setDuplicateLoading(true);
+    setDuplicateGroups([]);
+    try {
+      const { data, error } = await supabase.functions.invoke("detect-duplicate-categories", {
+        body: { workspaceId: activeWorkspace.id, aiProvider },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setDuplicateGroups(data.groups || []);
+      toast.success(`${(data.groups || []).length} grupos de duplicados encontrados`);
+    } catch (err: any) {
+      toast.error(err.message || "Erro na detecção de duplicados");
+    } finally {
+      setDuplicateLoading(false);
+    }
+  };
+
+  const addDuplicateToMapping = (group: DuplicateGroup) => {
+    let count = 0;
+    for (const cat of group.categories) {
+      if (cat.suggestedAction === "keep") continue;
+      saveRule.mutate({
+        source_category_id: cat.id,
+        source_category_name: cat.name,
+        action: cat.suggestedAction === "merge_into" ? "merge_into" : "merge_into",
+        target_category_id: cat.mergeTarget || null,
+        attribute_slug: null,
+        attribute_name: null,
+        attribute_values: [],
+      });
+      count++;
+    }
+    toast.success(`${count} regras adicionadas do grupo "${group.groupName}"`);
+  };
+
   // Draft handlers
   const addDraft = () => setDrafts(prev => [...prev, newDraft()]);
   const removeDraft = (localId: string) => setDrafts(prev => prev.filter(d => d.localId !== localId));
@@ -263,9 +331,22 @@ function MapeamentoTab({ categories, allCategories }: { categories: { id: string
     <div className="space-y-4">
       {/* ── AI Analysis Section ── */}
       <div className="border border-primary/20 bg-primary/5 rounded-lg p-4 space-y-4">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Sparkles className="w-5 h-5 text-primary" />
-          <h3 className="font-semibold text-sm">Análise com IA</h3>
+          <h3 className="font-semibold text-sm flex-1">Análise com IA</h3>
+          <div className="flex items-center gap-1.5">
+            <Label className="text-[10px] text-muted-foreground">IA:</Label>
+            <Select value={aiProvider} onValueChange={handleProviderChange}>
+              <SelectTrigger className="h-7 text-xs w-[140px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="gemini">Gemini (Google)</SelectItem>
+                <SelectItem value="claude">Claude (Anthropic)</SelectItem>
+                <SelectItem value="openai">GPT (OpenAI)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Step 1 — Category selector */}
@@ -389,7 +470,68 @@ function MapeamentoTab({ categories, allCategories }: { categories: { id: string
         )}
       </div>
 
-      {/* ── Existing rules table ── */}
+      {/* ── Duplicate Detection Section ── */}
+      <div className="border border-amber-500/20 bg-amber-500/5 rounded-lg p-4 space-y-4">
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="w-5 h-5 text-amber-600" />
+          <h3 className="font-semibold text-sm flex-1">Duplicados detectados em todo o catálogo</h3>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={duplicateLoading}
+            onClick={runDuplicateDetection}
+            className="gap-2"
+          >
+            {duplicateLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <AlertTriangle className="w-4 h-4" />
+            )}
+            Detectar duplicados (catálogo completo)
+          </Button>
+        </div>
+
+        {duplicateLoading && (
+          <div className="flex items-center gap-3 py-4">
+            <Loader2 className="w-5 h-5 animate-spin text-amber-600" />
+            <span className="text-sm text-muted-foreground">A analisar todo o catálogo para duplicados...</span>
+          </div>
+        )}
+
+        {duplicateGroups.length > 0 && (
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">{duplicateGroups.length} grupos de categorias duplicadas encontrados</p>
+            {duplicateGroups.map((group, idx) => (
+              <Card key={idx}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium">{group.groupName}</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <ConfidenceBadge level={group.confidence} />
+                      <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => addDuplicateToMapping(group)}>
+                        <Plus className="w-3 h-3" /> Adicionar ao mapeamento
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-1">
+                  <p className="text-xs text-muted-foreground mb-2">{group.reason}</p>
+                  {group.categories.map(c => (
+                    <div key={c.id} className="flex items-center gap-2 text-xs py-1">
+                      <span className="text-muted-foreground flex-1 truncate">{c.path || c.name}</span>
+                      <Badge variant="secondary" className="text-[10px] shrink-0">{c.productCount} prod.</Badge>
+                      <Badge variant="outline" className="text-[10px] shrink-0">
+                        {c.suggestedAction === "keep" ? "Manter" : c.suggestedAction === "merge_into" ? "Fundir" : "Mover prod."}
+                      </Badge>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
