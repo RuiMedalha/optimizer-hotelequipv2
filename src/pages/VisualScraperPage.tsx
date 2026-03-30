@@ -34,6 +34,7 @@ import {
   computeFingerprintRatios,
   summarizeVariationStructure,
 } from "@/lib/scraperIntelligence";
+import { ScrapingScheduleManager } from "@/components/scraper/ScrapingScheduleManager";
 
 /* ────────────────────────────────────────────────
    Types
