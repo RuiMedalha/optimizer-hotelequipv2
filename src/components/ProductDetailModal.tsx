@@ -114,14 +114,16 @@ export function ProductDetailModal({ product, onClose }: Props) {
       focus_keyword: editData.focus_keyword ? editData.focus_keyword.split(",").map((t: string) => t.trim()).filter(Boolean) : null,
     };
 
-    // Collect image alt texts from edit fields
+    // Collect image alt texts from edit fields — save as object { url: altText }
+    // to match the format used by the edge function (process-product-images)
     if (product.image_urls && product.image_urls.length > 0) {
-      const altTexts = product.image_urls.map((url, i) => ({
-        url,
-        alt_text: editData[`image_alt_${i}`] ?? "",
-      })).filter((a) => a.alt_text);
-      if (altTexts.length > 0) {
-        updates.image_alt_texts = altTexts;
+      const altTextsObj: Record<string, string> = {};
+      product.image_urls.forEach((url, i) => {
+        const val = editData[`image_alt_${i}`];
+        if (val) altTextsObj[url] = val;
+      });
+      if (Object.keys(altTextsObj).length > 0) {
+        updates.image_alt_texts = altTextsObj;
       }
     }
 
