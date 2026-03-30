@@ -13,7 +13,7 @@ function getAiConfig(provider?: string) {
 
   switch (provider) {
     case "claude":
-      return { url: gateway, key: lovableKey, model: "anthropic/claude-sonnet-4-20250514" };
+      return { url: gateway, key: lovableKey, model: "google/gemini-2.5-pro" };
     case "openai":
       return { url: gateway, key: lovableKey, model: "openai/gpt-5" };
     case "gemini":
