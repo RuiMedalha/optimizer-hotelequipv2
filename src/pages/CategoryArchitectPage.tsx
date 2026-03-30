@@ -39,6 +39,20 @@ interface AiSuggestion {
   productCount: number;
 }
 
+interface DuplicateGroup {
+  groupName: string;
+  categories: Array<{
+    id: string;
+    name: string;
+    path: string;
+    productCount: number;
+    suggestedAction: "keep" | "merge_into" | "move_products";
+    mergeTarget: string | null;
+  }>;
+  confidence: "high" | "medium" | "low";
+  reason: string;
+}
+
 // ── Local draft state for new rules not yet saved ──
 interface DraftRule {
   localId: string;
