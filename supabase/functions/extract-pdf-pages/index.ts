@@ -21,7 +21,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceKey);
 
     const body = await req.json();
-    const { extractionId, chunkMode, chunkStart, chunkEnd, storagePath, overviewData, pdfBase64 } = body;
+    const { extractionId, chunkMode, chunkStart, chunkEnd, storagePath, overviewData, pdfBase64, languageHint } = body;
 
     if (!extractionId) throw new Error("extractionId required");
 
@@ -159,12 +159,13 @@ Return ONLY valid JSON.`,
           chunk,
           storagePath: storagePth,
           overviewData: {
-            language: overview.language,
+            language: languageHint || overview.language,
             supplier_name: overview.supplier_name,
             document_type: overview.document_type,
             is_scanned: overview.is_scanned === true,
             has_price_tables: overview.has_price_tables === true,
             price_table_type: overview.price_table_type || "none",
+            language_hint: languageHint || null,
           },
         })
       ));
