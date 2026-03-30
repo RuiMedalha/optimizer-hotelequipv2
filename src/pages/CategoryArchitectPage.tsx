@@ -39,18 +39,30 @@ interface AiSuggestion {
   productCount: number;
 }
 
+interface DuplicateCategoryEntry {
+  id: string;
+  name: string;
+  path: string;
+  productCount: number;
+  suggestedAction: "keep" | "merge_into" | "move_products";
+  mergeTarget: string | null;
+}
+
 interface DuplicateGroup {
   groupName: string;
-  categories: Array<{
-    id: string;
-    name: string;
-    path: string;
-    productCount: number;
-    suggestedAction: "keep" | "merge_into" | "move_products";
-    mergeTarget: string | null;
-  }>;
+  categories: DuplicateCategoryEntry[];
   confidence: "high" | "medium" | "low";
   reason: string;
+}
+
+// Per-category resolution choice for the enhanced UX
+interface DuplicateResolution {
+  catId: string;
+  action: "keep" | "merge_into" | "convert_to_attribute";
+  targetCategoryId: string | null;
+  attributeSlug: string;
+  attributeName: string;
+  attributeValues: string;
 }
 
 // ── Local draft state for new rules not yet saved ──
