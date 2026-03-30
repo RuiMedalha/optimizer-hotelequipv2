@@ -559,12 +559,25 @@ Devolve APENAS JSON válido.`,
     }).select("id").single();
 
     if (pageRecord && products.length > 0) {
-      const headers = ["sku", "title", "description", "price", "category", "dimensions", "weight", "material", "image_description", "image_alt_text", "image_type", "image_count"];
-      const colTypes = ["sku", "title", "description", "price", "category", "dimensions", "weight", "material", "image_url", "alt_text", "image_type", "count"];
+      // Detect if this page is a pricing table
+      const hasPricingData = products.some((prod: any) => prod.pricing && (prod.pricing.unit_price || prod.pricing.price_tiers?.length > 0 || prod.pricing.bulk_price));
+      const isPriceListPage = pageData?.page_type === "price_list" || pageData?.has_price_table === true;
+      const detectedTableType = (hasPricingData || isPriceListPage) ? "pricing_table" : "product_table";
+
+      // Build headers dynamically — add pricing columns when pricing data exists
+      const baseHeaders = ["sku", "title", "description", "price", "category", "dimensions", "weight", "material", "image_description", "image_alt_text", "image_type", "image_count"];
+      const baseColTypes = ["sku", "title", "description", "price", "category", "dimensions", "weight", "material", "image_url", "alt_text", "image_type", "count"];
+
+      const pricingHeaders = hasPricingData ? ["unit_price", "rrp", "pack_size", "pack_price", "bulk_price", "margin_pct", "price_tiers", "price_notes"] : [];
+      const pricingColTypes = hasPricingData ? ["price", "price", "quantity", "price", "price", "percentage", "pricing_tiers", "notes"] : [];
+
+      const headers = [...baseHeaders, ...pricingHeaders];
+      const colTypes = [...baseColTypes, ...pricingColTypes];
 
       const tableRows = products.map((prod: any, ri: number) => {
         const images = prod.images || [];
         const primaryImage = images[0] || {};
+        const pricing = prod.pricing || {};
         return {
           row_index: ri,
           cells: headers.map((h, ci) => {
@@ -574,6 +587,14 @@ Devolve APENAS JSON válido.`,
             else if (h === "image_alt_text") value = primaryImage.alt_text || prod.image_description?.substring(0, 125) || "";
             else if (h === "image_type") value = primaryImage.image_type || "";
             else if (h === "image_count") value = images.length.toString();
+            else if (h === "unit_price") value = pricing.unit_price ? `${pricing.currency || "€"}${pricing.unit_price}` : "";
+            else if (h === "rrp") value = pricing.rrp ? `${pricing.currency || "€"}${pricing.rrp}` : "";
+            else if (h === "pack_size") value = pricing.pack_size ? String(pricing.pack_size) : "";
+            else if (h === "pack_price") value = pricing.pack_price ? `${pricing.currency || "€"}${pricing.pack_price}` : "";
+            else if (h === "bulk_price") value = pricing.bulk_price ? `${pricing.currency || "€"}${pricing.bulk_price}` : "";
+            else if (h === "margin_pct") value = pricing.margin_pct ? `${pricing.margin_pct}%` : "";
+            else if (h === "price_tiers") value = Array.isArray(pricing.price_tiers) && pricing.price_tiers.length > 0 ? JSON.stringify(pricing.price_tiers) : "";
+            else if (h === "price_notes") value = pricing.price_notes || "";
             else value = (prod[h] ?? "").toString();
             return { value, confidence: prod.confidence || 70, source: "ai_vision", header: h, semantic_type: colTypes[ci], validation_passed: !!value };
           }),
@@ -591,9 +612,9 @@ Devolve APENAS JSON válido.`,
         confidence_score: pageConfidence,
         row_count: tableRows.length,
         col_count: headers.length,
-        table_type: "product_table",
+        table_type: detectedTableType,
         column_classifications: columnClassifications,
-        vision_source_data: { products, images: pageImages },
+        vision_source_data: { products, images: pageImages, pricing_detected: hasPricingData },
       }).select("id").single();
 
       if (tableRec) {
