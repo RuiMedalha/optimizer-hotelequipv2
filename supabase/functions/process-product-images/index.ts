@@ -265,6 +265,7 @@ Responde APENAS com o texto alt, sem aspas nem formatação extra.`;
                     sort_order: nextSortOrder,
                     status: "done",
                     alt_text: lifestyleAlt,
+                    generation_prompt: prompt,
                   });
 
                   nextSortOrder += 1;
