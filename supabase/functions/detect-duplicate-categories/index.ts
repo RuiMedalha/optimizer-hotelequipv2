@@ -134,8 +134,10 @@ serve(async (req) => {
       }
     }
 
-    // 4. Build prompt — limit to 200 categories to avoid gateway timeout
-    const catsForAi = allCats.slice(0, 200);
+    // 4. Build prompt — prioritize categories with product volume to reduce gateway failures
+    const catsForAi = [...allCats]
+      .sort((a, b) => (productCounts[b.name] ?? 0) - (productCounts[a.name] ?? 0))
+      .slice(0, 120);
     const catList = catsForAi.map(c =>
       `- ${c.name} | path: ${getPath(c.id)} | products: ${productCounts[c.name] ?? 0}`
     ).join("\n");
