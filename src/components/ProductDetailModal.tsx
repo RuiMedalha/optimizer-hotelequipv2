@@ -732,6 +732,11 @@ export function ProductDetailModal({ product, onClose }: Props) {
                 <Brain className="w-8 h-8 mx-auto mb-2 opacity-50" />
                 <p>Nenhum log de otimização disponível.</p>
                 <p className="text-xs mt-1">Os logs são guardados automaticamente a cada otimização.</p>
+                {isLegacyOrImportedOptimization && (
+                  <p className="text-xs mt-3 text-muted-foreground/80">
+                    Este produto já tem conteúdo otimizado/importado, mas não possui histórico de Log IA porque foi otimizado antes do sistema de logs ou por atualização manual/importação.
+                  </p>
+                )}
               </div>
             ) : (
               optLogs.map((log) => (
