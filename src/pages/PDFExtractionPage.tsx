@@ -33,6 +33,7 @@ import { EngineRecommendationCard } from "@/components/document-intelligence/Eng
 import { MappingEditor } from "@/components/document-intelligence/MappingEditor";
 import { DataPreviewTable } from "@/components/document-intelligence/DataPreviewTable";
 import { SendToIngestionPanel } from "@/components/document-intelligence/SendToIngestionPanel";
+import { PDFVersionCompare } from "@/components/document-intelligence/PDFVersionCompare";
 
 // Flatten nested product structures like [{products: [...], section_title: "..."}] into flat product arrays
 function flattenProducts(items: any[]): any[] {
