@@ -139,7 +139,71 @@ const CategoriesPage = () => {
     return { maxDepth, deepCats, lowCount, suggestions, rootCats, avgDepth };
   }, [flat, productCounts]);
 
-  const exportAnalysisCSV = () => {
+  // Corrupted categories detection
+  const corruptedCats = useMemo(() => {
+    type CorruptedCat = { cat: Category; problem: "hierarchy_path" | "multi_category" | "duplicate" };
+    const results: CorruptedCat[] = [];
+    const nameCount = new Map<string, Category[]>();
+
+    flat.forEach(c => {
+      if (ignoredCorrupted.has(c.id)) return;
+      if (c.name.includes(">")) {
+        results.push({ cat: c, problem: "hierarchy_path" });
+      } else if (c.name.includes("|")) {
+        results.push({ cat: c, problem: "multi_category" });
+      }
+      const lower = c.name.toLowerCase().trim();
+      if (!nameCount.has(lower)) nameCount.set(lower, []);
+      nameCount.get(lower)!.push(c);
+    });
+
+    nameCount.forEach((cats) => {
+      if (cats.length > 1) {
+        cats.forEach(c => {
+          if (!ignoredCorrupted.has(c.id) && !results.some(r => r.cat.id === c.id)) {
+            results.push({ cat: c, problem: "duplicate" });
+          }
+        });
+      }
+    });
+
+    return results;
+  }, [flat, ignoredCorrupted]);
+
+  const ignoreCorrupted = (catId: string) => {
+    setIgnoredCorrupted(prev => {
+      const next = new Set(prev);
+      next.add(catId);
+      setStorageItem("ignored-corrupted-cats", JSON.stringify([...next]));
+      return next;
+    });
+  };
+
+  const fixCorruptedWithAI = async () => {
+    if (!activeWorkspace) return;
+    const toFix = corruptedCats.filter(c => c.problem !== "duplicate").map(c => c.cat.id);
+    if (toFix.length === 0) { toast.info("Nenhuma categoria para corrigir"); return; }
+
+    setFixingCorrupted(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("fix-corrupted-categories", {
+        body: { workspaceId: activeWorkspace.id, categoryIds: toFix },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success(`${data.fixed} categorias corrigidas, ${data.skipped} ignoradas`);
+      if (data.errors?.length > 0) {
+        data.errors.forEach((e: string) => toast.error(e));
+      }
+      // Refresh categories
+      window.location.reload();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao corrigir categorias");
+    } finally {
+      setFixingCorrupted(false);
+    }
+  };
+
     const rows = [
       ["categoria", "slug", "profundidade", "nº_produtos", "sugestao"],
       ...flat.map(c => {
