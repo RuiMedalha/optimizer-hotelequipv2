@@ -22,6 +22,61 @@ function getAiConfig(provider?: string) {
   }
 }
 
+function normalizeCategoryName(name: string) {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function buildFallbackGroups(
+  allCats: Array<{ id: string; name: string; parent_id: string | null }>,
+  getPath: (catId: string) => string,
+  productCounts: Record<string, number>,
+) {
+  const grouped = new Map<string, Array<{ id: string; name: string; path: string; productCount: number }>>();
+
+  for (const cat of allCats) {
+    const normalized = normalizeCategoryName(cat.name);
+    if (!normalized) continue;
+    const entry = {
+      id: cat.id,
+      name: cat.name,
+      path: getPath(cat.id),
+      productCount: productCounts[cat.name] ?? 0,
+    };
+    const existing = grouped.get(normalized) ?? [];
+    existing.push(entry);
+    grouped.set(normalized, existing);
+  }
+
+  return Array.from(grouped.values())
+    .map((items) => {
+      const uniquePaths = new Set(items.map((item) => item.path));
+      if (items.length < 2 || uniquePaths.size < 2) return null;
+
+      const sorted = [...items].sort((a, b) => b.productCount - a.productCount || a.path.localeCompare(b.path));
+      const keep = sorted[0];
+
+      return {
+        groupName: keep.name,
+        categories: sorted.map((item, index) => ({
+          id: item.id,
+          name: item.name,
+          path: item.path,
+          productCount: item.productCount,
+          suggestedAction: index === 0 ? "keep" : "merge_into",
+          mergeTarget: index === 0 ? null : keep.id,
+        })),
+        confidence: sorted.length >= 3 ? "high" : "medium",
+        reason: "Análise de fallback: categorias com o mesmo nome normalizado foram encontradas em ramos diferentes do catálogo.",
+      };
+    })
+    .filter(Boolean);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
