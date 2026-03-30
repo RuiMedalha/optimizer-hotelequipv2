@@ -278,6 +278,7 @@ function MapeamentoTab({ categories, allCategories }: { categories: { id: string
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setDuplicateGroups(data.groups || []);
+      if (data?.warning) toast.info(data.warning);
       toast.success(`${(data.groups || []).length} grupos de duplicados encontrados`);
     } catch (err: any) {
       toast.error(err.message || "Erro na detecção de duplicados");

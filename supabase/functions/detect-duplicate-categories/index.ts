@@ -22,6 +22,61 @@ function getAiConfig(provider?: string) {
   }
 }
 
+function normalizeCategoryName(name: string) {
+  return name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function buildFallbackGroups(
+  allCats: Array<{ id: string; name: string; parent_id: string | null }>,
+  getPath: (catId: string) => string,
+  productCounts: Record<string, number>,
+) {
+  const grouped = new Map<string, Array<{ id: string; name: string; path: string; productCount: number }>>();
+
+  for (const cat of allCats) {
+    const normalized = normalizeCategoryName(cat.name);
+    if (!normalized) continue;
+    const entry = {
+      id: cat.id,
+      name: cat.name,
+      path: getPath(cat.id),
+      productCount: productCounts[cat.name] ?? 0,
+    };
+    const existing = grouped.get(normalized) ?? [];
+    existing.push(entry);
+    grouped.set(normalized, existing);
+  }
+
+  return Array.from(grouped.values())
+    .map((items) => {
+      const uniquePaths = new Set(items.map((item) => item.path));
+      if (items.length < 2 || uniquePaths.size < 2) return null;
+
+      const sorted = [...items].sort((a, b) => b.productCount - a.productCount || a.path.localeCompare(b.path));
+      const keep = sorted[0];
+
+      return {
+        groupName: keep.name,
+        categories: sorted.map((item, index) => ({
+          id: item.id,
+          name: item.name,
+          path: item.path,
+          productCount: item.productCount,
+          suggestedAction: index === 0 ? "keep" : "merge_into",
+          mergeTarget: index === 0 ? null : keep.id,
+        })),
+        confidence: sorted.length >= 3 ? "high" : "medium",
+        reason: "Análise de fallback: categorias com o mesmo nome normalizado foram encontradas em ramos diferentes do catálogo.",
+      };
+    })
+    .filter(Boolean);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -79,8 +134,10 @@ serve(async (req) => {
       }
     }
 
-    // 4. Build prompt — limit to 200 categories to avoid gateway timeout
-    const catsForAi = allCats.slice(0, 200);
+    // 4. Build prompt — prioritize categories with product volume to reduce gateway failures
+    const catsForAi = [...allCats]
+      .sort((a, b) => (productCounts[b.name] ?? 0) - (productCounts[a.name] ?? 0))
+      .slice(0, 120);
     const catList = catsForAi.map(c =>
       `- ${c.name} | path: ${getPath(c.id)} | products: ${productCounts[c.name] ?? 0}`
     ).join("\n");
@@ -143,8 +200,13 @@ For each group return:
       }
       const t = await aiResponse.text();
       console.error("AI error:", aiResponse.status, t);
-      return new Response(JSON.stringify({ error: "AI analysis failed" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      const fallbackGroups = buildFallbackGroups(allCats, getPath, productCounts);
+      return new Response(JSON.stringify({
+        groups: fallbackGroups,
+        warning: "A análise com IA falhou temporariamente; mostrei os duplicados detetados por heurística.",
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -157,7 +219,11 @@ For each group return:
       groups = JSON.parse(cleaned);
     } catch {
       console.error("Failed to parse duplicate detection response:", rawContent.substring(0, 300));
-      return new Response(JSON.stringify({ error: "AI returned invalid JSON", groups: [] }), {
+      groups = buildFallbackGroups(allCats, getPath, productCounts);
+      return new Response(JSON.stringify({
+        groups,
+        warning: "A IA devolveu um formato inválido; mostrei os duplicados detetados por heurística.",
+      }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -190,8 +256,12 @@ For each group return:
   } catch (err) {
     console.error("detect-duplicate-categories error:", err);
     return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({
+        groups: [],
+        warning: "O serviço de análise está temporariamente indisponível. Tente novamente dentro de instantes.",
+        error: err instanceof Error ? err.message : "Unknown error",
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
