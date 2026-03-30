@@ -70,30 +70,61 @@ Deno.serve(async (req) => {
       });
     }
 
+    const renderPromptTemplate = (
+      template: string,
+      context: { productName: string; productType?: string | null },
+    ) => {
+      return template
+        .replaceAll("{{product_name}}", context.productName)
+        .replaceAll("{{product_type}}", context.productType || "produto");
+    };
+
+    async function getActiveImagePrompt(promptName: string): Promise<string | null> {
+      const { data: template } = await sb
+        .from("prompt_templates")
+        .select("id, base_prompt")
+        .eq("workspace_id", workspaceId)
+        .eq("prompt_type", "image")
+        .eq("prompt_name", promptName)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (!template?.id) return null;
+
+      const { data: version } = await sb
+        .from("prompt_versions")
+        .select("prompt_text")
+        .eq("template_id", template.id)
+        .eq("is_active", true)
+        .order("version_number", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      return version?.prompt_text || template.base_prompt || null;
+    }
+
+    const [altPromptTemplate, lifestylePromptTemplate, optimizePromptTemplate] = await Promise.all([
+      getActiveImagePrompt("Imagem — Alt Text SEO"),
+      getActiveImagePrompt("Imagem — Lifestyle"),
+      getActiveImagePrompt("Imagem — Otimização"),
+    ]);
+
     // Helper: generate SEO alt text for an image URL
     async function generateAltText(imageUrl: string, productName: string): Promise<string | null> {
       try {
-        // Try to get prompt from prompt_templates
-        const { data: altPromptRow } = await sb
-          .from("prompt_templates")
-          .select("prompt_text")
-          .eq("workspace_id", workspaceId)
-          .eq("task_type", "image_alt_text")
-          .eq("is_active", true)
-          .order("version", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        const altSystemPrompt = altPromptRow?.prompt_text ||
+        const altSystemPrompt = renderPromptTemplate(
+          altPromptTemplate ||
           `Gera um texto alternativo (alt text) otimizado para SEO em Português de Portugal para esta imagem de produto.
 O alt text deve:
 - Ter no máximo 125 caracteres
 - Descrever o produto de forma clara e concisa
 - Incluir palavras-chave relevantes para e-commerce
 - Ser útil para acessibilidade
-Responde APENAS com o texto alt, sem aspas nem formatação extra.`;
+ Responde APENAS com o texto alt, sem aspas nem formatação extra.`,
+          { productName, productType: null },
+        );
 
-        const promptSource = altPromptRow ? "db_version" : "hardcoded_fallback";
+        const promptSource = altPromptTemplate ? "prompt_governance_image" : "hardcoded_fallback";
         console.log(`🏷️ [alt-text] Prompt source: ${promptSource} for product: ${productName}`);
 
         const aiResp = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
@@ -185,7 +216,10 @@ Responde APENAS com o texto alt, sem aspas nem formatação extra.`;
 
               {
                 const productName = product.original_title || product.sku || "produto";
-                const prompt = `Coloca este produto num ambiente comercial realista e profissional. O produto deve ser o foco principal, centrado e em destaque. O ambiente deve corresponder à categoria do produto — por exemplo, equipamento de cozinha numa cozinha profissional moderna, mobiliário num espaço elegante. Iluminação profissional, estilo de fotografia comercial de alta qualidade. Produto: ${productName}`;
+                const prompt = renderPromptTemplate(
+                  lifestylePromptTemplate || `Coloca este produto num ambiente comercial realista e profissional. O produto deve ser o foco principal, centrado e em destaque. O ambiente deve corresponder à categoria do produto — por exemplo, equipamento de cozinha numa cozinha profissional moderna, mobiliário num espaço elegante. Iluminação profissional, estilo de fotografia comercial de alta qualidade. Produto: {{product_name}}`,
+                  { productName, productType: product.product_type },
+                );
 
                 const aiResp = await fetch(
                   `${supabaseUrl}/functions/v1/resolve-ai-route`,
@@ -279,7 +313,13 @@ Responde APENAS com o texto alt, sem aspas nem formatação extra.`;
 
             // Optimize/Upscale mode: enhance quality, sharpen, brighten — NO layout changes
             {
-              const upscalePrompt = `Melhora a qualidade desta imagem de produto. Torna-a mais nítida, com melhor definição e resolução. Aumenta ligeiramente o brilho e a saturação para cores mais vivas e vibrantes. Remove qualquer desfocagem ou ruído. Mantém o enquadramento, fundo e composição EXATAMENTE como estão — não alteres a posição do produto, não adiciones fundo branco, não recortes. Apenas melhora a qualidade visual da imagem existente. Resultado profissional de e-commerce.`;
+              const upscalePrompt = renderPromptTemplate(
+                optimizePromptTemplate || `Melhora a qualidade desta imagem de produto. Torna-a mais nítida, com melhor definição e resolução. Aumenta ligeiramente o brilho e a saturação para cores mais vivas e vibrantes. Remove qualquer desfocagem ou ruído. Mantém o enquadramento, fundo e composição EXATAMENTE como estão — não alteres a posição do produto, não adiciones fundo branco, não recortes. Apenas melhora a qualidade visual da imagem existente. Resultado profissional de e-commerce.`,
+                {
+                  productName: product.original_title || product.sku || "produto",
+                  productType: product.product_type,
+                },
+              );
 
               const aiResp = await fetch(
                 `${supabaseUrl}/functions/v1/resolve-ai-route`,
