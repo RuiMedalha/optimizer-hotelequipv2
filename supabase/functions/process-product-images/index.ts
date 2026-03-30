@@ -363,6 +363,7 @@ Responde APENAS com o texto alt, sem aspas nem formatação extra.`;
                     sort_order: i,
                     status: "done",
                     alt_text: optimizedAlt,
+                    generation_prompt: upscalePrompt,
                   },
                   { onConflict: "product_id,sort_order", ignoreDuplicates: false }
                 );
