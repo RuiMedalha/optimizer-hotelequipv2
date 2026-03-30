@@ -332,42 +332,101 @@ function MapeamentoTab({ categories, allCategories, duplicateGroups, setDuplicat
     }
   };
 
-  const updateResolution = (catId: string, field: keyof DuplicateResolution, value: string | null) => {
+  const updateResolution = (catId: string, field: keyof DuplicateResolution, value: any) => {
     setResolutions(prev => ({
       ...prev,
       [catId]: { ...prev[catId], [field]: value },
     }));
   };
 
+  const updateResolutionAttribute = (catId: string, attrIndex: number, field: string, value: string) => {
+    setResolutions(prev => {
+      const res = { ...prev[catId] };
+      const attrs = [...res.attributes];
+      attrs[attrIndex] = { ...attrs[attrIndex], [field]: value };
+      return { ...prev, [catId]: { ...res, attributes: attrs } };
+    });
+  };
+
+  const addResolutionAttribute = (catId: string) => {
+    setResolutions(prev => {
+      const res = { ...prev[catId] };
+      return { ...prev, [catId]: { ...res, attributes: [...res.attributes, { slug: "", name: "", values: "" }] } };
+    });
+  };
+
+  const removeResolutionAttribute = (catId: string, attrIndex: number) => {
+    setResolutions(prev => {
+      const res = { ...prev[catId] };
+      const attrs = res.attributes.filter((_, i) => i !== attrIndex);
+      return { ...prev, [catId]: { ...res, attributes: attrs.length > 0 ? attrs : [{ slug: "", name: "", values: "" }] } };
+    });
+  };
+
+  // Accept a SINGLE category from a group
+  const acceptSingleCategory = (cat: DuplicateCategoryEntry) => {
+    const res = resolutions[cat.id];
+    if (!res) return;
+
+    if (res.action === "keep") {
+      saveRule.mutate({
+        source_category_id: cat.id,
+        source_category_name: cat.name,
+        action: "keep",
+        target_category_id: null, attribute_slug: null, attribute_name: null, attribute_values: [],
+      });
+    } else if (res.action === "merge_into") {
+      // For merge_into with extracted attributes, create the merge rule
+      // AND attribute rules for each extracted attribute
+      saveRule.mutate({
+        source_category_id: cat.id,
+        source_category_name: cat.name,
+        action: "merge_into",
+        target_category_id: res.targetCategoryId || null,
+        attribute_slug: null, attribute_name: null, attribute_values: [],
+      });
+      // Also create attribute rules if there are extracted attributes
+      for (const attr of res.attributes) {
+        if (attr.slug && attr.values) {
+          saveRule.mutate({
+            source_category_id: cat.id,
+            source_category_name: `${cat.name} → ${attr.name}`,
+            action: "convert_to_attribute",
+            target_category_id: null,
+            attribute_slug: attr.slug,
+            attribute_name: attr.name,
+            attribute_values: attr.values.split(",").map(v => v.trim()).filter(Boolean),
+          });
+        }
+      }
+    } else if (res.action === "convert_to_attribute") {
+      for (const attr of res.attributes) {
+        if (attr.slug && attr.values) {
+          saveRule.mutate({
+            source_category_id: cat.id,
+            source_category_name: cat.name,
+            action: "convert_to_attribute",
+            target_category_id: null,
+            attribute_slug: attr.slug,
+            attribute_name: attr.name,
+            attribute_values: attr.values.split(",").map(v => v.trim()).filter(Boolean),
+          });
+        }
+      }
+    }
+
+    // Mark as accepted
+    updateResolution(cat.id, "accepted", true);
+    toast.success(`"${cat.name}" aceite e adicionado ao mapeamento`);
+  };
+
   const addGroupToMapping = (group: DuplicateGroup) => {
     let count = 0;
     for (const cat of group.categories) {
       const res = resolutions[cat.id];
-      if (!res || res.action === "keep") continue;
-
-      if (res.action === "merge_into") {
-        saveRule.mutate({
-          source_category_id: cat.id,
-          source_category_name: cat.name,
-          action: "merge_into",
-          target_category_id: res.targetCategoryId || null,
-          attribute_slug: null,
-          attribute_name: null,
-          attribute_values: [],
-        });
-        count++;
-      } else if (res.action === "convert_to_attribute") {
-        saveRule.mutate({
-          source_category_id: cat.id,
-          source_category_name: cat.name,
-          action: "convert_to_attribute",
-          target_category_id: null,
-          attribute_slug: res.attributeSlug || null,
-          attribute_name: res.attributeName || null,
-          attribute_values: res.attributeValues ? res.attributeValues.split(",").map(v => v.trim()).filter(Boolean) : [],
-        });
-        count++;
-      }
+      if (!res || res.accepted) continue;
+      acceptSingleCategory(cat);
+      count++;
     }
     toast.success(`${count} regras adicionadas do grupo "${group.groupName}"`);
   };
