@@ -79,8 +79,9 @@ serve(async (req) => {
       }
     }
 
-    // 4. Build prompt
-    const catList = allCats.map(c =>
+    // 4. Build prompt — limit to 300 categories to avoid timeout
+    const catsForAi = allCats.slice(0, 300);
+    const catList = catsForAi.map(c =>
       `- ${c.name} (id: ${c.id}, path: "${getPath(c.id)}", products: ${productCounts[c.name] ?? 0})`
     ).join("\n");
 
