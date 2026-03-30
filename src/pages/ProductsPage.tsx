@@ -61,6 +61,15 @@ type FilterStatus = Enums<"product_status"> | "all";
 const ALL_FIELDS: OptimizationField[] = OPTIMIZATION_FIELDS.map(f => f.key);
 const ALL_PHASES = OPTIMIZATION_PHASES.map(p => p.phase);
 
+function getMigrationStatus(product: Product): "migrated" | "partial" | "not_migrated" {
+  const attrs = product.attributes as Array<{slug?: string}> | null | undefined;
+  if (!attrs || attrs.length === 0) return "not_migrated";
+  const paAttrs = attrs.filter(a => a?.slug?.startsWith("pa_"));
+  if (paAttrs.length >= 2) return "migrated";
+  if (paAttrs.length === 1) return "partial";
+  return "not_migrated";
+}
+
 const ProductsPage = () => {
   const { activeWorkspace, toggleVariableProducts } = useWorkspaceContext();
   useRepairAttributes();
