@@ -163,7 +163,7 @@ Suggest what to do with each subcategory. For each one return:
     }
 
     let aiModel = "google/gemini-2.5-flash";
-    if (aiProvider === "claude") aiModel = "anthropic/claude-sonnet-4-20250514";
+    if (aiProvider === "claude") aiModel = "google/gemini-2.5-pro";
     else if (aiProvider === "openai") aiModel = "openai/gpt-5";
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
