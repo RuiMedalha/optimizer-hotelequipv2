@@ -39,6 +39,12 @@ interface AiSuggestion {
   productCount: number;
 }
 
+interface ExtractedAttribute {
+  slug: string;
+  label: string;
+  value: string;
+}
+
 interface DuplicateCategoryEntry {
   id: string;
   name: string;
@@ -46,10 +52,7 @@ interface DuplicateCategoryEntry {
   productCount: number;
   suggestedAction: "keep" | "merge_into" | "move_products";
   mergeTarget: string | null;
-  // Context-aware attribute info from HORECA engine
-  attributeSlug?: string;
-  attributeLabel?: string;
-  attributeValue?: string;
+  extractedAttributes: ExtractedAttribute[];
 }
 
 interface DuplicateGroup {
@@ -59,14 +62,15 @@ interface DuplicateGroup {
   reason: string;
 }
 
-// Per-category resolution choice for the enhanced UX
+// Per-category resolution choice
 interface DuplicateResolution {
   catId: string;
   action: "keep" | "merge_into" | "convert_to_attribute";
   targetCategoryId: string | null;
-  attributeSlug: string;
-  attributeName: string;
-  attributeValues: string;
+  // Support multiple attributes (e.g. pa_linha + pa_tipo_energia)
+  attributes: Array<{ slug: string; name: string; values: string }>;
+  // Track if this individual item has been accepted
+  accepted: boolean;
 }
 
 // ── Local draft state for new rules not yet saved ──
