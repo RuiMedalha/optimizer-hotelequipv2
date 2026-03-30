@@ -152,6 +152,7 @@ export default function PDFExtractionPage() {
   const [activeTab, setActiveTab] = useState("wizard");
   const [executionMode, setExecutionMode] = useState("auto");
   const [manualProvider, setManualProvider] = useState("");
+  const [ocrLanguage, setOcrLanguage] = useState("auto");
 
   // Wizard state
   const [wizardStep, setWizardStep] = useState<WizardStep>("upload");
@@ -365,7 +366,7 @@ export default function PDFExtractionPage() {
   const handleStartWizard = async () => {
     if (!selectedFileId) { toast.error("Seleciona um ficheiro PDF"); return; }
     try {
-      const result = await startExtraction.mutateAsync(selectedFileId);
+      const result = await startExtraction.mutateAsync({ fileId: selectedFileId, language: ocrLanguage !== "auto" ? ocrLanguage : undefined });
       setWizardExtractionId(result.extractionId);
       setWizardStep("extracting");
       setAutoResumeAttempts(0);
@@ -484,7 +485,7 @@ export default function PDFExtractionPage() {
   // Quick extraction from history table
   const handleQuickExtraction = () => {
     if (!selectedFileId) { toast.error("Seleciona um ficheiro PDF"); return; }
-    startExtraction.mutate(selectedFileId);
+    startExtraction.mutate({ fileId: selectedFileId, language: ocrLanguage !== "auto" ? ocrLanguage : undefined });
     setSelectedFileId("");
   };
 
