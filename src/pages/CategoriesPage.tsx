@@ -91,6 +91,10 @@ const CategoriesPage = () => {
   const [editingCat, setEditingCat] = useState<Category | null>(null);
   const [form, setForm] = useState({ name: "", slug: "", description: "", meta_title: "", meta_description: "", parent_id: "" });
   const [analysisOpen, setAnalysisOpen] = useState(false);
+  const [fixingCorrupted, setFixingCorrupted] = useState(false);
+  const [ignoredCorrupted, setIgnoredCorrupted] = useState<Set<string>>(
+    () => new Set(getStorageJson<string[]>("ignored-corrupted-cats", []))
+  );
 
   // Count products per category name
   const productCounts: Record<string, number> = {};
