@@ -153,7 +153,7 @@ Suggest what to do with each subcategory. For each one return:
   "reason": string  // 1 sentence explanation in Portuguese
 }`;
 
-    // 6. Call Lovable AI Gateway
+    // 6. Call AI Gateway with provider routing
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), {
@@ -162,6 +162,10 @@ Suggest what to do with each subcategory. For each one return:
       });
     }
 
+    let aiModel = "google/gemini-2.5-flash";
+    if (aiProvider === "claude") aiModel = "anthropic/claude-sonnet-4-20250514";
+    else if (aiProvider === "openai") aiModel = "openai/gpt-5";
+
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -169,7 +173,7 @@ Suggest what to do with each subcategory. For each one return:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: aiModel,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
