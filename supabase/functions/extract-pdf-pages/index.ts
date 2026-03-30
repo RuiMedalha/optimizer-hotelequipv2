@@ -480,15 +480,20 @@ Devolve APENAS JSON válido.`,
       return [];
     });
 
+    const pageIsScanned = pageData?.is_scanned === true || isLikelyScanned;
+    const ocrText = pageData?.ocr_text || "";
+
     const { data: pageRecord } = await supabase.from("pdf_pages").insert({
       extraction_id: extractionId,
       page_number: p,
-      raw_text: readableText || `[Page ${p} - no products]`,
+      raw_text: readableText || ocrText || `[Page ${p} - no products]`,
       has_tables: products.length > 0,
       has_images: pageImages.length > 0,
       confidence_score: pageConfidence,
       status: "extracted" as any,
       zones, layout_zones: zones,
+      is_scanned: pageIsScanned,
+      ocr_text: pageIsScanned ? (ocrText || readableText) : null,
       page_context: {
         page_type: pageData?.page_type,
         section_title: pageData?.section_title,
@@ -496,9 +501,11 @@ Devolve APENAS JSON válido.`,
         image_count: pageImages.length,
         language: overviewData?.language,
         supplier: overviewData?.supplier_name,
+        is_scanned: pageIsScanned,
+        extraction_method: pageIsScanned ? "ocr_vision" : "ai_vision",
       },
       vision_result: { products, page_type: pageData?.page_type, images: pageImages },
-      text_result: { extraction_method: "ai_vision", language: overviewData?.language },
+      text_result: { extraction_method: pageIsScanned ? "ocr_vision" : "ai_vision", language: overviewData?.language },
     }).select("id").single();
 
     if (pageRecord && products.length > 0) {
