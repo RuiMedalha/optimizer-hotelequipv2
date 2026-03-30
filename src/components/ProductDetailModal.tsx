@@ -538,7 +538,7 @@ export function ProductDetailModal({ product, onClose }: Props) {
                       const entry = rawAlts.find((a: any) => a.url === url);
                       altText = entry?.alt_text || "";
                     }
-                    const optimized = optimizedImages?.find((img) => img.sort_order === i);
+                    const optimized = optimizedImages?.find((img) => img.sort_order === i || img.original_url === url || img.optimized_url === url);
                     return (
                       <div key={i} className="space-y-2">
                         <div className="grid grid-cols-2 gap-3">
