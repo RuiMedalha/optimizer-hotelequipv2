@@ -125,6 +125,7 @@ const ProductsPage = () => {
   const [productTypeFilter, setProductTypeFilter] = useState<string>("all");
   const [phaseFilter, setPhaseFilter] = useState<string>("all");
   const [wooFilter, setWooFilter] = useState<string>("all");
+  const [migrationFilter, setMigrationFilter] = useState<string>("all");
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [allPagesSelected, setAllPagesSelected] = useState(false);
