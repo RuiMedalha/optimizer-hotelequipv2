@@ -12,9 +12,9 @@ interface Extraction {
   id: string;
   created_at: string;
   status: string;
-  detected_products?: any[];
+  detected_products?: any;
   total_pages?: number;
-  uploaded_files?: { file_name?: string };
+  uploaded_files?: { file_name?: string } | null;
 }
 
 interface DiffItem {
