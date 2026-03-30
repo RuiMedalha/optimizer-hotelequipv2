@@ -920,6 +920,40 @@ export default function PDFExtractionPage() {
                                 </>
                               )}
 
+                              {["reviewing", "done"].includes(ext.status) && ext.detected_products && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button size="sm" variant="outline" onClick={() => {
+                                      const products = Array.isArray(ext.detected_products) ? ext.detected_products : [];
+                                      if (products.length === 0) { toast.error("Sem produtos para exportar"); return; }
+                                      import("xlsx").then(XLSX => {
+                                        const rows = products.map((p: any, idx: number) => ({
+                                          "#": idx + 1,
+                                          "SKU": p.sku || p.ref || "",
+                                          "Título": p.title || p.name || "",
+                                          "Preço": p.price || "",
+                                          "Categoria": p.category || "",
+                                          "Descrição": (p.description || "").slice(0, 500),
+                                          "Material": p.material || "",
+                                          "Dimensões": p.dimensions || "",
+                                          "Marca": p.brand || "",
+                                          "Imagens": Array.isArray(p.images) ? p.images.join(" | ") : (p.image || ""),
+                                        }));
+                                        const ws = XLSX.utils.json_to_sheet(rows);
+                                        const wb = XLSX.utils.book_new();
+                                        XLSX.utils.book_append_sheet(wb, ws, "Produtos PDF");
+                                        const fileName = ext.uploaded_files?.file_name?.replace(/\.pdf$/i, "") || "pdf-extraction";
+                                        XLSX.writeFile(wb, `${fileName}-produtos.xlsx`);
+                                        toast.success(`${rows.length} produtos exportados`);
+                                      });
+                                    }}>
+                                      <Download className="h-3 w-3" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Exportar para Excel</TooltipContent>
+                                </Tooltip>
+                              )}
+
                               <ExtractionActionsDropdown extraction={ext} onViewDetails={setSelectedExtraction} />
                               <Button
                                 size="sm"
