@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   FileText, Upload, Eye, Brain, Send, Loader2, CheckCircle, AlertTriangle, XCircle,
   Table2, Layers, GitCompare, Shield, BarChart3, Languages, Settings2, ArrowRight,
-  Scan, MapPin, Database, Package, Trash2, Square, Download,
+  Scan, MapPin, Database, Package, Trash2, Square, Download, ScanEye,
 } from "lucide-react";
 import { usePdfExtractions, usePdfPages, usePdfTables, useStartPdfExtraction, useVisionParsePage, useMapPdfToProducts, useDeletePdfExtraction } from "@/hooks/usePdfExtraction";
 import { useUploadedFiles } from "@/hooks/useUploadedFiles";
@@ -1085,20 +1085,30 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                                   <Badge variant="default" className="text-xs">{productCount} produto{productCount !== 1 ? "s" : ""}</Badge>
                                 )}
                               </CardTitle>
-                              <div className="flex items-center gap-2">
-                                {pageCtx?.page_type && (
-                                  <Badge variant="outline" className="text-xs">{toDisplayText(pageCtx.page_type, "N/A")}</Badge>
-                                )}
-                                {pageCtx?.section_title && (
-                                  <Badge variant="secondary" className="text-xs">{toDisplayText(pageCtx.section_title, "Secção")}</Badge>
-                                )}
-                                {pageCtx?.language && (
-                                  <Badge variant="outline" className="text-xs flex items-center gap-1">
-                                    <Languages className="h-3 w-3" /> {toDisplayText(typeof pageCtx.language === "string" ? pageCtx.language : pageCtx.language?.language, "—")}
-                                  </Badge>
-                                )}
-                                <Badge variant="outline">Confiança: {page.confidence_score}%</Badge>
-                              </div>
+                               <div className="flex items-center gap-2">
+                                 {(page as any).is_scanned && (
+                                   <Tooltip>
+                                     <TooltipTrigger>
+                                       <Badge variant="outline" className="text-xs bg-warning/10 text-warning border-warning/30 flex items-center gap-1">
+                                         <ScanEye className="h-3 w-3" /> OCR
+                                       </Badge>
+                                     </TooltipTrigger>
+                                     <TooltipContent>Página digitalizada — texto extraído via OCR/Vision AI</TooltipContent>
+                                   </Tooltip>
+                                 )}
+                                 {pageCtx?.page_type && (
+                                   <Badge variant="outline" className="text-xs">{toDisplayText(pageCtx.page_type, "N/A")}</Badge>
+                                 )}
+                                 {pageCtx?.section_title && (
+                                   <Badge variant="secondary" className="text-xs">{toDisplayText(pageCtx.section_title, "Secção")}</Badge>
+                                 )}
+                                 {pageCtx?.language && (
+                                   <Badge variant="outline" className="text-xs flex items-center gap-1">
+                                     <Languages className="h-3 w-3" /> {toDisplayText(typeof pageCtx.language === "string" ? pageCtx.language : pageCtx.language?.language, "—")}
+                                   </Badge>
+                                 )}
+                                 <Badge variant="outline">Confiança: {page.confidence_score}%</Badge>
+                               </div>
                             </div>
                           </CardHeader>
                           <CardContent>

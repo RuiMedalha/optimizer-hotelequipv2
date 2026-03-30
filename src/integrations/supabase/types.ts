@@ -8386,7 +8386,9 @@ export type Database = {
           has_images: boolean | null
           has_tables: boolean | null
           id: string
+          is_scanned: boolean | null
           layout_zones: Json | null
+          ocr_text: string | null
           page_context: Json | null
           page_image_url: string | null
           page_number: number
@@ -8403,7 +8405,9 @@ export type Database = {
           has_images?: boolean | null
           has_tables?: boolean | null
           id?: string
+          is_scanned?: boolean | null
           layout_zones?: Json | null
+          ocr_text?: string | null
           page_context?: Json | null
           page_image_url?: string | null
           page_number: number
@@ -8420,7 +8424,9 @@ export type Database = {
           has_images?: boolean | null
           has_tables?: boolean | null
           id?: string
+          is_scanned?: boolean | null
           layout_zones?: Json | null
+          ocr_text?: string | null
           page_context?: Json | null
           page_image_url?: string | null
           page_number?: number
