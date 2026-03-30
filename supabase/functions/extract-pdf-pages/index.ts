@@ -159,6 +159,7 @@ Return ONLY valid JSON.`,
             language: overview.language,
             supplier_name: overview.supplier_name,
             document_type: overview.document_type,
+            is_scanned: overview.is_scanned === true,
           },
         })
       ));
