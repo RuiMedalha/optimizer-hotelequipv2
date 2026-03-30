@@ -21,7 +21,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceKey);
 
     const body = await req.json();
-    const { extractionId, chunkMode, chunkStart, chunkEnd, storagePath, overviewData, pdfBase64 } = body;
+    const { extractionId, chunkMode, chunkStart, chunkEnd, storagePath, overviewData, pdfBase64, languageHint } = body;
 
     if (!extractionId) throw new Error("extractionId required");
 
@@ -159,12 +159,13 @@ Return ONLY valid JSON.`,
           chunk,
           storagePath: storagePth,
           overviewData: {
-            language: overview.language,
+            language: languageHint || overview.language,
             supplier_name: overview.supplier_name,
             document_type: overview.document_type,
             is_scanned: overview.is_scanned === true,
             has_price_tables: overview.has_price_tables === true,
             price_table_type: overview.price_table_type || "none",
+            language_hint: languageHint || null,
           },
         })
       ));
@@ -362,6 +363,27 @@ async function processChunk(opts: {
   const isLikelyScanned = overviewData?.is_scanned === true || overviewData?.document_type === "scanned_catalog";
   const hasPriceTables = overviewData?.has_price_tables === true;
   const priceTableType = overviewData?.price_table_type || "none";
+  const detectedLang = overviewData?.language_hint || overviewData?.language || "auto-detect";
+
+  // Language-specific OCR instructions
+  const LANG_OCR_HINTS: Record<string, string> = {
+    "pt": "O documento está em PORTUGUÊS. Lê e extrai todo o texto em português, incluindo acentos e caracteres especiais (ã, õ, ç, é, etc.).",
+    "es": "El documento está en ESPAÑOL. Lee y extrae todo el texto en español, incluyendo acentos y caracteres especiales (ñ, á, é, í, ó, ú, ü).",
+    "en": "The document is in ENGLISH. Read and extract all text in English accurately.",
+    "fr": "Le document est en FRANÇAIS. Lis et extrais tout le texte en français, y compris les accents et caractères spéciaux (é, è, ê, ë, à, â, ç, ô, û, etc.).",
+    "de": "Das Dokument ist auf DEUTSCH. Lies und extrahiere den gesamten Text auf Deutsch, einschließlich Umlaute und Sonderzeichen (ä, ö, ü, ß).",
+    "it": "Il documento è in ITALIANO. Leggi ed estrai tutto il testo in italiano, inclusi accenti e caratteri speciali (à, è, é, ì, ò, ù).",
+    "nl": "Het document is in het NEDERLANDS. Lees en extraheer alle tekst in het Nederlands nauwkeurig.",
+    "pl": "Dokument jest w języku POLSKIM. Przeczytaj i wyodrębnij cały tekst po polsku, w tym znaki specjalne (ą, ć, ę, ł, ń, ó, ś, ź, ż).",
+    "zh": "文档为中文。请准确读取并提取所有中文文本，包括简体和繁体字符。",
+    "ja": "ドキュメントは日本語です。漢字、ひらがな、カタカナを含むすべてのテキストを正確に読み取り、抽出してください。",
+    "ko": "문서는 한국어입니다. 한글 텍스트를 정확하게 읽고 추출하세요.",
+    "ar": "الوثيقة باللغة العربية. اقرأ واستخرج كل النص بالعربية بدقة، بما في ذلك التشكيل.",
+    "tr": "Belge TÜRKÇE dilindedir. Tüm Türkçe metni, özel karakterler (ç, ğ, ı, ö, ş, ü) dahil olmak üzere doğru bir şekilde okuyun ve çıkarın.",
+    "ru": "Документ на РУССКОМ языке. Прочитайте и извлеките весь текст на русском языке точно.",
+  };
+
+  const langHint = LANG_OCR_HINTS[detectedLang] || (detectedLang !== "auto-detect" ? `The document language is: ${detectedLang}. Extract all text accurately in this language, preserving special characters and diacritics.` : "");
 
   let aiResult: any;
   try {
@@ -370,6 +392,9 @@ async function processChunk(opts: {
       systemPrompts.push("És um especialista em OCR e extração de dados de catálogos digitalizados (scanned). Usa a tua capacidade de visão para LER TODO o texto visível nas imagens das páginas, incluindo texto em tabelas, cabeçalhos, rodapés e notas. Extrai TODOS os produtos com máxima precisão.");
     } else {
       systemPrompts.push("És um especialista em extração de dados de catálogos. Extrai TODOS os produtos deste catálogo PDF. Sê rigoroso e sistemático.");
+    }
+    if (langHint) {
+      systemPrompts.push(`IDIOMA DO DOCUMENTO: ${langHint}`);
     }
     if (hasPriceTables) {
       systemPrompts.push("IMPORTANTE: Este documento contém tabelas de preços estruturadas. Deves extrair TODA a informação de preços incluindo: preços unitários, preços por quantidade/escalão (tiered pricing), descontos por volume, preços por embalagem, e quaisquer condições especiais de preço. Cada linha de preço deve ser capturada como um produto ou variante separado.");
@@ -382,12 +407,15 @@ async function processChunk(opts: {
           { type: "image_url", image_url: { url: `data:application/pdf;base64,${chunkPdfBase64}` } },
           {
             type: "text",
-            text: `${isLikelyScanned ? "[MODO OCR] Este PDF é digitalizado/escaneado. Usa visão para ler TODO o texto nas imagens.\n\n" : ""}${hasPriceTables ? `[MODO TABELA DE PREÇOS - Tipo: ${priceTableType}] Este documento contém tabelas de preços. Extrai TODOS os preços, incluindo escalões de quantidade e descontos.\n\n` : ""}Extrai TODOS os produtos das páginas ${chunkStart} a ${chunkEnd} deste PDF.
-Idioma: ${overviewData?.language || "auto-detect"}
+            text: `${isLikelyScanned ? "[MODO OCR] Este PDF é digitalizado/escaneado. Usa visão para ler TODO o texto nas imagens.\n\n" : ""}${langHint ? `[IDIOMA: ${detectedLang.toUpperCase()}] ${langHint}\n\n` : ""}${hasPriceTables ? `[MODO TABELA DE PREÇOS - Tipo: ${priceTableType}] Este documento contém tabelas de preços. Extrai TODOS os preços, incluindo escalões de quantidade e descontos.\n\n` : ""}Extrai TODOS os produtos das páginas ${chunkStart} a ${chunkEnd} deste PDF.
+Idioma: ${detectedLang}
 Fornecedor: ${overviewData?.supplier_name || "desconhecido"}
+
+IMPORTANT: All product titles, descriptions, categories and text fields MUST be extracted in the ORIGINAL LANGUAGE of the document (${detectedLang}). Do NOT translate to any other language.
 
 Para cada produto devolve:
 - sku, title, description, price (number), currency, category, dimensions, weight, material, color_options (array), technical_specs (object), confidence (0-100)
+- detected_language: the ISO 639-1 language code of the extracted text (e.g. "pt", "en", "fr", "de", "es", "it", "zh", "ja", "ar")
 - is_scanned: true se o texto foi extraído por OCR de uma imagem digitalizada
 - pricing (objeto de preços estruturado, se aplicável):
   - unit_price: preço unitário base (number)
@@ -409,7 +437,7 @@ Para cada produto devolve:
   - background: "white"|"transparent"|"lifestyle"|"colored"|"studio"
 
 Formato JSON:
-{"pages":[{"page_number":N,"page_type":"product_listing"|"price_list","is_scanned":bool,"ocr_text":"raw OCR text if scanned","has_price_table":bool,"zones":["header","table","images","price_grid"],"section_title":"...","page_images_count":N,"products":[{...}]}]}
+{"pages":[{"page_number":N,"page_type":"product_listing"|"price_list","is_scanned":bool,"detected_language":"xx","ocr_text":"raw OCR text if scanned","has_price_table":bool,"zones":["header","table","images","price_grid"],"section_title":"...","page_images_count":N,"products":[{...}]}]}
 Devolve APENAS JSON válido.`,
           },
         ],

@@ -71,7 +71,10 @@ export function useStartPdfExtraction() {
   const { activeWorkspace } = useWorkspaceContext();
 
   return useMutation({
-    mutationFn: async (fileId: string) => {
+    mutationFn: async (params: string | { fileId: string; language?: string }) => {
+      const fileId = typeof params === "string" ? params : params.fileId;
+      const language = typeof params === "string" ? undefined : params.language;
+
       // Create extraction record
       const { data: extraction, error: createErr } = await supabase
         .from("pdf_extractions")
@@ -87,7 +90,7 @@ export function useStartPdfExtraction() {
       // Fire-and-forget: trigger extraction without awaiting completion
       // The edge function runs server-side and updates the DB as it progresses
       invokeEdgeFunction("extract-pdf-pages", {
-        body: { extractionId: extraction.id },
+        body: { extractionId: extraction.id, ...(language ? { languageHint: language } : {}) },
       }).then(() => {
         queryClient.invalidateQueries({ queryKey: ["pdf-extractions"] });
       }).catch((err) => {
