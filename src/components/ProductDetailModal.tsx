@@ -95,6 +95,19 @@ export function ProductDetailModal({ product, onClose }: Props) {
 
   if (!product) return null;
 
+  const hasOptimizedContent = !!(
+    product.optimized_title ||
+    product.optimized_description ||
+    product.optimized_short_description ||
+    product.meta_title ||
+    product.meta_description ||
+    product.seo_slug
+  );
+  const isLegacyOrImportedOptimization =
+    hasOptimizedContent &&
+    !optLogs?.length &&
+    (product.source_file === "woocommerce-import" || product.status === "published" || product.status === "optimized");
+
   const handleFieldChange = (key: string, value: string) => {
     setEditData((prev) => ({ ...prev, [key]: value }));
     setHasChanges(true);
