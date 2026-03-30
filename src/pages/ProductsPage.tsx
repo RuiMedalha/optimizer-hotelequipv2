@@ -764,8 +764,26 @@ const ProductsPage = () => {
               Life
             </Badge>
           )}
+          {product.status === "published" && (
+            <>
+              {getMigrationStatus(product) === "migrated" && (
+                <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]">
+                  Migrado
+                </Badge>
+              )}
+              {getMigrationStatus(product) === "partial" && (
+                <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]">
+                  Parcial
+                </Badge>
+              )}
+              {getMigrationStatus(product) === "not_migrated" && (
+                <Badge variant="outline" className="text-muted-foreground text-[10px]">
+                  Sem atributos
+                </Badge>
+              )}
+            </>
+          )}
         </div>
-      </td>
       <td className="p-3 text-center">
         <PhaseIndicator product={product} />
       </td>
