@@ -13,12 +13,12 @@ function getAiConfig(provider?: string) {
 
   switch (provider) {
     case "claude":
-      return { url: gateway, key: lovableKey, model: "google/gemini-2.5-pro" };
+      return { url: gateway, key: lovableKey, model: "google/gemini-2.5-flash" };
     case "openai":
-      return { url: gateway, key: lovableKey, model: "openai/gpt-5" };
+      return { url: gateway, key: lovableKey, model: "openai/gpt-5-mini" };
     case "gemini":
     default:
-      return { url: gateway, key: lovableKey, model: "google/gemini-2.5-flash" };
+      return { url: gateway, key: lovableKey, model: "google/gemini-2.5-flash-lite" };
   }
 }
 
