@@ -568,6 +568,16 @@ export function ProductDetailModal({ product, onClose }: Props) {
                             className="text-xs h-8 mt-1"
                           />
                         </div>
+                        {optimized?.generation_prompt && (
+                          <div className="mt-1">
+                            <label className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Sparkles className="w-3 h-3" /> Prompt IA usado
+                            </label>
+                            <p className="text-xs text-muted-foreground/80 bg-muted/30 rounded p-2 mt-1 italic leading-relaxed">
+                              {optimized.generation_prompt}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
