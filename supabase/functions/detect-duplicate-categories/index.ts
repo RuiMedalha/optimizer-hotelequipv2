@@ -219,7 +219,11 @@ For each group return:
       groups = JSON.parse(cleaned);
     } catch {
       console.error("Failed to parse duplicate detection response:", rawContent.substring(0, 300));
-      return new Response(JSON.stringify({ error: "AI returned invalid JSON", groups: [] }), {
+      groups = buildFallbackGroups(allCats, getPath, productCounts);
+      return new Response(JSON.stringify({
+        groups,
+        warning: "A IA devolveu um formato inválido; mostrei os duplicados detetados por heurística.",
+      }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
