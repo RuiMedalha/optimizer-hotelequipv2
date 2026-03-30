@@ -1350,6 +1350,28 @@ const ProductsPage = () => {
           </div>
         </div>
       )}
+      {/* Migration Progress Banner */}
+      {(() => {
+        const published = (products ?? []).filter(p => p.status === "published");
+        const migrated = published.filter(p => getMigrationStatus(p) === "migrated");
+        const publishedCount = published.length;
+        const migratedCount = migrated.length;
+        const migrationPct = publishedCount > 0 ? Math.round((migratedCount / publishedCount) * 100) : 0;
+        return publishedCount > 0 ? (
+          <div className="bg-primary/5 border border-primary/10 rounded-lg px-4 py-3 flex items-center gap-3">
+            <Wand2 className="w-4 h-4 text-primary shrink-0" />
+            <span className="text-sm text-muted-foreground flex-1">
+              Migração de categorias:{" "}
+              <span className="font-medium text-foreground">{migratedCount}</span>
+              {" "}de{" "}
+              <span className="font-medium text-foreground">{publishedCount}</span>
+              {" "}produtos publicados já migrados
+            </span>
+            <span className="text-sm font-medium text-primary">{migrationPct}%</span>
+            <Progress value={migrationPct} className="w-24 h-1.5" />
+          </div>
+        ) : null;
+      })()}
       <div className="space-y-3">
         <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
           <div className="relative flex-1 min-w-[150px] sm:min-w-[200px] max-w-sm">
