@@ -1520,6 +1520,21 @@ const ProductsPage = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                {/* Migração */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Migração</Label>
+                  <Select value={migrationFilter} onValueChange={setMigrationFilter}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="migrated">Migrado</SelectItem>
+                      <SelectItem value="partial">Parcial</SelectItem>
+                      <SelectItem value="not_migrated">Sem atributos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="flex justify-end mt-3">
                 <Button
@@ -1532,6 +1547,7 @@ const ProductsPage = () => {
                     setProductTypeFilter("all");
                     setPhaseFilter("all");
                     setWooFilter("all");
+                    setMigrationFilter("all");
                   }}
                 >
                   Limpar filtros
