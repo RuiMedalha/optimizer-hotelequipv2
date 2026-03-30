@@ -470,7 +470,68 @@ function MapeamentoTab({ categories, allCategories }: { categories: { id: string
         )}
       </div>
 
-      {/* ── Existing rules table ── */}
+      {/* ── Duplicate Detection Section ── */}
+      <div className="border border-amber-500/20 bg-amber-500/5 rounded-lg p-4 space-y-4">
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="w-5 h-5 text-amber-600" />
+          <h3 className="font-semibold text-sm flex-1">Duplicados detectados em todo o catálogo</h3>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={duplicateLoading}
+            onClick={runDuplicateDetection}
+            className="gap-2"
+          >
+            {duplicateLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <AlertTriangle className="w-4 h-4" />
+            )}
+            Detectar duplicados (catálogo completo)
+          </Button>
+        </div>
+
+        {duplicateLoading && (
+          <div className="flex items-center gap-3 py-4">
+            <Loader2 className="w-5 h-5 animate-spin text-amber-600" />
+            <span className="text-sm text-muted-foreground">A analisar todo o catálogo para duplicados...</span>
+          </div>
+        )}
+
+        {duplicateGroups.length > 0 && (
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">{duplicateGroups.length} grupos de categorias duplicadas encontrados</p>
+            {duplicateGroups.map((group, idx) => (
+              <Card key={idx}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium">{group.groupName}</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <ConfidenceBadge level={group.confidence} />
+                      <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => addDuplicateToMapping(group)}>
+                        <Plus className="w-3 h-3" /> Adicionar ao mapeamento
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-1">
+                  <p className="text-xs text-muted-foreground mb-2">{group.reason}</p>
+                  {group.categories.map(c => (
+                    <div key={c.id} className="flex items-center gap-2 text-xs py-1">
+                      <span className="text-muted-foreground flex-1 truncate">{c.path || c.name}</span>
+                      <Badge variant="secondary" className="text-[10px] shrink-0">{c.productCount} prod.</Badge>
+                      <Badge variant="outline" className="text-[10px] shrink-0">
+                        {c.suggestedAction === "keep" ? "Manter" : c.suggestedAction === "merge_into" ? "Fundir" : "Mover prod."}
+                      </Badge>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
