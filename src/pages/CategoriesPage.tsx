@@ -9,9 +9,15 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { FolderTree, Plus, Edit, Trash2, ChevronRight, ChevronDown, Loader2, FolderOpen, RefreshCw, BarChart2, Download, ArrowRight } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { FolderTree, Plus, Edit, Trash2, ChevronRight, ChevronDown, Loader2, FolderOpen, RefreshCw, BarChart2, Download, ArrowRight, AlertTriangle, Sparkles, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCategoryTree, useCreateCategory, useUpdateCategory, useDeleteCategory, useSyncWooCategories, type CategoryTree, type Category } from "@/hooks/useCategories";
+import { useWorkspaceContext } from "@/hooks/useWorkspaces";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useAllProductIds } from "@/hooks/useProducts";
+import { getStorageJson, setStorageItem } from "@/lib/safeStorage";
 
 import { useAllProductIds } from "@/hooks/useProducts";
 
