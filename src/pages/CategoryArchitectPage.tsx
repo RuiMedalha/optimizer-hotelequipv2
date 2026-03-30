@@ -172,9 +172,8 @@ function MapeamentoTab({ categories, allCategories, duplicateGroups, setDuplicat
   const [selectedSuggestions, setSelectedSuggestions] = useState<Set<string>>(new Set());
   const [showCheckboxes, setShowCheckboxes] = useState(false);
 
-  // Duplicate detection state
-  const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroup[]>([]);
-  const [duplicateLoading, setDuplicateLoading] = useState(false);
+  // Duplicate resolution state (per-category choices within groups)
+  const [resolutions, setResolutions] = useState<Record<string, DuplicateResolution>>({});
 
   // Root categories
   const rootCategories = allCategories.filter(c => c.parent_id === null);
