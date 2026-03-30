@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, FileCode, Cog, Wrench, ScrollText, Loader2, Sparkles, Palette } from "lucide-react";
+import { Plus, FileCode, Cog, Wrench, ScrollText, Loader2, Sparkles, Palette, Image as ImageIcon } from "lucide-react";
 import { DescriptionTemplateEditor } from "@/components/DescriptionTemplateEditor";
 import { PromptTemplatesTable } from "@/components/prompt-governance/PromptTemplatesTable";
 import { EditPromptTemplateDialog } from "@/components/prompt-governance/EditPromptTemplateDialog";
@@ -19,9 +19,10 @@ import { ConfirmDeleteDialog } from "@/components/prompt-governance/ConfirmDelet
 import { FieldPromptsSettings } from "@/components/FieldPromptsSettings";
 import { toast } from "sonner";
 
-const PROMPT_TYPES = ["enrichment", "description", "seo", "categorization", "validation", "translation", "general"];
+const PROMPT_TYPES = ["enrichment", "description", "seo", "categorization", "validation", "translation", "general", "image"];
 const SYSTEM_TYPES = ["general"];
 const SERVICE_TYPES = ["enrichment", "description", "seo", "categorization", "validation", "translation"];
+const IMAGE_TYPES = ["image"];
 
 // ═══ DEFAULT PROMPT SEEDS ═══
 const DEFAULT_PROMPTS: Array<{ prompt_name: string; prompt_type: string; description: string; base_prompt: string }> = [
@@ -254,6 +255,61 @@ REGRAS:
 - Se um termo técnico não tem tradução clara, mantém o original entre parênteses
 - Verifica que URLs e links não foram alterados`,
   },
+  // ── IMAGENS ──
+  {
+    prompt_name: "Imagem — Alt Text SEO",
+    prompt_type: "image",
+    description: "Prompt usado para gerar alt text das imagens durante otimização e lifestyle. Variáveis: {{product_name}}, {{product_type}}",
+    base_prompt: `Gera um texto alternativo (alt text) otimizado para SEO em Português de Portugal para esta imagem de produto.
+
+CONTEXTO DO PRODUTO:
+- Nome: {{product_name}}
+- Tipo: {{product_type}}
+
+REGRAS OBRIGATÓRIAS:
+- Máximo 125 caracteres
+- Descreve o produto de forma clara, concreta e acessível
+- Inclui a keyword principal quando fizer sentido, sem keyword stuffing
+- Se a perspetiva for evidente, menciona-a (ex: vista frontal, detalhe lateral)
+- Não comeces com "Imagem de"
+- Responde APENAS com o texto alt, sem aspas, sem markdown e sem explicações`,
+  },
+  {
+    prompt_name: "Imagem — Lifestyle",
+    prompt_type: "image",
+    description: "Prompt usado para gerar imagens lifestyle a partir da imagem original. Variáveis: {{product_name}}, {{product_type}}",
+    base_prompt: `Coloca este produto num ambiente comercial realista e profissional.
+
+CONTEXTO DO PRODUTO:
+- Nome: {{product_name}}
+- Tipo: {{product_type}}
+
+REGRAS OBRIGATÓRIAS:
+- O produto deve ser o foco principal, centrado e em destaque
+- O ambiente deve corresponder à categoria do produto
+- Mantém proporções realistas e aspecto comercial premium
+- Iluminação profissional e fotografia de catálogo de alta qualidade
+- Não distorças o produto nem inventes características físicas
+- Resultado final pronto para e-commerce`,
+  },
+  {
+    prompt_name: "Imagem — Otimização",
+    prompt_type: "image",
+    description: "Prompt usado para upscale/otimização visual sem alterar a composição original. Variáveis: {{product_name}}, {{product_type}}",
+    base_prompt: `Melhora a qualidade desta imagem de produto para e-commerce.
+
+CONTEXTO DO PRODUTO:
+- Nome: {{product_name}}
+- Tipo: {{product_type}}
+
+REGRAS OBRIGATÓRIAS:
+- Aumenta nitidez, definição e resolução percebida
+- Melhora ligeiramente brilho, contraste e saturação com resultado natural
+- Remove ruído e desfocagem se existirem
+- Mantém enquadramento, fundo, ângulo e composição EXATAMENTE como estão
+- Não recortes, não mudes a posição do produto e não substituas o fundo
+- Apenas melhora a qualidade visual da imagem existente`,
+  },
 ];
 
 export default function PromptGovernancePage() {
@@ -291,9 +347,14 @@ export default function PromptGovernancePage() {
   const performance = useVersionPerformance(selectedVersion);
 
   const selectedTpl = templates.data?.find(t => t.id === selectedTemplate);
+  const existingPromptKeys = new Set((templates.data || []).map((t) => `${t.prompt_type}:${t.prompt_name}`));
 
   const systemTemplates = (templates.data || []).filter(t => SYSTEM_TYPES.includes(t.prompt_type));
   const serviceTemplates = (templates.data || []).filter(t => SERVICE_TYPES.includes(t.prompt_type));
+  const imageTemplates = (templates.data || []).filter(t => IMAGE_TYPES.includes(t.prompt_type));
+  const missingImagePrompts = DEFAULT_PROMPTS.filter(
+    (p) => IMAGE_TYPES.includes(p.prompt_type) && !existingPromptKeys.has(`${p.prompt_type}:${p.prompt_name}`)
+  );
 
   const handleSelectTemplate = (id: string) => {
     setSelectedTemplate(id);
@@ -301,13 +362,15 @@ export default function PromptGovernancePage() {
     setActiveTab("versions");
   };
 
-  const handleSeedDefaults = async () => {
-    const existing = templates.data || [];
-    const existingTypes = new Set(existing.map(t => t.prompt_type));
-    const toCreate = DEFAULT_PROMPTS.filter(p => !existingTypes.has(p.prompt_type));
+  const seedPrompts = async (
+    promptsToCreate: Array<{ prompt_name: string; prompt_type: string; description: string; base_prompt: string }>,
+    emptyMessage: string,
+    successFormatter: (count: number) => string,
+  ) => {
+    const toCreate = promptsToCreate;
 
     if (toCreate.length === 0) {
-      toast.info("Todos os prompts padrão já existem.");
+      toast.info(emptyMessage);
       return;
     }
 
@@ -316,12 +379,32 @@ export default function PromptGovernancePage() {
       for (const prompt of toCreate) {
         await createTemplate.mutateAsync(prompt);
       }
-      toast.success(`${toCreate.length} prompts padrão criados!`);
+      toast.success(successFormatter(toCreate.length));
     } catch (e: any) {
       toast.error(`Erro ao criar prompts: ${e.message}`);
     } finally {
       setSeeding(false);
     }
+  };
+
+  const handleSeedDefaults = async () => {
+    const toCreate = DEFAULT_PROMPTS.filter(
+      (p) => !existingPromptKeys.has(`${p.prompt_type}:${p.prompt_name}`)
+    );
+
+    await seedPrompts(
+      toCreate,
+      "Todos os prompts padrão já existem.",
+      (count) => `${count} prompts padrão criados!`,
+    );
+  };
+
+  const handleSeedImagePrompts = async () => {
+    await seedPrompts(
+      missingImagePrompts,
+      "Os prompts de imagem já existem.",
+      (count) => `${count} prompts de imagem criados!`,
+    );
   };
 
   return (
@@ -331,7 +414,7 @@ export default function PromptGovernancePage() {
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <FileCode className="w-6 h-6" /> Prompt Governance
           </h1>
-          <p className="text-muted-foreground">Gestão de prompts de sistema (comportamento base) e prompts de serviço (tarefas específicas)</p>
+          <p className="text-muted-foreground">Gestão de prompts de sistema, serviço e imagem usados no runtime da IA</p>
         </div>
         <div className="flex gap-2">
           {(templates.data || []).length === 0 && (
@@ -353,7 +436,7 @@ export default function PromptGovernancePage() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card><CardContent className="p-4 text-center">
           <p className="text-2xl font-bold text-foreground">{systemTemplates.length}</p>
           <p className="text-xs text-muted-foreground">Prompts de Sistema</p>
@@ -361,6 +444,10 @@ export default function PromptGovernancePage() {
         <Card><CardContent className="p-4 text-center">
           <p className="text-2xl font-bold text-foreground">{serviceTemplates.length}</p>
           <p className="text-xs text-muted-foreground">Prompts de Serviço</p>
+        </CardContent></Card>
+        <Card><CardContent className="p-4 text-center">
+          <p className="text-2xl font-bold text-foreground">{imageTemplates.length}</p>
+          <p className="text-xs text-muted-foreground">Prompts de Imagem</p>
         </CardContent></Card>
         <Card><CardContent className="p-4 text-center">
           <p className="text-2xl font-bold text-foreground">{(templates.data || []).filter(t => t.is_active).length}</p>
@@ -383,6 +470,7 @@ export default function PromptGovernancePage() {
                 <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="general" className="font-medium">⚙️ Sistema — general</SelectItem>
+                  <SelectItem value="image">🖼️ Imagem — image</SelectItem>
                   {SERVICE_TYPES.map(t => <SelectItem key={t} value={t}>🔧 Serviço — {t}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -413,6 +501,9 @@ export default function PromptGovernancePage() {
           </TabsTrigger>
           <TabsTrigger value="service" className="gap-1.5">
             <Wrench className="h-4 w-4" /> Serviço ({serviceTemplates.length})
+          </TabsTrigger>
+          <TabsTrigger value="images" className="gap-1.5">
+            <ImageIcon className="h-4 w-4" /> Imagens ({imageTemplates.length})
           </TabsTrigger>
           <TabsTrigger value="field-prompts" className="gap-1.5">
             <ScrollText className="h-4 w-4" /> Prompts por Campo
@@ -454,6 +545,33 @@ export default function PromptGovernancePage() {
           </div>
           <PromptTemplatesTable
             templates={serviceTemplates}
+            selectedId={selectedTemplate}
+            onSelect={handleSelectTemplate}
+            onEdit={t => setEditingTemplate(t)}
+            onDuplicate={id => duplicateTemplate.mutate(id)}
+            onArchive={id => setArchiveId(id)}
+            onRestore={id => restoreTemplate.mutate(id)}
+            onDelete={id => setDeleteId(id)}
+          />
+        </TabsContent>
+
+        <TabsContent value="images" className="mt-4">
+          <div className="mb-4 flex flex-col gap-3 rounded-lg bg-muted/50 p-3 md:flex-row md:items-center md:justify-between">
+            <p className="text-sm text-muted-foreground">
+              <ImageIcon className="mr-1 inline h-4 w-4" />
+              <strong>Prompts de Imagem</strong> controlam o alt text, a geração lifestyle e a otimização visual.
+              Variáveis disponíveis: <code>{"{{product_name}}"}</code> e <code>{"{{product_type}}"}</code>.
+            </p>
+            {missingImagePrompts.length > 0 && (
+              <Button variant="outline" size="sm" onClick={handleSeedImagePrompts} disabled={seeding}>
+                {seeding ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1 h-4 w-4" />}
+                Criar prompts base de imagem
+              </Button>
+            )}
+          </div>
+
+          <PromptTemplatesTable
+            templates={imageTemplates}
             selectedId={selectedTemplate}
             onSelect={handleSelectTemplate}
             onEdit={t => setEditingTemplate(t)}
