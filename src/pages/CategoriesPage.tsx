@@ -204,6 +204,7 @@ const CategoriesPage = () => {
     }
   };
 
+  const exportAnalysisCSV = () => {
     const rows = [
       ["categoria", "slug", "profundidade", "nº_produtos", "sugestao"],
       ...flat.map(c => {
