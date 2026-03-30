@@ -337,7 +337,7 @@ function MigrarProdutosTab() {
                       <span className="text-xs text-muted-foreground">{rule.migration_progress} / {rule.migration_total}</span>
                     </div>
                   ) : rule.migration_status === "migrated" ? (
-                    <span className="text-sm text-green-600">{rule.migration_total} produtos</span>
+                    <span className="text-sm text-primary">{rule.migration_total} produtos</span>
                   ) : (
                     <span className="text-sm text-muted-foreground">—</span>
                   )}
