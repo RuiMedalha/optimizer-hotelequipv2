@@ -718,23 +718,37 @@ export default function PDFExtractionPage() {
                   const data = productsForReview;
                   if (!data || data.length === 0) { toast.error("Sem produtos para exportar"); return; }
                   import("xlsx").then(XLSX => {
-                    const exportRows = data.map((p: any, idx: number) => ({
-                      "#": idx + 1,
-                      "SKU": p.sku || p.ref || "",
-                      "Título": p.title || p.name || "",
-                      "Preço": p.price || "",
-                      "Categoria": p.category || "",
-                      "Descrição": (p.description || "").slice(0, 500),
-                      "Descrição Curta": (p.short_description || "").slice(0, 300),
-                      "Material": p.material || "",
-                      "Dimensões": p.dimensions || "",
-                      "Peso": p.weight || "",
-                      "Marca": p.brand || "",
-                      "Modelo": p.model || "",
-                      "EAN": p.ean || p.gtin || "",
-                      "Imagens": Array.isArray(p.images) ? p.images.join(" | ") : (p.image || ""),
-                      "Aprovado": p._approved ? "Sim" : "Não",
-                    }));
+                    const exportRows = data.map((p: any, idx: number) => {
+                      const pricing = p.pricing || {};
+                      const tiers = Array.isArray(pricing.price_tiers) && pricing.price_tiers.length > 0
+                        ? pricing.price_tiers.map((t: any) => `${t.min_qty}${t.max_qty ? `-${t.max_qty}` : "+"}un: ${t.price}€${t.discount_pct ? ` (-${t.discount_pct}%)` : ""}`).join("; ")
+                        : "";
+                      return {
+                        "#": idx + 1,
+                        "SKU": p.sku || p.ref || "",
+                        "Título": p.title || p.name || "",
+                        "Preço": p.price || "",
+                        "Preço Unitário": pricing.unit_price || "",
+                        "PVP Recomendado": pricing.rrp || "",
+                        "Embalagem": pricing.pack_size ? `${pricing.pack_size}x` : "",
+                        "Preço Embalagem": pricing.pack_price || "",
+                        "Preço Bulk": pricing.bulk_price || "",
+                        "Margem %": pricing.margin_pct ? `${pricing.margin_pct}%` : "",
+                        "Escalões Preço": tiers,
+                        "Notas Preço": pricing.price_notes || "",
+                        "Categoria": p.category || "",
+                        "Descrição": (p.description || "").slice(0, 500),
+                        "Descrição Curta": (p.short_description || "").slice(0, 300),
+                        "Material": p.material || "",
+                        "Dimensões": p.dimensions || "",
+                        "Peso": p.weight || "",
+                        "Marca": p.brand || "",
+                        "Modelo": p.model || "",
+                        "EAN": p.ean || p.gtin || "",
+                        "Imagens": Array.isArray(p.images) ? p.images.join(" | ") : (p.image || ""),
+                        "Aprovado": p._approved ? "Sim" : "Não",
+                      };
+                    });
                     const ws = XLSX.utils.json_to_sheet(exportRows);
                     // Auto-width columns
                     const colWidths = Object.keys(exportRows[0] || {}).map(key => ({
@@ -1192,6 +1206,14 @@ function ExtractionDetailDialog({ extractionId, onClose }: { extractionId: strin
                                 Tabela #{table.table_index} — {table.row_count}×{table.col_count}
                                 {table.table_type && (
                                   <Badge variant="secondary" className="text-xs">{tableTypeLabels[table.table_type] || table.table_type}</Badge>
+                                )}
+                                {table.table_type === "pricing_table" && (
+                                  <Tooltip>
+                                    <TooltipTrigger>
+                                      <Badge variant="default" className="text-xs bg-green-600">💰 Preços Estruturados</Badge>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>Tabela com preços unitários, escalões de quantidade, descontos ou preços de embalagem detetados automaticamente</p></TooltipContent>
+                                  </Tooltip>
                                 )}
                               </CardTitle>
                               {table.template_id && (
