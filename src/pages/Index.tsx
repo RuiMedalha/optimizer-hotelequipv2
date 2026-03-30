@@ -74,7 +74,7 @@ const Dashboard = () => {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
         <p className="text-muted-foreground mt-1">
-          {activeWorkspace ? `Workspace: ${activeWorkspace.name}` : "Visão geral do estado dos seus produtos."}
+          {activeWorkspace ? `Workspace: ${activeWorkspace.name}` : "A carregar workspace..."}
         </p>
       </div>
 
