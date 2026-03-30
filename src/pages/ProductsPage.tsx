@@ -239,7 +239,14 @@ const ProductsPage = () => {
       else if (phaseFilter === "none") matchesPhase = !phases.p1 && !phases.p2 && !phases.p3;
     }
 
-    return matchesSeoScore && matchesKeyword && matchesPhase;
+    // Migration filter
+    let matchesMigration = true;
+    if (migrationFilter !== "all") {
+      if (p.status !== "published") matchesMigration = migrationFilter === "not_migrated";
+      else matchesMigration = getMigrationStatus(p) === migrationFilter;
+    }
+
+    return matchesSeoScore && matchesKeyword && matchesPhase && matchesMigration;
   });
 
   // Reset page when server filters change
