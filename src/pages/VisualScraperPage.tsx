@@ -1302,6 +1302,11 @@ export default function VisualScraperPage() {
             <div className="max-w-4xl w-full">
               <ScrapingScheduleManager />
             </div>
+
+            {/* Change Monitor */}
+            <div className="max-w-5xl w-full">
+              <ScrapingChangeMonitor />
+            </div>
           </div>
         </ScrollArea>
       )}
