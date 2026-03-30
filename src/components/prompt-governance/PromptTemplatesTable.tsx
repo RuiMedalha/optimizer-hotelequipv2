@@ -80,7 +80,7 @@ export function PromptTemplatesTable({ templates, selectedId, onSelect, onEdit, 
                 <TableCell className="hidden md:table-cell text-muted-foreground text-sm max-w-[200px] truncate">{t.description || "—"}</TableCell>
                 <TableCell>
                   {t.is_active
-                    ? <Badge className="bg-green-500/10 text-green-600 border-green-500/20">Ativo</Badge>
+                    ? <Badge variant="secondary">Ativo</Badge>
                     : <Badge variant="outline" className="text-muted-foreground">Arquivado</Badge>
                   }
                 </TableCell>
