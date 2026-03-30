@@ -308,13 +308,17 @@ function MapeamentoTab({ categories, allCategories, duplicateGroups, setDuplicat
       const newRes: Record<string, DuplicateResolution> = {};
       for (const g of groups) {
         for (const c of g.categories) {
+          const attrs = (c.extractedAttributes || []).map((a: ExtractedAttribute) => ({
+            slug: a.slug,
+            name: a.label || a.slug.replace("pa_", "").replace(/_/g, " "),
+            values: a.value || "",
+          }));
           newRes[c.id] = {
             catId: c.id,
             action: c.suggestedAction === "keep" ? "keep" : c.suggestedAction === "move_products" ? "convert_to_attribute" : "merge_into",
             targetCategoryId: c.mergeTarget,
-            attributeSlug: c.suggestedAction === "move_products" ? (c.attributeSlug || "pa_profundidade_mm") : "",
-            attributeName: c.suggestedAction === "move_products" ? (c.attributeLabel || "Profundidade (mm)") : "",
-            attributeValues: c.suggestedAction === "move_products" ? (c.attributeValue || c.name.replace(/\D+/g, " ").trim().split(/\s+/)[0] || "") : "",
+            attributes: attrs.length > 0 ? attrs : [{ slug: "", name: "", values: "" }],
+            accepted: false,
           };
         }
       }
