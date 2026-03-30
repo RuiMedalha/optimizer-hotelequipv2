@@ -46,6 +46,10 @@ interface DuplicateCategoryEntry {
   productCount: number;
   suggestedAction: "keep" | "merge_into" | "move_products";
   mergeTarget: string | null;
+  // Context-aware attribute info from HORECA engine
+  attributeSlug?: string;
+  attributeLabel?: string;
+  attributeValue?: string;
 }
 
 interface DuplicateGroup {
