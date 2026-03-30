@@ -941,18 +941,28 @@ export default function PDFExtractionPage() {
                                       const products = Array.isArray(ext.detected_products) ? ext.detected_products : [];
                                       if (products.length === 0) { toast.error("Sem produtos para exportar"); return; }
                                       import("xlsx").then(XLSX => {
-                                        const rows = products.map((p: any, idx: number) => ({
-                                          "#": idx + 1,
-                                          "SKU": p.sku || p.ref || "",
-                                          "Título": p.title || p.name || "",
-                                          "Preço": p.price || "",
-                                          "Categoria": p.category || "",
-                                          "Descrição": (p.description || "").slice(0, 500),
-                                          "Material": p.material || "",
-                                          "Dimensões": p.dimensions || "",
-                                          "Marca": p.brand || "",
-                                          "Imagens": Array.isArray(p.images) ? p.images.join(" | ") : (p.image || ""),
-                                        }));
+                                        const rows = products.map((p: any, idx: number) => {
+                                          const pricing = p.pricing || {};
+                                          const tiers = Array.isArray(pricing.price_tiers) && pricing.price_tiers.length > 0
+                                            ? pricing.price_tiers.map((t: any) => `${t.min_qty}${t.max_qty ? `-${t.max_qty}` : "+"}un: ${t.price}€${t.discount_pct ? ` (-${t.discount_pct}%)` : ""}`).join("; ")
+                                            : "";
+                                          return {
+                                            "#": idx + 1,
+                                            "SKU": p.sku || p.ref || "",
+                                            "Título": p.title || p.name || "",
+                                            "Preço": p.price || "",
+                                            "Preço Unitário": pricing.unit_price || "",
+                                            "PVP": pricing.rrp || "",
+                                            "Escalões": tiers,
+                                            "Preço Bulk": pricing.bulk_price || "",
+                                            "Categoria": p.category || "",
+                                            "Descrição": (p.description || "").slice(0, 500),
+                                            "Material": p.material || "",
+                                            "Dimensões": p.dimensions || "",
+                                            "Marca": p.brand || "",
+                                            "Imagens": Array.isArray(p.images) ? p.images.join(" | ") : (p.image || ""),
+                                          };
+                                        });
                                         const ws = XLSX.utils.json_to_sheet(rows);
                                         const wb = XLSX.utils.book_new();
                                         XLSX.utils.book_append_sheet(wb, ws, "Produtos PDF");
