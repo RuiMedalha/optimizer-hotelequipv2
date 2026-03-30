@@ -19,7 +19,6 @@ import { toast } from "sonner";
 import { useAllProductIds } from "@/hooks/useProducts";
 import { getStorageJson, setStorageItem } from "@/lib/safeStorage";
 
-import { useAllProductIds } from "@/hooks/useProducts";
 
 function CategoryTreeItem({
   cat,
