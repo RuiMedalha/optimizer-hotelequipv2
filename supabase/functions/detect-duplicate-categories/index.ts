@@ -343,7 +343,8 @@ For crossed subcategories, extract BOTH pa_linha and pa_tipo_energia from the pa
 {
   "groupName": "emoji + name",
   "categories": [{
-    "id": "uuid", "name": "name", "path": "full > path",
+    "id": "MUST be the exact UUID from the input data, NOT a placeholder",
+    "name": "name", "path": "full > path",
     "productCount": N,
     "suggestedAction": "keep" | "merge_into" | "move_products",
     "mergeTarget": "uuid" | null,
