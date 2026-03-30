@@ -33,6 +33,7 @@ import { EngineRecommendationCard } from "@/components/document-intelligence/Eng
 import { MappingEditor } from "@/components/document-intelligence/MappingEditor";
 import { DataPreviewTable } from "@/components/document-intelligence/DataPreviewTable";
 import { SendToIngestionPanel } from "@/components/document-intelligence/SendToIngestionPanel";
+import { PDFVersionCompare } from "@/components/document-intelligence/PDFVersionCompare";
 
 // Flatten nested product structures like [{products: [...], section_title: "..."}] into flat product arrays
 function flattenProducts(items: any[]): any[] {
@@ -501,6 +502,7 @@ export default function PDFExtractionPage() {
           <TabsTrigger value="wizard" className="gap-2"><Layers className="h-4 w-4" /> Fluxo Assistido</TabsTrigger>
           <TabsTrigger value="extractions" className="gap-2"><FileText className="h-4 w-4" /> Histórico</TabsTrigger>
           <TabsTrigger value="providers" className="gap-2"><Settings2 className="h-4 w-4" /> Providers</TabsTrigger>
+          <TabsTrigger value="compare" className="gap-2"><GitCompare className="h-4 w-4" /> Comparar</TabsTrigger>
         </TabsList>
 
         {/* ═══════════════ WIZARD TAB ═══════════════ */}
@@ -1007,6 +1009,11 @@ export default function PDFExtractionPage() {
         {/* ═══════════════ PROVIDERS TAB ═══════════════ */}
         <TabsContent value="providers">
           <DocumentIntelligenceProviderPanel />
+        </TabsContent>
+
+        {/* ═══════════════ COMPARE TAB ═══════════════ */}
+        <TabsContent value="compare">
+          <PDFVersionCompare extractions={activeExtractions} />
         </TabsContent>
       </Tabs>
 
