@@ -392,19 +392,53 @@ For crossed subcategories, extract BOTH pa_linha and pa_tipo_energia from the pa
 
     if (!Array.isArray(groups)) groups = [];
 
+    // Build lookup maps to fix AI-generated fake UUIDs
+    const nameToId = new Map<string, string>();
+    const pathToId = new Map<string, string>();
+    for (const c of allCats) {
+      nameToId.set(c.name.toLowerCase().trim(), c.id);
+      pathToId.set(getPath(c.id).toLowerCase().trim(), c.id);
+    }
+    function resolveRealId(c: any): string | null {
+      // If it's already a valid UUID from our data, keep it
+      if (c.id && catById.has(c.id)) return c.id;
+      // Try matching by path first (most specific)
+      if (c.path) {
+        const resolved = pathToId.get(c.path.toLowerCase().trim());
+        if (resolved) return resolved;
+      }
+      // Fallback: match by name
+      if (c.name) {
+        const resolved = nameToId.get(c.name.toLowerCase().trim());
+        if (resolved) return resolved;
+      }
+      return null;
+    }
+
     const validGroups = groups
       .filter((g: any) => g && g.groupName && Array.isArray(g.categories))
       .map((g: any) => ({
         groupName: g.groupName,
         categories: g.categories
-          .filter((c: any) => c && c.id)
-          .map((c: any) => ({
-            id: c.id, name: c.name || "", path: c.path || "",
-            productCount: productCounts[c.name] ?? c.productCount ?? 0,
-            suggestedAction: ["keep", "merge_into", "move_products"].includes(c.suggestedAction) ? c.suggestedAction : "keep",
-            mergeTarget: c.mergeTarget || null,
-            extractedAttributes: Array.isArray(c.extractedAttributes) ? c.extractedAttributes : [],
-          })),
+          .map((c: any) => {
+            const realId = resolveRealId(c);
+            if (!realId) return null;
+            // Also resolve mergeTarget
+            let mergeTarget = c.mergeTarget || null;
+            if (mergeTarget && !catById.has(mergeTarget)) {
+              // Try to resolve mergeTarget by name
+              const targetName = mergeTarget.toLowerCase?.().trim();
+              mergeTarget = nameToId.get(targetName) || null;
+            }
+            return {
+              id: realId, name: c.name || "", path: c.path || "",
+              productCount: productCounts[c.name] ?? c.productCount ?? 0,
+              suggestedAction: ["keep", "merge_into", "move_products"].includes(c.suggestedAction) ? c.suggestedAction : "keep",
+              mergeTarget,
+              extractedAttributes: Array.isArray(c.extractedAttributes) ? c.extractedAttributes : [],
+            };
+          })
+          .filter(Boolean),
         confidence: ["high", "medium", "low"].includes(g.confidence) ? g.confidence : "medium",
         reason: g.reason || "",
       }))
