@@ -266,6 +266,44 @@ function MapeamentoTab({ categories, allCategories }: { categories: { id: string
     });
   };
 
+  // Duplicate detection handler
+  const runDuplicateDetection = async () => {
+    if (!activeWorkspace) return;
+    setDuplicateLoading(true);
+    setDuplicateGroups([]);
+    try {
+      const { data, error } = await supabase.functions.invoke("detect-duplicate-categories", {
+        body: { workspaceId: activeWorkspace.id, aiProvider },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setDuplicateGroups(data.groups || []);
+      toast.success(`${(data.groups || []).length} grupos de duplicados encontrados`);
+    } catch (err: any) {
+      toast.error(err.message || "Erro na detecção de duplicados");
+    } finally {
+      setDuplicateLoading(false);
+    }
+  };
+
+  const addDuplicateToMapping = (group: DuplicateGroup) => {
+    let count = 0;
+    for (const cat of group.categories) {
+      if (cat.suggestedAction === "keep") continue;
+      saveRule.mutate({
+        source_category_id: cat.id,
+        source_category_name: cat.name,
+        action: cat.suggestedAction === "merge_into" ? "merge_into" : "merge_into",
+        target_category_id: cat.mergeTarget || null,
+        attribute_slug: null,
+        attribute_name: null,
+        attribute_values: [],
+      });
+      count++;
+    }
+    toast.success(`${count} regras adicionadas do grupo "${group.groupName}"`);
+  };
+
   // Draft handlers
   const addDraft = () => setDrafts(prev => [...prev, newDraft()]);
   const removeDraft = (localId: string) => setDrafts(prev => prev.filter(d => d.localId !== localId));
