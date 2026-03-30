@@ -564,23 +564,83 @@ function MapeamentoTab({ categories, allCategories, duplicateGroups, setDuplicat
                     <CardTitle className="text-sm font-medium">{group.groupName}</CardTitle>
                     <div className="flex items-center gap-2">
                       <ConfidenceBadge level={group.confidence} />
-                      <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => addDuplicateToMapping(group)}>
+                      <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => addGroupToMapping(group)}>
                         <Plus className="w-3 h-3" /> Adicionar ao mapeamento
                       </Button>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-1">
+                <CardContent className="space-y-3">
                   <p className="text-xs text-muted-foreground mb-2">{group.reason}</p>
-                  {group.categories.map(c => (
-                    <div key={c.id} className="flex items-center gap-2 text-xs py-1">
-                      <span className="text-muted-foreground flex-1 truncate">{c.path || c.name}</span>
-                      <Badge variant="secondary" className="text-[10px] shrink-0">{c.productCount} prod.</Badge>
-                      <Badge variant="outline" className="text-[10px] shrink-0">
-                        {c.suggestedAction === "keep" ? "Manter" : c.suggestedAction === "merge_into" ? "Fundir" : "Mover prod."}
-                      </Badge>
-                    </div>
-                  ))}
+                  {group.categories.map(c => {
+                    const res = resolutions[c.id];
+                    const action = res?.action || (c.suggestedAction === "keep" ? "keep" : "merge_into");
+                    return (
+                      <div key={c.id} className="border rounded-lg p-3 space-y-2 bg-muted/30">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs text-muted-foreground flex-1 truncate">{c.path || c.name}</span>
+                          <Badge variant="secondary" className="text-[10px] shrink-0">{c.productCount} prod.</Badge>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Label className="text-[10px] text-muted-foreground shrink-0">Ação:</Label>
+                          <Select value={action} onValueChange={(v) => updateResolution(c.id, "action", v)}>
+                            <SelectTrigger className="h-7 text-xs w-[180px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="keep">Manter como categoria</SelectItem>
+                              <SelectItem value="merge_into">Fundir em outra categoria</SelectItem>
+                              <SelectItem value="convert_to_attribute">Converter para atributo/filtro</SelectItem>
+                            </SelectContent>
+                          </Select>
+
+                          {action === "merge_into" && (
+                            <Select
+                              value={res?.targetCategoryId || ""}
+                              onValueChange={(v) => updateResolution(c.id, "targetCategoryId", v)}
+                            >
+                              <SelectTrigger className="h-7 text-xs w-[220px]">
+                                <SelectValue placeholder="Categoria destino..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {/* Show group categories as quick targets */}
+                                {group.categories.filter(gc => gc.id !== c.id).map(gc => (
+                                  <SelectItem key={gc.id} value={gc.id}>{gc.name}</SelectItem>
+                                ))}
+                                {/* Also show all categories for flexibility */}
+                                {categories.filter(cat => cat.id !== c.id && !group.categories.some(gc => gc.id === cat.id)).map(cat => (
+                                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+
+                          {action === "convert_to_attribute" && (
+                            <div className="flex gap-1.5 flex-wrap">
+                              <Input
+                                className="h-7 text-xs w-[130px]"
+                                placeholder="pa_slug"
+                                value={res?.attributeSlug || ""}
+                                onChange={(e) => updateResolution(c.id, "attributeSlug", e.target.value)}
+                              />
+                              <Input
+                                className="h-7 text-xs w-[130px]"
+                                placeholder="Nome atributo"
+                                value={res?.attributeName || ""}
+                                onChange={(e) => updateResolution(c.id, "attributeName", e.target.value)}
+                              />
+                              <Input
+                                className="h-7 text-xs w-[160px]"
+                                placeholder="Valores (600,700,900)"
+                                value={res?.attributeValues || ""}
+                                onChange={(e) => updateResolution(c.id, "attributeValues", e.target.value)}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </CardContent>
               </Card>
             ))}
