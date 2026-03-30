@@ -84,6 +84,7 @@ const CategoriesPage = () => {
   const updateCategory = useUpdateCategory();
   const deleteCategory = useDeleteCategory();
   const syncWooCategories = useSyncWooCategories();
+  const navigate = useNavigate();
   const { activeWorkspace } = useWorkspaceContext();
 
   const [showForm, setShowForm] = useState(false);
