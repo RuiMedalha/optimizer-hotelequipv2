@@ -39,18 +39,30 @@ interface AiSuggestion {
   productCount: number;
 }
 
+interface DuplicateCategoryEntry {
+  id: string;
+  name: string;
+  path: string;
+  productCount: number;
+  suggestedAction: "keep" | "merge_into" | "move_products";
+  mergeTarget: string | null;
+}
+
 interface DuplicateGroup {
   groupName: string;
-  categories: Array<{
-    id: string;
-    name: string;
-    path: string;
-    productCount: number;
-    suggestedAction: "keep" | "merge_into" | "move_products";
-    mergeTarget: string | null;
-  }>;
+  categories: DuplicateCategoryEntry[];
   confidence: "high" | "medium" | "low";
   reason: string;
+}
+
+// Per-category resolution choice for the enhanced UX
+interface DuplicateResolution {
+  catId: string;
+  action: "keep" | "merge_into" | "convert_to_attribute";
+  targetCategoryId: string | null;
+  attributeSlug: string;
+  attributeName: string;
+  attributeValues: string;
 }
 
 // ── Local draft state for new rules not yet saved ──
@@ -130,7 +142,14 @@ function actionLabel(action: "keep" | "convert" | "merge", slug?: string | null,
 // ═══════════════════════════════════════════════════════════════════════
 // TAB 1 — MAPEAMENTO
 // ═══════════════════════════════════════════════════════════════════════
-function MapeamentoTab({ categories, allCategories }: { categories: { id: string; name: string }[]; allCategories: Category[] }) {
+function MapeamentoTab({ categories, allCategories, duplicateGroups, setDuplicateGroups, duplicateLoading, setDuplicateLoading }: {
+  categories: { id: string; name: string }[];
+  allCategories: Category[];
+  duplicateGroups: DuplicateGroup[];
+  setDuplicateGroups: (g: DuplicateGroup[]) => void;
+  duplicateLoading: boolean;
+  setDuplicateLoading: (v: boolean) => void;
+}) {
   const { data: savedRules = [] } = useArchitectRules();
   const saveRule = useSaveRule();
   const deleteRule = useDeleteRule();
@@ -153,9 +172,8 @@ function MapeamentoTab({ categories, allCategories }: { categories: { id: string
   const [selectedSuggestions, setSelectedSuggestions] = useState<Set<string>>(new Set());
   const [showCheckboxes, setShowCheckboxes] = useState(false);
 
-  // Duplicate detection state
-  const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroup[]>([]);
-  const [duplicateLoading, setDuplicateLoading] = useState(false);
+  // Duplicate resolution state (per-category choices within groups)
+  const [resolutions, setResolutions] = useState<Record<string, DuplicateResolution>>({});
 
   // Root categories
   const rootCategories = allCategories.filter(c => c.parent_id === null);
@@ -270,16 +288,31 @@ function MapeamentoTab({ categories, allCategories }: { categories: { id: string
   const runDuplicateDetection = async () => {
     if (!activeWorkspace) return;
     setDuplicateLoading(true);
-    setDuplicateGroups([]);
     try {
       const { data, error } = await supabase.functions.invoke("detect-duplicate-categories", {
         body: { workspaceId: activeWorkspace.id, aiProvider },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      setDuplicateGroups(data.groups || []);
+      const groups = data.groups || [];
+      setDuplicateGroups(groups);
+      // Initialize resolutions from AI suggestions
+      const newRes: Record<string, DuplicateResolution> = {};
+      for (const g of groups) {
+        for (const c of g.categories) {
+          newRes[c.id] = {
+            catId: c.id,
+            action: c.suggestedAction === "keep" ? "keep" : "merge_into",
+            targetCategoryId: c.mergeTarget,
+            attributeSlug: "",
+            attributeName: "",
+            attributeValues: "",
+          };
+        }
+      }
+      setResolutions(prev => ({ ...prev, ...newRes }));
       if (data?.warning) toast.info(data.warning);
-      toast.success(`${(data.groups || []).length} grupos de duplicados encontrados`);
+      toast.success(`${groups.length} grupos de duplicados encontrados`);
     } catch (err: any) {
       toast.error(err.message || "Erro na detecção de duplicados");
     } finally {
@@ -287,20 +320,42 @@ function MapeamentoTab({ categories, allCategories }: { categories: { id: string
     }
   };
 
-  const addDuplicateToMapping = (group: DuplicateGroup) => {
+  const updateResolution = (catId: string, field: keyof DuplicateResolution, value: string | null) => {
+    setResolutions(prev => ({
+      ...prev,
+      [catId]: { ...prev[catId], [field]: value },
+    }));
+  };
+
+  const addGroupToMapping = (group: DuplicateGroup) => {
     let count = 0;
     for (const cat of group.categories) {
-      if (cat.suggestedAction === "keep") continue;
-      saveRule.mutate({
-        source_category_id: cat.id,
-        source_category_name: cat.name,
-        action: cat.suggestedAction === "merge_into" ? "merge_into" : "merge_into",
-        target_category_id: cat.mergeTarget || null,
-        attribute_slug: null,
-        attribute_name: null,
-        attribute_values: [],
-      });
-      count++;
+      const res = resolutions[cat.id];
+      if (!res || res.action === "keep") continue;
+
+      if (res.action === "merge_into") {
+        saveRule.mutate({
+          source_category_id: cat.id,
+          source_category_name: cat.name,
+          action: "merge_into",
+          target_category_id: res.targetCategoryId || null,
+          attribute_slug: null,
+          attribute_name: null,
+          attribute_values: [],
+        });
+        count++;
+      } else if (res.action === "convert_to_attribute") {
+        saveRule.mutate({
+          source_category_id: cat.id,
+          source_category_name: cat.name,
+          action: "convert_to_attribute",
+          target_category_id: null,
+          attribute_slug: res.attributeSlug || null,
+          attribute_name: res.attributeName || null,
+          attribute_values: res.attributeValues ? res.attributeValues.split(",").map(v => v.trim()).filter(Boolean) : [],
+        });
+        count++;
+      }
     }
     toast.success(`${count} regras adicionadas do grupo "${group.groupName}"`);
   };
@@ -509,23 +564,83 @@ function MapeamentoTab({ categories, allCategories }: { categories: { id: string
                     <CardTitle className="text-sm font-medium">{group.groupName}</CardTitle>
                     <div className="flex items-center gap-2">
                       <ConfidenceBadge level={group.confidence} />
-                      <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => addDuplicateToMapping(group)}>
+                      <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => addGroupToMapping(group)}>
                         <Plus className="w-3 h-3" /> Adicionar ao mapeamento
                       </Button>
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-1">
+                <CardContent className="space-y-3">
                   <p className="text-xs text-muted-foreground mb-2">{group.reason}</p>
-                  {group.categories.map(c => (
-                    <div key={c.id} className="flex items-center gap-2 text-xs py-1">
-                      <span className="text-muted-foreground flex-1 truncate">{c.path || c.name}</span>
-                      <Badge variant="secondary" className="text-[10px] shrink-0">{c.productCount} prod.</Badge>
-                      <Badge variant="outline" className="text-[10px] shrink-0">
-                        {c.suggestedAction === "keep" ? "Manter" : c.suggestedAction === "merge_into" ? "Fundir" : "Mover prod."}
-                      </Badge>
-                    </div>
-                  ))}
+                  {group.categories.map(c => {
+                    const res = resolutions[c.id];
+                    const action = res?.action || (c.suggestedAction === "keep" ? "keep" : "merge_into");
+                    return (
+                      <div key={c.id} className="border rounded-lg p-3 space-y-2 bg-muted/30">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs text-muted-foreground flex-1 truncate">{c.path || c.name}</span>
+                          <Badge variant="secondary" className="text-[10px] shrink-0">{c.productCount} prod.</Badge>
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Label className="text-[10px] text-muted-foreground shrink-0">Ação:</Label>
+                          <Select value={action} onValueChange={(v) => updateResolution(c.id, "action", v)}>
+                            <SelectTrigger className="h-7 text-xs w-[180px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="keep">Manter como categoria</SelectItem>
+                              <SelectItem value="merge_into">Fundir em outra categoria</SelectItem>
+                              <SelectItem value="convert_to_attribute">Converter para atributo/filtro</SelectItem>
+                            </SelectContent>
+                          </Select>
+
+                          {action === "merge_into" && (
+                            <Select
+                              value={res?.targetCategoryId || ""}
+                              onValueChange={(v) => updateResolution(c.id, "targetCategoryId", v)}
+                            >
+                              <SelectTrigger className="h-7 text-xs w-[220px]">
+                                <SelectValue placeholder="Categoria destino..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {/* Show group categories as quick targets */}
+                                {group.categories.filter(gc => gc.id !== c.id).map(gc => (
+                                  <SelectItem key={gc.id} value={gc.id}>{gc.name}</SelectItem>
+                                ))}
+                                {/* Also show all categories for flexibility */}
+                                {categories.filter(cat => cat.id !== c.id && !group.categories.some(gc => gc.id === cat.id)).map(cat => (
+                                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+
+                          {action === "convert_to_attribute" && (
+                            <div className="flex gap-1.5 flex-wrap">
+                              <Input
+                                className="h-7 text-xs w-[130px]"
+                                placeholder="pa_slug"
+                                value={res?.attributeSlug || ""}
+                                onChange={(e) => updateResolution(c.id, "attributeSlug", e.target.value)}
+                              />
+                              <Input
+                                className="h-7 text-xs w-[130px]"
+                                placeholder="Nome atributo"
+                                value={res?.attributeName || ""}
+                                onChange={(e) => updateResolution(c.id, "attributeName", e.target.value)}
+                              />
+                              <Input
+                                className="h-7 text-xs w-[160px]"
+                                placeholder="Valores (600,700,900)"
+                                value={res?.attributeValues || ""}
+                                onChange={(e) => updateResolution(c.id, "attributeValues", e.target.value)}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </CardContent>
               </Card>
             ))}
@@ -833,6 +948,8 @@ function MigrarProdutosTab() {
 // ═══════════════════════════════════════════════════════════════════════
 export default function CategoryArchitectPage() {
   const { data: categories = [], isLoading } = useCategories();
+  const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroup[]>([]);
+  const [duplicateLoading, setDuplicateLoading] = useState(false);
 
   if (isLoading) {
     return (
@@ -858,7 +975,14 @@ export default function CategoryArchitectPage() {
           <TabsTrigger value="migrar">Migrar Produtos</TabsTrigger>
         </TabsList>
         <TabsContent value="mapeamento">
-          <MapeamentoTab categories={flatCats} allCategories={categories} />
+          <MapeamentoTab
+            categories={flatCats}
+            allCategories={categories}
+            duplicateGroups={duplicateGroups}
+            setDuplicateGroups={setDuplicateGroups}
+            duplicateLoading={duplicateLoading}
+            setDuplicateLoading={setDuplicateLoading}
+          />
         </TabsContent>
         <TabsContent value="atributos">
           <CriarAtributosTab />
