@@ -6622,6 +6622,7 @@ export type Database = {
           alt_text: string | null
           asset_id: string | null
           created_at: string
+          generation_prompt: string | null
           id: string
           optimized_url: string | null
           original_url: string | null
@@ -6635,6 +6636,7 @@ export type Database = {
           alt_text?: string | null
           asset_id?: string | null
           created_at?: string
+          generation_prompt?: string | null
           id?: string
           optimized_url?: string | null
           original_url?: string | null
@@ -6648,6 +6650,7 @@ export type Database = {
           alt_text?: string | null
           asset_id?: string | null
           created_at?: string
+          generation_prompt?: string | null
           id?: string
           optimized_url?: string | null
           original_url?: string | null
