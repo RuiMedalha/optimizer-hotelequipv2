@@ -633,10 +633,10 @@ function MapeamentoTab({ categories, allCategories, duplicateGroups, setDuplicat
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-sm font-medium">{group.groupName}</CardTitle>
-                    <div className="flex items-center gap-2">
+                     <div className="flex items-center gap-2">
                       <ConfidenceBadge level={group.confidence} />
                       <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => addGroupToMapping(group)}>
-                        <Plus className="w-3 h-3" /> Adicionar ao mapeamento
+                        <Plus className="w-3 h-3" /> Aceitar todo o grupo
                       </Button>
                     </div>
                   </div>
@@ -646,69 +646,109 @@ function MapeamentoTab({ categories, allCategories, duplicateGroups, setDuplicat
                   {group.categories.map(c => {
                     const res = resolutions[c.id];
                     const action = res?.action || (c.suggestedAction === "keep" ? "keep" : "merge_into");
+                    const isAccepted = res?.accepted || false;
                     return (
-                      <div key={c.id} className="border rounded-lg p-3 space-y-2 bg-muted/30">
+                      <div key={c.id} className={`border rounded-lg p-3 space-y-2 ${isAccepted ? "bg-primary/5 border-primary/30 opacity-70" : "bg-muted/30"}`}>
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-xs text-muted-foreground flex-1 truncate">{c.path || c.name}</span>
                           <Badge variant="secondary" className="text-[10px] shrink-0">{c.productCount} prod.</Badge>
+                          {isAccepted && <Badge className="bg-primary/10 text-primary text-[10px]"><CheckCircle className="w-3 h-3 mr-1" />Aceite</Badge>}
                         </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Label className="text-[10px] text-muted-foreground shrink-0">Ação:</Label>
-                          <Select value={action} onValueChange={(v) => updateResolution(c.id, "action", v)}>
-                            <SelectTrigger className="h-7 text-xs w-[180px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="keep">Manter como categoria</SelectItem>
-                              <SelectItem value="merge_into">Fundir em outra categoria</SelectItem>
-                              <SelectItem value="convert_to_attribute">Converter para atributo/filtro</SelectItem>
-                            </SelectContent>
-                          </Select>
 
-                          {action === "merge_into" && (
-                            <Select
-                              value={res?.targetCategoryId || ""}
-                              onValueChange={(v) => updateResolution(c.id, "targetCategoryId", v)}
-                            >
-                              <SelectTrigger className="h-7 text-xs w-[220px]">
-                                <SelectValue placeholder="Categoria destino..." />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {/* Show group categories as quick targets */}
-                                {group.categories.filter(gc => gc.id !== c.id).map(gc => (
-                                  <SelectItem key={gc.id} value={gc.id}>{gc.name}</SelectItem>
-                                ))}
-                                {/* Also show all categories for flexibility */}
-                                {categories.filter(cat => cat.id !== c.id && !group.categories.some(gc => gc.id === cat.id)).map(cat => (
-                                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
+                        {/* Extracted attributes preview */}
+                        {(c.extractedAttributes || []).length > 0 && !isAccepted && (
+                          <div className="flex gap-1.5 flex-wrap">
+                            {c.extractedAttributes.map((attr, ai) => (
+                              <Badge key={ai} variant="outline" className="text-[10px] gap-1 font-mono">
+                                {attr.slug} = {attr.value}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
 
-                          {action === "convert_to_attribute" && (
-                            <div className="flex gap-1.5 flex-wrap">
-                              <Input
-                                className="h-7 text-xs w-[130px]"
-                                placeholder="pa_slug"
-                                value={res?.attributeSlug || ""}
-                                onChange={(e) => updateResolution(c.id, "attributeSlug", e.target.value)}
-                              />
-                              <Input
-                                className="h-7 text-xs w-[130px]"
-                                placeholder="Nome atributo"
-                                value={res?.attributeName || ""}
-                                onChange={(e) => updateResolution(c.id, "attributeName", e.target.value)}
-                              />
-                              <Input
-                                className="h-7 text-xs w-[160px]"
-                                placeholder="Valores (600,700,900)"
-                                value={res?.attributeValues || ""}
-                                onChange={(e) => updateResolution(c.id, "attributeValues", e.target.value)}
-                              />
+                        {!isAccepted && (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <Label className="text-[10px] text-muted-foreground shrink-0">Ação:</Label>
+                              <Select value={action} onValueChange={(v) => updateResolution(c.id, "action", v)}>
+                                <SelectTrigger className="h-7 text-xs w-[180px]">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="keep">Manter como categoria</SelectItem>
+                                  <SelectItem value="merge_into">Fundir em outra categoria</SelectItem>
+                                  <SelectItem value="convert_to_attribute">Converter para atributo/filtro</SelectItem>
+                                </SelectContent>
+                              </Select>
+
+                              {action === "merge_into" && (
+                                <Select
+                                  value={res?.targetCategoryId || ""}
+                                  onValueChange={(v) => updateResolution(c.id, "targetCategoryId", v)}
+                                >
+                                  <SelectTrigger className="h-7 text-xs w-[220px]">
+                                    <SelectValue placeholder="Categoria destino..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {group.categories.filter(gc => gc.id !== c.id).map(gc => (
+                                      <SelectItem key={gc.id} value={gc.id}>{gc.name}</SelectItem>
+                                    ))}
+                                    {categories.filter(cat => cat.id !== c.id && !group.categories.some(gc => gc.id === cat.id)).map(cat => (
+                                      <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+
+                              {/* Accept individual button */}
+                              <Button
+                                size="sm"
+                                variant="default"
+                                className="h-7 text-xs gap-1 ml-auto"
+                                onClick={() => acceptSingleCategory(c)}
+                              >
+                                <CheckCircle className="w-3 h-3" /> Aceitar
+                              </Button>
                             </div>
-                          )}
-                        </div>
+
+                            {/* Attribute editors for merge_into (with attributes) or convert_to_attribute */}
+                            {(action === "convert_to_attribute" || (action === "merge_into" && (res?.attributes || []).some(a => a.slug))) && (
+                              <div className="pl-4 border-l-2 border-primary/20 space-y-1.5">
+                                <Label className="text-[10px] text-muted-foreground">Atributos a criar:</Label>
+                                {(res?.attributes || []).map((attr, ai) => (
+                                  <div key={ai} className="flex gap-1.5 items-center flex-wrap">
+                                    <Input
+                                      className="h-7 text-xs w-[120px] font-mono"
+                                      placeholder="pa_slug"
+                                      value={attr.slug}
+                                      onChange={(e) => updateResolutionAttribute(c.id, ai, "slug", e.target.value)}
+                                    />
+                                    <Input
+                                      className="h-7 text-xs w-[110px]"
+                                      placeholder="Nome"
+                                      value={attr.name}
+                                      onChange={(e) => updateResolutionAttribute(c.id, ai, "name", e.target.value)}
+                                    />
+                                    <Input
+                                      className="h-7 text-xs w-[140px]"
+                                      placeholder="Valores"
+                                      value={attr.values}
+                                      onChange={(e) => updateResolutionAttribute(c.id, ai, "values", e.target.value)}
+                                    />
+                                    {(res?.attributes || []).length > 1 && (
+                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeResolutionAttribute(c.id, ai)}>
+                                        <Trash2 className="w-3 h-3 text-destructive" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                ))}
+                                <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1" onClick={() => addResolutionAttribute(c.id)}>
+                                  <Plus className="w-3 h-3" /> Adicionar atributo
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
