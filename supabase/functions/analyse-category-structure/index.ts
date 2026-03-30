@@ -11,7 +11,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { workspaceId, parentCategoryId } = await req.json();
+    const { workspaceId, parentCategoryId, aiProvider } = await req.json();
 
     if (!workspaceId || typeof workspaceId !== "string") {
       return new Response(JSON.stringify({ error: "workspaceId is required" }), {
