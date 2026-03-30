@@ -71,8 +71,11 @@ serve(async (req) => {
           {
             type: "text",
             text: `Quickly analyze this PDF. Return JSON:
-{"total_pages":N,"document_type":"product_catalog"|"price_list"|"technical_sheet"|"mixed"|"scanned_catalog","language":"xx","supplier_name":"...","has_images":bool,"is_scanned":bool,"estimated_products":N,"table_format":"tabular"|"cards"|"list"|"mixed","page_ranges":[{"start":1,"end":N,"content_type":"products"|"cover"|"index"|"notes"|"empty"}]}
-Note: set "is_scanned":true and "document_type":"scanned_catalog" if the PDF pages are images/scans with no selectable text layer.
+{"total_pages":N,"document_type":"product_catalog"|"price_list"|"technical_sheet"|"mixed"|"scanned_catalog","language":"xx","supplier_name":"...","has_images":bool,"is_scanned":bool,"estimated_products":N,"has_price_tables":bool,"price_table_type":"none"|"simple"|"tiered"|"bulk"|"discount_matrix","table_format":"tabular"|"cards"|"list"|"mixed","page_ranges":[{"start":1,"end":N,"content_type":"products"|"cover"|"index"|"notes"|"empty"|"price_list"}]}
+Notes:
+- set "is_scanned":true and "document_type":"scanned_catalog" if the PDF pages are images/scans with no selectable text layer.
+- set "has_price_tables":true if any pages contain structured pricing grids, quantity-based pricing, tiered pricing, or discount matrices.
+- set content_type "price_list" for pages that are primarily pricing tables without product descriptions.
 Return ONLY valid JSON.`,
           },
         ],
@@ -98,7 +101,7 @@ Return ONLY valid JSON.`,
 
     // Determine product page ranges
     const productRanges = (overview.page_ranges || []).filter(
-      (r: any) => ["products", "specs", "mixed"].includes(r.content_type)
+      (r: any) => ["products", "specs", "mixed", "price_list"].includes(r.content_type)
     );
     if (productRanges.length === 0) {
       productRanges.push({ start: 1, end: totalPages, content_type: "products" });
@@ -160,6 +163,8 @@ Return ONLY valid JSON.`,
             supplier_name: overview.supplier_name,
             document_type: overview.document_type,
             is_scanned: overview.is_scanned === true,
+            has_price_tables: overview.has_price_tables === true,
+            price_table_type: overview.price_table_type || "none",
           },
         })
       ));
@@ -355,26 +360,45 @@ async function processChunk(opts: {
 
   // Detect if this chunk likely contains scanned/image-only pages
   const isLikelyScanned = overviewData?.is_scanned === true || overviewData?.document_type === "scanned_catalog";
+  const hasPriceTables = overviewData?.has_price_tables === true;
+  const priceTableType = overviewData?.price_table_type || "none";
 
   let aiResult: any;
   try {
+    const systemPrompts: string[] = [];
+    if (isLikelyScanned) {
+      systemPrompts.push("És um especialista em OCR e extração de dados de catálogos digitalizados (scanned). Usa a tua capacidade de visão para LER TODO o texto visível nas imagens das páginas, incluindo texto em tabelas, cabeçalhos, rodapés e notas. Extrai TODOS os produtos com máxima precisão.");
+    } else {
+      systemPrompts.push("És um especialista em extração de dados de catálogos. Extrai TODOS os produtos deste catálogo PDF. Sê rigoroso e sistemático.");
+    }
+    if (hasPriceTables) {
+      systemPrompts.push("IMPORTANTE: Este documento contém tabelas de preços estruturadas. Deves extrair TODA a informação de preços incluindo: preços unitários, preços por quantidade/escalão (tiered pricing), descontos por volume, preços por embalagem, e quaisquer condições especiais de preço. Cada linha de preço deve ser capturada como um produto ou variante separado.");
+    }
     aiResult = await directAICall({
-      systemPrompt: isLikelyScanned
-        ? "És um especialista em OCR e extração de dados de catálogos digitalizados (scanned). Usa a tua capacidade de visão para LER TODO o texto visível nas imagens das páginas, incluindo texto em tabelas, cabeçalhos, rodapés e notas. Extrai TODOS os produtos com máxima precisão."
-        : "És um especialista em extração de dados de catálogos. Extrai TODOS os produtos deste catálogo PDF. Sê rigoroso e sistemático.",
+      systemPrompt: systemPrompts.join("\n\n"),
       messages: [{
         role: "user",
         content: [
           { type: "image_url", image_url: { url: `data:application/pdf;base64,${chunkPdfBase64}` } },
           {
             type: "text",
-            text: `${isLikelyScanned ? "[MODO OCR] Este PDF é digitalizado/escaneado. Usa visão para ler TODO o texto nas imagens.\n\n" : ""}Extrai TODOS os produtos das páginas ${chunkStart} a ${chunkEnd} deste PDF.
+            text: `${isLikelyScanned ? "[MODO OCR] Este PDF é digitalizado/escaneado. Usa visão para ler TODO o texto nas imagens.\n\n" : ""}${hasPriceTables ? `[MODO TABELA DE PREÇOS - Tipo: ${priceTableType}] Este documento contém tabelas de preços. Extrai TODOS os preços, incluindo escalões de quantidade e descontos.\n\n` : ""}Extrai TODOS os produtos das páginas ${chunkStart} a ${chunkEnd} deste PDF.
 Idioma: ${overviewData?.language || "auto-detect"}
 Fornecedor: ${overviewData?.supplier_name || "desconhecido"}
 
 Para cada produto devolve:
 - sku, title, description, price (number), currency, category, dimensions, weight, material, color_options (array), technical_specs (object), confidence (0-100)
 - is_scanned: true se o texto foi extraído por OCR de uma imagem digitalizada
+- pricing (objeto de preços estruturado, se aplicável):
+  - unit_price: preço unitário base (number)
+  - currency: moeda (string, ex: "EUR")
+  - price_tiers: array de escalões de preço por quantidade [{"min_qty":N,"max_qty":N,"price":N,"discount_pct":N}]
+  - bulk_price: preço para grandes quantidades (number)
+  - pack_size: tamanho da embalagem (number)
+  - pack_price: preço por embalagem (number)
+  - rrp: preço recomendado de venda ao público (number)
+  - margin_pct: margem percentual (number)
+  - price_notes: notas adicionais sobre preço (string)
 - images (array de objetos): Para CADA imagem de produto visível na página, indica:
   - image_description: descrição detalhada do que a imagem mostra (ângulo do produto, contexto, estilo)
   - alt_text: texto alternativo otimizado para SEO (máx 125 caracteres)
@@ -385,7 +409,7 @@ Para cada produto devolve:
   - background: "white"|"transparent"|"lifestyle"|"colored"|"studio"
 
 Formato JSON:
-{"pages":[{"page_number":N,"page_type":"product_listing","is_scanned":bool,"ocr_text":"raw OCR text if scanned","zones":["header","table","images"],"section_title":"...","page_images_count":N,"products":[{...}]}]}
+{"pages":[{"page_number":N,"page_type":"product_listing"|"price_list","is_scanned":bool,"ocr_text":"raw OCR text if scanned","has_price_table":bool,"zones":["header","table","images","price_grid"],"section_title":"...","page_images_count":N,"products":[{...}]}]}
 Devolve APENAS JSON válido.`,
           },
         ],
