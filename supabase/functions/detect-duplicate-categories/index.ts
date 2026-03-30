@@ -314,7 +314,7 @@ serve(async (req) => {
 
     // Build HORECA-aware prompt
     const catsForAi = [...allCats].sort((a, b) => (productCounts[b.name] ?? 0) - (productCounts[a.name] ?? 0)).slice(0, 120);
-    const catList = catsForAi.map(c => `- ${c.name} | path: ${getPath(c.id)} | products: ${productCounts[c.name] ?? 0}`).join("\n");
+    const catList = catsForAi.map(c => `- id: ${c.id} | ${c.name} | path: ${getPath(c.id)} | products: ${productCounts[c.name] ?? 0}`).join("\n");
 
     const systemPrompt = `You are a HORECA equipment taxonomy expert.
 
