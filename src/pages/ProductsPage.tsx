@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Search, Check, X, Edit, Sparkles, Loader2, Download, Send, Trash2, Settings2, Save, GitBranch, Layers, Plus, Ban, Filter, ChevronDown, ChevronRight, Rocket, XCircle, List, Network, Globe, Copy, AlertTriangle, ImageIcon, Camera, GitCompare } from "lucide-react";
+import { Search, Check, X, Edit, Sparkles, Loader2, Download, Send, Trash2, Settings2, Save, GitBranch, Layers, Plus, Ban, Filter, ChevronDown, ChevronRight, Rocket, XCircle, List, Network, Globe, Copy, AlertTriangle, ImageIcon, Camera, GitCompare, Wand2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useProducts, useAllProductIds, useUpdateProductStatus, useProductFilterOptions, type Product, type ProductFilters } from "@/hooks/useProducts";
@@ -60,6 +60,15 @@ type FilterStatus = Enums<"product_status"> | "all";
 
 const ALL_FIELDS: OptimizationField[] = OPTIMIZATION_FIELDS.map(f => f.key);
 const ALL_PHASES = OPTIMIZATION_PHASES.map(p => p.phase);
+
+function getMigrationStatus(product: Product): "migrated" | "partial" | "not_migrated" {
+  const attrs = product.attributes as Array<{slug?: string}> | null | undefined;
+  if (!attrs || attrs.length === 0) return "not_migrated";
+  const paAttrs = attrs.filter(a => a?.slug?.startsWith("pa_"));
+  if (paAttrs.length >= 2) return "migrated";
+  if (paAttrs.length === 1) return "partial";
+  return "not_migrated";
+}
 
 const ProductsPage = () => {
   const { activeWorkspace, toggleVariableProducts } = useWorkspaceContext();
@@ -116,6 +125,7 @@ const ProductsPage = () => {
   const [productTypeFilter, setProductTypeFilter] = useState<string>("all");
   const [phaseFilter, setPhaseFilter] = useState<string>("all");
   const [wooFilter, setWooFilter] = useState<string>("all");
+  const [migrationFilter, setMigrationFilter] = useState<string>("all");
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [allPagesSelected, setAllPagesSelected] = useState(false);
@@ -229,7 +239,14 @@ const ProductsPage = () => {
       else if (phaseFilter === "none") matchesPhase = !phases.p1 && !phases.p2 && !phases.p3;
     }
 
-    return matchesSeoScore && matchesKeyword && matchesPhase;
+    // Migration filter
+    let matchesMigration = true;
+    if (migrationFilter !== "all") {
+      if (p.status !== "published") matchesMigration = migrationFilter === "not_migrated";
+      else matchesMigration = getMigrationStatus(p) === migrationFilter;
+    }
+
+    return matchesSeoScore && matchesKeyword && matchesPhase && matchesMigration;
   });
 
   // Reset page when server filters change
@@ -746,6 +763,25 @@ const ProductsPage = () => {
               <Camera className="w-2.5 h-2.5" />
               Life
             </Badge>
+          )}
+          {product.status === "published" && (
+            <>
+              {getMigrationStatus(product) === "migrated" && (
+                <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[10px]">
+                  Migrado
+                </Badge>
+              )}
+              {getMigrationStatus(product) === "partial" && (
+                <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-[10px]">
+                  Parcial
+                </Badge>
+              )}
+              {getMigrationStatus(product) === "not_migrated" && (
+                <Badge variant="outline" className="text-muted-foreground text-[10px]">
+                  Sem atributos
+                </Badge>
+              )}
+            </>
           )}
         </div>
       </td>
@@ -1314,6 +1350,28 @@ const ProductsPage = () => {
           </div>
         </div>
       )}
+      {/* Migration Progress Banner */}
+      {(() => {
+        const published = (products ?? []).filter(p => p.status === "published");
+        const migrated = published.filter(p => getMigrationStatus(p) === "migrated");
+        const publishedCount = published.length;
+        const migratedCount = migrated.length;
+        const migrationPct = publishedCount > 0 ? Math.round((migratedCount / publishedCount) * 100) : 0;
+        return publishedCount > 0 ? (
+          <div className="bg-primary/5 border border-primary/10 rounded-lg px-4 py-3 flex items-center gap-3">
+            <Wand2 className="w-4 h-4 text-primary shrink-0" />
+            <span className="text-sm text-muted-foreground flex-1">
+              Migração de categorias:{" "}
+              <span className="font-medium text-foreground">{migratedCount}</span>
+              {" "}de{" "}
+              <span className="font-medium text-foreground">{publishedCount}</span>
+              {" "}produtos publicados já migrados
+            </span>
+            <span className="text-sm font-medium text-primary">{migrationPct}%</span>
+            <Progress value={migrationPct} className="w-24 h-1.5" />
+          </div>
+        ) : null;
+      })()}
       <div className="space-y-3">
         <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
           <div className="relative flex-1 min-w-[150px] sm:min-w-[200px] max-w-sm">
@@ -1359,9 +1417,9 @@ const ProductsPage = () => {
           >
             <Filter className="w-4 h-4 mr-1" />
             Filtros
-            {(seoScoreFilter !== "all" || hasKeywordFilter !== "all" || sourceFileFilter !== "all" || productTypeFilter !== "all" || phaseFilter !== "all") && (
+            {(seoScoreFilter !== "all" || hasKeywordFilter !== "all" || sourceFileFilter !== "all" || productTypeFilter !== "all" || phaseFilter !== "all" || migrationFilter !== "all") && (
               <Badge variant="default" className="ml-1.5 h-5 w-5 p-0 flex items-center justify-center text-[10px]">
-                {[seoScoreFilter, hasKeywordFilter, sourceFileFilter, productTypeFilter, phaseFilter].filter(f => f !== "all").length}
+                {[seoScoreFilter, hasKeywordFilter, sourceFileFilter, productTypeFilter, phaseFilter, migrationFilter].filter(f => f !== "all").length}
               </Badge>
             )}
           </Button>
@@ -1371,7 +1429,7 @@ const ProductsPage = () => {
         {showAdvancedFilters && (
           <Card>
             <CardContent className="p-4">
-              <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
                 {/* SEO Score */}
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Score SEO</Label>
@@ -1462,6 +1520,21 @@ const ProductsPage = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                {/* Migração */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Migração</Label>
+                  <Select value={migrationFilter} onValueChange={setMigrationFilter}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="migrated">Migrado</SelectItem>
+                      <SelectItem value="partial">Parcial</SelectItem>
+                      <SelectItem value="not_migrated">Sem atributos</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="flex justify-end mt-3">
                 <Button
@@ -1474,6 +1547,7 @@ const ProductsPage = () => {
                     setProductTypeFilter("all");
                     setPhaseFilter("all");
                     setWooFilter("all");
+                    setMigrationFilter("all");
                   }}
                 >
                   Limpar filtros
