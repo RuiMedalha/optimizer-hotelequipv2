@@ -37,6 +37,26 @@ const ENERGY_PATTERNS = /^(eletricos?|electricos?|gas|gaz|a\s+vapor)$/i;
 const ACCESSORY_PATTERNS = /^(acessorios?|acessórios?|complementos?)$/i;
 const FORMAT_PATTERNS = /^(snack|bar|gastronorm|pastelaria\s*\/?\s*padaria)$/i;
 
+// ─── Context-aware attribute inference for HORECA ────────────────
+// Maps parent branch keywords to the correct attribute meaning
+const CAPACITY_CONTEXTS = /armarios?|armários?|vitrines?|arcas?|abatedores?|camaras?|câmaras?/i;
+const DEPTH_CONTEXTS = /bancadas?|confecao|confeção|fogoes|fogões|fornos?|fritadeiras?|grelhadores?|basculantes?|marmitas?/i;
+const POSITION_CONTEXTS = /portas?|modulos?|módulos?|gavetas?/i;
+
+type DimMeaning = { slug: string; label: string; unit: string };
+
+function inferDimensionalMeaning(path: string): DimMeaning {
+  const pathNorm = path.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (CAPACITY_CONTEXTS.test(pathNorm)) {
+    return { slug: "pa_capacidade_litros", label: "Capacidade (litros)", unit: "L" };
+  }
+  if (POSITION_CONTEXTS.test(pathNorm)) {
+    return { slug: "pa_numero_portas", label: "Número/Posição", unit: "" };
+  }
+  // Default for bancadas, confeção, etc.
+  return { slug: "pa_profundidade_mm", label: "Profundidade (mm)", unit: "mm" };
+}
+
 type CatClassification = "dimensional" | "energy_source" | "accessory" | "format_variant" | "real_duplicate";
 
 function classifyDuplicateGroup(
@@ -49,10 +69,8 @@ function classifyDuplicateGroup(
   if (ACCESSORY_PATTERNS.test(norm) || ACCESSORY_PATTERNS.test(name)) return "accessory";
   if (FORMAT_PATTERNS.test(norm) || FORMAT_PATTERNS.test(name)) return "format_variant";
 
-  // Check if all entries share the same parent branch — if not, they're contextual, not duplicates
   const rootBranches = new Set(entries.map(e => e.path.split(" > ")[0]));
   if (rootBranches.size > 1) {
-    // Same name in completely different root branches — likely contextual subcategories
     if (ACCESSORY_PATTERNS.test(norm)) return "accessory";
   }
   return "real_duplicate";
