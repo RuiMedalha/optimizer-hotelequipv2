@@ -561,6 +561,36 @@ export default function PDFExtractionPage() {
                       ))}
                     </SelectContent>
                   </Select>
+
+                  {/* Language selector for OCR */}
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground flex items-center gap-1 mb-1">
+                      <Languages className="h-3 w-3" /> Idioma do Documento (OCR)
+                    </label>
+                    <Select value={ocrLanguage} onValueChange={setOcrLanguage}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="auto">🔍 Auto-detetar</SelectItem>
+                        <SelectItem value="pt">🇵🇹 Português</SelectItem>
+                        <SelectItem value="es">🇪🇸 Español</SelectItem>
+                        <SelectItem value="en">🇬🇧 English</SelectItem>
+                        <SelectItem value="fr">🇫🇷 Français</SelectItem>
+                        <SelectItem value="de">🇩🇪 Deutsch</SelectItem>
+                        <SelectItem value="it">🇮🇹 Italiano</SelectItem>
+                        <SelectItem value="nl">🇳🇱 Nederlands</SelectItem>
+                        <SelectItem value="pl">🇵🇱 Polski</SelectItem>
+                        <SelectItem value="tr">🇹🇷 Türkçe</SelectItem>
+                        <SelectItem value="ru">🇷🇺 Русский</SelectItem>
+                        <SelectItem value="zh">🇨🇳 中文</SelectItem>
+                        <SelectItem value="ja">🇯🇵 日本語</SelectItem>
+                        <SelectItem value="ko">🇰🇷 한국어</SelectItem>
+                        <SelectItem value="ar">🇸🇦 العربية</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <Button onClick={handleStartWizard} disabled={startExtraction.isPending || !selectedFileId} className="w-full">
                     {startExtraction.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ArrowRight className="h-4 w-4 mr-2" />}
                     Iniciar Análise do Documento
