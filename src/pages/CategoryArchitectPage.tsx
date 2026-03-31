@@ -1017,7 +1017,20 @@ function MigrarProdutosTab() {
   const withErrors = attrRules.filter(r => r.migration_status === "error");
   const pending = attrRules.filter(r => ["pending", "attribute_created"].includes(r.migration_status));
   const migrating = attrRules.filter(r => r.migration_status === "migrating");
-  const totalProducts = migrated.reduce((sum, r) => sum + (r.migration_total || 0), 0);
+  // Deduplicate: count unique products across rules that share the same source_category_id
+  const uniqueProductCount = (() => {
+    const seenSourceIds = new Set<string>();
+    let count = 0;
+    for (const r of migrated) {
+      const key = r.source_category_id || r.id;
+      if (!seenSourceIds.has(key)) {
+        seenSourceIds.add(key);
+        count += r.migration_total || 0;
+      }
+    }
+    return count;
+  })();
+  const totalProducts = uniqueProductCount;
   const totalErrors = attrRules.reduce((sum, r) => {
     if (r.error_message?.match(/(\d+) erros/)) return sum + parseInt(RegExp.$1);
     return sum;
@@ -1036,7 +1049,7 @@ function MigrarProdutosTab() {
         <Card>
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold">{totalProducts}</p>
-            <p className="text-xs text-muted-foreground">Produtos migrados</p>
+            <p className="text-xs text-muted-foreground">Produtos únicos migrados</p>
           </CardContent>
         </Card>
         <Card>
