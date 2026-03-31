@@ -463,7 +463,7 @@ export default function PromptGovernancePage() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         <Card><CardContent className="p-4 text-center">
           <p className="text-2xl font-bold text-foreground">{systemTemplates.length}</p>
           <p className="text-xs text-muted-foreground">Prompts de Sistema</p>
@@ -475,6 +475,10 @@ export default function PromptGovernancePage() {
         <Card><CardContent className="p-4 text-center">
           <p className="text-2xl font-bold text-foreground">{imageTemplates.length}</p>
           <p className="text-xs text-muted-foreground">Prompts de Imagem</p>
+        </CardContent></Card>
+        <Card><CardContent className="p-4 text-center">
+          <p className="text-2xl font-bold text-foreground">{usoProfissionalTemplates.length}</p>
+          <p className="text-xs text-muted-foreground">Uso Profissional</p>
         </CardContent></Card>
         <Card><CardContent className="p-4 text-center">
           <p className="text-2xl font-bold text-foreground">{(templates.data || []).filter(t => t.is_active).length}</p>
