@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Loader2, Plus, Trash2, Wand2, Play, CheckCircle, XCircle, Clock, Sparkles, ArrowRight, Merge, ShieldCheck, AlertTriangle } from "lucide-react";
+import { Loader2, Plus, Trash2, Wand2, Play, CheckCircle, XCircle, Clock, Sparkles, ArrowRight, Merge, ShieldCheck, AlertTriangle, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCategories, type Category } from "@/hooks/useCategories";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
@@ -23,6 +23,7 @@ import {
   useCreateWooAttribute,
   useMigrateProducts,
   useDeleteWooCategory,
+  useResetRuleStatus,
   type ArchitectRule,
 } from "@/hooks/useCategoryArchitect";
 
@@ -873,12 +874,13 @@ function MapeamentoTab({ categories, allCategories, duplicateGroups, setDuplicat
 function CriarAtributosTab() {
   const { data: rules = [] } = useArchitectRules();
   const createAttr = useCreateWooAttribute();
+  const resetStatus = useResetRuleStatus();
   const attrRules = rules.filter(r => r.action === "convert_to_attribute");
   const [runningAll, setRunningAll] = useState(false);
 
   const createAll = async () => {
     setRunningAll(true);
-    for (const rule of attrRules.filter(r => r.migration_status === "pending")) {
+    for (const rule of attrRules.filter(r => r.migration_status === "pending" || r.migration_status === "error")) {
       try {
         await createAttr.mutateAsync(rule);
       } catch { /* individual error already toasted */ }
@@ -916,22 +918,44 @@ function CriarAtributosTab() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {attrRules.map(rule => (
-              <TableRow key={rule.id}>
-                <TableCell className="font-mono text-sm">{rule.attribute_slug}</TableCell>
-                <TableCell className="text-sm">{rule.attribute_values?.join(", ")}</TableCell>
-                <TableCell><StatusBadge status={rule.migration_status === "pending" ? "pending" : "attribute_created"} /></TableCell>
-                <TableCell>
-                  <Button
-                    size="sm"
-                    disabled={createAttr.isPending || rule.migration_status !== "pending"}
-                    onClick={() => createAttr.mutate(rule)}
-                  >
-                    {createAttr.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Criar no WooCommerce"}
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
+            {attrRules.map(rule => {
+              const canRetry = rule.migration_status === "pending" || rule.migration_status === "error";
+              return (
+                <TableRow key={rule.id}>
+                  <TableCell className="font-mono text-sm">{rule.attribute_slug}</TableCell>
+                  <TableCell className="text-sm">{rule.attribute_values?.join(", ")}</TableCell>
+                  <TableCell>
+                    <StatusBadge status={rule.migration_status} />
+                    {rule.migration_status === "error" && rule.error_message && (
+                      <p className="text-xs text-destructive mt-1 max-w-[200px] truncate" title={rule.error_message}>{rule.error_message}</p>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {canRetry ? (
+                      <Button
+                        size="sm"
+                        disabled={createAttr.isPending}
+                        onClick={() => createAttr.mutate(rule)}
+                      >
+                        {createAttr.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : rule.migration_status === "error" ? "Tentar novamente" : "Criar no WooCommerce"}
+                      </Button>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-green-600">✓ Criado</Badge>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => resetStatus.mutate(rule.id)}
+                          title="Resetar para recriar"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </CardContent>
