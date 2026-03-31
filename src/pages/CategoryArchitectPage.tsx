@@ -1170,6 +1170,88 @@ function MigrarProdutosTab() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Migration Results Dialog */}
+      <Dialog open={!!showResultsFor} onOpenChange={(open) => !open && setShowResultsFor(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              Produtos Migrados — {activeRule?.source_category_name} → {activeRule?.attribute_slug}
+            </DialogTitle>
+          </DialogHeader>
+          {activeResult ? (
+            <div className="space-y-4">
+              <div className="flex gap-4 text-sm">
+                <Badge variant="default" className="bg-primary text-primary-foreground">{activeResult.updated} atualizados</Badge>
+                {activeResult.errors > 0 && <Badge variant="destructive">{activeResult.errors} erros</Badge>}
+                <Badge variant="outline">{activeResult.total} total</Badge>
+              </div>
+
+              <ScrollArea className="max-h-[400px]">
+                {activeResult.migratedProducts.length > 0 && (
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-semibold text-foreground mb-2">✅ Produtos atualizados ({activeResult.migratedProducts.length})</h4>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[80px]">WC ID</TableHead>
+                          <TableHead>Nome</TableHead>
+                          <TableHead className="w-[100px]">SKU</TableHead>
+                          <TableHead className="w-[100px]">Estado</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {activeResult.migratedProducts.map(p => (
+                          <TableRow key={p.id}>
+                            <TableCell className="font-mono text-xs">{p.id}</TableCell>
+                            <TableCell className="text-sm">{p.name}</TableCell>
+                            <TableCell className="font-mono text-xs">{p.sku || "—"}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs">
+                                {p.status === "already_had" ? "Já tinha" : "Adicionado"}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+
+                {activeResult.failedProducts.length > 0 && (
+                  <div className="space-y-1 mt-4">
+                    <h4 className="text-sm font-semibold text-destructive mb-2">❌ Produtos com erro ({activeResult.failedProducts.length})</h4>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[80px]">WC ID</TableHead>
+                          <TableHead>Nome</TableHead>
+                          <TableHead>Erro</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {activeResult.failedProducts.map(p => (
+                          <TableRow key={p.id}>
+                            <TableCell className="font-mono text-xs">{p.id}</TableCell>
+                            <TableCell className="text-sm">{p.name}</TableCell>
+                            <TableCell className="text-xs text-destructive max-w-[200px] truncate" title={p.error}>{p.error}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </ScrollArea>
+
+              <p className="text-xs text-muted-foreground">
+                💡 Os atributos foram criados com <strong>visible: true</strong> — aparecem automaticamente como filtros no WooCommerce se o tema suportar filtragem por atributos (ex: widgets de filtro de produto).
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground py-4">Execute a migração para ver os resultados aqui.</p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
