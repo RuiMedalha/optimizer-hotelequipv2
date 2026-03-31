@@ -23,6 +23,7 @@ import {
   useCreateWooAttribute,
   useMigrateProducts,
   useDeleteWooCategory,
+  useResetRuleStatus,
   type ArchitectRule,
 } from "@/hooks/useCategoryArchitect";
 
