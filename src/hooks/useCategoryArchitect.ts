@@ -213,3 +213,37 @@ export function useDeleteWooCategory() {
     onError: (err: Error) => toast.error(err.message),
   });
 }
+
+export interface RollbackResult {
+  success: boolean;
+  restored: number;
+  errors: number;
+  total: number;
+  restoredProducts: { id: number; name: string; status: string }[];
+  failedProducts: { id: number; name: string; error: string }[];
+}
+
+export function useRollbackMigration() {
+  const qc = useQueryClient();
+  const { activeWorkspace } = useWorkspaceContext();
+
+  return useMutation({
+    mutationFn: async (rule: ArchitectRule): Promise<RollbackResult> => {
+      if (!activeWorkspace) throw new Error("No workspace");
+      const { data, error } = await supabase.functions.invoke("rollback-category-migration", {
+        body: {
+          workspaceId: activeWorkspace.id,
+          ruleId: rule.id,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data as RollbackResult;
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["architect-rules"] });
+      toast.success(`Rollback concluído! ${data.restored} produtos restaurados.`);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}

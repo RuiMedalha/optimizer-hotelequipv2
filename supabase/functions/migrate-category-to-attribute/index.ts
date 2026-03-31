@@ -237,8 +237,22 @@ Deno.serve(async (req) => {
 
     for (const product of allProducts) {
       try {
-        // --- 1. Build new attributes list ---
+        // --- 0. Save snapshot BEFORE any changes ---
+        const existingCategories: { id: number }[] = Array.isArray(product.categories) ? product.categories : [];
         const existingAttrs = Array.isArray(product.attributes) ? product.attributes : [];
+
+        await adminClient.from("category_architect_snapshots").insert({
+          rule_id: ruleId,
+          workspace_id: workspaceId,
+          woo_product_id: product.id,
+          product_name: product.name || product.title || "Sem nome",
+          product_sku: product.sku || "",
+          original_categories: existingCategories,
+          original_attributes: existingAttrs,
+          rollback_status: "pending",
+        });
+
+        // --- 1. Build new attributes list ---
         const existingSlugs = existingAttrs.map((a: any) => a.slug || a.name);
         const valueToAssign = Array.isArray(attributeValues) && attributeValues.length > 0 ? attributeValues[0] : "";
 
@@ -256,18 +270,14 @@ Deno.serve(async (req) => {
         }
 
         // --- 2. Build new categories list ---
-        // Remove the converted source branch and add the resolved target category.
-        const existingCategories: { id: number }[] = Array.isArray(product.categories) ? product.categories : [];
         let newCategories = existingCategories.filter(
           (c: any) => !allConvertedWooIds.has(c.id) && !branchIdsToRemove.has(c.id)
         );
 
-        // Ensure the resolved target category is present
         if (targetWooCategoryId && !newCategories.some((c: any) => c.id === targetWooCategoryId)) {
           newCategories.push({ id: targetWooCategoryId });
         }
 
-        // If we removed everything and have no explicit target, keep originals minus the source leaf.
         if (newCategories.length === 0) {
           newCategories = existingCategories.filter((c: any) => c.id !== wooCategoryId);
         }
@@ -275,7 +285,6 @@ Deno.serve(async (req) => {
         // --- 3. Update product in WooCommerce ---
         const updatePayload: any = { attributes: newAttrs };
 
-        // Only update categories if they actually changed
         const origIds = new Set(existingCategories.map((c: any) => c.id));
         const newIds = new Set(newCategories.map((c: any) => c.id));
         const categoriesChanged = origIds.size !== newIds.size || [...origIds].some(id => !newIds.has(id));

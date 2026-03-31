@@ -26,8 +26,10 @@ import {
   useMigrateProducts,
   useDeleteWooCategory,
   useResetRuleStatus,
+  useRollbackMigration,
   type ArchitectRule,
   type MigrationResult,
+  type RollbackResult,
 } from "@/hooks/useCategoryArchitect";
 
 // ── Types ──
@@ -974,6 +976,7 @@ function MigrarProdutosTab() {
   const migrate = useMigrateProducts();
   const deleteWooCat = useDeleteWooCategory();
   const resetStatus = useResetRuleStatus();
+  const rollback = useRollbackMigration();
   const attrRules = rules.filter(r => r.action === "convert_to_attribute");
   const [runningAll, setRunningAll] = useState(false);
   const [migrationResults, setMigrationResults] = useState<Record<string, MigrationResult>>({});
@@ -1146,6 +1149,30 @@ function MigrarProdutosTab() {
                         <Button size="sm" variant="outline" onClick={() => setShowResultsFor(rule.id)}>
                           <List className="w-3 h-3 mr-1" />Ver produtos
                         </Button>
+                      )}
+                      {rule.migration_status === "migrated" && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="outline" className="text-amber-600 border-amber-300 hover:bg-amber-50">
+                              <RotateCcw className="w-3 h-3 mr-1" />Rollback
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Reverter migração?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Isto vai restaurar as categorias e atributos originais de {rule.migration_total} produtos no WooCommerce,
+                                voltando ao estado anterior à migração de "{rule.source_category_name}".
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => rollback.mutate(rule)}>
+                                {rollback.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sim, reverter"}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       )}
                       {rule.migration_status === "migrated" && (
                         <AlertDialog>

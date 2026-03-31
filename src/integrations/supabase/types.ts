@@ -3997,6 +3997,60 @@ export type Database = {
           },
         ]
       }
+      category_architect_snapshots: {
+        Row: {
+          created_at: string
+          id: string
+          original_attributes: Json
+          original_categories: Json
+          product_name: string | null
+          product_sku: string | null
+          rollback_status: string
+          rule_id: string
+          woo_product_id: number
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          original_attributes?: Json
+          original_categories?: Json
+          product_name?: string | null
+          product_sku?: string | null
+          rollback_status?: string
+          rule_id: string
+          woo_product_id: number
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          original_attributes?: Json
+          original_categories?: Json
+          product_name?: string | null
+          product_sku?: string | null
+          rollback_status?: string
+          rule_id?: string
+          woo_product_id?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "category_architect_snapshots_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "category_architect_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "category_architect_snapshots_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       category_schemas: {
         Row: {
           category_id: string | null
