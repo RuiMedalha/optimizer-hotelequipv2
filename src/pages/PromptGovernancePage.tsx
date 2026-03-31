@@ -641,7 +641,7 @@ export default function PromptGovernancePage() {
           />
         </TabsContent>
 
-
+        <TabsContent value="field-prompts" className="mt-4">
           <div className="mb-4 p-3 bg-muted/50 rounded-lg">
             <p className="text-sm text-muted-foreground">
               <ScrollText className="w-4 h-4 inline mr-1" />
