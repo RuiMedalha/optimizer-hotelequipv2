@@ -536,6 +536,9 @@ export default function PromptGovernancePage() {
           <TabsTrigger value="images" className="gap-1.5">
             <ImageIcon className="h-4 w-4" /> Imagens ({imageTemplates.length})
           </TabsTrigger>
+          <TabsTrigger value="uso-profissional" className="gap-1.5">
+            <BookOpen className="h-4 w-4" /> Uso Prof. ({usoProfissionalTemplates.length})
+          </TabsTrigger>
           <TabsTrigger value="field-prompts" className="gap-1.5">
             <ScrollText className="h-4 w-4" /> Prompts por Campo
           </TabsTrigger>
