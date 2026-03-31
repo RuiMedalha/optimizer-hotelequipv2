@@ -1153,6 +1153,30 @@ function MigrarProdutosTab() {
                       {rule.migration_status === "migrated" && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="outline" className="text-amber-600 border-amber-300 hover:bg-amber-50">
+                              <RotateCcw className="w-3 h-3 mr-1" />Rollback
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Reverter migração?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Isto vai restaurar as categorias e atributos originais de {rule.migration_total} produtos no WooCommerce,
+                                voltando ao estado anterior à migração de "{rule.source_category_name}".
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => rollback.mutate(rule)}>
+                                {rollback.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sim, reverter"}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                      {rule.migration_status === "migrated" && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
                             <Button size="sm" variant="destructive">
                               <Trash2 className="w-3 h-3 mr-1" />Remover categoria
                             </Button>
