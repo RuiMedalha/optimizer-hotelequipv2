@@ -194,6 +194,9 @@ export function ProductDetailModal({ product, onClose }: Props) {
               <BarChart3 className="w-3.5 h-3.5 mr-1" /> Score SEO
             </TabsTrigger>
             <TabsTrigger value="faq">FAQ</TabsTrigger>
+            <TabsTrigger value="uso-profissional">
+              <BookOpen className="w-3 h-3 mr-1" /> Uso Prof.
+            </TabsTrigger>
             <TabsTrigger value="relacionados">
               <Shuffle className="w-3.5 h-3.5 mr-1" /> Upsells / Cross-sells
             </TabsTrigger>
