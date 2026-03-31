@@ -60,11 +60,11 @@ Escreves como um técnico especialista, não como um cliente.`;
     // Check for custom prompt in prompt_templates
     const { data: customPrompt } = await supabase
       .from("prompt_templates")
-      .select("template_text")
+      .select("template_text:base_prompt")
       .eq("workspace_id", workspaceId)
-      .eq("category", "uso_profissional")
+      .eq("prompt_type", "uso_profissional")
       .eq("is_active", true)
-      .order("version", { ascending: false })
+      .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 

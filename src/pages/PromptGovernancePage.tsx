@@ -19,10 +19,11 @@ import { ConfirmDeleteDialog } from "@/components/prompt-governance/ConfirmDelet
 import { FieldPromptsSettings } from "@/components/FieldPromptsSettings";
 import { toast } from "sonner";
 
-const PROMPT_TYPES = ["enrichment", "description", "seo", "categorization", "validation", "translation", "general", "image"];
+const PROMPT_TYPES = ["enrichment", "description", "seo", "categorization", "validation", "translation", "general", "image", "uso_profissional"];
 const SYSTEM_TYPES = ["general"];
 const SERVICE_TYPES = ["enrichment", "description", "seo", "categorization", "validation", "translation"];
 const IMAGE_TYPES = ["image"];
+const USO_PROFISSIONAL_TYPES = ["uso_profissional"];
 
 // ═══ DEFAULT PROMPT SEEDS ═══
 const DEFAULT_PROMPTS: Array<{ prompt_name: string; prompt_type: string; description: string; base_prompt: string }> = [
