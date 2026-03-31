@@ -224,24 +224,39 @@ Deno.serve(async (req) => {
     }
 
     const total = allProducts.length;
+
+    // Check which products already have snapshots (for resume after timeout)
+    const { data: existingSnapshots } = await adminClient
+      .from("category_architect_snapshots")
+      .select("woo_product_id")
+      .eq("rule_id", ruleId);
+    const alreadyProcessed = new Set<number>(
+      (existingSnapshots || []).map((s: any) => s.woo_product_id)
+    );
+
+    const remainingProducts = allProducts.filter((p: any) => !alreadyProcessed.has(p.id));
+    const previouslyDone = total - remainingProducts.length;
+
+    console.log(`Total: ${total}, already processed: ${previouslyDone}, remaining: ${remainingProducts.length}`);
+
     await adminClient.from("category_architect_rules").update({
       migration_status: "migrating",
-      migration_progress: 0,
+      migration_progress: previouslyDone,
       migration_total: total,
     }).eq("id", ruleId);
 
-    let updated = 0;
+    let updated = previouslyDone;
     let errors = 0;
     const migratedProducts: { id: number; name: string; sku: string; status: string }[] = [];
     const failedProducts: { id: number; name: string; sku: string; error: string }[] = [];
 
-    for (const product of allProducts) {
+    for (const product of remainingProducts) {
       try {
         // --- 0. Save snapshot BEFORE any changes ---
         const existingCategories: { id: number }[] = Array.isArray(product.categories) ? product.categories : [];
         const existingAttrs = Array.isArray(product.attributes) ? product.attributes : [];
 
-        await adminClient.from("category_architect_snapshots").insert({
+        await adminClient.from("category_architect_snapshots").upsert({
           rule_id: ruleId,
           workspace_id: workspaceId,
           woo_product_id: product.id,
@@ -250,7 +265,7 @@ Deno.serve(async (req) => {
           original_categories: existingCategories,
           original_attributes: existingAttrs,
           rollback_status: "pending",
-        });
+        }, { onConflict: "rule_id,woo_product_id", ignoreDuplicates: false });
 
         // --- 1. Build new attributes list ---
         const existingSlugs = existingAttrs.map((a: any) => a.slug || a.name);
