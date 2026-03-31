@@ -976,6 +976,7 @@ function MigrarProdutosTab() {
   const migrate = useMigrateProducts();
   const deleteWooCat = useDeleteWooCategory();
   const resetStatus = useResetRuleStatus();
+  const rollback = useRollbackMigration();
   const attrRules = rules.filter(r => r.action === "convert_to_attribute");
   const [runningAll, setRunningAll] = useState(false);
   const [migrationResults, setMigrationResults] = useState<Record<string, MigrationResult>>({});
