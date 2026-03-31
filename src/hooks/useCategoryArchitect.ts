@@ -15,7 +15,7 @@ export interface ArchitectRule {
   attribute_name: string | null;
   attribute_values: string[];
   attribute_woo_id: number | null;
-  migration_status: "pending" | "attribute_created" | "migrating" | "migrated" | "error";
+  migration_status: "pending" | "attribute_created" | "queued" | "migrating" | "paused" | "migrated" | "error";
   migration_progress: number;
   migration_total: number;
   error_message: string | null;
@@ -30,6 +30,10 @@ export function useArchitectRules() {
   return useQuery({
     queryKey: ["architect-rules", wid],
     enabled: !!wid,
+    refetchInterval: (query) => {
+      const rules = (query.state.data as ArchitectRule[] | undefined) ?? [];
+      return rules.some((rule) => ["queued", "migrating"].includes(rule.migration_status)) ? 3000 : false;
+    },
     queryFn: async () => {
       const { data, error } = await supabase
         .from("category_architect_rules")
@@ -135,6 +139,8 @@ export function useCreateWooAttribute() {
 
 export interface MigrationResult {
   success: boolean;
+  queued?: boolean;
+  status?: "queued" | "paused" | "migrated" | "error";
   updated: number;
   errors: number;
   total: number;
@@ -164,7 +170,34 @@ export function useMigrateProducts() {
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["architect-rules"] });
+      if (data.queued || data.status === "queued") {
+        toast.success("Migração iniciada em background por lotes.");
+        return;
+      }
+      if (data.status === "paused") {
+        toast.info("Migração parada com sucesso.");
+        return;
+      }
       toast.success(`Migração concluída! ${data.updated} produtos atualizados.`);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
+export function usePauseMigration() {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (ruleId: string) => {
+      const { error } = await supabase
+        .from("category_architect_rules")
+        .update({ migration_status: "paused", error_message: "Paragem pedida pelo utilizador." })
+        .eq("id", ruleId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["architect-rules"] });
+      toast.success("Pedido de paragem enviado.");
     },
     onError: (err: Error) => toast.error(err.message),
   });
