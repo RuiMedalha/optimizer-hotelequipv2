@@ -6,7 +6,44 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const DEFAULT_BATCH_SIZE = 20;
+const MAX_BATCH_SIZE = 50;
+const SELF_INVOKE_RETRIES = 5;
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+async function selfInvokeWithRetry(authHeader: string, payload: Record<string, unknown>) {
+  const body = JSON.stringify(payload);
+
+  for (let attempt = 1; attempt <= SELF_INVOKE_RETRIES; attempt++) {
+    try {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/migrate-category-to-attribute`, {
+        method: "POST",
+        headers: {
+          Authorization: authHeader,
+          "Content-Type": "application/json",
+        },
+        body,
+      });
+
+      if (response.ok || response.status === 202) return true;
+
+      const isRetryable = response.status === 429 || response.status >= 500;
+      if (!isRetryable) {
+        console.error(`Category Architect self-invoke failed: ${response.status} ${await response.text()}`);
+        return false;
+      }
+    } catch (err) {
+      console.warn(`Category Architect self-invoke attempt ${attempt} failed`, err);
+    }
+
+    await sleep(Math.min(1000 * 2 ** (attempt - 1), 8000));
+  }
+
+  return false;
+}
 
 type WooCategory = {
   id: number;
@@ -112,16 +149,22 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: authHeader! } } });
-    const adminClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Não autenticado" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
-    const { data: { user }, error: authErr } = await supabase.auth.getUser();
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { global: { headers: { Authorization: authHeader } } });
+    const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: authErr } = await supabase.auth.getUser(token);
     if (authErr || !user) {
       return new Response(JSON.stringify({ error: "Não autenticado" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const body = await req.json();
-    const { workspaceId, ruleId, sourceCategoryId, attributeSlug, attributeValues } = body;
+    const { workspaceId, ruleId, sourceCategoryId, attributeSlug, attributeValues, continueInBackground, batchSize } = body;
+    const safeBatchSize = Math.max(1, Math.min(Number(batchSize) || DEFAULT_BATCH_SIZE, MAX_BATCH_SIZE));
 
     if (!workspaceId || !ruleId || !sourceCategoryId || !attributeSlug) {
       return new Response(JSON.stringify({ error: "Parâmetros em falta" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -130,6 +173,50 @@ Deno.serve(async (req) => {
     const { data: member } = await adminClient.from("workspace_members").select("role").eq("workspace_id", workspaceId).eq("user_id", user.id).eq("status", "active").maybeSingle();
     if (!member) {
       return new Response(JSON.stringify({ error: "Sem acesso ao workspace" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (!continueInBackground) {
+      await adminClient.from("category_architect_rules").update({
+        migration_status: "queued",
+        error_message: null,
+      }).eq("id", ruleId);
+
+      selfInvokeWithRetry(authHeader, {
+        workspaceId,
+        ruleId,
+        sourceCategoryId,
+        attributeSlug,
+        attributeValues,
+        batchSize: safeBatchSize,
+        continueInBackground: true,
+      }).catch((err) => console.error("Initial Category Architect invoke failed", err));
+
+      return new Response(JSON.stringify({
+        queued: true,
+        status: "queued",
+        updated: 0,
+        errors: 0,
+        total: 0,
+        migratedProducts: [],
+        failedProducts: [],
+      }), { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const { data: activeRule } = await adminClient
+      .from("category_architect_rules")
+      .select("migration_status")
+      .eq("id", ruleId)
+      .maybeSingle();
+
+    if (activeRule?.migration_status === "paused") {
+      return new Response(JSON.stringify({
+        status: "paused",
+        updated: 0,
+        errors: 0,
+        total: 0,
+        migratedProducts: [],
+        failedProducts: [],
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const woo = await getWooConfig(supabase);
@@ -239,18 +326,50 @@ Deno.serve(async (req) => {
 
     console.log(`Total: ${total}, already processed: ${previouslyDone}, remaining: ${remainingProducts.length}`);
 
+    if (remainingProducts.length === 0) {
+      await adminClient.from("category_architect_rules").update({
+        migration_status: "migrated",
+        migration_progress: total,
+        migration_total: total,
+        error_message: null,
+      }).eq("id", ruleId);
+
+      return new Response(JSON.stringify({
+        success: true,
+        updated: 0,
+        errors: 0,
+        total,
+        migratedProducts: [],
+        failedProducts: [],
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const currentBatch = remainingProducts.slice(0, safeBatchSize);
+
     await adminClient.from("category_architect_rules").update({
       migration_status: "migrating",
       migration_progress: previouslyDone,
       migration_total: total,
     }).eq("id", ruleId);
 
-    let updated = previouslyDone;
+    let updated = 0;
     let errors = 0;
     const migratedProducts: { id: number; name: string; sku: string; status: string }[] = [];
     const failedProducts: { id: number; name: string; sku: string; error: string }[] = [];
+    let stopRequested = false;
 
-    for (const product of remainingProducts) {
+    for (const product of currentBatch) {
+      const { data: liveRule } = await adminClient
+        .from("category_architect_rules")
+        .select("migration_status")
+        .eq("id", ruleId)
+        .maybeSingle();
+
+      if (liveRule?.migration_status === "paused") {
+        stopRequested = true;
+        break;
+      }
+
       try {
         // --- 0. Save snapshot BEFORE any changes ---
         const existingCategories: { id: number }[] = Array.isArray(product.categories) ? product.categories : [];
@@ -315,7 +434,7 @@ Deno.serve(async (req) => {
         });
 
         if (patchResp.ok) {
-          updated++;
+          updated += 1;
           const statusLabel = categoriesChanged
             ? "moved_and_attributed"
             : existingSlugs.includes(attributeSlug) ? "already_had" : "attributed";
@@ -349,20 +468,78 @@ Deno.serve(async (req) => {
 
       // Update progress
       await adminClient.from("category_architect_rules").update({
-        migration_progress: updated + errors,
+        migration_progress: previouslyDone + updated + errors,
       }).eq("id", ruleId);
 
       // Rate limit
-      await sleep(200);
+      await sleep(150);
+    }
+
+    const processedThisBatch = updated + errors;
+    const progressAfterBatch = previouslyDone + processedThisBatch;
+
+    if (stopRequested) {
+      await adminClient.from("category_architect_rules").update({
+        migration_status: "paused",
+        migration_progress: progressAfterBatch,
+        migration_total: total,
+        error_message: "Migração parada manualmente.",
+      }).eq("id", ruleId);
+
+      return new Response(JSON.stringify({
+        status: "paused",
+        updated,
+        errors,
+        total,
+        migratedProducts,
+        failedProducts,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (progressAfterBatch < total) {
+      await adminClient.from("category_architect_rules").update({
+        migration_status: "queued",
+        migration_progress: progressAfterBatch,
+        migration_total: total,
+        error_message: null,
+      }).eq("id", ruleId);
+
+      const continued = await selfInvokeWithRetry(authHeader, {
+        workspaceId,
+        ruleId,
+        sourceCategoryId,
+        attributeSlug,
+        attributeValues,
+        batchSize: safeBatchSize,
+        continueInBackground: true,
+      });
+
+      if (!continued) {
+        await adminClient.from("category_architect_rules").update({
+          migration_status: "queued",
+          error_message: "Lote concluído; retoma automática pendente.",
+        }).eq("id", ruleId);
+      }
+
+      return new Response(JSON.stringify({
+        queued: true,
+        status: "queued",
+        updated,
+        errors,
+        total,
+        migratedProducts,
+        failedProducts,
+      }), { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // Final status
-    const finalStatus = errors > 0 && updated === 0 ? "error" : "migrated";
+    const finalStatus = errors > 0 && updated === 0 && previouslyDone === 0 ? "error" : "migrated";
     const migrationSummary = errors > 0 ? `${errors} erros durante a migração` : null;
 
     await adminClient.from("category_architect_rules").update({
       migration_status: finalStatus,
-      migration_progress: updated + errors,
+      migration_progress: progressAfterBatch,
+      migration_total: total,
       error_message: migrationSummary,
     }).eq("id", ruleId);
 
