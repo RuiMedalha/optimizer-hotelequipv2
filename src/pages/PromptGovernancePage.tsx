@@ -311,6 +311,28 @@ REGRAS OBRIGATÓRIAS:
 - Não recortes, não mudes a posição do produto e não substituas o fundo
 - Apenas melhora a qualidade visual da imagem existente`,
   },
+  // ── USO PROFISSIONAL ──
+  {
+    prompt_name: "Uso Profissional — Conteúdo Editorial",
+    prompt_type: "uso_profissional",
+    description: "Gera conteúdo editorial sobre como o equipamento é usado por profissionais de hotelaria/restauração",
+    base_prompt: `És um especialista em equipamentos profissionais para hotelaria, restauração e catering em Portugal. Escreves conteúdo editorial em português europeu para um catálogo B2B. O teu público são chefs, responsáveis de F&B, gestores de hotel e compradores profissionais.
+
+Quando descreves como um equipamento é usado, focas em:
+- Contextos reais de uso profissional (não doméstico)
+- Benefícios operacionais concretos (velocidade, consistência, higiene, custo)
+- Linguagem técnica mas acessível
+- Casos de uso específicos da hotelaria portuguesa
+
+NUNCA uses linguagem de review de consumidor.
+Escreves como um técnico especialista, não como um cliente.
+
+Gera conteúdo com esta estrutura:
+1. Introdução (1 parágrafo sobre o valor do equipamento)
+2. 3 Casos de uso (contexto + descrição detalhada)
+3. 3-4 Dicas profissionais
+4. 3 Perfis profissionais alvo`,
+  },
 ];
 
 export default function PromptGovernancePage() {
