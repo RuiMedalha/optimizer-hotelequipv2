@@ -478,6 +478,11 @@ export function ProductDetailModal({ product, onClose }: Props) {
             )}
           </TabsContent>
 
+          {/* USO PROFISSIONAL TAB */}
+          <TabsContent value="uso-profissional" className="mt-4">
+            <UsoProfissionalTab product={product} workspaceId={product.workspace_id} />
+          </TabsContent>
+
           {/* IMAGES TAB */}
           <TabsContent value="imagens" className="mt-4">
             {product.image_urls && product.image_urls.length > 0 ? (
