@@ -8,6 +8,13 @@ const corsHeaders = {
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
+type WooCategory = {
+  id: number;
+  parent: number;
+  name?: string;
+  slug?: string;
+};
+
 async function getWooConfig(supabase: any) {
   const { data: settings } = await supabase
     .from("settings")
@@ -22,13 +29,57 @@ async function getWooConfig(supabase: any) {
   return { baseUrl: url.replace(/\/+$/, ""), auth: btoa(`${key}:${secret}`) };
 }
 
+async function fetchWooCategory(
+  woo: { baseUrl: string; auth: string },
+  categoryId: number,
+  cache: Map<number, WooCategory | null>
+): Promise<WooCategory | null> {
+  if (cache.has(categoryId)) return cache.get(categoryId) ?? null;
+
+  const resp = await fetch(
+    `${woo.baseUrl}/wp-json/wc/v3/products/categories/${categoryId}`,
+    { headers: { Authorization: `Basic ${woo.auth}` } }
+  );
+
+  if (!resp.ok) {
+    cache.set(categoryId, null);
+    return null;
+  }
+
+  const cat = await resp.json();
+  cache.set(categoryId, cat);
+  return cat;
+}
+
+async function getWooCategoryChain(
+  woo: { baseUrl: string; auth: string },
+  startCategoryId: number,
+  cache: Map<number, WooCategory | null>
+): Promise<number[]> {
+  const chain: number[] = [];
+  const visited = new Set<number>();
+  let currentId: number | null = startCategoryId;
+
+  while (currentId && !visited.has(currentId)) {
+    visited.add(currentId);
+    const cat = await fetchWooCategory(woo, currentId, cache);
+    if (!cat) break;
+
+    chain.push(cat.id);
+    currentId = cat.parent && cat.parent !== 0 ? cat.parent : null;
+  }
+
+  return chain;
+}
+
 // Find the "base" category — walk up the tree from sourceWooCategoryId,
 // collecting IDs of all intermediate subcategories that are being converted.
 // The base is the first ancestor that is NOT in the set of converted subcategories.
 async function findParentWooCategoryId(
   woo: { baseUrl: string; auth: string },
   sourceWooCategoryId: number,
-  allConvertedWooIds: Set<number>
+  allConvertedWooIds: Set<number>,
+  cache: Map<number, WooCategory | null>
 ): Promise<number | null> {
   let currentId = sourceWooCategoryId;
   const visited = new Set<number>();
@@ -37,12 +88,8 @@ async function findParentWooCategoryId(
     if (visited.has(currentId)) return null; // avoid infinite loop
     visited.add(currentId);
 
-    const resp = await fetch(
-      `${woo.baseUrl}/wp-json/wc/v3/products/categories/${currentId}`,
-      { headers: { Authorization: `Basic ${woo.auth}` } }
-    );
-    if (!resp.ok) return null;
-    const cat = await resp.json();
+    const cat = await fetchWooCategory(woo, currentId, cache);
+    if (!cat) return null;
 
     const parentId = cat.parent;
     if (!parentId || parentId === 0) {
@@ -90,6 +137,8 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Credenciais WooCommerce não configuradas" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    const categoryCache = new Map<number, WooCategory | null>();
+
     // Get the woocommerce_id of the source category
     const { data: catData } = await adminClient.from("categories").select("woocommerce_id").eq("id", sourceCategoryId).maybeSingle();
     const wooCategoryId = catData?.woocommerce_id;
@@ -116,9 +165,46 @@ Deno.serve(async (req) => {
       (convertedCats || []).map((c: any) => c.woocommerce_id).filter(Boolean)
     );
 
-    // Find the parent (base) category to reassign products to
-    const parentWooCategoryId = await findParentWooCategoryId(woo, wooCategoryId, allConvertedWooIds);
-    console.log(`Source WC category ${wooCategoryId} → parent target: ${parentWooCategoryId}`);
+    // Prefer an explicit merge target for this category when one exists.
+    const { data: companionMergeRule } = await adminClient
+      .from("category_architect_rules")
+      .select("target_category_id")
+      .eq("workspace_id", workspaceId)
+      .eq("source_category_id", sourceCategoryId)
+      .eq("action", "merge_into")
+      .not("target_category_id", "is", null)
+      .limit(1)
+      .maybeSingle();
+
+    let targetWooCategoryId: number | null = null;
+    if (companionMergeRule?.target_category_id) {
+      const { data: mergeTargetCategory } = await adminClient
+        .from("categories")
+        .select("woocommerce_id")
+        .eq("id", companionMergeRule.target_category_id)
+        .maybeSingle();
+
+      targetWooCategoryId = mergeTargetCategory?.woocommerce_id ?? null;
+    }
+
+    if (!targetWooCategoryId) {
+      targetWooCategoryId = await findParentWooCategoryId(woo, wooCategoryId, allConvertedWooIds, categoryCache);
+    }
+
+    const sourceChain = await getWooCategoryChain(woo, wooCategoryId, categoryCache);
+    const targetChain = targetWooCategoryId
+      ? await getWooCategoryChain(woo, targetWooCategoryId, categoryCache)
+      : [];
+
+    const branchIdsToRemove = new Set<number>(
+      targetChain.length > 0
+        ? sourceChain.filter((id) => !targetChain.includes(id))
+        : [wooCategoryId]
+    );
+
+    console.log(
+      `Source WC category ${wooCategoryId} → target ${targetWooCategoryId}; sourceChain=${sourceChain.join(",")}; targetChain=${targetChain.join(",")}`
+    );
 
     // Fetch all products in the source category (paginated)
     let allProducts: any[] = [];
@@ -170,19 +256,18 @@ Deno.serve(async (req) => {
         }
 
         // --- 2. Build new categories list ---
-        // Remove the source subcategory (and any other converted subcategories)
-        // Add the parent category if not already present
+        // Remove the converted source branch and add the resolved target category.
         const existingCategories: { id: number }[] = Array.isArray(product.categories) ? product.categories : [];
         let newCategories = existingCategories.filter(
-          (c: any) => !allConvertedWooIds.has(c.id)
+          (c: any) => !allConvertedWooIds.has(c.id) && !branchIdsToRemove.has(c.id)
         );
 
-        // Ensure the parent category is present
-        if (parentWooCategoryId && !newCategories.some((c: any) => c.id === parentWooCategoryId)) {
-          newCategories.push({ id: parentWooCategoryId });
+        // Ensure the resolved target category is present
+        if (targetWooCategoryId && !newCategories.some((c: any) => c.id === targetWooCategoryId)) {
+          newCategories.push({ id: targetWooCategoryId });
         }
 
-        // If we removed all categories and have no parent, keep originals minus source only
+        // If we removed everything and have no explicit target, keep originals minus the source leaf.
         if (newCategories.length === 0) {
           newCategories = existingCategories.filter((c: any) => c.id !== wooCategoryId);
         }
@@ -262,8 +347,8 @@ Deno.serve(async (req) => {
       updated,
       errors,
       total,
-      parentCategoryId: parentWooCategoryId,
-      categoriesReassigned: parentWooCategoryId ? true : false,
+      parentCategoryId: targetWooCategoryId,
+      categoriesReassigned: targetWooCategoryId ? true : false,
       migratedProducts,
       failedProducts,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
