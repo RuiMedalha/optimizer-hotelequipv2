@@ -1120,13 +1120,18 @@ function MigrarProdutosTab() {
                   <TableCell>
                     <div className="flex items-center gap-1">
                       {["pending", "attribute_created"].includes(rule.migration_status) && (
-                        <Button size="sm" onClick={() => migrate.mutate(rule)} disabled={migrate.isPending}>
+                        <Button size="sm" onClick={() => handleMigrate(rule)} disabled={migrate.isPending}>
                           {migrate.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Play className="w-3 h-3 mr-1" />Executar</>}
                         </Button>
                       )}
                       {rule.migration_status === "error" && (
-                        <Button size="sm" variant="outline" onClick={() => migrate.mutate(rule)} disabled={migrate.isPending}>
+                        <Button size="sm" variant="outline" onClick={() => handleMigrate(rule)} disabled={migrate.isPending}>
                           <RotateCcw className="w-3 h-3 mr-1" />Repetir
+                        </Button>
+                      )}
+                      {(rule.migration_status === "migrated" || migrationResults[rule.id]) && (
+                        <Button size="sm" variant="outline" onClick={() => setShowResultsFor(rule.id)}>
+                          <List className="w-3 h-3 mr-1" />Ver produtos
                         </Button>
                       )}
                       {rule.migration_status === "migrated" && (
