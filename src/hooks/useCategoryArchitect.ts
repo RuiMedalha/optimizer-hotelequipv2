@@ -161,6 +161,24 @@ export function useMigrateProducts() {
   });
 }
 
+export function useResetRuleStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (ruleId: string) => {
+      const { error } = await supabase
+        .from("category_architect_rules")
+        .update({ migration_status: "pending", error_message: null })
+        .eq("id", ruleId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["architect-rules"] });
+      toast.success("Estado resetado!");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
+
 export function useDeleteWooCategory() {
   const qc = useQueryClient();
   const { activeWorkspace } = useWorkspaceContext();
