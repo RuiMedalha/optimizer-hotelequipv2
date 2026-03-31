@@ -502,6 +502,7 @@ export default function PromptGovernancePage() {
                 <SelectContent>
                   <SelectItem value="general" className="font-medium">⚙️ Sistema — general</SelectItem>
                   <SelectItem value="image">🖼️ Imagem — image</SelectItem>
+                  <SelectItem value="uso_profissional">📖 Uso Profissional</SelectItem>
                   {SERVICE_TYPES.map(t => <SelectItem key={t} value={t}>🔧 Serviço — {t}</SelectItem>)}
                 </SelectContent>
               </Select>
