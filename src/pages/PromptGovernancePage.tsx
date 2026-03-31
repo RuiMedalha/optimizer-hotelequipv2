@@ -375,8 +375,12 @@ export default function PromptGovernancePage() {
   const systemTemplates = (templates.data || []).filter(t => SYSTEM_TYPES.includes(t.prompt_type));
   const serviceTemplates = (templates.data || []).filter(t => SERVICE_TYPES.includes(t.prompt_type));
   const imageTemplates = (templates.data || []).filter(t => IMAGE_TYPES.includes(t.prompt_type));
+  const usoProfissionalTemplates = (templates.data || []).filter(t => USO_PROFISSIONAL_TYPES.includes(t.prompt_type));
   const missingImagePrompts = DEFAULT_PROMPTS.filter(
     (p) => IMAGE_TYPES.includes(p.prompt_type) && !existingPromptKeys.has(`${p.prompt_type}:${p.prompt_name}`)
+  );
+  const missingUsoProfPrompts = DEFAULT_PROMPTS.filter(
+    (p) => USO_PROFISSIONAL_TYPES.includes(p.prompt_type) && !existingPromptKeys.has(`${p.prompt_type}:${p.prompt_name}`)
   );
 
   const handleSelectTemplate = (id: string) => {
