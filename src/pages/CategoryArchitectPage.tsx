@@ -27,6 +27,7 @@ import {
   useDeleteWooCategory,
   useResetRuleStatus,
   type ArchitectRule,
+  type MigrationResult,
 } from "@/hooks/useCategoryArchitect";
 
 // ── Types ──
