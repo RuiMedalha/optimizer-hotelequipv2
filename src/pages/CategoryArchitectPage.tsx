@@ -26,8 +26,10 @@ import {
   useMigrateProducts,
   useDeleteWooCategory,
   useResetRuleStatus,
+  useRollbackMigration,
   type ArchitectRule,
   type MigrationResult,
+  type RollbackResult,
 } from "@/hooks/useCategoryArchitect";
 
 // ── Types ──
