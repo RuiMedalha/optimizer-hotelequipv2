@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { UsoProfissionalTab } from "@/components/UsoProfissionalTab";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -193,6 +194,9 @@ export function ProductDetailModal({ product, onClose }: Props) {
               <BarChart3 className="w-3.5 h-3.5 mr-1" /> Score SEO
             </TabsTrigger>
             <TabsTrigger value="faq">FAQ</TabsTrigger>
+            <TabsTrigger value="uso-profissional">
+              <BookOpen className="w-3 h-3 mr-1" /> Uso Prof.
+            </TabsTrigger>
             <TabsTrigger value="relacionados">
               <Shuffle className="w-3.5 h-3.5 mr-1" /> Upsells / Cross-sells
             </TabsTrigger>
@@ -472,6 +476,11 @@ export function ProductDetailModal({ product, onClose }: Props) {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          {/* USO PROFISSIONAL TAB */}
+          <TabsContent value="uso-profissional" className="mt-4">
+            <UsoProfissionalTab product={product} workspaceId={product.workspace_id} />
           </TabsContent>
 
           {/* IMAGES TAB */}

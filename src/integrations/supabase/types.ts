@@ -9343,6 +9343,56 @@ export type Database = {
           },
         ]
       }
+      product_uso_profissional: {
+        Row: {
+          generated_at: string | null
+          id: string
+          intro: string | null
+          placement: string | null
+          product_id: string
+          professional_tips: Json | null
+          publish_enabled: boolean | null
+          target_profiles: Json | null
+          updated_at: string | null
+          use_cases: Json | null
+          workspace_id: string
+        }
+        Insert: {
+          generated_at?: string | null
+          id?: string
+          intro?: string | null
+          placement?: string | null
+          product_id: string
+          professional_tips?: Json | null
+          publish_enabled?: boolean | null
+          target_profiles?: Json | null
+          updated_at?: string | null
+          use_cases?: Json | null
+          workspace_id: string
+        }
+        Update: {
+          generated_at?: string | null
+          id?: string
+          intro?: string | null
+          placement?: string | null
+          product_id?: string
+          professional_tips?: Json | null
+          publish_enabled?: boolean | null
+          target_profiles?: Json | null
+          updated_at?: string | null
+          use_cases?: Json | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_uso_profissional_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_versions: {
         Row: {
           change_reason: string | null

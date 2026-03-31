@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, FileCode, Cog, Wrench, ScrollText, Loader2, Sparkles, Palette, Image as ImageIcon } from "lucide-react";
+import { Plus, FileCode, Cog, Wrench, ScrollText, Loader2, Sparkles, Palette, Image as ImageIcon, BookOpen } from "lucide-react";
 import { DescriptionTemplateEditor } from "@/components/DescriptionTemplateEditor";
 import { PromptTemplatesTable } from "@/components/prompt-governance/PromptTemplatesTable";
 import { EditPromptTemplateDialog } from "@/components/prompt-governance/EditPromptTemplateDialog";
@@ -19,10 +19,11 @@ import { ConfirmDeleteDialog } from "@/components/prompt-governance/ConfirmDelet
 import { FieldPromptsSettings } from "@/components/FieldPromptsSettings";
 import { toast } from "sonner";
 
-const PROMPT_TYPES = ["enrichment", "description", "seo", "categorization", "validation", "translation", "general", "image"];
+const PROMPT_TYPES = ["enrichment", "description", "seo", "categorization", "validation", "translation", "general", "image", "uso_profissional"];
 const SYSTEM_TYPES = ["general"];
 const SERVICE_TYPES = ["enrichment", "description", "seo", "categorization", "validation", "translation"];
 const IMAGE_TYPES = ["image"];
+const USO_PROFISSIONAL_TYPES = ["uso_profissional"];
 
 // ═══ DEFAULT PROMPT SEEDS ═══
 const DEFAULT_PROMPTS: Array<{ prompt_name: string; prompt_type: string; description: string; base_prompt: string }> = [
@@ -310,6 +311,28 @@ REGRAS OBRIGATÓRIAS:
 - Não recortes, não mudes a posição do produto e não substituas o fundo
 - Apenas melhora a qualidade visual da imagem existente`,
   },
+  // ── USO PROFISSIONAL ──
+  {
+    prompt_name: "Uso Profissional — Conteúdo Editorial",
+    prompt_type: "uso_profissional",
+    description: "Gera conteúdo editorial sobre como o equipamento é usado por profissionais de hotelaria/restauração",
+    base_prompt: `És um especialista em equipamentos profissionais para hotelaria, restauração e catering em Portugal. Escreves conteúdo editorial em português europeu para um catálogo B2B. O teu público são chefs, responsáveis de F&B, gestores de hotel e compradores profissionais.
+
+Quando descreves como um equipamento é usado, focas em:
+- Contextos reais de uso profissional (não doméstico)
+- Benefícios operacionais concretos (velocidade, consistência, higiene, custo)
+- Linguagem técnica mas acessível
+- Casos de uso específicos da hotelaria portuguesa
+
+NUNCA uses linguagem de review de consumidor.
+Escreves como um técnico especialista, não como um cliente.
+
+Gera conteúdo com esta estrutura:
+1. Introdução (1 parágrafo sobre o valor do equipamento)
+2. 3 Casos de uso (contexto + descrição detalhada)
+3. 3-4 Dicas profissionais
+4. 3 Perfis profissionais alvo`,
+  },
 ];
 
 export default function PromptGovernancePage() {
@@ -352,8 +375,12 @@ export default function PromptGovernancePage() {
   const systemTemplates = (templates.data || []).filter(t => SYSTEM_TYPES.includes(t.prompt_type));
   const serviceTemplates = (templates.data || []).filter(t => SERVICE_TYPES.includes(t.prompt_type));
   const imageTemplates = (templates.data || []).filter(t => IMAGE_TYPES.includes(t.prompt_type));
+  const usoProfissionalTemplates = (templates.data || []).filter(t => USO_PROFISSIONAL_TYPES.includes(t.prompt_type));
   const missingImagePrompts = DEFAULT_PROMPTS.filter(
     (p) => IMAGE_TYPES.includes(p.prompt_type) && !existingPromptKeys.has(`${p.prompt_type}:${p.prompt_name}`)
+  );
+  const missingUsoProfPrompts = DEFAULT_PROMPTS.filter(
+    (p) => USO_PROFISSIONAL_TYPES.includes(p.prompt_type) && !existingPromptKeys.has(`${p.prompt_type}:${p.prompt_name}`)
   );
 
   const handleSelectTemplate = (id: string) => {
@@ -436,7 +463,7 @@ export default function PromptGovernancePage() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         <Card><CardContent className="p-4 text-center">
           <p className="text-2xl font-bold text-foreground">{systemTemplates.length}</p>
           <p className="text-xs text-muted-foreground">Prompts de Sistema</p>
@@ -448,6 +475,10 @@ export default function PromptGovernancePage() {
         <Card><CardContent className="p-4 text-center">
           <p className="text-2xl font-bold text-foreground">{imageTemplates.length}</p>
           <p className="text-xs text-muted-foreground">Prompts de Imagem</p>
+        </CardContent></Card>
+        <Card><CardContent className="p-4 text-center">
+          <p className="text-2xl font-bold text-foreground">{usoProfissionalTemplates.length}</p>
+          <p className="text-xs text-muted-foreground">Uso Profissional</p>
         </CardContent></Card>
         <Card><CardContent className="p-4 text-center">
           <p className="text-2xl font-bold text-foreground">{(templates.data || []).filter(t => t.is_active).length}</p>
@@ -471,6 +502,7 @@ export default function PromptGovernancePage() {
                 <SelectContent>
                   <SelectItem value="general" className="font-medium">⚙️ Sistema — general</SelectItem>
                   <SelectItem value="image">🖼️ Imagem — image</SelectItem>
+                  <SelectItem value="uso_profissional">📖 Uso Profissional</SelectItem>
                   {SERVICE_TYPES.map(t => <SelectItem key={t} value={t}>🔧 Serviço — {t}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -504,6 +536,9 @@ export default function PromptGovernancePage() {
           </TabsTrigger>
           <TabsTrigger value="images" className="gap-1.5">
             <ImageIcon className="h-4 w-4" /> Imagens ({imageTemplates.length})
+          </TabsTrigger>
+          <TabsTrigger value="uso-profissional" className="gap-1.5">
+            <BookOpen className="h-4 w-4" /> Uso Prof. ({usoProfissionalTemplates.length})
           </TabsTrigger>
           <TabsTrigger value="field-prompts" className="gap-1.5">
             <ScrollText className="h-4 w-4" /> Prompts por Campo
@@ -572,6 +607,31 @@ export default function PromptGovernancePage() {
 
           <PromptTemplatesTable
             templates={imageTemplates}
+            selectedId={selectedTemplate}
+            onSelect={handleSelectTemplate}
+            onEdit={t => setEditingTemplate(t)}
+            onDuplicate={id => duplicateTemplate.mutate(id)}
+            onArchive={id => setArchiveId(id)}
+            onRestore={id => restoreTemplate.mutate(id)}
+            onDelete={id => setDeleteId(id)}
+          />
+        </TabsContent>
+
+        <TabsContent value="uso-profissional" className="mt-4">
+          <div className="mb-4 flex flex-col gap-3 rounded-lg bg-muted/50 p-3 md:flex-row md:items-center md:justify-between">
+            <p className="text-sm text-muted-foreground">
+              <BookOpen className="mr-1 inline h-4 w-4" />
+              <strong>Uso Profissional</strong> — prompt editorial que gera conteúdo sobre como o equipamento é usado por profissionais de hotelaria e restauração. Usado no tab "Uso Prof." de cada produto.
+            </p>
+            {missingUsoProfPrompts.length > 0 && (
+              <Button variant="outline" size="sm" onClick={() => seedPrompts(missingUsoProfPrompts, "O prompt de Uso Profissional já existe.", (c) => `${c} prompt(s) de Uso Profissional criado(s)!`)} disabled={seeding}>
+                {seeding ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1 h-4 w-4" />}
+                Criar prompt base
+              </Button>
+            )}
+          </div>
+          <PromptTemplatesTable
+            templates={usoProfissionalTemplates}
             selectedId={selectedTemplate}
             onSelect={handleSelectTemplate}
             onEdit={t => setEditingTemplate(t)}
