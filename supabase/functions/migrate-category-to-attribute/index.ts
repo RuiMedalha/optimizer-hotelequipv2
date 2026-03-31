@@ -22,6 +22,44 @@ async function getWooConfig(supabase: any) {
   return { baseUrl: url.replace(/\/+$/, ""), auth: btoa(`${key}:${secret}`) };
 }
 
+// Find the "base" category — walk up the tree from sourceWooCategoryId,
+// collecting IDs of all intermediate subcategories that are being converted.
+// The base is the first ancestor that is NOT in the set of converted subcategories.
+async function findParentWooCategoryId(
+  woo: { baseUrl: string; auth: string },
+  sourceWooCategoryId: number,
+  allConvertedWooIds: Set<number>
+): Promise<number | null> {
+  let currentId = sourceWooCategoryId;
+  const visited = new Set<number>();
+
+  while (true) {
+    if (visited.has(currentId)) return null; // avoid infinite loop
+    visited.add(currentId);
+
+    const resp = await fetch(
+      `${woo.baseUrl}/wp-json/wc/v3/products/categories/${currentId}`,
+      { headers: { Authorization: `Basic ${woo.auth}` } }
+    );
+    if (!resp.ok) return null;
+    const cat = await resp.json();
+
+    const parentId = cat.parent;
+    if (!parentId || parentId === 0) {
+      // Source is already top-level; no parent to move to
+      return null;
+    }
+
+    // If the parent is NOT one of the converted subcategories, it's the target
+    if (!allConvertedWooIds.has(parentId)) {
+      return parentId;
+    }
+
+    // Otherwise, keep walking up
+    currentId = parentId;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -60,7 +98,29 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Categoria sem woocommerce_id" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Fetch all products in the category (paginated)
+    // Get ALL convert_to_attribute rules for this workspace to know which subcategories are being removed
+    const { data: allRules } = await adminClient
+      .from("category_architect_rules")
+      .select("source_category_id")
+      .eq("workspace_id", workspaceId)
+      .eq("action", "convert_to_attribute");
+
+    // Resolve woocommerce_ids for all converted categories
+    const convertedSourceIds = (allRules || []).map((r: any) => r.source_category_id).filter(Boolean);
+    const { data: convertedCats } = await adminClient
+      .from("categories")
+      .select("woocommerce_id")
+      .in("id", convertedSourceIds.length > 0 ? convertedSourceIds : ["00000000-0000-0000-0000-000000000000"]);
+
+    const allConvertedWooIds = new Set<number>(
+      (convertedCats || []).map((c: any) => c.woocommerce_id).filter(Boolean)
+    );
+
+    // Find the parent (base) category to reassign products to
+    const parentWooCategoryId = await findParentWooCategoryId(woo, wooCategoryId, allConvertedWooIds);
+    console.log(`Source WC category ${wooCategoryId} → parent target: ${parentWooCategoryId}`);
+
+    // Fetch all products in the source category (paginated)
     let allProducts: any[] = [];
     let page = 1;
     const perPage = 100;
@@ -91,16 +151,13 @@ Deno.serve(async (req) => {
 
     for (const product of allProducts) {
       try {
-        // Get existing attributes
+        // --- 1. Build new attributes list ---
         const existingAttrs = Array.isArray(product.attributes) ? product.attributes : [];
         const existingSlugs = existingAttrs.map((a: any) => a.slug || a.name);
-
-        // Determine value from category name or first available value
         const valueToAssign = Array.isArray(attributeValues) && attributeValues.length > 0 ? attributeValues[0] : "";
 
         let newAttrs;
         if (existingSlugs.includes(attributeSlug)) {
-          // Already has this attribute - count as success
           newAttrs = existingAttrs;
         } else {
           newAttrs = [...existingAttrs, {
@@ -112,19 +169,52 @@ Deno.serve(async (req) => {
           }];
         }
 
+        // --- 2. Build new categories list ---
+        // Remove the source subcategory (and any other converted subcategories)
+        // Add the parent category if not already present
+        const existingCategories: { id: number }[] = Array.isArray(product.categories) ? product.categories : [];
+        let newCategories = existingCategories.filter(
+          (c: any) => !allConvertedWooIds.has(c.id)
+        );
+
+        // Ensure the parent category is present
+        if (parentWooCategoryId && !newCategories.some((c: any) => c.id === parentWooCategoryId)) {
+          newCategories.push({ id: parentWooCategoryId });
+        }
+
+        // If we removed all categories and have no parent, keep originals minus source only
+        if (newCategories.length === 0) {
+          newCategories = existingCategories.filter((c: any) => c.id !== wooCategoryId);
+        }
+
+        // --- 3. Update product in WooCommerce ---
+        const updatePayload: any = { attributes: newAttrs };
+
+        // Only update categories if they actually changed
+        const origIds = new Set(existingCategories.map((c: any) => c.id));
+        const newIds = new Set(newCategories.map((c: any) => c.id));
+        const categoriesChanged = origIds.size !== newIds.size || [...origIds].some(id => !newIds.has(id));
+
+        if (categoriesChanged) {
+          updatePayload.categories = newCategories.map((c: any) => ({ id: c.id }));
+        }
+
         const patchResp = await fetch(`${woo.baseUrl}/wp-json/wc/v3/products/${product.id}`, {
           method: "PUT",
           headers: { Authorization: `Basic ${woo.auth}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ attributes: newAttrs }),
+          body: JSON.stringify(updatePayload),
         });
 
         if (patchResp.ok) {
           updated++;
+          const statusLabel = categoriesChanged
+            ? "moved_and_attributed"
+            : existingSlugs.includes(attributeSlug) ? "already_had" : "attributed";
           migratedProducts.push({
             id: product.id,
             name: product.name || product.title || "Sem nome",
             sku: product.sku || "",
-            status: existingSlugs.includes(attributeSlug) ? "already_had" : "added",
+            status: statusLabel,
           });
         } else {
           const errText = await patchResp.text();
@@ -157,10 +247,10 @@ Deno.serve(async (req) => {
       await sleep(200);
     }
 
-    // Final status - store migrated product list in error_message field as JSON
+    // Final status
     const finalStatus = errors > 0 && updated === 0 ? "error" : "migrated";
     const migrationSummary = errors > 0 ? `${errors} erros durante a migração` : null;
-    
+
     await adminClient.from("category_architect_rules").update({
       migration_status: finalStatus,
       migration_progress: updated + errors,
@@ -172,6 +262,8 @@ Deno.serve(async (req) => {
       updated,
       errors,
       total,
+      parentCategoryId: parentWooCategoryId,
+      categoriesReassigned: parentWooCategoryId ? true : false,
       migratedProducts,
       failedProducts,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
