@@ -970,12 +970,13 @@ function MigrarProdutosTab() {
   const { data: rules = [] } = useArchitectRules();
   const migrate = useMigrateProducts();
   const deleteWooCat = useDeleteWooCategory();
+  const resetStatus = useResetRuleStatus();
   const attrRules = rules.filter(r => r.action === "convert_to_attribute");
   const [runningAll, setRunningAll] = useState(false);
 
   const runAll = async () => {
     setRunningAll(true);
-    for (const rule of attrRules.filter(r => ["pending", "attribute_created"].includes(r.migration_status))) {
+    for (const rule of attrRules.filter(r => ["pending", "attribute_created", "error"].includes(r.migration_status))) {
       try {
         await migrate.mutateAsync(rule);
       } catch { /* individual error already toasted */ }
@@ -993,88 +994,160 @@ function MigrarProdutosTab() {
     );
   }
 
+  // Summary stats
+  const migrated = attrRules.filter(r => r.migration_status === "migrated");
+  const withErrors = attrRules.filter(r => r.migration_status === "error");
+  const pending = attrRules.filter(r => ["pending", "attribute_created"].includes(r.migration_status));
+  const migrating = attrRules.filter(r => r.migration_status === "migrating");
+  const totalProducts = migrated.reduce((sum, r) => sum + (r.migration_total || 0), 0);
+  const totalErrors = attrRules.reduce((sum, r) => {
+    if (r.error_message?.match(/(\d+) erros/)) return sum + parseInt(RegExp.$1);
+    return sum;
+  }, 0);
+
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Migrar Produtos</CardTitle>
-        <Button onClick={runAll} disabled={runningAll}>
-          {runningAll ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
-          Executar todos
-        </Button>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Categoria origem</TableHead>
-              <TableHead>Atributo</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Progresso</TableHead>
-              <TableHead className="w-48">Ação</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {attrRules.map(rule => (
-              <TableRow key={rule.id}>
-                <TableCell className="font-medium">{rule.source_category_name}</TableCell>
-                <TableCell className="font-mono text-sm">{rule.attribute_slug}</TableCell>
-                <TableCell><StatusBadge status={rule.migration_status} /></TableCell>
-                <TableCell>
-                  {rule.migration_status === "migrating" ? (
-                    <div className="space-y-1">
-                      <Progress value={rule.migration_total > 0 ? (rule.migration_progress / rule.migration_total) * 100 : 0} className="h-2" />
-                      <span className="text-xs text-muted-foreground">{rule.migration_progress} / {rule.migration_total}</span>
-                    </div>
-                  ) : rule.migration_status === "migrated" ? (
-                    <span className="text-sm text-primary">{rule.migration_total} produtos</span>
-                  ) : (
-                    <span className="text-sm text-muted-foreground">—</span>
-                  )}
-                </TableCell>
-                <TableCell className="space-x-2">
-                  {["pending", "attribute_created"].includes(rule.migration_status) && (
-                    <Button size="sm" onClick={() => migrate.mutate(rule)} disabled={migrate.isPending}>
-                      {migrate.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Play className="w-3 h-3 mr-1" />Executar</>}
-                    </Button>
-                  )}
-                  {rule.migration_status === "migrated" && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button size="sm" variant="destructive">
-                          <Trash2 className="w-3 h-3 mr-1" />Remover categoria
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Remover categoria antiga?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Esta ação vai eliminar permanentemente a categoria "{rule.source_category_name}" do WooCommerce.
-                            Os produtos já foram migrados para o atributo "{rule.attribute_slug}".
-                            Esta ação não pode ser revertida.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            onClick={() => deleteWooCat.mutate(rule)}
-                          >
-                            {deleteWooCat.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sim, eliminar"}
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  )}
-                  {rule.migration_status === "error" && (
-                    <span className="text-xs text-destructive">{rule.error_message}</span>
-                  )}
-                </TableCell>
+    <div className="space-y-4">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card>
+          <CardContent className="p-4 text-center">
+            <p className="text-2xl font-bold text-primary">{migrated.length}</p>
+            <p className="text-xs text-muted-foreground">Regras migradas</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <p className="text-2xl font-bold">{totalProducts}</p>
+            <p className="text-xs text-muted-foreground">Produtos migrados</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <p className="text-2xl font-bold text-amber-600">{pending.length + migrating.length}</p>
+            <p className="text-xs text-muted-foreground">Pendentes</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 text-center">
+            <p className="text-2xl font-bold text-destructive">{withErrors.length}</p>
+            <p className="text-xs text-muted-foreground">Com erros</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Overall progress */}
+      {attrRules.length > 0 && (
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium">Progresso geral</span>
+              <span className="text-sm text-muted-foreground">{migrated.length} / {attrRules.length} regras</span>
+            </div>
+            <Progress value={attrRules.length > 0 ? (migrated.length / attrRules.length) * 100 : 0} className="h-2" />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Rules Table */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Migrar Produtos</CardTitle>
+          <Button onClick={runAll} disabled={runningAll}>
+            {runningAll ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
+            Executar todos
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Categoria origem</TableHead>
+                <TableHead>Atributo</TableHead>
+                <TableHead>Valor</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Resultado</TableHead>
+                <TableHead className="w-48">Ação</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+            </TableHeader>
+            <TableBody>
+              {attrRules.map(rule => (
+                <TableRow key={rule.id} className={rule.migration_status === "error" ? "bg-destructive/5" : rule.migration_status === "migrated" ? "bg-primary/5" : ""}>
+                  <TableCell className="font-medium">{rule.source_category_name}</TableCell>
+                  <TableCell className="font-mono text-sm">{rule.attribute_slug}</TableCell>
+                  <TableCell className="text-sm">{rule.attribute_values?.join(", ") || "—"}</TableCell>
+                  <TableCell><StatusBadge status={rule.migration_status} /></TableCell>
+                  <TableCell>
+                    {rule.migration_status === "migrating" ? (
+                      <div className="space-y-1 min-w-[120px]">
+                        <Progress value={rule.migration_total > 0 ? (rule.migration_progress / rule.migration_total) * 100 : 0} className="h-2" />
+                        <span className="text-xs text-muted-foreground">{rule.migration_progress} / {rule.migration_total}</span>
+                      </div>
+                    ) : rule.migration_status === "migrated" ? (
+                      <div className="flex items-center gap-1">
+                        <CheckCircle className="w-3.5 h-3.5 text-primary" />
+                        <span className="text-sm font-medium text-primary">{rule.migration_total} produtos</span>
+                        {rule.error_message && (
+                          <Badge variant="outline" className="text-amber-600 ml-1 text-xs">{rule.error_message}</Badge>
+                        )}
+                      </div>
+                    ) : rule.migration_status === "error" ? (
+                      <div className="flex items-center gap-1">
+                        <XCircle className="w-3.5 h-3.5 text-destructive" />
+                        <span className="text-xs text-destructive max-w-[200px] truncate" title={rule.error_message || ""}>{rule.error_message}</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      {["pending", "attribute_created"].includes(rule.migration_status) && (
+                        <Button size="sm" onClick={() => migrate.mutate(rule)} disabled={migrate.isPending}>
+                          {migrate.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Play className="w-3 h-3 mr-1" />Executar</>}
+                        </Button>
+                      )}
+                      {rule.migration_status === "error" && (
+                        <Button size="sm" variant="outline" onClick={() => migrate.mutate(rule)} disabled={migrate.isPending}>
+                          <RotateCcw className="w-3 h-3 mr-1" />Repetir
+                        </Button>
+                      )}
+                      {rule.migration_status === "migrated" && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button size="sm" variant="destructive">
+                              <Trash2 className="w-3 h-3 mr-1" />Remover categoria
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Remover categoria antiga?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta ação vai eliminar permanentemente a categoria "{rule.source_category_name}" do WooCommerce.
+                                Os {rule.migration_total} produtos já foram migrados para o atributo "{rule.attribute_slug}".
+                                Esta ação não pode ser revertida.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={() => deleteWooCat.mutate(rule)}
+                              >
+                                {deleteWooCat.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sim, eliminar"}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
