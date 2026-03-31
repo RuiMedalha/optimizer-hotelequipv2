@@ -976,16 +976,31 @@ function MigrarProdutosTab() {
   const resetStatus = useResetRuleStatus();
   const attrRules = rules.filter(r => r.action === "convert_to_attribute");
   const [runningAll, setRunningAll] = useState(false);
+  const [migrationResults, setMigrationResults] = useState<Record<string, MigrationResult>>({});
+  const [showResultsFor, setShowResultsFor] = useState<string | null>(null);
+
+  const handleMigrate = async (rule: ArchitectRule) => {
+    try {
+      const result = await migrate.mutateAsync(rule);
+      setMigrationResults(prev => ({ ...prev, [rule.id]: result }));
+      // Auto-open results dialog
+      setShowResultsFor(rule.id);
+    } catch { /* error already toasted */ }
+  };
 
   const runAll = async () => {
     setRunningAll(true);
     for (const rule of attrRules.filter(r => ["pending", "attribute_created", "error"].includes(r.migration_status))) {
       try {
-        await migrate.mutateAsync(rule);
+        const result = await migrate.mutateAsync(rule);
+        setMigrationResults(prev => ({ ...prev, [rule.id]: result }));
       } catch { /* individual error already toasted */ }
     }
     setRunningAll(false);
   };
+
+  const activeResult = showResultsFor ? migrationResults[showResultsFor] : null;
+  const activeRule = showResultsFor ? attrRules.find(r => r.id === showResultsFor) : null;
 
   if (attrRules.length === 0) {
     return (
