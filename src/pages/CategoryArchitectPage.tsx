@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Loader2, Plus, Trash2, Wand2, Play, CheckCircle, XCircle, Clock, Sparkles, ArrowRight, Merge, ShieldCheck, AlertTriangle } from "lucide-react";
+import { Loader2, Plus, Trash2, Wand2, Play, CheckCircle, XCircle, Clock, Sparkles, ArrowRight, Merge, ShieldCheck, AlertTriangle, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCategories, type Category } from "@/hooks/useCategories";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
