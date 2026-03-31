@@ -112,8 +112,12 @@ function StatusBadge({ status }: { status: string }) {
       return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />Pendente</Badge>;
     case "attribute_created":
       return <Badge variant="default"><CheckCircle className="w-3 h-3 mr-1" />Criado</Badge>;
+    case "queued":
+      return <Badge variant="outline" className="border-blue-400 text-blue-600"><Loader2 className="w-3 h-3 mr-1 animate-spin" />Em fila</Badge>;
     case "migrating":
       return <Badge variant="outline"><Loader2 className="w-3 h-3 mr-1 animate-spin" />A migrar</Badge>;
+    case "paused":
+      return <Badge variant="outline" className="border-amber-400 text-amber-600"><Clock className="w-3 h-3 mr-1" />Parado</Badge>;
     case "migrated":
       return <Badge variant="default"><CheckCircle className="w-3 h-3 mr-1" />Concluído</Badge>;
     case "error":
