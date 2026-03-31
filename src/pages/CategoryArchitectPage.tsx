@@ -24,6 +24,7 @@ import {
   useDeleteRule,
   useCreateWooAttribute,
   useMigrateProducts,
+  usePauseMigration,
   useDeleteWooCategory,
   useResetRuleStatus,
   useRollbackMigration,
@@ -111,8 +112,12 @@ function StatusBadge({ status }: { status: string }) {
       return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />Pendente</Badge>;
     case "attribute_created":
       return <Badge variant="default"><CheckCircle className="w-3 h-3 mr-1" />Criado</Badge>;
+    case "queued":
+      return <Badge variant="outline" className="border-blue-400 text-blue-600"><Loader2 className="w-3 h-3 mr-1 animate-spin" />Em fila</Badge>;
     case "migrating":
       return <Badge variant="outline"><Loader2 className="w-3 h-3 mr-1 animate-spin" />A migrar</Badge>;
+    case "paused":
+      return <Badge variant="outline" className="border-amber-400 text-amber-600"><Clock className="w-3 h-3 mr-1" />Parado</Badge>;
     case "migrated":
       return <Badge variant="default"><CheckCircle className="w-3 h-3 mr-1" />Concluído</Badge>;
     case "error":
@@ -974,6 +979,7 @@ function CriarAtributosTab() {
 function MigrarProdutosTab() {
   const { data: rules = [] } = useArchitectRules();
   const migrate = useMigrateProducts();
+  const pauseMigration = usePauseMigration();
   const deleteWooCat = useDeleteWooCategory();
   const resetStatus = useResetRuleStatus();
   const rollback = useRollbackMigration();
@@ -1111,10 +1117,15 @@ function MigrarProdutosTab() {
                   <TableCell className="text-sm">{rule.attribute_values?.join(", ") || "—"}</TableCell>
                   <TableCell><StatusBadge status={rule.migration_status} /></TableCell>
                   <TableCell>
-                    {rule.migration_status === "migrating" ? (
+                    {["migrating", "queued"].includes(rule.migration_status) ? (
                       <div className="space-y-1 min-w-[120px]">
                         <Progress value={rule.migration_total > 0 ? (rule.migration_progress / rule.migration_total) * 100 : 0} className="h-2" />
                         <span className="text-xs text-muted-foreground">{rule.migration_progress} / {rule.migration_total}</span>
+                      </div>
+                    ) : rule.migration_status === "paused" ? (
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-amber-600" />
+                        <span className="text-sm font-medium text-amber-600">{rule.migration_progress} / {rule.migration_total}</span>
                       </div>
                     ) : rule.migration_status === "migrated" ? (
                       <div className="flex items-center gap-1">
@@ -1138,6 +1149,16 @@ function MigrarProdutosTab() {
                       {["pending", "attribute_created"].includes(rule.migration_status) && (
                         <Button size="sm" onClick={() => handleMigrate(rule)} disabled={migrate.isPending}>
                           {migrate.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Play className="w-3 h-3 mr-1" />Executar</>}
+                        </Button>
+                      )}
+                      {["migrating", "queued"].includes(rule.migration_status) && (
+                        <Button size="sm" variant="outline" className="text-amber-600 border-amber-300 hover:bg-amber-50" onClick={() => pauseMigration.mutate(rule.id)} disabled={pauseMigration.isPending}>
+                          {pauseMigration.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Clock className="w-3 h-3 mr-1" />Parar</>}
+                        </Button>
+                      )}
+                      {rule.migration_status === "paused" && (
+                        <Button size="sm" onClick={() => handleMigrate(rule)} disabled={migrate.isPending}>
+                          {migrate.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Play className="w-3 h-3 mr-1" />Retomar</>}
                         </Button>
                       )}
                       {rule.migration_status === "error" && (
