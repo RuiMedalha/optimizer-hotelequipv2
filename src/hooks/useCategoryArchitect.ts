@@ -133,12 +133,21 @@ export function useCreateWooAttribute() {
   });
 }
 
+export interface MigrationResult {
+  success: boolean;
+  updated: number;
+  errors: number;
+  total: number;
+  migratedProducts: { id: number; name: string; sku: string; status: string }[];
+  failedProducts: { id: number; name: string; sku: string; error: string }[];
+}
+
 export function useMigrateProducts() {
   const qc = useQueryClient();
   const { activeWorkspace } = useWorkspaceContext();
 
   return useMutation({
-    mutationFn: async (rule: ArchitectRule) => {
+    mutationFn: async (rule: ArchitectRule): Promise<MigrationResult> => {
       if (!activeWorkspace) throw new Error("No workspace");
       const { data, error } = await supabase.functions.invoke("migrate-category-to-attribute", {
         body: {
@@ -151,11 +160,11 @@ export function useMigrateProducts() {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      return data;
+      return data as MigrationResult;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["architect-rules"] });
-      toast.success("Migração concluída!");
+      toast.success(`Migração concluída! ${data.updated} produtos atualizados.`);
     },
     onError: (err: Error) => toast.error(err.message),
   });

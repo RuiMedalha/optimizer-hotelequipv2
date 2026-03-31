@@ -86,6 +86,8 @@ Deno.serve(async (req) => {
 
     let updated = 0;
     let errors = 0;
+    const migratedProducts: { id: number; name: string; sku: string; status: string }[] = [];
+    const failedProducts: { id: number; name: string; sku: string; error: string }[] = [];
 
     for (const product of allProducts) {
       try {
@@ -98,6 +100,7 @@ Deno.serve(async (req) => {
 
         let newAttrs;
         if (existingSlugs.includes(attributeSlug)) {
+          // Already has this attribute - count as success
           newAttrs = existingAttrs;
         } else {
           newAttrs = [...existingAttrs, {
@@ -117,12 +120,31 @@ Deno.serve(async (req) => {
 
         if (patchResp.ok) {
           updated++;
+          migratedProducts.push({
+            id: product.id,
+            name: product.name || product.title || "Sem nome",
+            sku: product.sku || "",
+            status: existingSlugs.includes(attributeSlug) ? "already_had" : "added",
+          });
         } else {
+          const errText = await patchResp.text();
           errors++;
-          console.warn(`Failed to update product ${product.id}:`, await patchResp.text());
+          failedProducts.push({
+            id: product.id,
+            name: product.name || product.title || "Sem nome",
+            sku: product.sku || "",
+            error: errText.substring(0, 200),
+          });
+          console.warn(`Failed to update product ${product.id}:`, errText);
         }
       } catch (err) {
         errors++;
+        failedProducts.push({
+          id: product.id,
+          name: product.name || product.title || "Sem nome",
+          sku: product.sku || "",
+          error: String(err).substring(0, 200),
+        });
         console.error(`Error updating product ${product.id}:`, err);
       }
 
@@ -135,15 +157,24 @@ Deno.serve(async (req) => {
       await sleep(200);
     }
 
-    // Final status
+    // Final status - store migrated product list in error_message field as JSON
     const finalStatus = errors > 0 && updated === 0 ? "error" : "migrated";
+    const migrationSummary = errors > 0 ? `${errors} erros durante a migração` : null;
+    
     await adminClient.from("category_architect_rules").update({
       migration_status: finalStatus,
       migration_progress: updated + errors,
-      error_message: errors > 0 ? `${errors} erros durante a migração` : null,
+      error_message: migrationSummary,
     }).eq("id", ruleId);
 
-    return new Response(JSON.stringify({ success: true, updated, errors, total }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({
+      success: true,
+      updated,
+      errors,
+      total,
+      migratedProducts,
+      failedProducts,
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (err: unknown) {
     console.error("migrate-category-to-attribute error:", err);
     return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });

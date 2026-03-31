@@ -10,7 +10,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Loader2, Plus, Trash2, Wand2, Play, CheckCircle, XCircle, Clock, Sparkles, ArrowRight, Merge, ShieldCheck, AlertTriangle, RotateCcw } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Loader2, Plus, Trash2, Wand2, Play, CheckCircle, XCircle, Clock, Sparkles, ArrowRight, Merge, ShieldCheck, AlertTriangle, RotateCcw, Eye, List } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCategories, type Category } from "@/hooks/useCategories";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
@@ -25,6 +27,7 @@ import {
   useDeleteWooCategory,
   useResetRuleStatus,
   type ArchitectRule,
+  type MigrationResult,
 } from "@/hooks/useCategoryArchitect";
 
 // ── Types ──
@@ -973,16 +976,31 @@ function MigrarProdutosTab() {
   const resetStatus = useResetRuleStatus();
   const attrRules = rules.filter(r => r.action === "convert_to_attribute");
   const [runningAll, setRunningAll] = useState(false);
+  const [migrationResults, setMigrationResults] = useState<Record<string, MigrationResult>>({});
+  const [showResultsFor, setShowResultsFor] = useState<string | null>(null);
+
+  const handleMigrate = async (rule: ArchitectRule) => {
+    try {
+      const result = await migrate.mutateAsync(rule);
+      setMigrationResults(prev => ({ ...prev, [rule.id]: result }));
+      // Auto-open results dialog
+      setShowResultsFor(rule.id);
+    } catch { /* error already toasted */ }
+  };
 
   const runAll = async () => {
     setRunningAll(true);
     for (const rule of attrRules.filter(r => ["pending", "attribute_created", "error"].includes(r.migration_status))) {
       try {
-        await migrate.mutateAsync(rule);
+        const result = await migrate.mutateAsync(rule);
+        setMigrationResults(prev => ({ ...prev, [rule.id]: result }));
       } catch { /* individual error already toasted */ }
     }
     setRunningAll(false);
   };
+
+  const activeResult = showResultsFor ? migrationResults[showResultsFor] : null;
+  const activeRule = showResultsFor ? attrRules.find(r => r.id === showResultsFor) : null;
 
   if (attrRules.length === 0) {
     return (
@@ -1102,13 +1120,18 @@ function MigrarProdutosTab() {
                   <TableCell>
                     <div className="flex items-center gap-1">
                       {["pending", "attribute_created"].includes(rule.migration_status) && (
-                        <Button size="sm" onClick={() => migrate.mutate(rule)} disabled={migrate.isPending}>
+                        <Button size="sm" onClick={() => handleMigrate(rule)} disabled={migrate.isPending}>
                           {migrate.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Play className="w-3 h-3 mr-1" />Executar</>}
                         </Button>
                       )}
                       {rule.migration_status === "error" && (
-                        <Button size="sm" variant="outline" onClick={() => migrate.mutate(rule)} disabled={migrate.isPending}>
+                        <Button size="sm" variant="outline" onClick={() => handleMigrate(rule)} disabled={migrate.isPending}>
                           <RotateCcw className="w-3 h-3 mr-1" />Repetir
+                        </Button>
+                      )}
+                      {(rule.migration_status === "migrated" || migrationResults[rule.id]) && (
+                        <Button size="sm" variant="outline" onClick={() => setShowResultsFor(rule.id)}>
+                          <List className="w-3 h-3 mr-1" />Ver produtos
                         </Button>
                       )}
                       {rule.migration_status === "migrated" && (
@@ -1147,6 +1170,88 @@ function MigrarProdutosTab() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Migration Results Dialog */}
+      <Dialog open={!!showResultsFor} onOpenChange={(open) => !open && setShowResultsFor(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              Produtos Migrados — {activeRule?.source_category_name} → {activeRule?.attribute_slug}
+            </DialogTitle>
+          </DialogHeader>
+          {activeResult ? (
+            <div className="space-y-4">
+              <div className="flex gap-4 text-sm">
+                <Badge variant="default" className="bg-primary text-primary-foreground">{activeResult.updated} atualizados</Badge>
+                {activeResult.errors > 0 && <Badge variant="destructive">{activeResult.errors} erros</Badge>}
+                <Badge variant="outline">{activeResult.total} total</Badge>
+              </div>
+
+              <ScrollArea className="max-h-[400px]">
+                {activeResult.migratedProducts.length > 0 && (
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-semibold text-foreground mb-2">✅ Produtos atualizados ({activeResult.migratedProducts.length})</h4>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[80px]">WC ID</TableHead>
+                          <TableHead>Nome</TableHead>
+                          <TableHead className="w-[100px]">SKU</TableHead>
+                          <TableHead className="w-[100px]">Estado</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {activeResult.migratedProducts.map(p => (
+                          <TableRow key={p.id}>
+                            <TableCell className="font-mono text-xs">{p.id}</TableCell>
+                            <TableCell className="text-sm">{p.name}</TableCell>
+                            <TableCell className="font-mono text-xs">{p.sku || "—"}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs">
+                                {p.status === "already_had" ? "Já tinha" : "Adicionado"}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+
+                {activeResult.failedProducts.length > 0 && (
+                  <div className="space-y-1 mt-4">
+                    <h4 className="text-sm font-semibold text-destructive mb-2">❌ Produtos com erro ({activeResult.failedProducts.length})</h4>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[80px]">WC ID</TableHead>
+                          <TableHead>Nome</TableHead>
+                          <TableHead>Erro</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {activeResult.failedProducts.map(p => (
+                          <TableRow key={p.id}>
+                            <TableCell className="font-mono text-xs">{p.id}</TableCell>
+                            <TableCell className="text-sm">{p.name}</TableCell>
+                            <TableCell className="text-xs text-destructive max-w-[200px] truncate" title={p.error}>{p.error}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </ScrollArea>
+
+              <p className="text-xs text-muted-foreground">
+                💡 Os atributos foram criados com <strong>visible: true</strong> — aparecem automaticamente como filtros no WooCommerce se o tema suportar filtragem por atributos (ex: widgets de filtro de produto).
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground py-4">Execute a migração para ver os resultados aqui.</p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
