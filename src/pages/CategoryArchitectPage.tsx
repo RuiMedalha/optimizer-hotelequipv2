@@ -24,6 +24,7 @@ import {
   useDeleteRule,
   useCreateWooAttribute,
   useMigrateProducts,
+  usePauseMigration,
   useDeleteWooCategory,
   useResetRuleStatus,
   useRollbackMigration,
