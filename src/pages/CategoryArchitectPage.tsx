@@ -979,6 +979,7 @@ function CriarAtributosTab() {
 function MigrarProdutosTab() {
   const { data: rules = [] } = useArchitectRules();
   const migrate = useMigrateProducts();
+  const pauseMigration = usePauseMigration();
   const deleteWooCat = useDeleteWooCategory();
   const resetStatus = useResetRuleStatus();
   const rollback = useRollbackMigration();
