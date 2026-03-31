@@ -1,0 +1,2 @@
+ALTER TABLE public.category_architect_rules DROP CONSTRAINT category_architect_rules_migration_status_check;
+ALTER TABLE public.category_architect_rules ADD CONSTRAINT category_architect_rules_migration_status_check CHECK (migration_status = ANY (ARRAY['pending'::text, 'attribute_created'::text, 'queued'::text, 'migrating'::text, 'paused'::text, 'migrated'::text, 'error'::text]));
