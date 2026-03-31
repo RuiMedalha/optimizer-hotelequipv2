@@ -616,7 +616,32 @@ export default function PromptGovernancePage() {
           />
         </TabsContent>
 
-        <TabsContent value="field-prompts" className="mt-4">
+        <TabsContent value="uso-profissional" className="mt-4">
+          <div className="mb-4 flex flex-col gap-3 rounded-lg bg-muted/50 p-3 md:flex-row md:items-center md:justify-between">
+            <p className="text-sm text-muted-foreground">
+              <BookOpen className="mr-1 inline h-4 w-4" />
+              <strong>Uso Profissional</strong> — prompt editorial que gera conteúdo sobre como o equipamento é usado por profissionais de hotelaria e restauração. Usado no tab "Uso Prof." de cada produto.
+            </p>
+            {missingUsoProfPrompts.length > 0 && (
+              <Button variant="outline" size="sm" onClick={() => seedPrompts(missingUsoProfPrompts, "O prompt de Uso Profissional já existe.", (c) => `${c} prompt(s) de Uso Profissional criado(s)!`)} disabled={seeding}>
+                {seeding ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1 h-4 w-4" />}
+                Criar prompt base
+              </Button>
+            )}
+          </div>
+          <PromptTemplatesTable
+            templates={usoProfissionalTemplates}
+            selectedId={selectedTemplate}
+            onSelect={handleSelectTemplate}
+            onEdit={t => setEditingTemplate(t)}
+            onDuplicate={id => duplicateTemplate.mutate(id)}
+            onArchive={id => setArchiveId(id)}
+            onRestore={id => restoreTemplate.mutate(id)}
+            onDelete={id => setDeleteId(id)}
+          />
+        </TabsContent>
+
+
           <div className="mb-4 p-3 bg-muted/50 rounded-lg">
             <p className="text-sm text-muted-foreground">
               <ScrollText className="w-4 h-4 inline mr-1" />
