@@ -56,21 +56,41 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Credenciais WooCommerce não configuradas" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Create attribute
+    // Try to create attribute, or find existing one if slug already exists
+    let attributeId: number;
     const attrResp = await fetch(`${woo.baseUrl}/wp-json/wc/v3/products/attributes`, {
       method: "POST",
       headers: { Authorization: `Basic ${woo.auth}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name, slug, type: "select", has_archives: true }),
     });
 
-    if (!attrResp.ok) {
-      const err = await attrResp.text();
-      await adminClient.from("category_architect_rules").update({ migration_status: "error", error_message: `WooCommerce: ${err}` }).eq("id", ruleId);
-      return new Response(JSON.stringify({ error: `Erro ao criar atributo: ${err}` }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (attrResp.ok) {
+      const attr = await attrResp.json();
+      attributeId = attr.id;
+    } else {
+      const errText = await attrResp.text();
+      // If slug already exists, look it up
+      if (errText.includes("woocommerce_rest_cannot_create") && errText.includes("em uso")) {
+        console.log(`Attribute slug "${slug}" already exists, looking up...`);
+        const listResp = await fetch(`${woo.baseUrl}/wp-json/wc/v3/products/attributes`, {
+          headers: { Authorization: `Basic ${woo.auth}` },
+        });
+        if (!listResp.ok) {
+          return new Response(JSON.stringify({ error: "Falha ao listar atributos existentes" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        const allAttrs = await listResp.json();
+        const existing = allAttrs.find((a: any) => a.slug === slug || a.slug === `pa_${slug}`);
+        if (!existing) {
+          await adminClient.from("category_architect_rules").update({ migration_status: "error", error_message: `Slug "${slug}" em uso mas não encontrado na lista` }).eq("id", ruleId);
+          return new Response(JSON.stringify({ error: `Slug "${slug}" em uso mas não encontrado` }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        attributeId = existing.id;
+        console.log(`Found existing attribute: id=${attributeId}, slug=${existing.slug}`);
+      } else {
+        await adminClient.from("category_architect_rules").update({ migration_status: "error", error_message: `WooCommerce: ${errText}` }).eq("id", ruleId);
+        return new Response(JSON.stringify({ error: `Erro ao criar atributo: ${errText}` }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
     }
-
-    const attr = await attrResp.json();
-    const attributeId = attr.id;
 
     // Create terms
     const termValues = Array.isArray(values) ? values : [];
