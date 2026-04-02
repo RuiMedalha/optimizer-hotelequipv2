@@ -59,6 +59,7 @@ import WebsiteExtractionAgentPage from "./pages/WebsiteExtractionAgentPage";
 import ScraperManualPage from "./pages/ScraperManualPage";
 import AiComparisonHistoryPage from "./pages/AiComparisonHistoryPage";
 import CategoryArchitectPage from "./pages/CategoryArchitectPage";
+import SeoLifecyclePage from "./pages/SeoLifecyclePage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
