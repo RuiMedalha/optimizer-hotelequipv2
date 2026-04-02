@@ -44,6 +44,7 @@ import {
   GitCompare,
   MousePointerClick,
   Wand2,
+  Shield,
   type LucideIcon,
 } from "lucide-react";
 
