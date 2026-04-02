@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
       short_description: product.optimized_short_description || product.short_description,
       meta_title: product.meta_title,
       meta_description: product.meta_description,
-      slug: product.seo_slug,
+      seo_slug: product.seo_slug,
       price: product.optimized_price || product.original_price,
       sale_price: product.optimized_sale_price || product.sale_price,
       sku: product.sku,

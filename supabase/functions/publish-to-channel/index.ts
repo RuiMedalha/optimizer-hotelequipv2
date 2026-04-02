@@ -137,7 +137,8 @@ async function buildChannelPayload(supabase: any, product: any, channel: any, wo
     short_description: localization?.translated_short_description || product.optimized_short_description || product.short_description,
     meta_title: localization?.translated_meta_title || product.meta_title,
     meta_description: localization?.translated_meta_description || product.meta_description,
-    slug: localization?.translated_slug || product.seo_slug,
+    // seo_slug is metadata only — never overwrite the product URL/permalink
+    seo_slug: localization?.translated_slug || product.seo_slug,
     price: product.optimized_price || product.original_price,
     sale_price: product.optimized_sale_price || product.sale_price,
     sku: product.sku,

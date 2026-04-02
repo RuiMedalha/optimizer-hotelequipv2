@@ -926,9 +926,10 @@ async function buildBasePayload(
     wooProduct.sku = product.sku || undefined;
   }
 
-  if (has("slug")) {
-    wooProduct.slug = product.seo_slug || undefined;
-  }
+  // IMPORTANT: Never overwrite the WooCommerce slug/permalink.
+  // The seo_slug is metadata only (for Yoast/RankMath); the product URL must remain stable.
+  // If you need to set slug on first publish, use the original WooCommerce slug or SKU-based fallback.
+  // if (has("slug")) { ... } — intentionally disabled to preserve URL stability.
 
   if (has("images")) {
     if (product.image_urls && product.image_urls.length > 0) {
