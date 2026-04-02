@@ -1664,6 +1664,75 @@ async function publishSingleProduct(
 
   const wooProduct = await buildBasePayload(enrichedProduct, supabase, baseUrl, auth, has, markupPercent, discountPercent);
 
+  // ── SEO Lifecycle integration ──
+  // Check if product has a lifecycle record and enrich WooCommerce payload accordingly
+  try {
+    const { data: lifecycle } = await adminClient
+      .from("product_seo_lifecycle")
+      .select("lifecycle_phase, alternative_product_ids, redirect_target_url")
+      .eq("product_id", enrichedProduct.id)
+      .maybeSingle();
+
+    if (lifecycle) {
+      const existingMeta = Array.isArray(wooProduct.meta_data) ? wooProduct.meta_data as any[] : [];
+
+      if (lifecycle.lifecycle_phase === "discontinued") {
+        // Set stock to 0, keep published
+        wooProduct.manage_stock = true;
+        wooProduct.stock_quantity = 0;
+        wooProduct.stock_status = "outofstock";
+        wooProduct.status = "publish"; // Keep page live
+
+        // Add discontinued notice to short description
+        const currentShort = String(wooProduct.short_description || enrichedProduct.optimized_short_description || "");
+        const notice = '<div class="discontinued-notice" style="background:#fff3cd;border:1px solid #ffc107;padding:12px;border-radius:6px;margin-bottom:16px;"><strong>⚠️ Produto descontinuado</strong> — Este produto já não se encontra disponível. Veja alternativas abaixo.</div>';
+        if (!currentShort.includes("discontinued-notice")) {
+          wooProduct.short_description = notice + currentShort;
+        }
+
+        // Add alternatives block to description if available
+        if (lifecycle.alternative_product_ids?.length) {
+          const { data: altProducts } = await adminClient
+            .from("products")
+            .select("sku, optimized_title, original_title, woocommerce_id")
+            .in("id", lifecycle.alternative_product_ids)
+            .limit(4);
+
+          if (altProducts?.length) {
+            const altLinks = altProducts
+              .map((p: any) => `<li>${p.optimized_title || p.original_title || p.sku}</li>`)
+              .join("");
+            const altBlock = `<div class="seo-alternatives" style="background:#f8f9fa;border:1px solid #dee2e6;padding:16px;border-radius:6px;margin-top:20px;"><h4>Veja alternativas disponíveis nesta categoria</h4><ul>${altLinks}</ul></div>`;
+            const currentDesc = String(wooProduct.description || enrichedProduct.optimized_description || "");
+            if (!currentDesc.includes("seo-alternatives")) {
+              wooProduct.description = currentDesc + altBlock;
+            }
+          }
+        }
+
+        // Keep indexed during transition period
+        existingMeta.push({ key: "_yoast_wpseo_meta-robots-noindex", value: "0" });
+      }
+
+      if (lifecycle.lifecycle_phase === "redirected") {
+        // Set noindex
+        existingMeta.push({ key: "_yoast_wpseo_meta-robots-noindex", value: "1" });
+        // Rank Math redirect meta
+        if (lifecycle.redirect_target_url) {
+          existingMeta.push({ key: "rank_math_redirection_url_to", value: lifecycle.redirect_target_url });
+          existingMeta.push({ key: "rank_math_redirection_header_code", value: "301" });
+        }
+      }
+
+      if (existingMeta.length > 0) {
+        wooProduct.meta_data = existingMeta;
+      }
+    }
+  } catch (seoErr: unknown) {
+    console.warn(`[publish] SEO lifecycle check failed for ${enrichedProduct.id}:`, seoErr);
+    // Non-fatal — continue publishing
+  }
+
   if (has("upsells")) {
     const upsellIds = await resolveSkusToWooIds(supabase, adminClient, baseUrl, auth, enrichedProduct.upsell_skus || []);
     if (upsellIds.length > 0) wooProduct.upsell_ids = upsellIds;
