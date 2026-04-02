@@ -9336,6 +9336,60 @@ export type Database = {
           },
         ]
       }
+      product_redirects: {
+        Row: {
+          applied_at: string | null
+          created_at: string
+          destination_url: string
+          id: string
+          product_id: string | null
+          reason: string | null
+          redirect_type: number
+          source_url: string
+          status: string
+          workspace_id: string
+        }
+        Insert: {
+          applied_at?: string | null
+          created_at?: string
+          destination_url: string
+          id?: string
+          product_id?: string | null
+          reason?: string | null
+          redirect_type?: number
+          source_url: string
+          status?: string
+          workspace_id: string
+        }
+        Update: {
+          applied_at?: string | null
+          created_at?: string
+          destination_url?: string
+          id?: string
+          product_id?: string | null
+          reason?: string | null
+          redirect_type?: number
+          source_url?: string
+          status?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_redirects_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_redirects_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_relationships: {
         Row: {
           confidence: number | null
@@ -9390,6 +9444,81 @@ export type Database = {
           },
           {
             foreignKeyName: "product_relationships_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_seo_lifecycle: {
+        Row: {
+          alternative_product_ids: string[] | null
+          created_at: string
+          current_url: string | null
+          days_before_redirect: number | null
+          discontinued_at: string | null
+          id: string
+          lifecycle_phase: string
+          noindex_at: string | null
+          pending_redirect_at: string | null
+          previous_slug: string | null
+          previous_url: string | null
+          product_id: string
+          redirect_target_type: string | null
+          redirect_target_url: string | null
+          sku: string | null
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          alternative_product_ids?: string[] | null
+          created_at?: string
+          current_url?: string | null
+          days_before_redirect?: number | null
+          discontinued_at?: string | null
+          id?: string
+          lifecycle_phase?: string
+          noindex_at?: string | null
+          pending_redirect_at?: string | null
+          previous_slug?: string | null
+          previous_url?: string | null
+          product_id: string
+          redirect_target_type?: string | null
+          redirect_target_url?: string | null
+          sku?: string | null
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          alternative_product_ids?: string[] | null
+          created_at?: string
+          current_url?: string | null
+          days_before_redirect?: number | null
+          discontinued_at?: string | null
+          id?: string
+          lifecycle_phase?: string
+          noindex_at?: string | null
+          pending_redirect_at?: string | null
+          previous_slug?: string | null
+          previous_url?: string | null
+          product_id?: string
+          redirect_target_type?: string | null
+          redirect_target_url?: string | null
+          sku?: string | null
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_seo_lifecycle_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_seo_lifecycle_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -10792,6 +10921,98 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "scraping_schedules_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seo_lifecycle_config: {
+        Row: {
+          created_at: string
+          default_days_before_redirect: number
+          default_redirect_target_type: string
+          discontinued_keep_index_days: number
+          enable_ai_alternatives: boolean
+          fallback_redirect_url: string
+          id: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          default_days_before_redirect?: number
+          default_redirect_target_type?: string
+          discontinued_keep_index_days?: number
+          enable_ai_alternatives?: boolean
+          fallback_redirect_url?: string
+          id?: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          default_days_before_redirect?: number
+          default_redirect_target_type?: string
+          discontinued_keep_index_days?: number
+          enable_ai_alternatives?: boolean
+          fallback_redirect_url?: string
+          id?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seo_lifecycle_config_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: true
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seo_lifecycle_logs: {
+        Row: {
+          created_at: string
+          details: Json | null
+          event_type: string
+          id: string
+          new_phase: string | null
+          old_phase: string | null
+          product_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          event_type: string
+          id?: string
+          new_phase?: string | null
+          old_phase?: string | null
+          product_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          event_type?: string
+          id?: string
+          new_phase?: string | null
+          old_phase?: string | null
+          product_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seo_lifecycle_logs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seo_lifecycle_logs_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
