@@ -93,6 +93,7 @@ function ProtectedRoutes() {
           <Route path="/categorias" element={<CategoriesPage />} />
           <Route path="/category-architect" element={<CategoryArchitectPage />} />
           <Route path="/importar-woo" element={<WooImportPage />} />
+          <Route path="/seo-lifecycle" element={<SeoLifecyclePage />} />
           <Route path="/imagens" element={<ImagesPage />} />
           <Route path="/configuracoes" element={<SettingsPage />} />
           <Route path="/membros" element={<WorkspaceMembersPage />} />
