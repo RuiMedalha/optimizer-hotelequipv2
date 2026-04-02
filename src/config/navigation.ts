@@ -44,6 +44,7 @@ import {
   GitCompare,
   MousePointerClick,
   Wand2,
+  Shield,
   type LucideIcon,
 } from "lucide-react";
 
@@ -86,6 +87,7 @@ export const navGroups: NavGroup[] = [
       { title: "Variações", icon: GitBranch, route: "/variacoes" },
       { title: "Categorias", icon: FolderTree, route: "/categorias" },
       { title: "Category Architect", icon: Wand2, route: "/category-architect" },
+      { title: "SEO Lifecycle", icon: Shield, route: "/seo-lifecycle" },
       { title: "Canais", icon: Radio, route: "/canais" },
       { title: "Importar WooCommerce", icon: ShoppingCart, route: "/importar-woo" },
     ],

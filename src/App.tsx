@@ -59,6 +59,7 @@ import WebsiteExtractionAgentPage from "./pages/WebsiteExtractionAgentPage";
 import ScraperManualPage from "./pages/ScraperManualPage";
 import AiComparisonHistoryPage from "./pages/AiComparisonHistoryPage";
 import CategoryArchitectPage from "./pages/CategoryArchitectPage";
+import SeoLifecyclePage from "./pages/SeoLifecyclePage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -92,6 +93,7 @@ function ProtectedRoutes() {
           <Route path="/categorias" element={<CategoriesPage />} />
           <Route path="/category-architect" element={<CategoryArchitectPage />} />
           <Route path="/importar-woo" element={<WooImportPage />} />
+          <Route path="/seo-lifecycle" element={<SeoLifecyclePage />} />
           <Route path="/imagens" element={<ImagesPage />} />
           <Route path="/configuracoes" element={<SettingsPage />} />
           <Route path="/membros" element={<WorkspaceMembersPage />} />
