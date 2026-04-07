@@ -544,7 +544,7 @@ serve(async (req) => {
                 const usoResult = await usoResponse.json();
                 if (usoResult && usoResult.intro) {
                   const serviceClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-                  await serviceClient
+                  const { data: savedUso, error: saveUsoError } = await serviceClient
                     .from("product_uso_profissional")
                     .upsert({
                       product_id: productId,
@@ -558,9 +558,17 @@ serve(async (req) => {
                       publish_enabled: true,
                       routing_in_description: jobUsoProfissionalRouting.inDescription ?? true,
                       routing_in_custom_field: jobUsoProfissionalRouting.inCustomField ?? false,
-                    }, { onConflict: "product_id" });
-                  console.log(`📖 Uso Profissional generated & saved for ${productId}`);
-                  usoStatus = "generated";
+                    }, { onConflict: "product_id,workspace_id" })
+                    .select("id, product_id")
+                    .maybeSingle();
+
+                  if (saveUsoError) {
+                    console.warn(`Uso Profissional save failed for ${productId}:`, saveUsoError);
+                    usoStatus = `save_failed: ${saveUsoError.message?.substring(0, 100)}`;
+                  } else {
+                    console.log(`📖 Uso Profissional generated & saved for ${productId}`, savedUso);
+                    usoStatus = "generated";
+                  }
                 } else {
                   console.warn(`Uso Profissional for ${productId}: empty result`);
                   usoStatus = "empty_result";

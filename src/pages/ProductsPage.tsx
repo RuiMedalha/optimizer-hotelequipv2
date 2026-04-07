@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,6 +72,7 @@ function getMigrationStatus(product: Product): "migrated" | "partial" | "not_mig
 
 const ProductsPage = () => {
   const { activeWorkspace, toggleVariableProducts } = useWorkspaceContext();
+  const qc = useQueryClient();
   useRepairAttributes();
   const { enrich, isEnriching, missingVariations, createMissingVariations, progress: enrichProgress } = useEnrichProducts();
   const { processImages, isProcessing: isProcessingImages, progress: imgProgress } = useProcessImages();
@@ -533,7 +534,10 @@ const ProductsPage = () => {
                         target_profiles: usoResult.targetProfiles || [],
                         generated_at: new Date().toISOString(),
                         updated_at: new Date().toISOString(),
-                        publish_enabled: true,
+                        publish_enabled: (directUsoRouting?.inDescription ?? true) || (directUsoRouting?.inCustomField ?? false),
+                        routing_in_description: directUsoRouting?.inDescription ?? true,
+                        routing_in_custom_field: directUsoRouting?.inCustomField ?? false,
+                        placement: (directUsoRouting?.inDescription ?? true) ? "before_faq" : "end_description",
                       };
                       console.log("[Uso Prof] Upserting:", { product_id: pid, workspace_id: directWorkspaceId, hasIntro: !!usoResult.intro });
                       const { data: upsertResult, error: upsertError } = await supabase.from("product_uso_profissional" as any).upsert(
@@ -544,8 +548,16 @@ const ProductsPage = () => {
                         console.error("[Uso Prof] Upsert error:", upsertError);
                       } else {
                         console.log("[Uso Prof] Upsert success:", upsertResult);
+                        window.dispatchEvent(new CustomEvent("uso-profissional-updated", {
+                          detail: { productId: pid, workspaceId: directWorkspaceId },
+                        }));
+                        qc.invalidateQueries({ queryKey: ["products"] });
+                        qc.invalidateQueries({ queryKey: ["product-stats"] });
+                        qc.invalidateQueries({ queryKey: ["recent-activity"] });
+                        qc.invalidateQueries({ queryKey: ["token-usage-summary"] });
+                        qc.invalidateQueries({ queryKey: ["product-detail", pid] });
+                        usoOkCount++;
                       }
-                      usoOkCount++;
                     } else {
                       console.warn("[Uso Prof] Edge function returned no intro:", { usoErr, usoResult });
                     }
