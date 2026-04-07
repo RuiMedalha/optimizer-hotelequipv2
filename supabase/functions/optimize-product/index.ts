@@ -39,7 +39,7 @@ serve(async (req) => {
     }
     const userId = userData.user.id;
 
-    const { productIds, fieldsToOptimize, modelOverride, workspaceId, phase, skipKnowledge, skipScraping, skipReranking } = await req.json();
+    const { productIds, fieldsToOptimize, modelOverride, workspaceId, phase, skipKnowledge, skipScraping, skipReranking, promptTemplateId } = await req.json();
     if (!Array.isArray(productIds) || productIds.length === 0) {
       return new Response(JSON.stringify({ error: "productIds é obrigatório" }), {
         status: 400,
