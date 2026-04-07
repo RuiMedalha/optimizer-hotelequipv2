@@ -18,6 +18,11 @@ export interface OptimizationLog {
   fields_optimized: string[];
   prompt_length: number;
   created_at: string;
+  // Extra fields from job items merge
+  source?: "optimization_logs" | "job_item";
+  status?: string;
+  error_message?: string | null;
+  task_type?: string | null;
 }
 
 export function useProductOptimizationLogs(productId: string | null) {
@@ -25,14 +30,63 @@ export function useProductOptimizationLogs(productId: string | null) {
     queryKey: ["optimization-logs", productId],
     enabled: !!productId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("optimization_logs")
-        .select("*")
-        .eq("product_id", productId!)
-        .order("created_at", { ascending: false })
-        .limit(10);
-      if (error) throw error;
-      return data as unknown as OptimizationLog[];
+      // Fetch from both optimization_logs AND optimization_job_items in parallel
+      const [logsRes, jobItemsRes] = await Promise.all([
+        supabase
+          .from("optimization_logs")
+          .select("*")
+          .eq("product_id", productId!)
+          .order("created_at", { ascending: false })
+          .limit(10),
+        supabase
+          .from("optimization_job_items" as any)
+          .select("id, product_id, status, error_message, task_type, created_at, completed_at")
+          .eq("product_id", productId!)
+          .order("created_at", { ascending: false })
+          .limit(10),
+      ]);
+
+      if (logsRes.error) throw logsRes.error;
+
+      const formalLogs = (logsRes.data || []).map((l: any) => ({
+        ...l,
+        source: "optimization_logs" as const,
+      }));
+
+      // Merge job items that don't have a matching formal log (by close timestamp)
+      const jobItems = (jobItemsRes.data || []) as any[];
+      const formalLogIds = new Set(formalLogs.map((l: any) => l.product_id + "|" + l.created_at?.substring(0, 16)));
+
+      const extraItems: OptimizationLog[] = jobItems
+        .filter((ji: any) => !formalLogIds.has(ji.product_id + "|" + ji.created_at?.substring(0, 16)))
+        .map((ji: any) => ({
+          id: ji.id,
+          product_id: ji.product_id,
+          model: "",
+          prompt_tokens: 0,
+          completion_tokens: 0,
+          total_tokens: 0,
+          knowledge_sources: [],
+          supplier_name: null,
+          supplier_url: null,
+          had_knowledge: false,
+          had_supplier: false,
+          had_catalog: false,
+          fields_optimized: [],
+          prompt_length: 0,
+          created_at: ji.created_at,
+          source: "job_item" as const,
+          status: ji.status,
+          error_message: ji.error_message,
+          task_type: ji.task_type,
+        }));
+
+      // Combine and sort by date
+      const combined = [...formalLogs, ...extraItems].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+
+      return combined as OptimizationLog[];
     },
   });
 }
