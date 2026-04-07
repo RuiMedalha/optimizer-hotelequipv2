@@ -185,7 +185,7 @@ export function useIntelligenceDashboard() {
       };
 
       // Alerts
-      const alerts = ((alertsRes.data || []) as AlertInfo[]).filter((a: any) => a.status !== "resolved");
+      const alerts = ((alertsRes.data || []) as unknown as AlertInfo[]).filter((a: any) => a.status !== "resolved");
 
       // Recent runs
       const recentRuns = (recentRunsRes.data || []) as RecentRun[];
