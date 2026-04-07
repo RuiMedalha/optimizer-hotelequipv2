@@ -552,6 +552,8 @@ serve(async (req) => {
                       generated_at: new Date().toISOString(),
                       updated_at: new Date().toISOString(),
                       publish_enabled: true,
+                      routing_in_description: jobUsoProfissionalRouting.inDescription ?? true,
+                      routing_in_custom_field: jobUsoProfissionalRouting.inCustomField ?? false,
                     }, { onConflict: "product_id" });
                   console.log(`📖 Uso Profissional generated & saved for ${productId}`);
                 } else {
