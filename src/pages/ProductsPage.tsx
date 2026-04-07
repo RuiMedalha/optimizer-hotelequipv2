@@ -257,10 +257,10 @@ const ProductsPage = () => {
 
   // Client-side filters applied to already server-filtered data (for filters not in SQL)
   const filtered = products.filter((p) => {
-    // SEO score filter (computed, not in DB)
+    // SEO score filter (use persisted value with fallback to computed)
     let matchesSeoScore = true;
     if (seoScoreFilter !== "all") {
-      const { score } = calculateSeoScore(p);
+      const score = p.seo_score ?? calculateSeoScore(p).score;
       if (seoScoreFilter === "good") matchesSeoScore = score >= 80;
       else if (seoScoreFilter === "medium") matchesSeoScore = score >= 50 && score < 80;
       else if (seoScoreFilter === "weak") matchesSeoScore = score < 50;
@@ -1795,8 +1795,13 @@ const ProductsPage = () => {
                             </td>
                             <td className="p-3 text-center">
                               {(() => {
-                                const { score } = calculateSeoScore(item.product);
-                                return <span className={cn("text-xs font-bold", getSeoScoreColor(score))}>{score}</span>;
+                                const score = item.product.seo_score ?? calculateSeoScore(item.product).score;
+                                const emoji = score >= 90 ? "⭐" : score >= 70 ? "🟡" : score >= 50 ? "🟠" : "🔴";
+                                const colors = score >= 90 ? "bg-success/10 text-success border-success/20"
+                                  : score >= 70 ? "bg-warning/10 text-warning border-warning/20"
+                                  : score >= 50 ? "bg-orange-500/10 text-orange-600 border-orange-500/20"
+                                  : "bg-destructive/10 text-destructive border-destructive/20";
+                                return <Badge variant="outline" className={cn("text-[10px] font-bold", colors)}>{emoji} {score}</Badge>;
                               })()}
                             </td>
                             <td className="p-3 text-right" onClick={(e) => e.stopPropagation()}>
@@ -1862,8 +1867,13 @@ const ProductsPage = () => {
                               </td>
                               <td className="p-3 text-center">
                                 {(() => {
-                                  const { score } = calculateSeoScore(child);
-                                  return <span className={cn("text-xs font-bold", getSeoScoreColor(score))}>{score}</span>;
+                                  const score = child.seo_score ?? calculateSeoScore(child).score;
+                                  const emoji = score >= 90 ? "⭐" : score >= 70 ? "🟡" : score >= 50 ? "🟠" : "🔴";
+                                  const colors = score >= 90 ? "bg-success/10 text-success border-success/20"
+                                    : score >= 70 ? "bg-warning/10 text-warning border-warning/20"
+                                    : score >= 50 ? "bg-orange-500/10 text-orange-600 border-orange-500/20"
+                                    : "bg-destructive/10 text-destructive border-destructive/20";
+                                  return <Badge variant="outline" className={cn("text-[10px] font-bold", colors)}>{emoji} {score}</Badge>;
                                 })()}
                               </td>
                               <td className="p-3 text-right" onClick={(e) => e.stopPropagation()}>
