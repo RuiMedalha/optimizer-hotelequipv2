@@ -1269,6 +1269,7 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
             workspaceId: workspaceId,
             modelOverride: chosenModel.model,
             providerOverride: chosenModel.provider,
+            ...(promptTemplateId ? { promptTemplateId } : {}),
             systemPrompt: "És um especialista em e-commerce e SEO. Responde APENAS com a tool call pedida, sem texto adicional. Mantém sempre as características técnicas do produto NUMA TABELA HTML separada do texto comercial. Traduz tudo para português europeu.\n\nREGRAS DE QUALIDADE DE ESCRITA:\n- Escreve sempre em português europeu (PT-PT), nunca em português do Brasil\n- Mantém um tom profissional e orientado a vendas B2B para setor HORECA e hotelaria\n- Nunca cortes frases a meio — cada campo deve terminar com pontuação completa\n- Nunca mistures a tabela técnica com o texto descritivo — a tabela vai SEMPRE separada",
             messages: [{ role: "user", content: finalPrompt }],
             options: {
