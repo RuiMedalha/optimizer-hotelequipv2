@@ -362,6 +362,8 @@ serve(async (req) => {
         skipScraping: jobFlags.skipScraping || false,
         skipReranking: jobFlags.skipReranking || false,
       };
+      const jobIncludeUsoProfissional = jobFlags.includeUsoProfissional || false;
+      const jobPromptTemplateId = jobFlags.promptTemplateId || null;
 
       const batchResults = await Promise.allSettled(
         batchIds.map(async (productId) => {
