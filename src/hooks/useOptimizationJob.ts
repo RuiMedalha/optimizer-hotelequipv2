@@ -23,10 +23,21 @@ export function useOptimizationJob() {
   const [activeJob, setActiveJob] = useState<OptimizationJob | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const wakeupInFlightRef = useRef(false);
+  const refreshActiveJob = useCallback(async (jobId: string) => {
+    const { data, error } = await supabase
+      .from("optimization_jobs")
+      .select("*")
+      .eq("id", jobId)
+      .maybeSingle();
+
+    if (!error && data) {
+      setActiveJob(data as unknown as OptimizationJob);
+    }
+  }, []);
 
   // Subscribe to realtime updates for the active job
   useEffect(() => {
-    if (!activeJob || activeJob.status === "completed" || activeJob.status === "cancelled") return;
+    if (!activeJob || ["completed", "cancelled", "failed"].includes(activeJob.status)) return;
 
     const channel = supabase
       .channel(`job-${activeJob.id}`)
@@ -52,6 +63,8 @@ export function useOptimizationJob() {
             }
           } else if (updated.status === "cancelled") {
             toast.info(`Job cancelado. ${updated.processed_products} de ${updated.total_products} processados.`);
+          } else if (updated.status === "failed") {
+            toast.error("O job de otimização falhou.");
           }
         }
       )
@@ -61,6 +74,17 @@ export function useOptimizationJob() {
       supabase.removeChannel(channel);
     };
   }, [activeJob?.id, activeJob?.status]);
+
+  useEffect(() => {
+    if (!activeJob) return;
+    if (["completed", "cancelled", "failed"].includes(activeJob.status)) return;
+
+    const interval = setInterval(() => {
+      void refreshActiveJob(activeJob.id);
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [activeJob?.id, activeJob?.status, refreshActiveJob]);
 
   // Check for any active jobs on mount
   useEffect(() => {
@@ -83,12 +107,11 @@ export function useOptimizationJob() {
     checkActiveJobs();
   }, []);
 
-  // Wakeup automático para jobs presos sem progresso (ex: self-invoke rate limited)
+  // Wakeup apenas para jobs queued presos; jobs processing são retomados pelo worker para evitar loops duplicados.
   useEffect(() => {
     if (!activeJob) return;
-    // Don't wakeup completed, cancelled, or failed jobs
     if (["completed", "cancelled", "failed"].includes(activeJob.status)) return;
-    if (activeJob.status !== "processing" && activeJob.status !== "queued") return;
+    if (activeJob.status !== "queued") return;
     if (activeJob.processed_products >= activeJob.total_products) return;
 
     const interval = setInterval(async () => {
@@ -106,8 +129,7 @@ export function useOptimizationJob() {
             startIndex: activeJob.processed_products,
           },
         });
-
-        toast.info("Job retomado automaticamente em background.");
+        await refreshActiveJob(activeJob.id);
       } catch (err: any) {
         logger.warn("Wakeup falhou (vai tentar novamente):", { message: err?.message || err });
       } finally {
@@ -116,7 +138,7 @@ export function useOptimizationJob() {
     }, 30_000);
 
     return () => clearInterval(interval);
-  }, [activeJob]);
+  }, [activeJob, refreshActiveJob]);
 
   const createJob = useCallback(
     async ({
