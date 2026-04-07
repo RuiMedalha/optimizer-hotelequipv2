@@ -884,6 +884,76 @@ function buildImageEntry(ref: string, position: number, altText?: string, hasAlt
   return img;
 }
 
+// ── FAQ HTML builder ──
+function buildFaqHtml(faq: any[]): string {
+  if (!Array.isArray(faq) || faq.length === 0) return "";
+  const items = faq.slice(0, 4).map((item: any) => {
+    const q = typeof item === "string" ? item : (item?.question || item?.q || "");
+    const a = typeof item === "string" ? "" : (item?.answer || item?.a || "");
+    if (!q) return "";
+    return `<div style="margin-bottom:12px;"><p style="font-weight:bold;color:#00526d;margin:0 0 4px 0;">${q}</p>${a ? `<p style="color:#6b7280;font-style:italic;margin:0;">${a}</p>` : ""}</div>`;
+  }).filter(Boolean);
+  if (items.length === 0) return "";
+  return `<!-- HOTELEQUIP:FAQ_START --><div class="hotelequip-faq" style="margin-top:24px;"><h3 style="color:#00526d;font-size:18px;margin-bottom:12px;">Perguntas Frequentes</h3>${items.join("")}</div><!-- HOTELEQUIP:FAQ_END -->`;
+}
+
+// ── FAQ JSON for custom field (Yoast/RankMath Schema) ──
+function buildFaqSchemaJson(faq: any[]): string {
+  if (!Array.isArray(faq) || faq.length === 0) return "[]";
+  const entries = faq.slice(0, 4).map((item: any) => ({
+    question: typeof item === "string" ? item : (item?.question || item?.q || ""),
+    answer: typeof item === "string" ? "" : (item?.answer || item?.a || ""),
+  })).filter(e => e.question);
+  return JSON.stringify(entries);
+}
+
+// ── Uso Profissional HTML builder ──
+function buildUsoProfissionalHtml(data: any): string {
+  if (!data) return "";
+  const parts: string[] = [];
+  if (data.intro) {
+    parts.push(`<p style="color:#374151;line-height:1.6;">${data.intro}</p>`);
+  }
+  const useCases = Array.isArray(data.use_cases) ? data.use_cases : [];
+  if (useCases.length > 0) {
+    const items = useCases.map((uc: any) => `<li><strong>${uc.context || ""}</strong>: ${uc.description || ""}</li>`).join("");
+    parts.push(`<h4 style="color:#00526d;margin:12px 0 6px;">Aplicações Profissionais</h4><ul style="padding-left:20px;">${items}</ul>`);
+  }
+  const tips = Array.isArray(data.professional_tips) ? data.professional_tips : [];
+  if (tips.length > 0) {
+    const items = tips.map((t: any) => `<li>${typeof t === "string" ? t : (t?.tip || t?.text || "")}</li>`).join("");
+    parts.push(`<h4 style="color:#00526d;margin:12px 0 6px;">Dicas Profissionais</h4><ul style="padding-left:20px;">${items}</ul>`);
+  }
+  const profiles = Array.isArray(data.target_profiles) ? data.target_profiles : [];
+  if (profiles.length > 0) {
+    const items = profiles.map((p: any) => typeof p === "string" ? p : (p?.name || "")).filter(Boolean);
+    if (items.length > 0) parts.push(`<h4 style="color:#00526d;margin:12px 0 6px;">Para Quem</h4><p>${items.join(" · ")}</p>`);
+  }
+  if (parts.length === 0) return "";
+  return `<!-- HOTELEQUIP:USO_PROFISSIONAL_START --><div class="hotelequip-uso-profissional" style="margin-top:24px;border-top:1px solid #e5e7eb;padding-top:16px;">${parts.join("")}</div><!-- HOTELEQUIP:USO_PROFISSIONAL_END -->`;
+}
+
+// ── Uso Profissional JSON for custom field ──
+function buildUsoProfissionalJson(data: any): string {
+  if (!data) return "{}";
+  return JSON.stringify({
+    intro: data.intro || "",
+    use_cases: Array.isArray(data.use_cases) ? data.use_cases : [],
+    professional_tips: Array.isArray(data.professional_tips) ? data.professional_tips : [],
+    target_profiles: Array.isArray(data.target_profiles) ? data.target_profiles : [],
+  });
+}
+
+// ── Inject or replace a block in description using HTML markers ──
+function injectOrReplaceBlock(description: string, startMarker: string, endMarker: string, newBlock: string): string {
+  const startIdx = description.indexOf(startMarker);
+  const endIdx = description.indexOf(endMarker);
+  if (startIdx >= 0 && endIdx >= 0) {
+    return description.substring(0, startIdx) + newBlock + description.substring(endIdx + endMarker.length);
+  }
+  return description + newBlock;
+}
+
 async function buildBasePayload(
   product: any,
   supabase: any,
