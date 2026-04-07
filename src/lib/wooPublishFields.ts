@@ -33,7 +33,7 @@ export const WOO_PUBLISH_GROUPS: WooPublishGroup[] = [
       { key: "faq_in_description", label: "FAQ na Descrição", group: "extra_content", description: "Injeta as FAQ no final da descrição do produto" },
       { key: "faq_custom_field", label: "FAQ → Campo Custom", group: "extra_content", description: "Envia FAQ para meta field _product_faq (Yoast/RankMath)" },
       { key: "uso_profissional_in_description", label: "Uso Profissional na Descrição", group: "extra_content", description: "Injeta o bloco de uso profissional na descrição" },
-      { key: "uso_profissional_custom_field", label: "Uso Profissional → Campo Custom", group: "extra_content", description: "Envia uso profissional para meta field _uso_profissional" },
+      { key: "uso_profissional_custom_field", label: "Uso Profissional → Campo Custom (_product_conselhos)", group: "extra_content", description: "Envia uso profissional para meta field _product_conselhos em formato repeater [{title, description}]" },
     ],
   },
   {
