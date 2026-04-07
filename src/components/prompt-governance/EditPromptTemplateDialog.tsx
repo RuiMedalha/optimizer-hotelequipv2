@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import type { PromptTemplate } from "@/hooks/usePromptGovernance";
 
-const PROMPT_TYPES = ["enrichment", "description", "seo", "categorization", "validation", "translation", "general", "image"];
+const PROMPT_TYPES = ["enrichment", "description", "seo", "categorization", "validation", "translation", "general", "image", "uso_profissional"];
 
 interface Props {
   template: PromptTemplate | null;
