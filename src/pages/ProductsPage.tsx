@@ -146,6 +146,9 @@ const ProductsPage = () => {
   const [usoProfissionalInCustomField, setUsoProfissionalInCustomField] = useState(false);
   const [includeImageProcessing, setIncludeImageProcessing] = useState(false);
   const [selectedPromptTemplate, setSelectedPromptTemplate] = useState<string>("active");
+  const [selectedImagePromptTemplate, setSelectedImagePromptTemplate] = useState<string>(() => {
+    try { return localStorage.getItem("optimize_image_prompt_template") || "active"; } catch { return "active"; }
+  });
 
   // Fetch prompt templates for the selector
   const { data: promptTemplates } = useQuery({
@@ -160,6 +163,23 @@ const ProductsPage = () => {
         .in("prompt_type", ["description", "seo", "enrichment"])
         .order("prompt_type")
         .order("is_active", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+  // Fetch image prompt templates for the image prompt selector
+  const { data: imagePromptTemplates } = useQuery({
+    queryKey: ["image-prompt-templates-for-optimize", activeWorkspace?.id],
+    enabled: !!activeWorkspace?.id && includeImageProcessing,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("prompt_templates")
+        .select("id, prompt_name, prompt_type, is_active")
+        .eq("workspace_id", activeWorkspace!.id)
+        .eq("prompt_type", "image")
+        .order("is_active", { ascending: false })
+        .order("prompt_name");
       if (error) throw error;
       return data || [];
     },
