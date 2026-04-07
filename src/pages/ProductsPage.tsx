@@ -1952,6 +1952,13 @@ const ProductsPage = () => {
                 </div>
                 <Switch id="uso-prof" checked={includeUsoProfissional} onCheckedChange={setIncludeUsoProfissional} />
               </div>
+              <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                <div>
+                  <Label className="text-xs font-medium cursor-pointer" htmlFor="img-proc">🖼️ Processar Imagens (Optimize + Lifestyle)</Label>
+                  <p className="text-[10px] text-muted-foreground">Otimiza e gera imagens lifestyle para cada produto após a otimização.</p>
+                </div>
+                <Switch id="img-proc" checked={includeImageProcessing} onCheckedChange={setIncludeImageProcessing} />
+              </div>
               <div className="p-2 rounded-lg bg-muted/30">
                 <Label className="text-xs font-medium">Prompt de Descrição</Label>
                 <Select value={selectedPromptTemplate} onValueChange={setSelectedPromptTemplate}>
