@@ -305,6 +305,27 @@ prompt de imagem lifestyle para esse produto, sem intervenção humana.
 TAREFA:
 Analisa o produto e determina automaticamente:
 
+0. POSICIONAMENTO — determina se o produto é de CHÃO ou de BANCADA:
+
+   Indicadores de produto de CHÃO (floor-standing):
+   - Nome contém: "móvel", "base", "suporte", ou referências a alturas >= 800mm
+   - Categoria contém: "linha 900", "linha 700", "linha 600"
+   - Descrição menciona "pés reguláveis", "estrutura de chão", "cozinha de linha"
+   - Produto tem altura >= 800mm nas especificações
+
+   Indicadores de produto de BANCADA (countertop):
+   - Nome contém: "mesa", "bancada", "countertop", "de mesa"
+   - Dimensões de altura <= 400mm
+   - Categoria contém: "pequenos equipamentos", "bar", "mesa"
+
+   Se produto de CHÃO → incluir no prompt:
+   "equipment standing on the kitchen floor, floor-level installation, part of a professional kitchen line, NOT on a countertop or table"
+
+   Se produto de BANCADA → incluir no prompt:
+   "equipment placed on a stainless steel counter or worktop, counter-level installation"
+
+   Se não conseguir determinar → usar floor-standing como padrão para equipamentos HORECA
+
 1. AMBIENTE — onde este produto é normalmente usado?
    Exemplos de lógica:
    - Fogão, forno, grelhador, fritadeira, wok → cozinha profissional ativa
@@ -335,14 +356,46 @@ Analisa o produto e determina automaticamente:
    - Mobiliário → perspetiva de sala, mostra contexto completo
    - Acessórios/pequenos objetos → close-up com ambiente desfocado atrás
 
+4. ACESSÓRIOS CONTEXTUAIS — seleciona props baseados na categoria:
+
+   Churrasqueira / Grelhador pedra vulcânica:
+   → "volcanic lava rocks visible on the grill surface, raw meat cuts (ribeye steaks, lamb chops) being grilled, metal tongs resting on the side, light smoke rising from the hot grill, chef's hand partially visible adjusting food"
+
+   Fogão / Cooktop:
+   → "large stainless steel stockpot on one burner with steam rising, sauté pan with vegetables on another burner, professional ladle resting on pot edge, blue gas flames visible under pots"
+
+   Forno:
+   → "gastronorm trays partially visible inside, oven mitts on nearby surface, golden-brown roasted food visible through oven window"
+
+   Fritadeira:
+   → "golden french fries in wire basket being lifted, light steam rising from oil surface"
+
+   Frigorífico / Câmara fria:
+   → "organized interior with fresh produce, vacuum-packed meats, labeled containers, door slightly open showing organized shelving"
+
+   Máquina de café:
+   → "espresso cup being filled, steam wand frothing milk in stainless pitcher, coffee beans scattered on counter nearby"
+
+   Fatiadora:
+   → "sliced charcuterie arranged on nearby board, operator's hand guiding food (safety glove visible)"
+
+   Equipamento genérico de cozinha:
+   → "professional kitchen tools nearby (ladles, spatulas in a holder), clean white chef's cloth on the side"
+
 PROMPT FINAL A GERAR (em inglês, para a API de geração de imagem):
 Estrutura obrigatória:
 "[AMBIENTE PROFISSIONAL ESPECÍFICO], photorealistic commercial photography, 
-[PRODUTO] as the main subject centered and sharp, [AÇÃO ATIVA ESPECÍFICA], 
+[PRODUTO] as the main subject centered and sharp, [POSICIONAMENTO CHÃO/BANCADA],
+[AÇÃO ATIVA ESPECÍFICA], 
 [DETALHES SENSORIAIS: luz, vapor, chamas, reflexos conforme aplicável], 
+Scene details: [ACESSÓRIOS ESPECÍFICOS DA CATEGORIA],
+All props and accessories must look realistic and professional, no plastic props, no consumer-grade items,
 professional kitchen/hospitality industry lighting, slight depth of field 
 blurring the background, editorial catalog quality for horeca industry, 
-shot at [ÂNGULO ESPECÍFICO], 4K resolution, no text no watermarks no logos.
+shot at [ÂNGULO ESPECÍFICO], 4K resolution,
+full color photography, vibrant and natural colors, never black and white, never monochrome, never desaturated,
+photorealistic, not illustrated, not 3D render, not cartoon,
+no text overlays, no labels, no callouts, no annotations, no watermarks, no banners of any kind on the image.
 CRITICAL: maintain the product exact original design — same color, proportions, 
 knobs, handles, doors, all physical details unchanged. Do not invent features."
 
@@ -354,6 +407,7 @@ REGRAS ABSOLUTAS:
 - Pessoas se existirem estão SEMPRE desfocadas ou parcialmente visíveis
 - Nunca gerar texto, preços ou etiquetas na imagem
 - Resultado deve parecer fotografia real, nunca ilustração ou 3D cartoon
+- SEMPRE cores vibrantes e naturais, NUNCA preto e branco ou monocromático
 
 Responde APENAS com o prompt final em inglês, sem explicações adicionais.`,
   },
