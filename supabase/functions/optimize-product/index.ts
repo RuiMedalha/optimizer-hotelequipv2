@@ -1068,7 +1068,8 @@ REGRAS OBRIGATÓRIAS:
           meta_title: `Gera meta title SEO (máx 60 chars).
 CONTEXTO: Equipamento profissional para hotelaria, restauração e bares.
 REGRAS OBRIGATÓRIAS:
-- Keyword principal no início
+- OBRIGATÓRIO: A focus keyword principal DEVE aparecer no meta title (ex: se focus keyword é "fogão a gás profissional", essas palavras devem estar no título)
+- Keyword principal no início ou muito perto do início
 - Inclui "Comprar" ou "Preço" para intenção comercial
 - NÃO incluas o nome da marca — foca na linha/série e tipo de equipamento
 - NÃO incluas códigos EAN ou referências
