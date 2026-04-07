@@ -334,6 +334,214 @@ Gera conteúdo com esta estrutura:
 3. 3-4 Dicas profissionais
 4. 3 Perfis profissionais alvo`,
   },
+  {
+    prompt_name: "Uso Profissional — Bullet Points",
+    prompt_type: "uso_profissional",
+    description: "Versão compacta em bullets — ideal para fichas técnicas e catálogos rápidos",
+    base_prompt: `És um técnico especialista em equipamento profissional HORECA. Gera conteúdo de uso profissional em formato BULLET POINTS compacto em português europeu.
+
+FORMATO OBRIGATÓRIO (tudo em bullets):
+
+📋 PARA QUE SERVE:
+• [Função principal do equipamento em 1 linha]
+• [Segunda função ou variante de uso]
+
+🏨 ONDE SE USA:
+• [Tipo de estabelecimento 1] — [contexto específico]
+• [Tipo de estabelecimento 2] — [contexto específico]
+• [Tipo de estabelecimento 3] — [contexto específico]
+
+⚡ VANTAGENS OPERACIONAIS:
+• [Benefício 1 com dado concreto]
+• [Benefício 2 com dado concreto]
+• [Benefício 3 com dado concreto]
+• [Benefício 4 com dado concreto]
+
+💡 DICAS DE PROFISSIONAL:
+• [Dica prática 1]
+• [Dica prática 2]
+• [Dica prática 3]
+
+👤 PERFIS QUE USAM:
+• [Perfil 1] — [porquê]
+• [Perfil 2] — [porquê]
+• [Perfil 3] — [porquê]
+
+REGRAS:
+- Máximo 5 bullets por secção
+- Cada bullet ≤ 80 chars
+- Sem parágrafos de texto — APENAS bullets
+- Tom técnico e direto
+- Dados concretos sempre que possível`,
+  },
+
+  // ═══ EXEMPLOS ALTERNATIVOS (Bullet Points) ═══
+  {
+    prompt_name: "Descrição — Bullet Points",
+    prompt_type: "description",
+    description: "Gera descrições usando listas de bullets em vez de texto corrido — mais scannable e direto",
+    base_prompt: `És um copywriter técnico para equipamento profissional HORECA. Gera descrições em formato BULLET POINTS.
+
+ESTRUTURA short_description (máx 160 chars):
+- 1 frase direta: o que é + para quem + 1 spec chave
+
+ESTRUTURA long_description (HTML):
+
+<h3>O que é</h3>
+<ul>
+  <li>Tipo de equipamento e função principal</li>
+  <li>Linha/série e posicionamento</li>
+</ul>
+
+<h3>Principais Vantagens</h3>
+<ul>
+  <li>✅ [Vantagem 1 com dado concreto]</li>
+  <li>✅ [Vantagem 2 com dado concreto]</li>
+  <li>✅ [Vantagem 3 com dado concreto]</li>
+  <li>✅ [Vantagem 4 com dado concreto]</li>
+</ul>
+
+<h3>Ideal Para</h3>
+<ul>
+  <li>🏨 [Tipo estabelecimento + volume/contexto]</li>
+  <li>🍽️ [Tipo estabelecimento + volume/contexto]</li>
+  <li>☕ [Tipo estabelecimento + volume/contexto]</li>
+</ul>
+
+<h3>Especificações</h3>
+<table>com specs técnicas</table>
+
+REGRAS:
+- ZERO parágrafos de texto corrido
+- Apenas bullets e tabelas
+- Cada bullet ≤ 100 chars, começa com emoji ou ✅
+- NÃO incluas marca no texto comercial
+- Inclui normas (CE, HACCP) se relevante
+
+SAÍDA JSON:
+{ "short_description": "", "long_description": "HTML", "seo_keywords": [], "confidence_score": 0.0-1.0 }`,
+  },
+  {
+    prompt_name: "SEO — Formato Agressivo",
+    prompt_type: "seo",
+    description: "SEO focado em conversão com CTAs fortes e keywords comerciais — para campanhas e promoções",
+    base_prompt: `Otimiza SEO do produto com foco MÁXIMO em conversão e cliques.
+
+1. META TITLE (máx 60 chars):
+   - Começa com "Comprar" ou "Melhor Preço"
+   - Keyword principal logo a seguir
+   - Ex: "Comprar Fritadeira Gás 8L Linha 700 | Entrega Rápida"
+
+2. META DESCRIPTION (máx 155 chars):
+   - Abre com benefício operacional
+   - Inclui urgência: "Stock limitado", "Entrega em 24h", "Preço especial"
+   - Fecha com CTA: "Encomende agora", "Peça orçamento"
+   - Ex: "Fritadeira profissional 8L com termostato digital. Ideal para restaurantes com alto volume. Entrega em 24h — Encomende já!"
+
+3. SEO SLUG:
+   - comprar-[tipo]-[linha]-[spec-chave]
+   - Ex: comprar-fritadeira-gas-linha-700
+
+4. FOCUS KEYWORDS (5-8):
+   - Inclui keywords transacionais: "comprar", "preço", "onde comprar"
+   - Inclui keywords informacionais: "melhor [tipo] para [uso]"
+   - Variações com e sem acento
+
+5. IMAGE ALT TEXTS:
+   - "[Tipo] [Linha] — Comprar ao melhor preço"
+
+REGRAS:
+- Foco 100% em intenção de compra
+- Cada campo complementa os outros sem repetir
+- Sem keyword stuffing mas agressivo em CTAs`,
+  },
+  {
+    prompt_name: "Enriquecimento — Modo Rápido",
+    prompt_type: "enrichment",
+    description: "Versão simplificada do enrichment — preenche apenas campos vazios sem reescrever existentes",
+    base_prompt: `Analisa os dados do produto e preenche APENAS os campos em falta. NÃO reescrevas campos que já têm conteúdo.
+
+VERIFICAÇÃO RÁPIDA:
+• Título vazio? → Gera título (máx 70 chars, keyword no início)
+• Descrição vazia? → Gera descrição curta (3-4 bullets)
+• Categoria vazia? → Classifica na taxonomia HORECA
+• Tags vazias? → Gera 4-6 tags
+• Meta title vazio? → Gera meta title SEO
+• Meta description vazia? → Gera meta description
+• FAQ vazio? → Gera 3 FAQs
+
+PARA CADA CAMPO PREENCHIDO:
+- Marca confiança: alta (>90%), média (70-90%), baixa (<70%)
+- Se confiança < 70%, deixa vazio e reporta
+
+REGRAS:
+- NÃO alteres dados confirmados (SKU, preço, dimensões)
+- NÃO reescrevas campos que já têm conteúdo válido
+- Formato de saída: JSON com apenas os campos preenchidos
+- Marca "skipped" nos campos já preenchidos`,
+  },
+  {
+    prompt_name: "Validação — Checklist Rápido",
+    prompt_type: "validation",
+    description: "Validação simplificada em formato checklist — pass/fail para cada campo obrigatório",
+    base_prompt: `Valida o produto usando um checklist rápido de PASS/FAIL.
+
+CHECKLIST:
+☐ Título: presente, >20 chars, <70 chars → ✅/❌
+☐ Descrição: presente, >100 chars → ✅/❌
+☐ Preço: >0 e razoável para a categoria → ✅/❌
+☐ Categoria: atribuída e válida → ✅/❌
+☐ SKU: presente e formato correto → ✅/❌
+☐ Imagem: pelo menos 1 → ✅/❌
+☐ Meta Title: ≤60 chars → ✅/❌
+☐ Meta Description: ≤155 chars → ✅/❌
+☐ Slug: presente e formatado → ✅/❌
+☐ Tags: ≥3 tags → ✅/❌
+
+FORMATO DE SAÍDA:
+{
+  "score": [0-100 baseado em % de checks passed],
+  "passed": ["titulo", "preco", ...],
+  "failed": [
+    { "field": "meta_title", "reason": "Tem 72 chars (máx 60)" }
+  ],
+  "quick_fixes": ["Reduzir meta_title para 60 chars"]
+}
+
+REGRAS:
+- Sem análise profunda — apenas checklist
+- Score = (passed / total) * 100
+- quick_fixes: max 3, ações concretas e rápidas`,
+  },
+  {
+    prompt_name: "Categorização — Multi-Nível",
+    prompt_type: "categorization",
+    description: "Classificação detalhada com 3 níveis de hierarquia e tags de aplicação",
+    base_prompt: `Classifica o produto com 3 NÍVEIS de profundidade na taxonomia HORECA.
+
+FORMATO:
+{
+  "level_1": "Categoria Principal",
+  "level_2": "Subcategoria",
+  "level_3": "Tipo Específico",
+  "application_tags": ["restaurante", "hotel", "catering"],
+  "energy_type": "gas|electric|manual|null",
+  "line_series": "Linha 700|Linha 900|null",
+  "confidence": 0.95,
+  "reasoning": "Breve justificação"
+}
+
+EXEMPLOS:
+• Fritadeira a gás 8L → Cozinha > Fritadeiras > Fritadeiras a Gás
+• Abatedor 5 tabuleiros → Frio > Abatedores > Abatedores Compactos
+• Bancada inox 1200mm → Mobiliário Inox > Bancadas > Bancadas de Trabalho
+• Máquina de café 2 grupos → Bar > Máquinas de Café > Máquinas Espresso
+
+REGRAS:
+- Prioriza categorias existentes no catálogo
+- application_tags: 2-4 contextos de uso
+- Se ambíguo, indica alternativa com confidence`,
+  },
 ];
 
 export default function PromptGovernancePage() {
