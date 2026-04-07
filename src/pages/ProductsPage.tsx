@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,6 +72,7 @@ function getMigrationStatus(product: Product): "migrated" | "partial" | "not_mig
 
 const ProductsPage = () => {
   const { activeWorkspace, toggleVariableProducts } = useWorkspaceContext();
+  const qc = useQueryClient();
   useRepairAttributes();
   const { enrich, isEnriching, missingVariations, createMissingVariations, progress: enrichProgress } = useEnrichProducts();
   const { processImages, isProcessing: isProcessingImages, progress: imgProgress } = useProcessImages();
