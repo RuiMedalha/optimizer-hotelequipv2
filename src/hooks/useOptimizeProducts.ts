@@ -220,6 +220,21 @@ export function useOptimizeProducts() {
           stepsDone++;
         }
 
+        // Persist seo_score after all phases complete for this product
+        try {
+          const { data: freshProduct } = await supabase
+            .from("products")
+            .select("*")
+            .eq("id", productId)
+            .maybeSingle();
+          if (freshProduct) {
+            const { score } = calculateSeoScore(freshProduct as Product);
+            await supabase.from("products").update({ seo_score: score }).eq("id", productId);
+          }
+        } catch (e) {
+          console.warn("Failed to persist seo_score:", e);
+        }
+
         // Invalidate between products so UI updates progressively
         qc.invalidateQueries({ queryKey: ["products"] });
       }
