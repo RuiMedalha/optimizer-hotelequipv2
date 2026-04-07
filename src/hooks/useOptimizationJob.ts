@@ -85,7 +85,10 @@ export function useOptimizationJob() {
 
   // Wakeup automático para jobs presos sem progresso (ex: self-invoke rate limited)
   useEffect(() => {
-    if (!activeJob || (activeJob.status !== "processing" && activeJob.status !== "queued")) return;
+    if (!activeJob) return;
+    // Don't wakeup completed, cancelled, or failed jobs
+    if (["completed", "cancelled", "failed"].includes(activeJob.status)) return;
+    if (activeJob.status !== "processing" && activeJob.status !== "queued") return;
     if (activeJob.processed_products >= activeJob.total_products) return;
 
     const interval = setInterval(async () => {
@@ -125,6 +128,8 @@ export function useOptimizationJob() {
       skipKnowledge,
       skipScraping,
       skipReranking,
+      includeUsoProfissional,
+      promptTemplateId,
     }: {
       productIds: string[];
       selectedPhases?: number[];
@@ -134,6 +139,8 @@ export function useOptimizationJob() {
       skipKnowledge?: boolean;
       skipScraping?: boolean;
       skipReranking?: boolean;
+      includeUsoProfissional?: boolean;
+      promptTemplateId?: string;
     }) => {
       setIsCreating(true);
       try {
@@ -147,6 +154,8 @@ export function useOptimizationJob() {
             skipKnowledge,
             skipScraping,
             skipReranking,
+            includeUsoProfissional,
+            promptTemplateId,
           },
         });
 
