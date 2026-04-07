@@ -1968,6 +1968,7 @@ const ProductsPage = () => {
                 <p className="text-[10px] text-muted-foreground mt-1">Escolha qual prompt usar para esta otimização. O padrão usa o prompt marcado como ativo.</p>
               </div>
             </div>
+          </div>
           {/* Background Mode Toggle */}
           <div className="flex items-center justify-between mt-3 pt-3 border-t p-3 rounded-lg bg-primary/5 border-primary/20">
             <div className="flex items-center gap-2">
