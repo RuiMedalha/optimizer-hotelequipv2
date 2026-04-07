@@ -292,9 +292,39 @@ export function usePromptGovernance() {
     enabled: !!wsId,
   });
 
+  const switchActivePrompt = useMutation({
+    mutationFn: async (p: { promptType: string; templateId: string }) => {
+      // Deactivate all templates of this type in the workspace
+      const allOfType = (await supabase
+        .from("prompt_templates")
+        .select("id")
+        .eq("workspace_id", wsId!)
+        .eq("prompt_type", p.promptType)
+        .eq("is_active", true)).data || [];
+
+      for (const t of allOfType) {
+        if (t.id !== p.templateId) {
+          await supabase
+            .from("prompt_templates")
+            .update({ is_active: false, updated_at: new Date().toISOString() })
+            .eq("id", t.id);
+        }
+      }
+
+      // Activate the selected one
+      const { error } = await supabase
+        .from("prompt_templates")
+        .update({ is_active: true, archived_at: null, updated_at: new Date().toISOString() })
+        .eq("id", p.templateId);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Prompt ativo alterado"); qc.invalidateQueries({ queryKey: ["prompt-templates"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   return {
     templates, createTemplate, updateTemplate, archiveTemplate, restoreTemplate,
     deleteTemplate, duplicateTemplate, useVersions, createVersion, activateVersion,
-    overrides, usageLogs, useVersionPerformance,
+    overrides, usageLogs, useVersionPerformance, switchActivePrompt,
   };
 }
