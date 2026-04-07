@@ -630,9 +630,9 @@ serve(async (req) => {
             started_at: itemStartedAt,
             completed_at: new Date().toISOString(),
             duration_ms: durationMs,
-            error_message: productOk ? null : lastError?.substring(0, 500),
+            error_message: productOk ? (usoStatus && usoStatus !== "generated" ? `Uso Profissional: ${usoStatus}` : null) : lastError?.substring(0, 500),
           });
-          return { productId, status: productOk ? "optimized" : "error" };
+          return { productId, status: productOk ? "optimized" : "error", usoStatus };
         })
       );
 
