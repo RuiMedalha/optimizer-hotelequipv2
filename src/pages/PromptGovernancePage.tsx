@@ -528,7 +528,10 @@ export default function PromptGovernancePage() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
+        <TabsList className="flex-wrap">
+          <TabsTrigger value="switcher" className="gap-1.5">
+            <ArrowRightLeft className="h-4 w-4" /> Troca Rápida
+          </TabsTrigger>
           <TabsTrigger value="system" className="gap-1.5">
             <Cog className="h-4 w-4" /> Sistema ({systemTemplates.length})
           </TabsTrigger>
@@ -552,6 +555,15 @@ export default function PromptGovernancePage() {
           </TabsTrigger>
           <TabsTrigger value="performance" disabled={!selectedVersion}>Performance</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="switcher" className="mt-4">
+          <PromptSwitcherPanel
+            templates={templates.data || []}
+            onSwitch={(p) => switchActivePrompt.mutate(p)}
+            switching={switchActivePrompt.isPending}
+            onSelectTemplate={(id) => { setSelectedTemplate(id); setSelectedVersion(null); setActiveTab("versions"); }}
+          />
+        </TabsContent>
 
         <TabsContent value="system" className="mt-4">
           <div className="mb-4 p-3 bg-muted/50 rounded-lg">
