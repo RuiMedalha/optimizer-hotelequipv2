@@ -47,11 +47,12 @@ const MODEL_MAP: Record<string, { provider: string; model: string }> = {
   "google/gemini-3-pro-preview": { provider: "lovable_gateway", model: "google/gemini-3-pro-preview" },
   "google/gemini-3.1-pro-preview": { provider: "lovable_gateway", model: "google/gemini-3.1-pro-preview" },
   "google/gemini-3.1-flash-image-preview": { provider: "lovable_gateway", model: "google/gemini-3.1-flash-image-preview" },
-  // Short forms → route through Lovable Gateway
-  "gemini-2.5-flash": { provider: "lovable_gateway", model: "google/gemini-2.5-flash" },
-  "gemini-2.5-pro": { provider: "lovable_gateway", model: "google/gemini-2.5-pro" },
-  "gemini-2.5-flash-lite": { provider: "lovable_gateway", model: "google/gemini-2.5-flash-lite" },
-  "gemini-3-flash-preview": { provider: "lovable_gateway", model: "google/gemini-3-flash-preview" },
+  // Short forms → prefer direct provider when selected in AI Provider Center
+  "gemini-2.5-flash": { provider: "gemini", model: "gemini-2.5-flash" },
+  "gemini-2.5-pro": { provider: "gemini", model: "gemini-2.5-pro" },
+  "gemini-2.5-flash-lite": { provider: "gemini", model: "gemini-2.5-flash-lite" },
+  "gemini-3-flash-preview": { provider: "gemini", model: "gemini-3-flash-preview" },
+  "gemini-3.1-pro-preview": { provider: "gemini", model: "gemini-3.1-pro-preview" },
   // OpenAI models → route through Lovable Gateway
   "openai/gpt-5": { provider: "lovable_gateway", model: "openai/gpt-5" },
   "openai/gpt-5-mini": { provider: "lovable_gateway", model: "openai/gpt-5-mini" },
@@ -67,8 +68,8 @@ function resolveModel(model: string): { provider: string; model: string } {
   if (MODEL_MAP[model]) return MODEL_MAP[model];
   // Auto-route unknown google/ models through Lovable Gateway
   if (model.startsWith("google/")) return { provider: "lovable_gateway", model };
-  // Auto-route unknown gemini- short forms through Lovable Gateway
-  if (model.startsWith("gemini-")) return { provider: "lovable_gateway", model: `google/${model}` };
+  // Unknown gemini- short forms should respect direct Gemini selection when configured
+  if (model.startsWith("gemini-")) return { provider: "gemini", model };
   // Default fallback
   return { provider: "lovable_gateway", model: "google/gemini-2.5-flash" };
 }
