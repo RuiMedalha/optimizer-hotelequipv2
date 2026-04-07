@@ -433,6 +433,8 @@ const ProductsPage = () => {
         fieldsToOptimize: fieldsToUse,
         modelOverride: selectedModel !== "default" ? selectedModel : undefined,
         workspaceId: activeWorkspace?.id,
+        includeUsoProfissional,
+        promptTemplateId: selectedPromptTemplate !== "active" ? selectedPromptTemplate : undefined,
         ...speedFlags,
       });
       setShowFieldSelector(false);
