@@ -141,6 +141,26 @@ const ProductsPage = () => {
   const [skipKnowledge, setSkipKnowledge] = useState(false);
   const [skipScraping, setSkipScraping] = useState(false);
   const [skipReranking, setSkipReranking] = useState(false);
+  const [includeUsoProfissional, setIncludeUsoProfissional] = useState(false);
+  const [selectedPromptTemplate, setSelectedPromptTemplate] = useState<string>("active");
+
+  // Fetch prompt templates for the selector
+  const { data: promptTemplates } = useQuery({
+    queryKey: ["prompt-templates-for-optimize", activeWorkspace?.id],
+    enabled: !!activeWorkspace?.id,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("prompt_templates")
+        .select("id, prompt_name, prompt_type, is_active")
+        .eq("workspace_id", activeWorkspace!.id)
+        .in("prompt_type", ["description", "seo", "enrichment"])
+        .order("prompt_type")
+        .order("is_active", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
   const [showVariations, setShowVariations] = useState(false);
   const [detectedGroups, setDetectedGroups] = useState<VariationGroup[]>([]);
   const [selectedGroups, setSelectedGroups] = useState<Set<number>>(new Set());
