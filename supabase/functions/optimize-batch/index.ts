@@ -369,6 +369,7 @@ serve(async (req) => {
       const jobUsoProfissionalRouting = jobFlags.usoProfissionalRouting || { inDescription: true, inCustomField: false };
       const jobIncludeImageProcessing = jobFlags.includeImageProcessing || false;
       const jobPromptTemplateId = jobFlags.promptTemplateId || null;
+      const jobImagePromptTemplateId = jobFlags.imagePromptTemplateId || null;
 
       const batchResults = await Promise.allSettled(
         batchIds.map(async (productId) => {
