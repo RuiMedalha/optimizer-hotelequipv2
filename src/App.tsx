@@ -60,6 +60,7 @@ import ScraperManualPage from "./pages/ScraperManualPage";
 import AiComparisonHistoryPage from "./pages/AiComparisonHistoryPage";
 import CategoryArchitectPage from "./pages/CategoryArchitectPage";
 import SeoLifecyclePage from "./pages/SeoLifecyclePage";
+import IntelligenceDashboardPage from "./pages/IntelligenceDashboardPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -105,6 +106,7 @@ function ProtectedRoutes() {
           <Route path="/traducoes" element={<TranslationMemoryPage />} />
           <Route path="/canais" element={<ChannelManagerPage />} />
           <Route path="/inteligencia" element={<CommerceIntelligencePage />} />
+          <Route path="/command-center" element={<IntelligenceDashboardPage />} />
           <Route path="/agentes" element={<AgentControlCenterPage />} />
           <Route path="/brain" element={<CatalogBrainPage />} />
           <Route path="/decisoes" element={<BrainDecisionEnginePage />} />
