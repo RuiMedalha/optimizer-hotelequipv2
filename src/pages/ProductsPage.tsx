@@ -2004,12 +2004,39 @@ const ProductsPage = () => {
                   </div>
                 )}
               </div>
-              <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
-                <div>
-                  <Label className="text-xs font-medium cursor-pointer" htmlFor="img-proc">🖼️ Processar Imagens (Optimize + Lifestyle)</Label>
-                  <p className="text-[10px] text-muted-foreground">Otimiza e gera imagens lifestyle para cada produto após a otimização.</p>
+              <div className="rounded-lg bg-muted/30 overflow-hidden">
+                <div className="flex items-center justify-between p-2">
+                  <div>
+                    <Label className="text-xs font-medium cursor-pointer" htmlFor="img-proc">🖼️ Processar Imagens (Optimize + Lifestyle)</Label>
+                    <p className="text-[10px] text-muted-foreground">Otimiza e gera imagens lifestyle para cada produto após a otimização.</p>
+                  </div>
+                  <Switch id="img-proc" checked={includeImageProcessing} onCheckedChange={setIncludeImageProcessing} />
                 </div>
-                <Switch id="img-proc" checked={includeImageProcessing} onCheckedChange={setIncludeImageProcessing} />
+                {includeImageProcessing && (
+                  <div className="px-3 pb-2 pt-1 border-t border-border/50">
+                    <Label className="text-xs font-medium">🖼️ Prompt de Imagem Lifestyle</Label>
+                    <Select
+                      value={selectedImagePromptTemplate}
+                      onValueChange={(v) => {
+                        setSelectedImagePromptTemplate(v);
+                        try { localStorage.setItem("optimize_image_prompt_template", v); } catch {}
+                      }}
+                    >
+                      <SelectTrigger className="h-8 mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">✅ Usar prompt ativo (padrão)</SelectItem>
+                        {(imagePromptTemplates || []).map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.is_active ? "✅ " : ""}{t.prompt_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[10px] text-muted-foreground mt-1">Escolha qual prompt usar para gerar as imagens lifestyle. O padrão usa o prompt marcado como ativo no Prompt Governance.</p>
+                  </div>
+                )}
               </div>
               <div className="p-2 rounded-lg bg-muted/30">
                 <Label className="text-xs font-medium">Prompt de Descrição</Label>
