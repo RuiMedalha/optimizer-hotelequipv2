@@ -481,12 +481,19 @@ const ProductsPage = () => {
     const token = new CancellationToken();
     cancellationTokenRef.current = token;
 
+    const directModeIds = [...pendingOptimizeIds];
+    const directWorkspaceId = activeWorkspace?.id;
+    const directIncludeUso = includeUsoProfissional;
+    const directUsoRouting = includeUsoProfissional ? { inDescription: usoProfissionalInDescription, inCustomField: usoProfissionalInCustomField } : undefined;
+    const directIncludeImages = includeImageProcessing;
+    const directImagePromptTemplateId = selectedImagePromptTemplate !== "active" ? selectedImagePromptTemplate : undefined;
+
     optimizeProducts.mutate({
-      productIds: pendingOptimizeIds,
+      productIds: directModeIds,
       fieldsToOptimize: fieldsToUse,
       selectedPhases: Array.from(selectedPhases),
       modelOverride: selectedModel !== "default" ? selectedModel : undefined,
-      workspaceId: activeWorkspace?.id,
+      workspaceId: directWorkspaceId,
       productNames: nameMap,
       cancellationToken: token,
       ...speedFlags,
@@ -494,6 +501,48 @@ const ProductsPage = () => {
         setBatchProgress(progress);
         if (progress.done >= progress.total || progress.cancelled) {
           setTimeout(() => setBatchProgress(null), 3000);
+          // Post-optimization: trigger Uso Profissional and Images for direct mode
+          if (progress.done >= progress.total && !progress.cancelled && directWorkspaceId) {
+            (async () => {
+              // Uso Profissional
+              if (directIncludeUso) {
+                for (const pid of directModeIds) {
+                  try {
+                    const { data: prod } = await supabase.from("products")
+                      .select("optimized_title, original_title, optimized_description, original_description, category, attributes")
+                      .eq("id", pid).maybeSingle();
+                    await supabase.functions.invoke("generate-uso-profissional", {
+                      body: {
+                        workspaceId: directWorkspaceId,
+                        productId: pid,
+                        productTitle: prod?.optimized_title || prod?.original_title || "Produto",
+                        productDescription: prod?.optimized_description || prod?.original_description || "",
+                        productCategory: prod?.category || "",
+                        productAttributes: prod?.attributes || [],
+                        triggered_by: "pipeline",
+                      },
+                    });
+                  } catch (e) { console.warn("Uso Prof direct mode error:", e); }
+                }
+                toast.success("📖 Uso Profissional gerado!");
+              }
+              // Images
+              if (directIncludeImages) {
+                try {
+                  await processImages({
+                    workspaceId: directWorkspaceId,
+                    productIds: directModeIds,
+                    mode: "optimize",
+                  });
+                  await processImages({
+                    workspaceId: directWorkspaceId,
+                    productIds: directModeIds,
+                    mode: "lifestyle",
+                  });
+                } catch (e) { console.warn("Image processing direct mode error:", e); }
+              }
+            })();
+          }
         }
       },
     });
