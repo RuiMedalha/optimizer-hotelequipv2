@@ -1005,8 +1005,12 @@ async function enrichWithExtraContent(
   // ── FAQ ──
   const faq = Array.isArray(product.faq) ? product.faq : [];
   if (faq.length > 0) {
-    // FAQ in description
-    if (has("faq_in_description")) {
+    const wantsFaqCustom = has("faq_custom_field");
+    const wantsFaqInDesc = has("faq_in_description");
+
+    // FAQ in description — ONLY if explicitly selected AND custom field is NOT selected
+    // When custom field is chosen, it takes priority (no duplication in description)
+    if (wantsFaqInDesc && !wantsFaqCustom) {
       const faqHtml = buildFaqHtml(faq);
       if (faqHtml) {
         const currentDesc = String(wooProduct.description || product.optimized_description || product.original_description || "");
@@ -1018,13 +1022,36 @@ async function enrichWithExtraContent(
         );
         console.log(`[enrichExtraContent] FAQ injected in description for ${product.id}`);
       }
+    } else if (wantsFaqCustom && wantsFaqInDesc) {
+      // Both selected: still inject in description AND send to custom field
+      const faqHtml = buildFaqHtml(faq);
+      if (faqHtml) {
+        const currentDesc = String(wooProduct.description || product.optimized_description || product.original_description || "");
+        wooProduct.description = injectOrReplaceBlock(
+          currentDesc,
+          "<!-- HOTELEQUIP:FAQ_START -->",
+          "<!-- HOTELEQUIP:FAQ_END -->",
+          faqHtml
+        );
+        console.log(`[enrichExtraContent] FAQ injected in description for ${product.id}`);
+      }
+    } else if (wantsFaqCustom) {
+      // Custom field only — strip FAQ from description if present
+      if (wooProduct.description && String(wooProduct.description).includes("<!-- HOTELEQUIP:FAQ_START -->")) {
+        wooProduct.description = injectOrReplaceBlock(
+          String(wooProduct.description),
+          "<!-- HOTELEQUIP:FAQ_START -->",
+          "<!-- HOTELEQUIP:FAQ_END -->",
+          ""
+        );
+        console.log(`[enrichExtraContent] FAQ removed from description for ${product.id} (custom field only)`);
+      }
     }
 
     // FAQ to custom field
-    if (has("faq_custom_field")) {
+    if (wantsFaqCustom) {
       const meta = ensureMeta();
       meta.push({ key: "_product_faqs", value: buildFaqSchemaJson(faq) });
-      // Also add Yoast FAQ block JSON for schema
       meta.push({ key: "_yoast_wpseo_schema_page_type", value: "FAQPage" });
       console.log(`[enrichExtraContent] FAQ sent to custom meta field for ${product.id}`);
     }
@@ -1043,25 +1070,25 @@ async function enrichWithExtraContent(
       .maybeSingle();
 
     if (usoData && usoData.publish_enabled) {
-      if (wantsUsoInDesc) {
+      // Inject in description — ONLY if explicitly selected AND custom field is NOT selected (avoid duplication)
+      // If both are selected, inject in both places
+      const shouldInjectInDesc = wantsUsoInDesc && (!wantsUsoCustom || (wantsUsoInDesc && wantsUsoCustom));
+
+      if (shouldInjectInDesc) {
         const usoHtml = buildUsoProfissionalHtml(usoData);
         if (usoHtml) {
           let currentDesc = String(wooProduct.description || product.optimized_description || product.original_description || "");
-          // Respect placement preference
           const placement = usoData.placement || "before_faq";
           if (placement === "before_faq" && currentDesc.includes("<!-- HOTELEQUIP:FAQ_START -->")) {
             const faqIdx = currentDesc.indexOf("<!-- HOTELEQUIP:FAQ_START -->");
             currentDesc = currentDesc.substring(0, faqIdx) + usoHtml + currentDesc.substring(faqIdx);
-            // Remove any old uso block if it exists elsewhere
             currentDesc = currentDesc.replace(/<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->[\s\S]*?<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->/g, "");
-            // Re-inject cleanly
             wooProduct.description = injectOrReplaceBlock(
-              currentDesc.replace(usoHtml, ""), // remove the one we just added to avoid duplicates
+              currentDesc.replace(usoHtml, ""),
               "<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->",
               "<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->",
               ""
             );
-            // Now place before FAQ
             const desc = String(wooProduct.description);
             const faqPos = desc.indexOf("<!-- HOTELEQUIP:FAQ_START -->");
             if (faqPos >= 0) {
@@ -1078,6 +1105,17 @@ async function enrichWithExtraContent(
             );
           }
           console.log(`[enrichExtraContent] Uso Profissional injected in description for ${product.id} (placement: ${placement})`);
+        }
+      } else if (wantsUsoCustom && !wantsUsoInDesc) {
+        // Custom field only — strip Uso Profissional from description if present
+        if (wooProduct.description && String(wooProduct.description).includes("<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->")) {
+          wooProduct.description = injectOrReplaceBlock(
+            String(wooProduct.description),
+            "<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->",
+            "<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->",
+            ""
+          );
+          console.log(`[enrichExtraContent] Uso Profissional removed from description for ${product.id} (custom field only)`);
         }
       }
 
