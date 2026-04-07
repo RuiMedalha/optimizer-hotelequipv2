@@ -536,6 +536,7 @@ serve(async (req) => {
               if (!usoResponse.ok) {
                 const errText = await usoResponse.text();
                 console.warn(`Uso Profissional for ${productId} failed: ${usoResponse.status} ${errText}`);
+                usoStatus = `failed: ${usoResponse.status}`;
               } else {
                 // Save the result to product_uso_profissional table
                 const usoResult = await usoResponse.json();
@@ -557,12 +558,15 @@ serve(async (req) => {
                       routing_in_custom_field: jobUsoProfissionalRouting.inCustomField ?? false,
                     }, { onConflict: "product_id" });
                   console.log(`📖 Uso Profissional generated & saved for ${productId}`);
+                  usoStatus = "generated";
                 } else {
                   console.warn(`Uso Profissional for ${productId}: empty result`);
+                  usoStatus = "empty_result";
                 }
               }
             } catch (usoErr: any) {
               console.warn(`Uso Profissional error for ${productId} (non-fatal):`, usoErr?.message);
+              usoStatus = `error: ${usoErr?.message?.substring(0, 100)}`;
             }
           }
 
