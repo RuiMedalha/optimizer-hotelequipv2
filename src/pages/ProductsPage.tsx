@@ -460,6 +460,7 @@ const ProductsPage = () => {
         usoProfissionalRouting: includeUsoProfissional ? { inDescription: usoProfissionalInDescription, inCustomField: usoProfissionalInCustomField } : undefined,
         includeImageProcessing,
         promptTemplateId: selectedPromptTemplate !== "active" ? selectedPromptTemplate : undefined,
+        imagePromptTemplateId: selectedImagePromptTemplate !== "active" ? selectedImagePromptTemplate : undefined,
         ...speedFlags,
       });
       setShowFieldSelector(false);
