@@ -246,8 +246,9 @@ O alt text deve:
 
           try {
             if (mode === "lifestyle") {
-              // Lifestyle mode: generate only from first image
+              // Lifestyle mode: generate only from first image, only 1 per product per run
               if (i > 0) continue;
+              if (lifestyleUrls.length > 0) continue; // already generated one in this run
 
               {
                 const productName = product.original_title || product.sku || "produto";

@@ -506,12 +506,13 @@ const ProductsPage = () => {
             (async () => {
               // Uso Profissional
               if (directIncludeUso) {
+                let usoOkCount = 0;
                 for (const pid of directModeIds) {
                   try {
                     const { data: prod } = await supabase.from("products")
                       .select("optimized_title, original_title, optimized_description, original_description, category, attributes")
                       .eq("id", pid).maybeSingle();
-                    await supabase.functions.invoke("generate-uso-profissional", {
+                    const { data: usoResult, error: usoErr } = await supabase.functions.invoke("generate-uso-profissional", {
                       body: {
                         workspaceId: directWorkspaceId,
                         productId: pid,
@@ -522,9 +523,23 @@ const ProductsPage = () => {
                         triggered_by: "pipeline",
                       },
                     });
+                    if (!usoErr && usoResult && usoResult.intro) {
+                      await supabase.from("product_uso_profissional" as any).upsert({
+                        product_id: pid,
+                        workspace_id: directWorkspaceId,
+                        intro: usoResult.intro || null,
+                        use_cases: usoResult.useCases || [],
+                        professional_tips: usoResult.professionalTips || [],
+                        target_profiles: usoResult.targetProfiles || [],
+                        generated_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                        publish_enabled: true,
+                      } as any, { onConflict: "product_id" } as any);
+                      usoOkCount++;
+                    }
                   } catch (e) { console.warn("Uso Prof direct mode error:", e); }
                 }
-                toast.success("📖 Uso Profissional gerado!");
+                if (usoOkCount > 0) toast.success(`📖 Uso Profissional gerado para ${usoOkCount} produto(s)!`);
               }
               // Images
               if (directIncludeImages) {
