@@ -2037,6 +2037,11 @@ const ProductsPage = () => {
                   📖 Uso Profissional
                 </span>
               )}
+              {includeImageProcessing && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20">
+                  🖼️ Imagens
+                </span>
+              )}
               {skipKnowledge && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground border border-border">
                   ⚡ Sem Knowledge
