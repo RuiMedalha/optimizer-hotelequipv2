@@ -94,6 +94,38 @@ serve(async (req) => {
 
     const customPrompt = promptSetting?.value || null;
 
+    // When a specific prompt template is selected, check if it's a description-type template
+    // If so, its prompt text should override the DEFAULT_FIELD_PROMPTS.description
+    let descriptionTemplateOverride: string | null = null;
+    if (promptTemplateId) {
+      try {
+        const { data: selectedTemplate } = await supabase
+          .from("prompt_templates")
+          .select("id, prompt_type, base_prompt")
+          .eq("id", promptTemplateId)
+          .maybeSingle();
+
+        if (selectedTemplate?.prompt_type === "description") {
+          // Try active version first
+          const { data: activeVersion } = await supabase
+            .from("prompt_versions")
+            .select("prompt_text")
+            .eq("template_id", promptTemplateId)
+            .eq("is_active", true)
+            .order("version_number", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          descriptionTemplateOverride = activeVersion?.prompt_text || selectedTemplate.base_prompt || null;
+          if (descriptionTemplateOverride) {
+            console.log(`📋 [optimize-product] Description template override active from template "${promptTemplateId}"`);
+          }
+        }
+      } catch (err) {
+        console.warn(`⚠️ [optimize-product] Failed to fetch prompt template type:`, err);
+      }
+    }
+
     // Fetch per-field custom prompts + description template
     const fieldPromptKeys = [
       "prompt_field_title", "prompt_field_description", "prompt_field_short_description",
