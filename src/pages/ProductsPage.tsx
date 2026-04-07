@@ -142,6 +142,8 @@ const ProductsPage = () => {
   const [skipScraping, setSkipScraping] = useState(false);
   const [skipReranking, setSkipReranking] = useState(false);
   const [includeUsoProfissional, setIncludeUsoProfissional] = useState(false);
+  const [usoProfissionalInDescription, setUsoProfissionalInDescription] = useState(true);
+  const [usoProfissionalInCustomField, setUsoProfissionalInCustomField] = useState(false);
   const [includeImageProcessing, setIncludeImageProcessing] = useState(false);
   const [selectedPromptTemplate, setSelectedPromptTemplate] = useState<string>("active");
 
@@ -435,6 +437,7 @@ const ProductsPage = () => {
         modelOverride: selectedModel !== "default" ? selectedModel : undefined,
         workspaceId: activeWorkspace?.id,
         includeUsoProfissional,
+        usoProfissionalRouting: includeUsoProfissional ? { inDescription: usoProfissionalInDescription, inCustomField: usoProfissionalInCustomField } : undefined,
         includeImageProcessing,
         promptTemplateId: selectedPromptTemplate !== "active" ? selectedPromptTemplate : undefined,
         ...speedFlags,
@@ -1945,12 +1948,40 @@ const ProductsPage = () => {
           <div className="space-y-2 mt-3 pt-3 border-t">
             <Label className="text-xs font-medium text-muted-foreground">📖 Conteúdo Extra & Prompts</Label>
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
-                <div>
-                  <Label className="text-xs font-medium cursor-pointer" htmlFor="uso-prof">Gerar Uso Profissional</Label>
-                  <p className="text-[10px] text-muted-foreground">Gera conteúdo editorial sobre uso profissional HORECA para cada produto.</p>
+              <div className="rounded-lg bg-muted/30 overflow-hidden">
+                <div className="flex items-center justify-between p-2">
+                  <div>
+                    <Label className="text-xs font-medium cursor-pointer" htmlFor="uso-prof">Gerar Uso Profissional</Label>
+                    <p className="text-[10px] text-muted-foreground">Gera conteúdo editorial sobre uso profissional HORECA para cada produto.</p>
+                  </div>
+                  <Switch id="uso-prof" checked={includeUsoProfissional} onCheckedChange={setIncludeUsoProfissional} />
                 </div>
-                <Switch id="uso-prof" checked={includeUsoProfissional} onCheckedChange={setIncludeUsoProfissional} />
+                {includeUsoProfissional && (
+                  <div className="px-3 pb-2 pt-1 border-t border-border/50 space-y-1.5">
+                    <p className="text-[10px] font-medium text-muted-foreground">Destino do conteúdo:</p>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="uso-in-desc"
+                        checked={usoProfissionalInDescription}
+                        onCheckedChange={(v) => setUsoProfissionalInDescription(!!v)}
+                        className="h-3.5 w-3.5"
+                      />
+                      <Label htmlFor="uso-in-desc" className="text-[11px] cursor-pointer">Na Descrição</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="uso-in-custom"
+                        checked={usoProfissionalInCustomField}
+                        onCheckedChange={(v) => setUsoProfissionalInCustomField(!!v)}
+                        className="h-3.5 w-3.5"
+                      />
+                      <Label htmlFor="uso-in-custom" className="text-[11px] cursor-pointer">Campo Custom (<code className="text-[10px]">_product_conselhos</code>)</Label>
+                    </div>
+                    {!usoProfissionalInDescription && !usoProfissionalInCustomField && (
+                      <p className="text-[10px] text-amber-600">⚠️ Selecione pelo menos um destino</p>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
                 <div>
