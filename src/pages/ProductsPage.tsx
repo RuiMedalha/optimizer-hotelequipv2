@@ -29,7 +29,7 @@ import { useDetectVariations, useApplyVariations, type VariationGroup } from "@/
 import { supabase } from "@/integrations/supabase/client";
 import type { Enums } from "@/integrations/supabase/types";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
-import { calculateSeoScore, getSeoScoreColor } from "@/lib/seoScore";
+import { calculateSeoScore } from "@/lib/seoScore";
 import { useRepairAttributes } from "@/hooks/useRepairAttributes";
 import { useEnrichProducts } from "@/hooks/useEnrichProducts";
 import { useProcessImages } from "@/hooks/useProcessImages";
