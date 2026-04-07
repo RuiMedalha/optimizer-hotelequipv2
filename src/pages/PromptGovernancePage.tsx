@@ -15,6 +15,7 @@ import { PromptVersionHistoryPanel } from "@/components/prompt-governance/Prompt
 import { PromptVersionCompareDialog } from "@/components/prompt-governance/PromptVersionCompareDialog";
 import { PromptPerformancePanel } from "@/components/prompt-governance/PromptPerformancePanel";
 import { ConfirmArchiveDialog } from "@/components/prompt-governance/ConfirmArchiveDialog";
+import { PromptSwitcherPanel } from "@/components/prompt-governance/PromptSwitcherPanel";
 import { ConfirmDeleteDialog } from "@/components/prompt-governance/ConfirmDeleteDialog";
 import { FieldPromptsSettings } from "@/components/FieldPromptsSettings";
 import { toast } from "sonner";
@@ -339,7 +340,7 @@ export default function PromptGovernancePage() {
   const {
     templates, createTemplate, updateTemplate, archiveTemplate, restoreTemplate,
     deleteTemplate, duplicateTemplate, useVersions, createVersion, activateVersion,
-    usageLogs, useVersionPerformance,
+    usageLogs, useVersionPerformance, switchActivePrompt,
   } = usePromptGovernance();
 
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
