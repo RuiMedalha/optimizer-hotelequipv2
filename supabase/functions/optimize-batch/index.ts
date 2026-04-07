@@ -601,11 +601,12 @@ serve(async (req) => {
                       Authorization: authHeader,
                       "Content-Type": "application/json",
                     },
-                    body: JSON.stringify({
-                      productIds: [productId],
-                      workspaceId: job.workspace_id,
-                      mode: "lifestyle",
-                    }),
+                  body: JSON.stringify({
+                    productIds: [productId],
+                    workspaceId: job.workspace_id,
+                    mode: "lifestyle",
+                    ...(jobImagePromptTemplateId ? { imagePromptTemplateId: jobImagePromptTemplateId } : {}),
+                  }),
                   }
                 );
                 if (lifestyleResponse.ok) {
