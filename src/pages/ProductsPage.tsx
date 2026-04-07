@@ -902,8 +902,14 @@ const ProductsPage = () => {
       </td>
       <td className="p-3 text-center">
         {(() => {
-          const { score } = calculateSeoScore(product);
-          return <span className={cn("text-xs font-bold", getSeoScoreColor(score))}>{score}</span>;
+          const score = product.seo_score ?? calculateSeoScore(product).score;
+          if (score == null) return <Badge variant="outline" className="text-[10px] text-muted-foreground">—</Badge>;
+          const emoji = score >= 90 ? "⭐" : score >= 70 ? "🟡" : score >= 50 ? "🟠" : "🔴";
+          const colors = score >= 90 ? "bg-success/10 text-success border-success/20"
+            : score >= 70 ? "bg-warning/10 text-warning border-warning/20"
+            : score >= 50 ? "bg-orange-500/10 text-orange-600 border-orange-500/20"
+            : "bg-destructive/10 text-destructive border-destructive/20";
+          return <Badge variant="outline" className={cn("text-[10px] font-bold", colors)}>{emoji} {score}</Badge>;
         })()}
       </td>
       <td className="p-3 text-right" onClick={(e) => e.stopPropagation()}>
