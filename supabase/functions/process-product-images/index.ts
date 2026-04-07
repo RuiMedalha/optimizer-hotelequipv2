@@ -358,14 +358,7 @@ O alt text deve:
                     sort_order: nextSortOrder,
                     status: "done",
                     alt_text: lifestyleAlt,
-                    generation_prompt: imagePrompt,
-                    generation_metadata: JSON.stringify({
-                      prompt_id: "LIFESTYLE_IMAGE_PROMPT_GENERATOR",
-                      prompt_version: "1.0.0",
-                      prompt_source: promptSource,
-                      text_provider: textProvider,
-                      image_provider: imageModel || "default_routed",
-                    }),
+                    generation_prompt: `${imagePrompt}\n\n--- METADATA ---\nprompt_source: ${promptSource}\ntext_provider: ${textProvider}\nimage_provider: ${imageModel || "default_routed"}`,
                   });
 
                   nextSortOrder += 1;
