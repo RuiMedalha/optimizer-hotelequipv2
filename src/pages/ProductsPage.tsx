@@ -1939,6 +1939,35 @@ const ProductsPage = () => {
               </div>
             </div>
           </div>
+          {/* Conteúdo Extra: Uso Profissional + Prompt Selector */}
+          <div className="space-y-2 mt-3 pt-3 border-t">
+            <Label className="text-xs font-medium text-muted-foreground">📖 Conteúdo Extra & Prompts</Label>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                <div>
+                  <Label className="text-xs font-medium cursor-pointer" htmlFor="uso-prof">Gerar Uso Profissional</Label>
+                  <p className="text-[10px] text-muted-foreground">Gera conteúdo editorial sobre uso profissional HORECA para cada produto.</p>
+                </div>
+                <Switch id="uso-prof" checked={includeUsoProfissional} onCheckedChange={setIncludeUsoProfissional} />
+              </div>
+              <div className="p-2 rounded-lg bg-muted/30">
+                <Label className="text-xs font-medium">Prompt de Descrição</Label>
+                <Select value={selectedPromptTemplate} onValueChange={setSelectedPromptTemplate}>
+                  <SelectTrigger className="h-8 mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">✅ Usar prompt ativo (padrão)</SelectItem>
+                    {(promptTemplates || []).map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.is_active ? "✅ " : ""}{t.prompt_name} ({t.prompt_type})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground mt-1">Escolha qual prompt usar para esta otimização. O padrão usa o prompt marcado como ativo.</p>
+              </div>
+            </div>
           {/* Background Mode Toggle */}
           <div className="flex items-center justify-between mt-3 pt-3 border-t p-3 rounded-lg bg-primary/5 border-primary/20">
             <div className="flex items-center gap-2">
