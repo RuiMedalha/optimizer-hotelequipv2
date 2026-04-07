@@ -21,18 +21,21 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const { taskType, workspaceId, messages, systemPrompt, options, modelOverride, providerOverride } =
+    const { taskType, workspaceId, messages, systemPrompt, options, modelOverride, providerOverride, promptTemplateId } =
       await req.json();
     if (!taskType || !workspaceId) throw new Error("taskType and workspaceId required");
 
     // Resolve system prompt from prompt_templates/prompt_versions if a routing rule
     // specifies one. Checks workspace-specific rule first, then global (workspace_id IS NULL).
-    const { text: resolvedPrompt, versionId: promptVersionId, promptSource } = await resolvePromptTemplate(
-      supabase,
-      workspaceId,
-      taskType,
-      systemPrompt,
-    );
+    // If promptTemplateId is provided, it overrides the routing rule lookup.
+    const { text: resolvedPrompt, versionId: promptVersionId, promptSource } = promptTemplateId
+      ? await resolvePromptTemplateById(supabase, promptTemplateId, systemPrompt)
+      : await resolvePromptTemplate(
+        supabase,
+        workspaceId,
+        taskType,
+        systemPrompt,
+      );
 
     const { result, meta } = await runPrompt(supabase, {
       workspaceId,
@@ -81,6 +84,50 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+// Resolves prompt by a specific template ID override (user selected in optimization modal).
+async function resolvePromptTemplateById(
+  supabase: ReturnType<typeof createClient>,
+  templateId: string,
+  fallbackPrompt: string,
+): Promise<{ text: string; versionId: string | null; promptSource: string }> {
+  try {
+    // First try active version
+    const { data: version } = await supabase
+      .from("prompt_versions")
+      .select("id, prompt_text, version_number")
+      .eq("template_id", templateId)
+      .eq("is_active", true)
+      .order("version_number", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (version?.prompt_text) {
+      const source = `db_version (override template → version v${version.version_number})`;
+      console.log(`🟢 [prompt-governance] override template="${templateId}" → SOURCE: ${source}`);
+      return { text: version.prompt_text, versionId: version.id as string, promptSource: source };
+    }
+
+    // Fall back to base_prompt
+    const { data: template } = await supabase
+      .from("prompt_templates")
+      .select("prompt_name, base_prompt")
+      .eq("id", templateId)
+      .maybeSingle();
+
+    if (template?.base_prompt) {
+      const source = `db_base_prompt (override template "${template.prompt_name}" base_prompt)`;
+      console.log(`🟡 [prompt-governance] override template="${templateId}" → SOURCE: ${source}`);
+      return { text: template.base_prompt, versionId: null, promptSource: source };
+    }
+  } catch (err) {
+    console.warn(`⚠️ [prompt-governance] Override template lookup failed: ${err instanceof Error ? err.message : err}`);
+  }
+
+  const source = "hardcoded_fallback (override template not found)";
+  console.log(`🔴 [prompt-governance] override template="${templateId}" → SOURCE: ${source}`);
+  return { text: fallbackPrompt || "", versionId: null, promptSource: source };
+}
 
 // Resolves the system prompt via prompt_templates / prompt_versions.
 // Precedence: workspace-specific active version > global active version >

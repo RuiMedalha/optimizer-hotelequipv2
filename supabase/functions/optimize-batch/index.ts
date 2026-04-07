@@ -188,6 +188,8 @@ serve(async (req) => {
         skipKnowledge,
         skipScraping,
         skipReranking,
+        includeUsoProfissional,
+        promptTemplateId,
       } = body;
 
       if (!Array.isArray(productIds) || productIds.length === 0) {
@@ -209,7 +211,7 @@ serve(async (req) => {
           fields_to_optimize: fieldsToOptimize || [],
           model_override: modelOverride || null,
           started_at: new Date().toISOString(),
-          results: JSON.parse(JSON.stringify({ skipKnowledge, skipScraping, skipReranking })),
+          results: JSON.parse(JSON.stringify({ skipKnowledge, skipScraping, skipReranking, includeUsoProfissional: !!includeUsoProfissional, promptTemplateId: promptTemplateId || null })),
         })
         .select("id")
         .single();
@@ -360,6 +362,8 @@ serve(async (req) => {
         skipScraping: jobFlags.skipScraping || false,
         skipReranking: jobFlags.skipReranking || false,
       };
+      const jobIncludeUsoProfissional = jobFlags.includeUsoProfissional || false;
+      const jobPromptTemplateId = jobFlags.promptTemplateId || null;
 
       const batchResults = await Promise.allSettled(
         batchIds.map(async (productId) => {
@@ -373,6 +377,7 @@ serve(async (req) => {
                 productIds: [productId],
                 workspaceId: job.workspace_id,
                 modelOverride: job.model_override,
+                ...(jobPromptTemplateId ? { promptTemplateId: jobPromptTemplateId } : {}),
                 ...speedFlags,
               };
 
@@ -491,6 +496,49 @@ serve(async (req) => {
               return { productId, status: "error", error: (err as Error).message };
             }
           }
+
+          // After all phases, call generate-uso-profissional if enabled
+          if (productOk && jobIncludeUsoProfissional) {
+            try {
+              const productInfo = productData?.find((p: any) => p.id === productId);
+              const { data: fullProduct } = await supabase
+                .from("products")
+                .select("optimized_title, original_title, optimized_description, original_description, category, attributes")
+                .eq("id", productId)
+                .maybeSingle();
+
+              const usoProfBody = {
+                workspaceId: job.workspace_id,
+                productId,
+                productTitle: fullProduct?.optimized_title || fullProduct?.original_title || productInfo?.optimized_title || productInfo?.original_title || "Produto",
+                productDescription: fullProduct?.optimized_description || fullProduct?.original_description || "",
+                productCategory: fullProduct?.category || "",
+                productAttributes: fullProduct?.attributes || [],
+              };
+
+              const usoResponse = await fetch(
+                `${SUPABASE_URL}/functions/v1/generate-uso-profissional`,
+                {
+                  method: "POST",
+                  headers: {
+                    Authorization: authHeader,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify(usoProfBody),
+                }
+              );
+
+              if (!usoResponse.ok) {
+                const errText = await usoResponse.text();
+                console.warn(`Uso Profissional for ${productId} failed: ${usoResponse.status} ${errText}`);
+              } else {
+                console.log(`📖 Uso Profissional generated for ${productId}`);
+              }
+            } catch (usoErr: any) {
+              console.warn(`Uso Profissional error for ${productId} (non-fatal):`, usoErr?.message);
+            }
+          }
+
           // Write successful job item
           const durationMs = Date.now() - itemStartMs;
           await supabase.from("optimization_job_items").insert({
