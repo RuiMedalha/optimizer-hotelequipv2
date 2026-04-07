@@ -154,6 +154,7 @@ export function useOptimizationJob() {
       usoProfissionalRouting,
       includeImageProcessing,
       promptTemplateId,
+      imagePromptTemplateId,
     }: {
       productIds: string[];
       selectedPhases?: number[];
@@ -167,6 +168,7 @@ export function useOptimizationJob() {
       usoProfissionalRouting?: { inDescription: boolean; inCustomField: boolean };
       includeImageProcessing?: boolean;
       promptTemplateId?: string;
+      imagePromptTemplateId?: string;
     }) => {
       setIsCreating(true);
       try {
@@ -184,6 +186,7 @@ export function useOptimizationJob() {
             usoProfissionalRouting,
             includeImageProcessing,
             promptTemplateId,
+            imagePromptTemplateId,
           },
         });
 
