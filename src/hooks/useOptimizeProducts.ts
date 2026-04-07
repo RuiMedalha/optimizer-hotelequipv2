@@ -2,6 +2,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { logger } from "@/lib/logger";
+import { calculateSeoScore } from "@/lib/seoScore";
+import type { Product } from "@/hooks/useProducts";
 
 export type OptimizationField = 
   | "title" | "description" | "short_description"
@@ -216,6 +218,21 @@ export function useOptimizeProducts() {
           }
           durations.push(Date.now() - itemStart);
           stepsDone++;
+        }
+
+        // Persist seo_score after all phases complete for this product
+        try {
+          const { data: freshProduct } = await supabase
+            .from("products")
+            .select("*")
+            .eq("id", productId)
+            .maybeSingle();
+          if (freshProduct) {
+            const { score } = calculateSeoScore(freshProduct as Product);
+            await supabase.from("products").update({ seo_score: score }).eq("id", productId);
+          }
+        } catch (e) {
+          console.warn("Failed to persist seo_score:", e);
         }
 
         // Invalidate between products so UI updates progressively
