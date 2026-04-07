@@ -220,7 +220,12 @@ export function WooPublishModal({ open, onClose, onConfirm, productCount, variab
                           checked={selectedFields.has(field.key)}
                           onCheckedChange={() => toggleField(field.key)}
                         />
-                        {field.label}
+                        <span className="flex flex-col">
+                          <span>{field.label}</span>
+                          {field.description && (
+                            <span className="text-[10px] text-muted-foreground leading-tight">{field.description}</span>
+                          )}
+                        </span>
                       </label>
                     ))}
                   </div>
