@@ -12,6 +12,7 @@ const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const MAX_PROCESSING_MS = 95_000; // keep safe headroom before timeout
 const CONCURRENCY = 2; // lower concurrency to reduce function rate limiting
 const SELF_INVOKE_RETRIES = 5;
+const TERMINAL_JOB_STATUSES = new Set(["completed", "cancelled", "failed"]);
 
 const TELEGRAM_API_URL = "https://api.telegram.org";
 
@@ -152,17 +153,29 @@ serve(async (req) => {
         });
       }
       job = data;
-      if (job.status === "cancelled") {
-        return new Response(JSON.stringify({ status: "cancelled", jobId }), {
+      const resolvedProcessedProducts = job.processed_products || 0;
+      const isTerminalJob = TERMINAL_JOB_STATUSES.has(job.status)
+        || resolvedProcessedProducts >= (job.total_products || 0)
+        || !!job.completed_at;
+
+      if (isTerminalJob) {
+        const terminalStatus = TERMINAL_JOB_STATUSES.has(job.status) ? job.status : "completed";
+        return new Response(JSON.stringify({ status: terminalStatus, jobId }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      if (job.status !== "processing") {
+      if (job.status === "queued") {
         await supabase
           .from("optimization_jobs")
           .update({ status: "processing", updated_at: new Date().toISOString(), error_message: null })
           .eq("id", job.id);
+
+        job = {
+          ...job,
+          status: "processing",
+          error_message: null,
+        };
       }
     } else {
       // Create new job and return immediately (background kickoff)
