@@ -31,7 +31,7 @@ export interface DirectAIResponse {
 
 // Model mapping: canonical -> provider-specific
 const MODEL_MAP: Record<string, { provider: string; model: string }> = {
-  // Lovable Gateway models (use gateway format)
+  // Lovable Gateway models — all google/gemini and short forms route through gateway
   "lovable/gemini-3-flash-preview": { provider: "lovable_gateway", model: "google/gemini-3-flash-preview" },
   "lovable/gemini-2.5-pro": { provider: "lovable_gateway", model: "google/gemini-2.5-pro" },
   "lovable/gemini-2.5-flash": { provider: "lovable_gateway", model: "google/gemini-2.5-flash" },
@@ -39,18 +39,24 @@ const MODEL_MAP: Record<string, { provider: string; model: string }> = {
   "lovable/gpt-5": { provider: "lovable_gateway", model: "openai/gpt-5" },
   "lovable/gpt-5-mini": { provider: "lovable_gateway", model: "openai/gpt-5-mini" },
   "lovable/gpt-5-nano": { provider: "lovable_gateway", model: "openai/gpt-5-nano" },
-  // Gemini models (via Gemini API)
-  "google/gemini-2.5-flash": { provider: "gemini", model: "gemini-2.5-flash" },
-  "google/gemini-2.5-pro": { provider: "gemini", model: "gemini-2.5-pro" },
-  "google/gemini-2.5-flash-lite": { provider: "gemini", model: "gemini-2.5-flash-lite" },
-  "google/gemini-3-flash-preview": { provider: "gemini", model: "gemini-2.5-flash" },
-  "google/gemini-3-pro-preview": { provider: "gemini", model: "gemini-2.5-pro" },
-  // Short forms
-  "gemini-2.5-flash": { provider: "gemini", model: "gemini-2.5-flash" },
-  "gemini-2.5-pro": { provider: "gemini", model: "gemini-2.5-pro" },
-  "gemini-2.5-flash-lite": { provider: "gemini", model: "gemini-2.5-flash-lite" },
-  "gemini-3-flash-preview": { provider: "gemini", model: "gemini-2.5-flash" },
-  // OpenAI models
+  // Google models → route through Lovable Gateway (LOVABLE_API_KEY)
+  "google/gemini-2.5-flash": { provider: "lovable_gateway", model: "google/gemini-2.5-flash" },
+  "google/gemini-2.5-pro": { provider: "lovable_gateway", model: "google/gemini-2.5-pro" },
+  "google/gemini-2.5-flash-lite": { provider: "lovable_gateway", model: "google/gemini-2.5-flash-lite" },
+  "google/gemini-3-flash-preview": { provider: "lovable_gateway", model: "google/gemini-3-flash-preview" },
+  "google/gemini-3-pro-preview": { provider: "lovable_gateway", model: "google/gemini-3-pro-preview" },
+  "google/gemini-3.1-pro-preview": { provider: "lovable_gateway", model: "google/gemini-3.1-pro-preview" },
+  "google/gemini-3.1-flash-image-preview": { provider: "lovable_gateway", model: "google/gemini-3.1-flash-image-preview" },
+  // Short forms → route through Lovable Gateway
+  "gemini-2.5-flash": { provider: "lovable_gateway", model: "google/gemini-2.5-flash" },
+  "gemini-2.5-pro": { provider: "lovable_gateway", model: "google/gemini-2.5-pro" },
+  "gemini-2.5-flash-lite": { provider: "lovable_gateway", model: "google/gemini-2.5-flash-lite" },
+  "gemini-3-flash-preview": { provider: "lovable_gateway", model: "google/gemini-3-flash-preview" },
+  // OpenAI models → route through Lovable Gateway
+  "openai/gpt-5": { provider: "lovable_gateway", model: "openai/gpt-5" },
+  "openai/gpt-5-mini": { provider: "lovable_gateway", model: "openai/gpt-5-mini" },
+  "openai/gpt-5-nano": { provider: "lovable_gateway", model: "openai/gpt-5-nano" },
+  "openai/gpt-5.2": { provider: "lovable_gateway", model: "openai/gpt-5.2" },
   "openai/gpt-4o": { provider: "openai", model: "gpt-4o" },
   "openai/gpt-4o-mini": { provider: "openai", model: "gpt-4o-mini" },
   "gpt-4o": { provider: "openai", model: "gpt-4o" },
@@ -58,7 +64,13 @@ const MODEL_MAP: Record<string, { provider: string; model: string }> = {
 };
 
 function resolveModel(model: string): { provider: string; model: string } {
-  return MODEL_MAP[model] ?? { provider: "gemini", model: "gemini-2.5-flash" };
+  if (MODEL_MAP[model]) return MODEL_MAP[model];
+  // Auto-route unknown google/ models through Lovable Gateway
+  if (model.startsWith("google/")) return { provider: "lovable_gateway", model };
+  // Auto-route unknown gemini- short forms through Lovable Gateway
+  if (model.startsWith("gemini-")) return { provider: "lovable_gateway", model: `google/${model}` };
+  // Default fallback
+  return { provider: "lovable_gateway", model: "google/gemini-2.5-flash" };
 }
 
 function getApiKey(provider: string): string | null {
