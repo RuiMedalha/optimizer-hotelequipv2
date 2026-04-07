@@ -2118,7 +2118,7 @@ const ProductsPage = () => {
               )}
               {includeImageProcessing && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20">
-                  🖼️ Imagens
+                  🖼️ Imagens{selectedImagePromptTemplate !== "active" ? ` (${(imagePromptTemplates || []).find((t: any) => t.id === selectedImagePromptTemplate)?.prompt_name || "Custom"})` : ""}
                 </span>
               )}
               {skipKnowledge && (
