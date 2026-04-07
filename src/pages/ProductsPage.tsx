@@ -1996,6 +1996,55 @@ const ProductsPage = () => {
               Modo direto: a UI ficará bloqueada durante o processamento. Recomendado apenas para 1-2 produtos.
             </p>
           )}
+          {/* Summary of selected options */}
+          <div className="mt-3 p-3 rounded-lg border border-primary/20 bg-primary/5 space-y-1">
+            <p className="text-xs font-semibold text-primary flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5" /> Resumo da Otimização
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary border border-primary/20">
+                {pendingOptimizeIds.length} produto(s)
+              </span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary border border-primary/20">
+                {selectedFields.size} campo(s)
+              </span>
+              {Array.from(selectedPhases).sort().map(p => (
+                <span key={p} className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20">
+                  Fase {p}
+                </span>
+              ))}
+              {selectedModel !== "default" && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20">
+                  🤖 {AI_MODELS.find(m => m.key === selectedModel)?.label || selectedModel}
+                </span>
+              )}
+              {selectedPromptTemplate !== "active" && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20">
+                  📝 {(promptTemplates || []).find((t: any) => t.id === selectedPromptTemplate)?.prompt_name || "Custom"}
+                </span>
+              )}
+              {includeUsoProfissional && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-500/10 text-green-700 dark:text-green-300 border border-green-500/20">
+                  📖 Uso Profissional
+                </span>
+              )}
+              {skipKnowledge && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground border border-border">
+                  ⚡ Sem Knowledge
+                </span>
+              )}
+              {skipScraping && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground border border-border">
+                  ⚡ Sem Scraping
+                </span>
+              )}
+              {backgroundMode && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary border border-primary/20">
+                  🚀 Background
+                </span>
+              )}
+            </div>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowFieldSelector(false)}>Cancelar</Button>
             {(() => {
