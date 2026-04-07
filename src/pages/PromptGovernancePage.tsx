@@ -345,7 +345,7 @@ export default function PromptGovernancePage() {
 
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [selectedVersion, setSelectedVersion] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("system");
+  const [activeTab, setActiveTab] = useState("switcher");
   const [seeding, setSeeding] = useState(false);
 
   // Create form
