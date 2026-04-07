@@ -1005,8 +1005,12 @@ async function enrichWithExtraContent(
   // ── FAQ ──
   const faq = Array.isArray(product.faq) ? product.faq : [];
   if (faq.length > 0) {
-    // FAQ in description
-    if (has("faq_in_description")) {
+    const wantsFaqCustom = has("faq_custom_field");
+    const wantsFaqInDesc = has("faq_in_description");
+
+    // FAQ in description — ONLY if explicitly selected AND custom field is NOT selected
+    // When custom field is chosen, it takes priority (no duplication in description)
+    if (wantsFaqInDesc && !wantsFaqCustom) {
       const faqHtml = buildFaqHtml(faq);
       if (faqHtml) {
         const currentDesc = String(wooProduct.description || product.optimized_description || product.original_description || "");
@@ -1018,13 +1022,36 @@ async function enrichWithExtraContent(
         );
         console.log(`[enrichExtraContent] FAQ injected in description for ${product.id}`);
       }
+    } else if (wantsFaqCustom && wantsFaqInDesc) {
+      // Both selected: still inject in description AND send to custom field
+      const faqHtml = buildFaqHtml(faq);
+      if (faqHtml) {
+        const currentDesc = String(wooProduct.description || product.optimized_description || product.original_description || "");
+        wooProduct.description = injectOrReplaceBlock(
+          currentDesc,
+          "<!-- HOTELEQUIP:FAQ_START -->",
+          "<!-- HOTELEQUIP:FAQ_END -->",
+          faqHtml
+        );
+        console.log(`[enrichExtraContent] FAQ injected in description for ${product.id}`);
+      }
+    } else if (wantsFaqCustom) {
+      // Custom field only — strip FAQ from description if present
+      if (wooProduct.description && String(wooProduct.description).includes("<!-- HOTELEQUIP:FAQ_START -->")) {
+        wooProduct.description = injectOrReplaceBlock(
+          String(wooProduct.description),
+          "<!-- HOTELEQUIP:FAQ_START -->",
+          "<!-- HOTELEQUIP:FAQ_END -->",
+          ""
+        );
+        console.log(`[enrichExtraContent] FAQ removed from description for ${product.id} (custom field only)`);
+      }
     }
 
     // FAQ to custom field
-    if (has("faq_custom_field")) {
+    if (wantsFaqCustom) {
       const meta = ensureMeta();
       meta.push({ key: "_product_faqs", value: buildFaqSchemaJson(faq) });
-      // Also add Yoast FAQ block JSON for schema
       meta.push({ key: "_yoast_wpseo_schema_page_type", value: "FAQPage" });
       console.log(`[enrichExtraContent] FAQ sent to custom meta field for ${product.id}`);
     }
