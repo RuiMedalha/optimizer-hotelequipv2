@@ -1884,6 +1884,9 @@ async function publishVariableProduct(
   const parentPayload = await buildBasePayload(parent, supabase, baseUrl, auth, has, markupPercent, discountPercent);
   parentPayload.type = "variable";
 
+  // ── FAQ & Uso Profissional Content Routing for variable parent ──
+  await enrichWithExtraContent(parentPayload, parent, supabase, adminClient, has);
+
   // If the parent has no images, aggregate unique images from children for the gallery
   if (has("images") && (!parent.image_urls || parent.image_urls.length === 0) && children.length > 0) {
     const childImagePromises: Array<Promise<Record<string, unknown> | null>> = [];
