@@ -151,6 +151,7 @@ export function useOptimizationJob() {
       skipScraping,
       skipReranking,
       includeUsoProfissional,
+      usoProfissionalRouting,
       includeImageProcessing,
       promptTemplateId,
     }: {
@@ -163,6 +164,7 @@ export function useOptimizationJob() {
       skipScraping?: boolean;
       skipReranking?: boolean;
       includeUsoProfissional?: boolean;
+      usoProfissionalRouting?: { inDescription: boolean; inCustomField: boolean };
       includeImageProcessing?: boolean;
       promptTemplateId?: string;
     }) => {
@@ -179,6 +181,7 @@ export function useOptimizationJob() {
             skipScraping,
             skipReranking,
             includeUsoProfissional,
+            usoProfissionalRouting,
             includeImageProcessing,
             promptTemplateId,
           },
