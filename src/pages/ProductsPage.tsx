@@ -524,7 +524,7 @@ const ProductsPage = () => {
                       },
                     });
                     if (!usoErr && usoResult && usoResult.intro) {
-                      await supabase.from("product_uso_profissional" as any).upsert({
+                      const upsertPayload = {
                         product_id: pid,
                         workspace_id: directWorkspaceId,
                         intro: usoResult.intro || null,
@@ -534,7 +534,17 @@ const ProductsPage = () => {
                         generated_at: new Date().toISOString(),
                         updated_at: new Date().toISOString(),
                         publish_enabled: true,
-                      } as any, { onConflict: "product_id" } as any);
+                      };
+                      console.log("[Uso Prof] Upserting:", { product_id: pid, workspace_id: directWorkspaceId, hasIntro: !!usoResult.intro });
+                      const { data: upsertResult, error: upsertError } = await supabase.from("product_uso_profissional" as any).upsert(
+                        upsertPayload as any,
+                        { onConflict: "product_id,workspace_id" } as any
+                      ).select();
+                      if (upsertError) {
+                        console.error("[Uso Prof] Upsert error:", upsertError);
+                      } else {
+                        console.log("[Uso Prof] Upsert success:", upsertResult);
+                      }
                       usoOkCount++;
                     }
                   } catch (e) { console.warn("Uso Prof direct mode error:", e); }

@@ -127,8 +127,10 @@ Deno.serve(async (req) => {
 
     // If a specific image prompt template is provided, use it; otherwise use default active prompts
     let lifestyleGeneratorPrompt: string | null = null;
+    let lifestyleGeneratorName = "none";
     if (imagePromptTemplateId) {
       lifestyleGeneratorPrompt = await getImagePromptById(imagePromptTemplateId);
+      lifestyleGeneratorName = imagePromptTemplateId;
       console.log(`🎯 [process-images] Using specific image prompt template: ${imagePromptTemplateId} (found: ${!!lifestyleGeneratorPrompt})`);
     }
 
@@ -140,9 +142,13 @@ Deno.serve(async (req) => {
     ]);
 
     // Use specific template if provided, otherwise use default active generator
-    if (!lifestyleGeneratorPrompt) {
+    if (!lifestyleGeneratorPrompt && defaultGeneratorPrompt) {
       lifestyleGeneratorPrompt = defaultGeneratorPrompt;
+      lifestyleGeneratorName = "Imagem — Lifestyle Prompt Generator (default active)";
     }
+
+    // Log generator resolution for debugging
+    console.log(`🔍 [process-images] Generator resolution: generator_found=${!!lifestyleGeneratorPrompt}, generator_name="${lifestyleGeneratorName}", fallback_prompt_found=${!!lifestylePromptTemplate}`);
 
     // Helper: generate SEO alt text for an image URL
     async function generateAltText(imageUrl: string, productName: string): Promise<string | null> {
