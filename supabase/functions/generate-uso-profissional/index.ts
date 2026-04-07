@@ -95,10 +95,11 @@ Responde APENAS com JSON válido, sem markdown, sem code blocks:
   "targetProfiles": ["perfil 1", "perfil 2", "perfil 3"]
 }`;
 
-    // Use direct-ai-call which respects AI Provider Center routing
+    // Use direct-ai-call with Lovable gateway as primary (no GEMINI_API_KEY needed)
     const aiResponse = await directAICall({
       systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
+      model: "lovable/gemini-2.5-flash",
       temperature: 0.7,
       maxTokens: 2000,
       jsonMode: true,
