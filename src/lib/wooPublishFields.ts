@@ -89,7 +89,8 @@ export const ALL_WOO_FIELD_KEYS = WOO_PUBLISH_GROUPS.flatMap(g => g.fields.map(f
 
 export const DEFAULT_WOO_FIELDS = ALL_WOO_FIELD_KEYS.filter(k => 
   k !== "meta_title" && k !== "meta_description" && k !== "slug" &&
-  k !== "faq_custom_field" && k !== "uso_profissional_in_description" && k !== "uso_profissional_custom_field"
+  k !== "faq_in_description" && k !== "faq_custom_field" && 
+  k !== "uso_profissional_in_description" && k !== "uso_profissional_custom_field"
 );
 
 export const SETTING_KEY_WOO_PUBLISH_FIELDS = "woo_publish_fields_json";
