@@ -954,6 +954,107 @@ function injectOrReplaceBlock(description: string, startMarker: string, endMarke
   return description + newBlock;
 }
 
+// ── Enrich WooCommerce payload with FAQ & Uso Profissional ──
+async function enrichWithExtraContent(
+  wooProduct: Record<string, unknown>,
+  product: any,
+  supabase: any,
+  adminClient: any,
+  has: (k: string) => boolean,
+) {
+  const ensureMeta = (): Array<{ key: string; value: string }> => {
+    if (!Array.isArray(wooProduct.meta_data)) wooProduct.meta_data = [];
+    return wooProduct.meta_data as Array<{ key: string; value: string }>;
+  };
+
+  // ── FAQ ──
+  const faq = Array.isArray(product.faq) ? product.faq : [];
+  if (faq.length > 0) {
+    // FAQ in description
+    if (has("faq_in_description")) {
+      const faqHtml = buildFaqHtml(faq);
+      if (faqHtml) {
+        const currentDesc = String(wooProduct.description || product.optimized_description || product.original_description || "");
+        wooProduct.description = injectOrReplaceBlock(
+          currentDesc,
+          "<!-- HOTELEQUIP:FAQ_START -->",
+          "<!-- HOTELEQUIP:FAQ_END -->",
+          faqHtml
+        );
+        console.log(`[enrichExtraContent] FAQ injected in description for ${product.id}`);
+      }
+    }
+
+    // FAQ to custom field
+    if (has("faq_custom_field")) {
+      const meta = ensureMeta();
+      meta.push({ key: "_product_faq", value: buildFaqSchemaJson(faq) });
+      // Also add Yoast FAQ block JSON for schema
+      meta.push({ key: "_yoast_wpseo_schema_page_type", value: "FAQPage" });
+      console.log(`[enrichExtraContent] FAQ sent to custom meta field for ${product.id}`);
+    }
+  }
+
+  // ── Uso Profissional ──
+  const wantsUsoInDesc = has("uso_profissional_in_description");
+  const wantsUsoCustom = has("uso_profissional_custom_field");
+
+  if (wantsUsoInDesc || wantsUsoCustom) {
+    // Fetch uso profissional data
+    const { data: usoData } = await adminClient
+      .from("product_uso_profissional")
+      .select("intro, use_cases, professional_tips, target_profiles, publish_enabled, placement")
+      .eq("product_id", product.id)
+      .maybeSingle();
+
+    if (usoData && usoData.publish_enabled) {
+      if (wantsUsoInDesc) {
+        const usoHtml = buildUsoProfissionalHtml(usoData);
+        if (usoHtml) {
+          let currentDesc = String(wooProduct.description || product.optimized_description || product.original_description || "");
+          // Respect placement preference
+          const placement = usoData.placement || "before_faq";
+          if (placement === "before_faq" && currentDesc.includes("<!-- HOTELEQUIP:FAQ_START -->")) {
+            const faqIdx = currentDesc.indexOf("<!-- HOTELEQUIP:FAQ_START -->");
+            currentDesc = currentDesc.substring(0, faqIdx) + usoHtml + currentDesc.substring(faqIdx);
+            // Remove any old uso block if it exists elsewhere
+            currentDesc = currentDesc.replace(/<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->[\s\S]*?<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->/g, "");
+            // Re-inject cleanly
+            wooProduct.description = injectOrReplaceBlock(
+              currentDesc.replace(usoHtml, ""), // remove the one we just added to avoid duplicates
+              "<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->",
+              "<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->",
+              ""
+            );
+            // Now place before FAQ
+            const desc = String(wooProduct.description);
+            const faqPos = desc.indexOf("<!-- HOTELEQUIP:FAQ_START -->");
+            if (faqPos >= 0) {
+              wooProduct.description = desc.substring(0, faqPos) + usoHtml + desc.substring(faqPos);
+            } else {
+              wooProduct.description = desc + usoHtml;
+            }
+          } else {
+            wooProduct.description = injectOrReplaceBlock(
+              currentDesc,
+              "<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->",
+              "<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->",
+              usoHtml
+            );
+          }
+          console.log(`[enrichExtraContent] Uso Profissional injected in description for ${product.id} (placement: ${placement})`);
+        }
+      }
+
+      if (wantsUsoCustom) {
+        const meta = ensureMeta();
+        meta.push({ key: "_uso_profissional", value: buildUsoProfissionalJson(usoData) });
+        console.log(`[enrichExtraContent] Uso Profissional sent to custom meta field for ${product.id}`);
+      }
+    }
+  }
+}
+
 async function buildBasePayload(
   product: any,
   supabase: any,
