@@ -1569,7 +1569,20 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
         if (optimized.faq) updateData.faq = optimized.faq;
         if (optimized.upsell_skus) updateData.upsell_skus = optimized.upsell_skus;
         if (optimized.crosssell_skus) updateData.crosssell_skus = optimized.crosssell_skus;
-        if (optimized.image_alt_texts) updateData.image_alt_texts = optimized.image_alt_texts;
+        if (optimized.image_alt_texts) {
+          // Convert array format [{url, alt_text}] to object format {url: alt_text} for DB
+          if (Array.isArray(optimized.image_alt_texts)) {
+            const altObj: Record<string, string> = {};
+            for (const item of optimized.image_alt_texts) {
+              if (item?.url && item?.alt_text) {
+                altObj[item.url] = item.alt_text;
+              }
+            }
+            updateData.image_alt_texts = altObj;
+          } else {
+            updateData.image_alt_texts = optimized.image_alt_texts;
+          }
+        }
         if (optimized.suggested_category) updateData.suggested_category = optimized.suggested_category;
         if (optimized.focus_keywords && Array.isArray(optimized.focus_keywords) && optimized.focus_keywords.length > 0) {
           updateData.focus_keyword = optimized.focus_keywords.slice(0, 5);
