@@ -192,6 +192,7 @@ serve(async (req) => {
         usoProfissionalRouting,
         includeImageProcessing,
         promptTemplateId,
+        imagePromptTemplateId,
       } = body;
 
       if (!Array.isArray(productIds) || productIds.length === 0) {
@@ -213,7 +214,7 @@ serve(async (req) => {
           fields_to_optimize: fieldsToOptimize || [],
           model_override: modelOverride || null,
           started_at: new Date().toISOString(),
-          results: JSON.parse(JSON.stringify({ skipKnowledge, skipScraping, skipReranking, includeUsoProfissional: !!includeUsoProfissional, usoProfissionalRouting: usoProfissionalRouting || null, includeImageProcessing: !!includeImageProcessing, promptTemplateId: promptTemplateId || null })),
+          results: JSON.parse(JSON.stringify({ skipKnowledge, skipScraping, skipReranking, includeUsoProfissional: !!includeUsoProfissional, usoProfissionalRouting: usoProfissionalRouting || null, includeImageProcessing: !!includeImageProcessing, promptTemplateId: promptTemplateId || null, imagePromptTemplateId: imagePromptTemplateId || null })),
         })
         .select("id")
         .single();
