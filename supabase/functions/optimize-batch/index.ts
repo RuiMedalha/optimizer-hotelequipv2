@@ -364,6 +364,7 @@ serve(async (req) => {
         skipReranking: jobFlags.skipReranking || false,
       };
       const jobIncludeUsoProfissional = jobFlags.includeUsoProfissional || false;
+      const jobIncludeImageProcessing = jobFlags.includeImageProcessing || false;
       const jobPromptTemplateId = jobFlags.promptTemplateId || null;
 
       const batchResults = await Promise.allSettled(
