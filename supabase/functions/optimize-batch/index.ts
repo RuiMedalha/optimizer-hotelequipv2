@@ -375,6 +375,7 @@ serve(async (req) => {
           const itemStartMs = Date.now();
           let productOk = false;
           let lastError = "";
+          let usoStatus: string | null = null;
           for (const phaseConfig of selectedPhases) {
             try {
               const callBody: any = {
