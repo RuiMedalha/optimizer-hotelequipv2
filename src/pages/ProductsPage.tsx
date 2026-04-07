@@ -142,6 +142,7 @@ const ProductsPage = () => {
   const [skipScraping, setSkipScraping] = useState(false);
   const [skipReranking, setSkipReranking] = useState(false);
   const [includeUsoProfissional, setIncludeUsoProfissional] = useState(false);
+  const [includeImageProcessing, setIncludeImageProcessing] = useState(false);
   const [selectedPromptTemplate, setSelectedPromptTemplate] = useState<string>("active");
 
   // Fetch prompt templates for the selector
@@ -434,6 +435,7 @@ const ProductsPage = () => {
         modelOverride: selectedModel !== "default" ? selectedModel : undefined,
         workspaceId: activeWorkspace?.id,
         includeUsoProfissional,
+        includeImageProcessing,
         promptTemplateId: selectedPromptTemplate !== "active" ? selectedPromptTemplate : undefined,
         ...speedFlags,
       });
