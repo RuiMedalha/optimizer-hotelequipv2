@@ -33,37 +33,63 @@ export function UsoProfissionalTab({ product, workspaceId }: Props) {
   const [showPreview, setShowPreview] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(null);
 
-  // Load existing data
-  useEffect(() => {
-    async function load() {
-      setLoadingData(true);
-      try {
-        const { data, error } = await supabase
-          .from("product_uso_profissional" as any)
-          .select("*")
-          .eq("product_id", product.id)
-          .eq("workspace_id", workspaceId)
-          .maybeSingle();
+  const loadUsoContent = useCallback(async () => {
+    setLoadingData(true);
+    try {
+      const { data, error } = await supabase
+        .from("product_uso_profissional" as any)
+        .select("*")
+        .eq("product_id", product.id)
+        .eq("workspace_id", workspaceId)
+        .maybeSingle();
 
-        if (!error && data) {
-          const d = data as any;
-          setUsoContent({
-            intro: d.intro || "",
-            useCases: Array.isArray(d.use_cases) ? d.use_cases : [],
-            professionalTips: Array.isArray(d.professional_tips) ? d.professional_tips : [],
-            targetProfiles: Array.isArray(d.target_profiles) ? d.target_profiles : [],
-          });
-          setPublishEnabled(d.publish_enabled ?? false);
-          setPlacement(d.placement ?? "before_faq");
-          setSavedId(d.id);
-        }
-      } catch (err) {
-        console.error("Error loading uso profissional:", err);
+      if (error) throw error;
+
+      if (data) {
+        const d = data as any;
+        setUsoContent({
+          intro: d.intro || "",
+          useCases: Array.isArray(d.use_cases) ? d.use_cases : [],
+          professionalTips: Array.isArray(d.professional_tips) ? d.professional_tips : [],
+          targetProfiles: Array.isArray(d.target_profiles) ? d.target_profiles : [],
+        });
+        setPublishEnabled(d.publish_enabled ?? false);
+        setPlacement(d.placement ?? "before_faq");
+        setSavedId(d.id);
+      } else {
+        setUsoContent(null);
+        setSavedId(null);
       }
+    } catch (err) {
+      console.error("Error loading uso profissional:", err);
+    } finally {
       setLoadingData(false);
     }
-    load();
   }, [product.id, workspaceId]);
+
+  useEffect(() => {
+    void loadUsoContent();
+  }, [loadUsoContent]);
+
+  useEffect(() => {
+    const onUsoUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ productId?: string; workspaceId?: string }>).detail;
+      if (detail?.productId === product.id && detail?.workspaceId === workspaceId) {
+        void loadUsoContent();
+      }
+    };
+
+    window.addEventListener("uso-profissional-updated", onUsoUpdated as EventListener);
+    return () => window.removeEventListener("uso-profissional-updated", onUsoUpdated as EventListener);
+  }, [loadUsoContent, product.id, workspaceId]);
+
+  useEffect(() => {
+    if (usoContent) return;
+    const intervalId = window.setInterval(() => {
+      void loadUsoContent();
+    }, 5000);
+    return () => window.clearInterval(intervalId);
+  }, [loadUsoContent, usoContent]);
 
   const generateUsoContent = useCallback(async () => {
     setUsoLoading(true);
@@ -102,14 +128,24 @@ export function UsoProfissionalTab({ product, workspaceId }: Props) {
         target_profiles: usoContent.targetProfiles,
         publish_enabled: publishEnabled,
         placement,
+        routing_in_description: publishEnabled,
+        routing_in_custom_field: false,
         generated_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
 
-      const { error } = await supabase
+      const { data: savedRow, error } = await supabase
         .from("product_uso_profissional" as any)
-        .upsert(payload as any, { onConflict: "product_id,workspace_id" });
+        .upsert(payload as any, { onConflict: "product_id,workspace_id" })
+        .select("id")
+        .maybeSingle();
 
       if (error) throw error;
+
+      if (savedRow) {
+        setSavedId((savedRow as any).id);
+      }
+      await loadUsoContent();
 
       if (publishEnabled) {
         // Build HTML and publish via existing publish-woocommerce
@@ -131,10 +167,14 @@ export function UsoProfissionalTab({ product, workspaceId }: Props) {
       } else {
         toast.success("Conteúdo guardado!");
       }
+
+      window.dispatchEvent(new CustomEvent("uso-profissional-updated", {
+        detail: { productId: product.id, workspaceId },
+      }));
     } catch (err) {
       toast.error("Erro ao guardar: " + (err as Error).message);
     }
-  }, [usoContent, product, workspaceId, publishEnabled, placement]);
+  }, [usoContent, product, workspaceId, publishEnabled, placement, loadUsoContent]);
 
   // Content update helpers
   const updateIntro = (v: string) => setUsoContent((c) => c ? { ...c, intro: v } : c);
