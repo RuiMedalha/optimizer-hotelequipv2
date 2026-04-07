@@ -142,6 +142,7 @@ const ProductsPage = () => {
   const [skipScraping, setSkipScraping] = useState(false);
   const [skipReranking, setSkipReranking] = useState(false);
   const [includeUsoProfissional, setIncludeUsoProfissional] = useState(false);
+  const [includeImageProcessing, setIncludeImageProcessing] = useState(false);
   const [selectedPromptTemplate, setSelectedPromptTemplate] = useState<string>("active");
 
   // Fetch prompt templates for the selector
@@ -434,6 +435,7 @@ const ProductsPage = () => {
         modelOverride: selectedModel !== "default" ? selectedModel : undefined,
         workspaceId: activeWorkspace?.id,
         includeUsoProfissional,
+        includeImageProcessing,
         promptTemplateId: selectedPromptTemplate !== "active" ? selectedPromptTemplate : undefined,
         ...speedFlags,
       });
@@ -1950,6 +1952,13 @@ const ProductsPage = () => {
                 </div>
                 <Switch id="uso-prof" checked={includeUsoProfissional} onCheckedChange={setIncludeUsoProfissional} />
               </div>
+              <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                <div>
+                  <Label className="text-xs font-medium cursor-pointer" htmlFor="img-proc">🖼️ Processar Imagens (Optimize + Lifestyle)</Label>
+                  <p className="text-[10px] text-muted-foreground">Otimiza e gera imagens lifestyle para cada produto após a otimização.</p>
+                </div>
+                <Switch id="img-proc" checked={includeImageProcessing} onCheckedChange={setIncludeImageProcessing} />
+              </div>
               <div className="p-2 rounded-lg bg-muted/30">
                 <Label className="text-xs font-medium">Prompt de Descrição</Label>
                 <Select value={selectedPromptTemplate} onValueChange={setSelectedPromptTemplate}>
@@ -2026,6 +2035,11 @@ const ProductsPage = () => {
               {includeUsoProfissional && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-green-500/10 text-green-700 dark:text-green-300 border border-green-500/20">
                   📖 Uso Profissional
+                </span>
+              )}
+              {includeImageProcessing && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20">
+                  🖼️ Imagens
                 </span>
               )}
               {skipKnowledge && (

@@ -151,6 +151,7 @@ export function useOptimizationJob() {
       skipScraping,
       skipReranking,
       includeUsoProfissional,
+      includeImageProcessing,
       promptTemplateId,
     }: {
       productIds: string[];
@@ -162,6 +163,7 @@ export function useOptimizationJob() {
       skipScraping?: boolean;
       skipReranking?: boolean;
       includeUsoProfissional?: boolean;
+      includeImageProcessing?: boolean;
       promptTemplateId?: string;
     }) => {
       setIsCreating(true);
@@ -177,6 +179,7 @@ export function useOptimizationJob() {
             skipScraping,
             skipReranking,
             includeUsoProfissional,
+            includeImageProcessing,
             promptTemplateId,
           },
         });

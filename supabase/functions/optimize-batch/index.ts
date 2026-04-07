@@ -189,6 +189,7 @@ serve(async (req) => {
         skipScraping,
         skipReranking,
         includeUsoProfissional,
+        includeImageProcessing,
         promptTemplateId,
       } = body;
 
@@ -211,7 +212,7 @@ serve(async (req) => {
           fields_to_optimize: fieldsToOptimize || [],
           model_override: modelOverride || null,
           started_at: new Date().toISOString(),
-          results: JSON.parse(JSON.stringify({ skipKnowledge, skipScraping, skipReranking, includeUsoProfissional: !!includeUsoProfissional, promptTemplateId: promptTemplateId || null })),
+          results: JSON.parse(JSON.stringify({ skipKnowledge, skipScraping, skipReranking, includeUsoProfissional: !!includeUsoProfissional, includeImageProcessing: !!includeImageProcessing, promptTemplateId: promptTemplateId || null })),
         })
         .select("id")
         .single();
@@ -363,6 +364,7 @@ serve(async (req) => {
         skipReranking: jobFlags.skipReranking || false,
       };
       const jobIncludeUsoProfissional = jobFlags.includeUsoProfissional || false;
+      const jobIncludeImageProcessing = jobFlags.includeImageProcessing || false;
       const jobPromptTemplateId = jobFlags.promptTemplateId || null;
 
       const batchResults = await Promise.allSettled(
@@ -532,10 +534,79 @@ serve(async (req) => {
                 const errText = await usoResponse.text();
                 console.warn(`Uso Profissional for ${productId} failed: ${usoResponse.status} ${errText}`);
               } else {
-                console.log(`📖 Uso Profissional generated for ${productId}`);
+                // Save the result to product_uso_profissional table
+                const usoResult = await usoResponse.json();
+                if (usoResult && usoResult.intro) {
+                  const serviceClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+                  await serviceClient
+                    .from("product_uso_profissional")
+                    .upsert({
+                      product_id: productId,
+                      workspace_id: job.workspace_id,
+                      intro: usoResult.intro || null,
+                      use_cases: usoResult.useCases || [],
+                      professional_tips: usoResult.professionalTips || [],
+                      target_profiles: usoResult.targetProfiles || [],
+                      generated_at: new Date().toISOString(),
+                      updated_at: new Date().toISOString(),
+                      publish_enabled: true,
+                    }, { onConflict: "product_id" });
+                  console.log(`📖 Uso Profissional generated & saved for ${productId}`);
+                } else {
+                  console.warn(`Uso Profissional for ${productId}: empty result`);
+                }
               }
             } catch (usoErr: any) {
               console.warn(`Uso Profissional error for ${productId} (non-fatal):`, usoErr?.message);
+            }
+          }
+
+          // After all phases, call process-product-images if enabled
+          if (productOk && jobIncludeImageProcessing) {
+            try {
+              const imgResponse = await fetch(
+                `${SUPABASE_URL}/functions/v1/process-product-images`,
+                {
+                  method: "POST",
+                  headers: {
+                    Authorization: authHeader,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    productIds: [productId],
+                    workspaceId: job.workspace_id,
+                    mode: "optimize",
+                  }),
+                }
+              );
+              if (imgResponse.ok) {
+                console.log(`🖼️ Image optimize done for ${productId}`);
+                // Also do lifestyle if requested
+                const lifestyleResponse = await fetch(
+                  `${SUPABASE_URL}/functions/v1/process-product-images`,
+                  {
+                    method: "POST",
+                    headers: {
+                      Authorization: authHeader,
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      productIds: [productId],
+                      workspaceId: job.workspace_id,
+                      mode: "lifestyle",
+                    }),
+                  }
+                );
+                if (lifestyleResponse.ok) {
+                  console.log(`🎨 Lifestyle image done for ${productId}`);
+                } else {
+                  console.warn(`Lifestyle image for ${productId} failed: ${lifestyleResponse.status}`);
+                }
+              } else {
+                console.warn(`Image optimize for ${productId} failed: ${imgResponse.status}`);
+              }
+            } catch (imgErr: any) {
+              console.warn(`Image processing error for ${productId} (non-fatal):`, imgErr?.message);
             }
           }
 
