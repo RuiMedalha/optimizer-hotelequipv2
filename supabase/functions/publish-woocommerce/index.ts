@@ -1023,7 +1023,7 @@ async function enrichWithExtraContent(
     // FAQ to custom field
     if (has("faq_custom_field")) {
       const meta = ensureMeta();
-      meta.push({ key: "_product_faq", value: buildFaqSchemaJson(faq) });
+      meta.push({ key: "_product_faqs", value: buildFaqSchemaJson(faq) });
       // Also add Yoast FAQ block JSON for schema
       meta.push({ key: "_yoast_wpseo_schema_page_type", value: "FAQPage" });
       console.log(`[enrichExtraContent] FAQ sent to custom meta field for ${product.id}`);
