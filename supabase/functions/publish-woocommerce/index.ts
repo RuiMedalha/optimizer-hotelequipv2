@@ -1734,6 +1734,9 @@ async function publishSingleProduct(
 
   const wooProduct = await buildBasePayload(enrichedProduct, supabase, baseUrl, auth, has, markupPercent, discountPercent);
 
+  // ── FAQ & Uso Profissional Content Routing ──
+  await enrichWithExtraContent(wooProduct, enrichedProduct, supabase, adminClient, has);
+
   // ── SEO Lifecycle integration ──
   // Check if product has a lifecycle record and enrich WooCommerce payload accordingly
   try {
