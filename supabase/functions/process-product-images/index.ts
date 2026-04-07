@@ -261,6 +261,32 @@ O alt text deve:
                 const shortDesc = product.optimized_short_description || product.short_description || "";
                 const categories = product.category || "";
 
+                // Select original product image (not generated/lifestyle/upscale)
+                const originalImage = (product.image_urls as string[]).find((url: string) =>
+                  !url.includes('supabase.co/storage') &&
+                  !url.includes('lifestyle_') &&
+                  !url.includes('upscale_')
+                ) ?? product.image_urls[0];
+
+                console.log(`🖼️ [lifestyle] Original image for vision: ${originalImage?.slice(0, 80)}...`);
+
+                // Helper: extract physical terms from description for text-only fallback
+                function extractPhysicalTerms(desc: string): string[] {
+                  const terms = [
+                    'placa', 'chapa', 'queimadores', 'queimador', 'grelha', 'radiante',
+                    'ferro fundido', 'anel central', 'porta de vidro', 'porta',
+                    'bancada', 'chão', 'pés reguláveis', 'pés', 'gaveta', 'gavetas',
+                    'forno', 'banho-maria', 'fritadeira', 'basculante',
+                    'aço inoxidável', 'inox', 'cromado', 'esmaltado',
+                    'termopar', 'piloto', 'piezoelétrico', 'termóstato',
+                    'elétrico', 'gás', 'indução', 'infravermelhos',
+                    'tabuleiro', 'cuba', 'torneira', 'prateleira',
+                    'rodízios', 'comandos', 'manípulos'
+                  ];
+                  const lower = (desc || '').toLowerCase();
+                  return terms.filter(t => lower.includes(t));
+                }
+
                 // ── STEP 1: Generate optimized image prompt via text AI (Prompt Governance) ──
                 let imagePrompt: string;
                 let promptSource = "hardcoded_fallback";
@@ -273,9 +299,36 @@ O alt text deve:
                 if (lifestyleGeneratorPrompt) {
                   // Use the LIFESTYLE_IMAGE_PROMPT_GENERATOR from Prompt Governance
                   const systemPrompt = renderPromptTemplate(lifestyleGeneratorPrompt, { productName, productType: product.product_type });
-                  const userMessage = `INFORMAÇÃO DO PRODUTO:\n- Nome: ${productName}\n- Categorias WooCommerce: ${categories}\n- Descrição curta: ${shortDesc}`;
 
-                  console.log(`🔍 [lifestyle] Step 1: Calling text AI with generator prompt (${systemPrompt.length} chars system, ${userMessage.length} chars user)`);
+                  // Build vision-aware user message (image + text)
+                  const textContent = `ANALISA PRIMEIRO A IMAGEM DO PRODUTO.
+A imagem é a fonte de verdade sobre as características físicas reais do produto:
+- Tipo de superfície (lisa, grelha, queimadores visíveis, placa radiante, topo aberto, etc.)
+- Posicionamento (equipamento de chão ou de bancada)
+- Características visíveis (portas, janelas, comandos, etc.)
+- Materiais e acabamentos visíveis
+
+O prompt de imagem lifestyle que vais gerar DEVE ser 100% fiel ao que vês na imagem — nunca inventar características não visíveis no produto real.
+
+INFORMAÇÃO DO PRODUTO:
+- Nome: ${productName}
+- Categorias WooCommerce: ${categories}
+- Descrição curta: ${shortDesc}`;
+
+                  // Try with image first (vision mode)
+                  const visionMessage = originalImage
+                    ? [{
+                        role: "user",
+                        content: [
+                          { type: "image_url", image_url: { url: originalImage } },
+                          { type: "text", text: textContent },
+                        ],
+                      }]
+                    : [{ role: "user", content: textContent }];
+
+                  console.log(`🔍 [lifestyle] Step 1: Calling text AI with ${originalImage ? 'VISION (image+text)' : 'TEXT-ONLY'} mode, generator prompt (${systemPrompt.length} chars)`);
+
+                  let step1Success = false;
 
                   try {
                     const textResp = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
@@ -286,14 +339,14 @@ O alt text deve:
                         workspaceId,
                         capability: "text",
                         systemPrompt,
-                        messages: [{ role: "user", content: userMessage }],
+                        messages: visionMessage,
                         options: { max_tokens: 500 },
                       }),
                     });
 
                     if (!textResp.ok) {
                       generatorError = `HTTP ${textResp.status}: ${textResp.statusText}`;
-                      console.error(`❌ [lifestyle] Step 1 HTTP error: ${generatorError}`);
+                      console.error(`❌ [lifestyle] Step 1 vision HTTP error: ${generatorError}`);
                     }
 
                     const textWrapper = await textResp.json();
@@ -301,28 +354,67 @@ O alt text deve:
                     const generatedPrompt = (textResult.choices?.[0]?.message?.content || "").trim();
                     textProvider = textResult.model || textWrapper.used_model || "unknown";
 
-                    console.log(`🔍 [lifestyle] Step 1 result: status=${textResp.ok}, model=${textProvider}, prompt_length=${generatedPrompt.length}, has_error=${!!textWrapper.error}`);
+                    console.log(`🔍 [lifestyle] Step 1 vision result: status=${textResp.ok}, model=${textProvider}, prompt_length=${generatedPrompt.length}`);
                     if (textWrapper.error) {
-                      console.error(`❌ [lifestyle] Step 1 API error:`, textWrapper.error);
+                      console.error(`❌ [lifestyle] Step 1 vision API error:`, textWrapper.error);
                       generatorError = String(textWrapper.error);
                     }
 
                     if (generatedPrompt && generatedPrompt.length > 30) {
                       imagePrompt = generatedPrompt + PRODUCT_DOMINANCE;
-                      promptSource = "prompt_governance_lifestyle_generator";
-                      console.log(`✅ [lifestyle] Step 1 SUCCESS: AI-generated prompt (${generatedPrompt.length} chars) via ${textProvider}`);
-                    } else {
-                      generatorError = generatorError || `Short/empty result (${generatedPrompt.length} chars)`;
-                      console.warn(`⚠️ [lifestyle] Step 1 FAILED: ${generatorError}. Falling back.`);
-                      imagePrompt = renderPromptTemplate(
-                        lifestylePromptTemplate || `Coloca este produto num ambiente comercial realista e profissional. O produto deve ser o foco principal, centrado e em destaque. O ambiente deve corresponder à categoria do produto. Iluminação profissional, estilo de fotografia comercial de alta qualidade. Produto: {{product_name}}`,
-                        { productName, productType: product.product_type },
-                      ) + PRODUCT_DOMINANCE;
-                      promptSource = lifestylePromptTemplate ? "prompt_governance_image_fallback" : "hardcoded_fallback";
+                      promptSource = "prompt_governance_lifestyle_generator_vision";
+                      console.log(`✅ [lifestyle] Step 1 SUCCESS (vision): AI-generated prompt (${generatedPrompt.length} chars) via ${textProvider}`);
+                      step1Success = true;
                     }
-                  } catch (genErr: any) {
-                    generatorError = genErr?.message || String(genErr);
-                    console.error(`❌ [lifestyle] Step 1 EXCEPTION: ${generatorError}`);
+                  } catch (visionErr: any) {
+                    generatorError = visionErr?.message || String(visionErr);
+                    console.warn(`⚠️ [lifestyle] Step 1 vision EXCEPTION: ${generatorError}`);
+                  }
+
+                  // Fallback: retry text-only if vision failed and we had an image
+                  if (!step1Success && originalImage) {
+                    console.log(`🔄 [lifestyle] Step 1: Retrying TEXT-ONLY (vision fallback)...`);
+                    const physicalTerms = extractPhysicalTerms(shortDesc + ' ' + (product.optimized_short_description || ''));
+                    const textOnlyContent = physicalTerms.length > 0
+                      ? `${textContent}\n\nCARACTERÍSTICAS FÍSICAS IDENTIFICADAS NA DESCRIÇÃO:\n${physicalTerms.join(', ')}\nUsa APENAS estas características no prompt de imagem. Não inventes características não listadas.`
+                      : textContent;
+
+                    try {
+                      const textResp2 = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+                        body: JSON.stringify({
+                          taskType: "image_lifestyle_generation",
+                          workspaceId,
+                          capability: "text",
+                          systemPrompt,
+                          messages: [{ role: "user", content: textOnlyContent }],
+                          options: { max_tokens: 500 },
+                        }),
+                      });
+
+                      const textWrapper2 = await textResp2.json();
+                      const textResult2 = textWrapper2.result || textWrapper2;
+                      const generatedPrompt2 = (textResult2.choices?.[0]?.message?.content || "").trim();
+                      textProvider = textResult2.model || textWrapper2.used_model || "unknown";
+
+                      if (generatedPrompt2 && generatedPrompt2.length > 30) {
+                        imagePrompt = generatedPrompt2 + PRODUCT_DOMINANCE;
+                        promptSource = "prompt_governance_lifestyle_generator_text_fallback";
+                        console.log(`✅ [lifestyle] Step 1 SUCCESS (text-only fallback): prompt (${generatedPrompt2.length} chars) via ${textProvider}`);
+                        step1Success = true;
+                      } else {
+                        generatorError += ` | Text-only also failed (${generatedPrompt2.length} chars)`;
+                      }
+                    } catch (textErr: any) {
+                      generatorError += ` | Text fallback error: ${textErr?.message}`;
+                      console.error(`❌ [lifestyle] Step 1 text-only fallback EXCEPTION:`, textErr);
+                    }
+                  }
+
+                  // Final fallback: use static prompt template
+                  if (!step1Success) {
+                    console.warn(`⚠️ [lifestyle] Step 1 ALL ATTEMPTS FAILED: ${generatorError}. Using static fallback.`);
                     imagePrompt = renderPromptTemplate(
                       lifestylePromptTemplate || `Coloca este produto num ambiente comercial realista e profissional. O produto deve ser o foco principal, centrado e em destaque. O ambiente deve corresponder à categoria do produto. Iluminação profissional, estilo de fotografia comercial de alta qualidade. Produto: {{product_name}}`,
                       { productName, productType: product.product_type },
