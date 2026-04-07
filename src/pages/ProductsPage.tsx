@@ -146,6 +146,9 @@ const ProductsPage = () => {
   const [usoProfissionalInCustomField, setUsoProfissionalInCustomField] = useState(false);
   const [includeImageProcessing, setIncludeImageProcessing] = useState(false);
   const [selectedPromptTemplate, setSelectedPromptTemplate] = useState<string>("active");
+  const [selectedImagePromptTemplate, setSelectedImagePromptTemplate] = useState<string>(() => {
+    try { return localStorage.getItem("optimize_image_prompt_template") || "active"; } catch { return "active"; }
+  });
 
   // Fetch prompt templates for the selector
   const { data: promptTemplates } = useQuery({
@@ -160,6 +163,23 @@ const ProductsPage = () => {
         .in("prompt_type", ["description", "seo", "enrichment"])
         .order("prompt_type")
         .order("is_active", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+  // Fetch image prompt templates for the image prompt selector
+  const { data: imagePromptTemplates } = useQuery({
+    queryKey: ["image-prompt-templates-for-optimize", activeWorkspace?.id],
+    enabled: !!activeWorkspace?.id && includeImageProcessing,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("prompt_templates")
+        .select("id, prompt_name, prompt_type, is_active")
+        .eq("workspace_id", activeWorkspace!.id)
+        .eq("prompt_type", "image")
+        .order("is_active", { ascending: false })
+        .order("prompt_name");
       if (error) throw error;
       return data || [];
     },
@@ -440,6 +460,7 @@ const ProductsPage = () => {
         usoProfissionalRouting: includeUsoProfissional ? { inDescription: usoProfissionalInDescription, inCustomField: usoProfissionalInCustomField } : undefined,
         includeImageProcessing,
         promptTemplateId: selectedPromptTemplate !== "active" ? selectedPromptTemplate : undefined,
+        imagePromptTemplateId: selectedImagePromptTemplate !== "active" ? selectedImagePromptTemplate : undefined,
         ...speedFlags,
       });
       setShowFieldSelector(false);
@@ -460,12 +481,19 @@ const ProductsPage = () => {
     const token = new CancellationToken();
     cancellationTokenRef.current = token;
 
+    const directModeIds = [...pendingOptimizeIds];
+    const directWorkspaceId = activeWorkspace?.id;
+    const directIncludeUso = includeUsoProfissional;
+    const directUsoRouting = includeUsoProfissional ? { inDescription: usoProfissionalInDescription, inCustomField: usoProfissionalInCustomField } : undefined;
+    const directIncludeImages = includeImageProcessing;
+    const directImagePromptTemplateId = selectedImagePromptTemplate !== "active" ? selectedImagePromptTemplate : undefined;
+
     optimizeProducts.mutate({
-      productIds: pendingOptimizeIds,
+      productIds: directModeIds,
       fieldsToOptimize: fieldsToUse,
       selectedPhases: Array.from(selectedPhases),
       modelOverride: selectedModel !== "default" ? selectedModel : undefined,
-      workspaceId: activeWorkspace?.id,
+      workspaceId: directWorkspaceId,
       productNames: nameMap,
       cancellationToken: token,
       ...speedFlags,
@@ -473,6 +501,48 @@ const ProductsPage = () => {
         setBatchProgress(progress);
         if (progress.done >= progress.total || progress.cancelled) {
           setTimeout(() => setBatchProgress(null), 3000);
+          // Post-optimization: trigger Uso Profissional and Images for direct mode
+          if (progress.done >= progress.total && !progress.cancelled && directWorkspaceId) {
+            (async () => {
+              // Uso Profissional
+              if (directIncludeUso) {
+                for (const pid of directModeIds) {
+                  try {
+                    const { data: prod } = await supabase.from("products")
+                      .select("optimized_title, original_title, optimized_description, original_description, category, attributes")
+                      .eq("id", pid).maybeSingle();
+                    await supabase.functions.invoke("generate-uso-profissional", {
+                      body: {
+                        workspaceId: directWorkspaceId,
+                        productId: pid,
+                        productTitle: prod?.optimized_title || prod?.original_title || "Produto",
+                        productDescription: prod?.optimized_description || prod?.original_description || "",
+                        productCategory: prod?.category || "",
+                        productAttributes: prod?.attributes || [],
+                        triggered_by: "pipeline",
+                      },
+                    });
+                  } catch (e) { console.warn("Uso Prof direct mode error:", e); }
+                }
+                toast.success("📖 Uso Profissional gerado!");
+              }
+              // Images
+              if (directIncludeImages) {
+                try {
+                  await processImages({
+                    workspaceId: directWorkspaceId,
+                    productIds: directModeIds,
+                    mode: "optimize",
+                  });
+                  await processImages({
+                    workspaceId: directWorkspaceId,
+                    productIds: directModeIds,
+                    mode: "lifestyle",
+                  });
+                } catch (e) { console.warn("Image processing direct mode error:", e); }
+              }
+            })();
+          }
         }
       },
     });
@@ -1983,12 +2053,39 @@ const ProductsPage = () => {
                   </div>
                 )}
               </div>
-              <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
-                <div>
-                  <Label className="text-xs font-medium cursor-pointer" htmlFor="img-proc">🖼️ Processar Imagens (Optimize + Lifestyle)</Label>
-                  <p className="text-[10px] text-muted-foreground">Otimiza e gera imagens lifestyle para cada produto após a otimização.</p>
+              <div className="rounded-lg bg-muted/30 overflow-hidden">
+                <div className="flex items-center justify-between p-2">
+                  <div>
+                    <Label className="text-xs font-medium cursor-pointer" htmlFor="img-proc">🖼️ Processar Imagens (Optimize + Lifestyle)</Label>
+                    <p className="text-[10px] text-muted-foreground">Otimiza e gera imagens lifestyle para cada produto após a otimização.</p>
+                  </div>
+                  <Switch id="img-proc" checked={includeImageProcessing} onCheckedChange={setIncludeImageProcessing} />
                 </div>
-                <Switch id="img-proc" checked={includeImageProcessing} onCheckedChange={setIncludeImageProcessing} />
+                {includeImageProcessing && (
+                  <div className="px-3 pb-2 pt-1 border-t border-border/50">
+                    <Label className="text-xs font-medium">🖼️ Prompt de Imagem Lifestyle</Label>
+                    <Select
+                      value={selectedImagePromptTemplate}
+                      onValueChange={(v) => {
+                        setSelectedImagePromptTemplate(v);
+                        try { localStorage.setItem("optimize_image_prompt_template", v); } catch {}
+                      }}
+                    >
+                      <SelectTrigger className="h-8 mt-1">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">✅ Usar prompt ativo (padrão)</SelectItem>
+                        {(imagePromptTemplates || []).map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.is_active ? "✅ " : ""}{t.prompt_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[10px] text-muted-foreground mt-1">Escolha qual prompt usar para gerar as imagens lifestyle. O padrão usa o prompt marcado como ativo no Prompt Governance.</p>
+                  </div>
+                )}
               </div>
               <div className="p-2 rounded-lg bg-muted/30">
                 <Label className="text-xs font-medium">Prompt de Descrição</Label>
@@ -2070,7 +2167,7 @@ const ProductsPage = () => {
               )}
               {includeImageProcessing && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20">
-                  🖼️ Imagens
+                  🖼️ Imagens{selectedImagePromptTemplate !== "active" ? ` (${(imagePromptTemplates || []).find((t: any) => t.id === selectedImagePromptTemplate)?.prompt_name || "Custom"})` : ""}
                 </span>
               )}
               {skipKnowledge && (

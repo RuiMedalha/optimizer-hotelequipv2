@@ -29,9 +29,10 @@ Deno.serve(async (req) => {
     const { data: { user }, error: userError } = await userClient.auth.getUser(token);
     if (userError || !user) throw new Error("Não autenticado");
 
-    const { productIds, workspaceId, mode = "optimize", modelOverride } = await req.json();
+    const { productIds, workspaceId, mode = "optimize", modelOverride, imagePromptTemplateId } = await req.json();
     // mode: "optimize" = pad+enhance, "lifestyle" = generate contextual image
     // modelOverride: optional AI model to use (e.g. "google/gemini-3-pro-image-preview")
+    // imagePromptTemplateId: optional specific prompt template ID to use for lifestyle generation
     // Model is passed through to resolve-ai-route which handles provider routing
     const imageModel = modelOverride || undefined; // let resolve-ai-route pick the best default
 
@@ -103,12 +104,45 @@ Deno.serve(async (req) => {
       return version?.prompt_text || template.base_prompt || null;
     }
 
-    const [altPromptTemplate, lifestylePromptTemplate, optimizePromptTemplate, lifestyleGeneratorPrompt] = await Promise.all([
+    async function getImagePromptById(templateId: string): Promise<string | null> {
+      const { data: template } = await sb
+        .from("prompt_templates")
+        .select("id, base_prompt")
+        .eq("id", templateId)
+        .maybeSingle();
+
+      if (!template?.id) return null;
+
+      const { data: version } = await sb
+        .from("prompt_versions")
+        .select("prompt_text")
+        .eq("template_id", template.id)
+        .eq("is_active", true)
+        .order("version_number", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      return version?.prompt_text || template.base_prompt || null;
+    }
+
+    // If a specific image prompt template is provided, use it; otherwise use default active prompts
+    let lifestyleGeneratorPrompt: string | null = null;
+    if (imagePromptTemplateId) {
+      lifestyleGeneratorPrompt = await getImagePromptById(imagePromptTemplateId);
+      console.log(`🎯 [process-images] Using specific image prompt template: ${imagePromptTemplateId} (found: ${!!lifestyleGeneratorPrompt})`);
+    }
+
+    const [altPromptTemplate, lifestylePromptTemplate, optimizePromptTemplate, defaultGeneratorPrompt] = await Promise.all([
       getActiveImagePrompt("Imagem — Alt Text SEO"),
       getActiveImagePrompt("Imagem — Lifestyle"),
       getActiveImagePrompt("Imagem — Otimização"),
-      getActiveImagePrompt("Imagem — Lifestyle Prompt Generator"),
+      !imagePromptTemplateId ? getActiveImagePrompt("Imagem — Lifestyle Prompt Generator") : Promise.resolve(null),
     ]);
+
+    // Use specific template if provided, otherwise use default active generator
+    if (!lifestyleGeneratorPrompt) {
+      lifestyleGeneratorPrompt = defaultGeneratorPrompt;
+    }
 
     // Helper: generate SEO alt text for an image URL
     async function generateAltText(imageUrl: string, productName: string): Promise<string | null> {

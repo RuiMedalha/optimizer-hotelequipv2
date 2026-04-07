@@ -192,6 +192,7 @@ serve(async (req) => {
         usoProfissionalRouting,
         includeImageProcessing,
         promptTemplateId,
+        imagePromptTemplateId,
       } = body;
 
       if (!Array.isArray(productIds) || productIds.length === 0) {
@@ -213,7 +214,7 @@ serve(async (req) => {
           fields_to_optimize: fieldsToOptimize || [],
           model_override: modelOverride || null,
           started_at: new Date().toISOString(),
-          results: JSON.parse(JSON.stringify({ skipKnowledge, skipScraping, skipReranking, includeUsoProfissional: !!includeUsoProfissional, usoProfissionalRouting: usoProfissionalRouting || null, includeImageProcessing: !!includeImageProcessing, promptTemplateId: promptTemplateId || null })),
+          results: JSON.parse(JSON.stringify({ skipKnowledge, skipScraping, skipReranking, includeUsoProfissional: !!includeUsoProfissional, usoProfissionalRouting: usoProfissionalRouting || null, includeImageProcessing: !!includeImageProcessing, promptTemplateId: promptTemplateId || null, imagePromptTemplateId: imagePromptTemplateId || null })),
         })
         .select("id")
         .single();
@@ -368,6 +369,7 @@ serve(async (req) => {
       const jobUsoProfissionalRouting = jobFlags.usoProfissionalRouting || { inDescription: true, inCustomField: false };
       const jobIncludeImageProcessing = jobFlags.includeImageProcessing || false;
       const jobPromptTemplateId = jobFlags.promptTemplateId || null;
+      const jobImagePromptTemplateId = jobFlags.imagePromptTemplateId || null;
 
       const batchResults = await Promise.allSettled(
         batchIds.map(async (productId) => {
@@ -599,11 +601,12 @@ serve(async (req) => {
                       Authorization: authHeader,
                       "Content-Type": "application/json",
                     },
-                    body: JSON.stringify({
-                      productIds: [productId],
-                      workspaceId: job.workspace_id,
-                      mode: "lifestyle",
-                    }),
+                  body: JSON.stringify({
+                    productIds: [productId],
+                    workspaceId: job.workspace_id,
+                    mode: "lifestyle",
+                    ...(jobImagePromptTemplateId ? { imagePromptTemplateId: jobImagePromptTemplateId } : {}),
+                  }),
                   }
                 );
                 if (lifestyleResponse.ok) {
