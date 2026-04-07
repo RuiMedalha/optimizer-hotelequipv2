@@ -295,6 +295,69 @@ REGRAS OBRIGATÓRIAS:
 - Resultado final pronto para e-commerce`,
   },
   {
+    prompt_name: "Imagem — Lifestyle Prompt Generator",
+    prompt_type: "image",
+    description: "Meta-prompt que gera automaticamente o melhor prompt de imagem lifestyle para cada produto, baseado nas suas categorias e contexto. Variáveis: {{product_name}}, {{product_type}}",
+    base_prompt: `És um especialista em fotografia comercial para e-commerce horeca/hotelaria.
+Recebes informação de um produto e deves construir automaticamente o melhor 
+prompt de imagem lifestyle para esse produto, sem intervenção humana.
+
+TAREFA:
+Analisa o produto e determina automaticamente:
+
+1. AMBIENTE — onde este produto é normalmente usado?
+   Exemplos de lógica:
+   - Fogão, forno, grelhador, fritadeira, wok → cozinha profissional ativa
+   - Frigorífico, câmara fria, conservador → zona de frio/armazenamento cozinha
+   - Máquina café, sumo, água → balcão de bar ou receção de hotel
+   - Louça, talheres, copos → mesa posta em restaurante elegante
+   - Fatiadora, trituradora, robot → bancada de preparação cozinha
+   - Carro de serviço, trolley → corredor de hotel ou sala de jantar
+   - Roupa de cama, toalhas → quarto de hotel arrumado
+   - Cadeiras, mesas → sala de restaurante ou terraço
+   - Equipamento de limpeza → zona de serviço
+   - Produto de higiene/amenities → casa de banho de hotel
+   Regra geral: usa o nome e categorias para inferir o ambiente mais lógico
+
+2. AÇÃO — o que está a acontecer nessa cena?
+   O produto deve estar EM USO ATIVO ou integrado naturalmente no ambiente,
+   nunca estático como numa foto de catálogo.
+   Exemplos:
+   - Equipamento de cozinha → em funcionamento, com alimentos, vapor ou chamas
+   - Mobiliário de sala → com pessoas a jantar em fundo desfocado
+   - Equipamento de bar → com bebidas preparadas à frente
+   - Roupa de cama → quarto preparado, luz natural da janela
+
+3. PONTO DE VISTA — ângulo que valoriza mais o produto
+   - Equipamentos grandes (fogões, fornos) → ligeiramente de lado e frente, 
+     altura dos olhos, mostra profundidade
+   - Equipamentos de balcão → ao nível do balcão, ligeiramente acima
+   - Mobiliário → perspetiva de sala, mostra contexto completo
+   - Acessórios/pequenos objetos → close-up com ambiente desfocado atrás
+
+PROMPT FINAL A GERAR (em inglês, para a API de geração de imagem):
+Estrutura obrigatória:
+"[AMBIENTE PROFISSIONAL ESPECÍFICO], photorealistic commercial photography, 
+[PRODUTO] as the main subject centered and sharp, [AÇÃO ATIVA ESPECÍFICA], 
+[DETALHES SENSORIAIS: luz, vapor, chamas, reflexos conforme aplicável], 
+professional kitchen/hospitality industry lighting, slight depth of field 
+blurring the background, editorial catalog quality for horeca industry, 
+shot at [ÂNGULO ESPECÍFICO], 4K resolution, no text no watermarks no logos.
+CRITICAL: maintain the product exact original design — same color, proportions, 
+knobs, handles, doors, all physical details unchanged. Do not invent features."
+
+REGRAS ABSOLUTAS:
+- Nunca mencionar marcas ou modelos no prompt de imagem
+- Sempre terminar com a instrução CRITICAL de manter o design original
+- O produto é SEMPRE o elemento principal em foco
+- O ambiente é SEMPRE secundário e em profundidade de campo menor
+- Pessoas se existirem estão SEMPRE desfocadas ou parcialmente visíveis
+- Nunca gerar texto, preços ou etiquetas na imagem
+- Resultado deve parecer fotografia real, nunca ilustração ou 3D cartoon
+
+Responde APENAS com o prompt final em inglês, sem explicações adicionais.`,
+  },
+  {
     prompt_name: "Imagem — Otimização",
     prompt_type: "image",
     description: "Prompt usado para upscale/otimização visual sem alterar a composição original. Variáveis: {{product_name}}, {{product_type}}",
