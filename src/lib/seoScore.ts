@@ -93,14 +93,20 @@ export function calculateSeoScore(product: Product): { score: number; checks: Se
     detail: faq.length === 0 ? "Em falta" : `${faq.length} pergunta(s)`,
   });
 
-  // 9. Image alt texts
-  const altTexts = Array.isArray((product as any).image_alt_texts) ? (product as any).image_alt_texts : [];
+  // 9. Image alt texts — can be array [{url,alt_text}] or object {url: alt_text}
+  const rawAlt = (product as any).image_alt_texts;
+  let altCount = 0;
+  if (Array.isArray(rawAlt)) {
+    altCount = rawAlt.filter((a: any) => a?.alt_text || (typeof a === "string" && a)).length;
+  } else if (rawAlt && typeof rawAlt === "object") {
+    altCount = Object.values(rawAlt).filter((v: any) => typeof v === "string" && v.trim()).length;
+  }
   const imageCount = (product.image_urls ?? []).length;
   checks.push({
     label: "Alt Text Imagens",
-    passed: imageCount > 0 && altTexts.length >= imageCount,
+    passed: imageCount > 0 && altCount >= imageCount,
     weight: 10,
-    detail: imageCount === 0 ? "Sem imagens" : `${altTexts.length}/${imageCount} preenchidos`,
+    detail: imageCount === 0 ? "Sem imagens" : `${altCount}/${imageCount} preenchidos`,
   });
 
   // 10. Headings H1/H2/H3 hierarchy
@@ -182,12 +188,13 @@ export function analyzeHeadingHierarchy(html: string, focusKeywords: string[]): 
   });
 
   // RULE 4: No skipping levels (H3 without H2)
+  // In WooCommerce, H2 is used for the product title, so H3 in description is acceptable
   const h3WithoutH2 = h3s.length > 0 && h2s.length === 0;
   rules.push({
     label: "Hierarquia",
-    passed: !h3WithoutH2,
+    passed: true, // Always pass — H3-only is acceptable in WooCommerce context
     message: h3WithoutH2
-      ? `Hierarquia de headings incorreta: H3 sem H2 pai (info: pode ser aceitável se WooCommerce usa H2 no título)`
+      ? `Hierarquia: H3 sem H2 (aceitável — WooCommerce usa H2 no título) ✅`
       : `Hierarquia: OK ✅`,
   });
 
