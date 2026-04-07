@@ -103,10 +103,11 @@ Deno.serve(async (req) => {
       return version?.prompt_text || template.base_prompt || null;
     }
 
-    const [altPromptTemplate, lifestylePromptTemplate, optimizePromptTemplate] = await Promise.all([
+    const [altPromptTemplate, lifestylePromptTemplate, optimizePromptTemplate, lifestyleGeneratorPrompt] = await Promise.all([
       getActiveImagePrompt("Imagem — Alt Text SEO"),
       getActiveImagePrompt("Imagem — Lifestyle"),
       getActiveImagePrompt("Imagem — Otimização"),
+      getActiveImagePrompt("Imagem — Lifestyle Prompt Generator"),
     ]);
 
     // Helper: generate SEO alt text for an image URL
@@ -162,7 +163,7 @@ O alt text deve:
         // Get product
         const { data: product } = await sb
           .from("products")
-          .select("id, sku, original_title, image_urls, product_type, parent_product_id")
+          .select("id, sku, original_title, image_urls, product_type, parent_product_id, category, optimized_short_description, short_description")
           .eq("id", productId)
           .single();
 
@@ -216,11 +217,69 @@ O alt text deve:
 
               {
                 const productName = product.original_title || product.sku || "produto";
-                const prompt = renderPromptTemplate(
-                  lifestylePromptTemplate || `Coloca este produto num ambiente comercial realista e profissional. O produto deve ser o foco principal, centrado e em destaque. O ambiente deve corresponder à categoria do produto — por exemplo, equipamento de cozinha numa cozinha profissional moderna, mobiliário num espaço elegante. Iluminação profissional, estilo de fotografia comercial de alta qualidade. Produto: {{product_name}}`,
-                  { productName, productType: product.product_type },
-                );
+                const shortDesc = product.optimized_short_description || product.short_description || "";
+                const categories = product.category || "";
 
+                // ── STEP 1: Generate optimized image prompt via text AI (Prompt Governance) ──
+                let imagePrompt: string;
+                let promptSource = "hardcoded_fallback";
+                let textProvider = "none";
+
+                if (lifestyleGeneratorPrompt) {
+                  // Use the LIFESTYLE_IMAGE_PROMPT_GENERATOR from Prompt Governance
+                  const systemPrompt = renderPromptTemplate(lifestyleGeneratorPrompt, { productName, productType: product.product_type });
+                  const userMessage = `INFORMAÇÃO DO PRODUTO:\n- Nome: ${productName}\n- Categorias WooCommerce: ${categories}\n- Descrição curta: ${shortDesc}`;
+
+                  try {
+                    const textResp = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+                      body: JSON.stringify({
+                        taskType: "image_lifestyle_generation",
+                        workspaceId,
+                        capability: "text",
+                        systemPrompt,
+                        messages: [{ role: "user", content: userMessage }],
+                        options: { max_tokens: 500 },
+                      }),
+                    });
+                    const textWrapper = await textResp.json();
+                    const textResult = textWrapper.result || textWrapper;
+                    const generatedPrompt = (textResult.choices?.[0]?.message?.content || "").trim();
+                    textProvider = textResult.model || textWrapper.used_model || "unknown";
+
+                    if (generatedPrompt && generatedPrompt.length > 30) {
+                      imagePrompt = generatedPrompt;
+                      promptSource = "prompt_governance_lifestyle_generator";
+                      console.log(`🎯 [lifestyle] AI-generated prompt (${imagePrompt.length} chars) via ${textProvider}`);
+                    } else {
+                      console.warn(`[lifestyle] Generator returned short/empty result, falling back`);
+                      imagePrompt = renderPromptTemplate(
+                        lifestylePromptTemplate || `Coloca este produto num ambiente comercial realista e profissional. O produto deve ser o foco principal, centrado e em destaque. O ambiente deve corresponder à categoria do produto. Iluminação profissional, estilo de fotografia comercial de alta qualidade. Produto: {{product_name}}`,
+                        { productName, productType: product.product_type },
+                      );
+                      promptSource = lifestylePromptTemplate ? "prompt_governance_image_fallback" : "hardcoded_fallback";
+                    }
+                  } catch (genErr) {
+                    console.warn(`[lifestyle] Prompt generator failed, using fallback:`, genErr);
+                    imagePrompt = renderPromptTemplate(
+                      lifestylePromptTemplate || `Coloca este produto num ambiente comercial realista e profissional. O produto deve ser o foco principal, centrado e em destaque. O ambiente deve corresponder à categoria do produto. Iluminação profissional, estilo de fotografia comercial de alta qualidade. Produto: {{product_name}}`,
+                      { productName, productType: product.product_type },
+                    );
+                    promptSource = lifestylePromptTemplate ? "prompt_governance_image_fallback" : "hardcoded_fallback";
+                  }
+                } else {
+                  // No generator prompt available — use direct lifestyle prompt
+                  imagePrompt = renderPromptTemplate(
+                    lifestylePromptTemplate || `Coloca este produto num ambiente comercial realista e profissional. O produto deve ser o foco principal, centrado e em destaque. O ambiente deve corresponder à categoria do produto. Iluminação profissional, estilo de fotografia comercial de alta qualidade. Produto: {{product_name}}`,
+                    { productName, productType: product.product_type },
+                  );
+                  promptSource = lifestylePromptTemplate ? "prompt_governance_image" : "hardcoded_fallback";
+                }
+
+                console.log(`🖼️ [lifestyle] Prompt source: ${promptSource} | Text provider: ${textProvider}`);
+
+                // ── STEP 2: Generate the image using the crafted prompt ──
                 const aiResp = await fetch(
                   `${supabaseUrl}/functions/v1/resolve-ai-route`,
                   {
@@ -237,7 +296,7 @@ O alt text deve:
                         {
                           role: "user",
                           content: [
-                            { type: "text", text: prompt },
+                            { type: "text", text: imagePrompt },
                             {
                               type: "image_url",
                               image_url: { url: originalUrl },
@@ -299,7 +358,14 @@ O alt text deve:
                     sort_order: nextSortOrder,
                     status: "done",
                     alt_text: lifestyleAlt,
-                    generation_prompt: prompt,
+                    generation_prompt: imagePrompt,
+                    generation_metadata: JSON.stringify({
+                      prompt_id: "LIFESTYLE_IMAGE_PROMPT_GENERATOR",
+                      prompt_version: "1.0.0",
+                      prompt_source: promptSource,
+                      text_provider: textProvider,
+                      image_provider: imageModel || "default_routed",
+                    }),
                   });
 
                   nextSortOrder += 1;
