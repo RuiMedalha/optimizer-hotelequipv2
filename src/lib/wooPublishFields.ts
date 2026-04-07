@@ -4,6 +4,7 @@ export interface WooPublishField {
   key: string;
   label: string;
   group: string;
+  description?: string;
 }
 
 export interface WooPublishGroup {
@@ -22,6 +23,17 @@ export const WOO_PUBLISH_GROUPS: WooPublishGroup[] = [
       { key: "title", label: "Título", group: "content" },
       { key: "description", label: "Descrição", group: "content" },
       { key: "short_description", label: "Descrição Curta", group: "content" },
+    ],
+  },
+  {
+    key: "extra_content",
+    label: "Conteúdo Extra",
+    icon: "📋",
+    fields: [
+      { key: "faq_in_description", label: "FAQ na Descrição", group: "extra_content", description: "Injeta as FAQ no final da descrição do produto" },
+      { key: "faq_custom_field", label: "FAQ → Campo Custom", group: "extra_content", description: "Envia FAQ para meta field _product_faq (Yoast/RankMath)" },
+      { key: "uso_profissional_in_description", label: "Uso Profissional na Descrição", group: "extra_content", description: "Injeta o bloco de uso profissional na descrição" },
+      { key: "uso_profissional_custom_field", label: "Uso Profissional → Campo Custom", group: "extra_content", description: "Envia uso profissional para meta field _uso_profissional" },
     ],
   },
   {
@@ -75,6 +87,9 @@ export const WOO_PUBLISH_GROUPS: WooPublishGroup[] = [
 
 export const ALL_WOO_FIELD_KEYS = WOO_PUBLISH_GROUPS.flatMap(g => g.fields.map(f => f.key));
 
-export const DEFAULT_WOO_FIELDS = ALL_WOO_FIELD_KEYS.filter(k => k !== "meta_title" && k !== "meta_description" && k !== "slug");
+export const DEFAULT_WOO_FIELDS = ALL_WOO_FIELD_KEYS.filter(k => 
+  k !== "meta_title" && k !== "meta_description" && k !== "slug" &&
+  k !== "faq_custom_field" && k !== "uso_profissional_in_description" && k !== "uso_profissional_custom_field"
+);
 
 export const SETTING_KEY_WOO_PUBLISH_FIELDS = "woo_publish_fields_json";

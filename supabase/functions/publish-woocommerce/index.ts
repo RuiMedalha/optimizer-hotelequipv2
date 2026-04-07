@@ -884,6 +884,177 @@ function buildImageEntry(ref: string, position: number, altText?: string, hasAlt
   return img;
 }
 
+// ── FAQ HTML builder ──
+function buildFaqHtml(faq: any[]): string {
+  if (!Array.isArray(faq) || faq.length === 0) return "";
+  const items = faq.slice(0, 4).map((item: any) => {
+    const q = typeof item === "string" ? item : (item?.question || item?.q || "");
+    const a = typeof item === "string" ? "" : (item?.answer || item?.a || "");
+    if (!q) return "";
+    return `<div style="margin-bottom:12px;"><p style="font-weight:bold;color:#00526d;margin:0 0 4px 0;">${q}</p>${a ? `<p style="color:#6b7280;font-style:italic;margin:0;">${a}</p>` : ""}</div>`;
+  }).filter(Boolean);
+  if (items.length === 0) return "";
+  return `<!-- HOTELEQUIP:FAQ_START --><div class="hotelequip-faq" style="margin-top:24px;"><h3 style="color:#00526d;font-size:18px;margin-bottom:12px;">Perguntas Frequentes</h3>${items.join("")}</div><!-- HOTELEQUIP:FAQ_END -->`;
+}
+
+// ── FAQ JSON for custom field (Yoast/RankMath Schema) ──
+function buildFaqSchemaJson(faq: any[]): string {
+  if (!Array.isArray(faq) || faq.length === 0) return "[]";
+  const entries = faq.slice(0, 4).map((item: any) => ({
+    question: typeof item === "string" ? item : (item?.question || item?.q || ""),
+    answer: typeof item === "string" ? "" : (item?.answer || item?.a || ""),
+  })).filter(e => e.question);
+  return JSON.stringify(entries);
+}
+
+// ── Uso Profissional HTML builder ──
+function buildUsoProfissionalHtml(data: any): string {
+  if (!data) return "";
+  const parts: string[] = [];
+  if (data.intro) {
+    parts.push(`<p style="color:#374151;line-height:1.6;">${data.intro}</p>`);
+  }
+  const useCases = Array.isArray(data.use_cases) ? data.use_cases : [];
+  if (useCases.length > 0) {
+    const items = useCases.map((uc: any) => `<li><strong>${uc.context || ""}</strong>: ${uc.description || ""}</li>`).join("");
+    parts.push(`<h4 style="color:#00526d;margin:12px 0 6px;">Aplicações Profissionais</h4><ul style="padding-left:20px;">${items}</ul>`);
+  }
+  const tips = Array.isArray(data.professional_tips) ? data.professional_tips : [];
+  if (tips.length > 0) {
+    const items = tips.map((t: any) => `<li>${typeof t === "string" ? t : (t?.tip || t?.text || "")}</li>`).join("");
+    parts.push(`<h4 style="color:#00526d;margin:12px 0 6px;">Dicas Profissionais</h4><ul style="padding-left:20px;">${items}</ul>`);
+  }
+  const profiles = Array.isArray(data.target_profiles) ? data.target_profiles : [];
+  if (profiles.length > 0) {
+    const items = profiles.map((p: any) => typeof p === "string" ? p : (p?.name || "")).filter(Boolean);
+    if (items.length > 0) parts.push(`<h4 style="color:#00526d;margin:12px 0 6px;">Para Quem</h4><p>${items.join(" · ")}</p>`);
+  }
+  if (parts.length === 0) return "";
+  return `<!-- HOTELEQUIP:USO_PROFISSIONAL_START --><div class="hotelequip-uso-profissional" style="margin-top:24px;border-top:1px solid #e5e7eb;padding-top:16px;">${parts.join("")}</div><!-- HOTELEQUIP:USO_PROFISSIONAL_END -->`;
+}
+
+// ── Uso Profissional JSON for custom field ──
+function buildUsoProfissionalJson(data: any): string {
+  if (!data) return "{}";
+  return JSON.stringify({
+    intro: data.intro || "",
+    use_cases: Array.isArray(data.use_cases) ? data.use_cases : [],
+    professional_tips: Array.isArray(data.professional_tips) ? data.professional_tips : [],
+    target_profiles: Array.isArray(data.target_profiles) ? data.target_profiles : [],
+  });
+}
+
+// ── Inject or replace a block in description using HTML markers ──
+function injectOrReplaceBlock(description: string, startMarker: string, endMarker: string, newBlock: string): string {
+  const startIdx = description.indexOf(startMarker);
+  const endIdx = description.indexOf(endMarker);
+  if (startIdx >= 0 && endIdx >= 0) {
+    return description.substring(0, startIdx) + newBlock + description.substring(endIdx + endMarker.length);
+  }
+  return description + newBlock;
+}
+
+// ── Enrich WooCommerce payload with FAQ & Uso Profissional ──
+async function enrichWithExtraContent(
+  wooProduct: Record<string, unknown>,
+  product: any,
+  supabase: any,
+  adminClient: any,
+  has: (k: string) => boolean,
+) {
+  const ensureMeta = (): Array<{ key: string; value: string }> => {
+    if (!Array.isArray(wooProduct.meta_data)) wooProduct.meta_data = [];
+    return wooProduct.meta_data as Array<{ key: string; value: string }>;
+  };
+
+  // ── FAQ ──
+  const faq = Array.isArray(product.faq) ? product.faq : [];
+  if (faq.length > 0) {
+    // FAQ in description
+    if (has("faq_in_description")) {
+      const faqHtml = buildFaqHtml(faq);
+      if (faqHtml) {
+        const currentDesc = String(wooProduct.description || product.optimized_description || product.original_description || "");
+        wooProduct.description = injectOrReplaceBlock(
+          currentDesc,
+          "<!-- HOTELEQUIP:FAQ_START -->",
+          "<!-- HOTELEQUIP:FAQ_END -->",
+          faqHtml
+        );
+        console.log(`[enrichExtraContent] FAQ injected in description for ${product.id}`);
+      }
+    }
+
+    // FAQ to custom field
+    if (has("faq_custom_field")) {
+      const meta = ensureMeta();
+      meta.push({ key: "_product_faq", value: buildFaqSchemaJson(faq) });
+      // Also add Yoast FAQ block JSON for schema
+      meta.push({ key: "_yoast_wpseo_schema_page_type", value: "FAQPage" });
+      console.log(`[enrichExtraContent] FAQ sent to custom meta field for ${product.id}`);
+    }
+  }
+
+  // ── Uso Profissional ──
+  const wantsUsoInDesc = has("uso_profissional_in_description");
+  const wantsUsoCustom = has("uso_profissional_custom_field");
+
+  if (wantsUsoInDesc || wantsUsoCustom) {
+    // Fetch uso profissional data
+    const { data: usoData } = await adminClient
+      .from("product_uso_profissional")
+      .select("intro, use_cases, professional_tips, target_profiles, publish_enabled, placement")
+      .eq("product_id", product.id)
+      .maybeSingle();
+
+    if (usoData && usoData.publish_enabled) {
+      if (wantsUsoInDesc) {
+        const usoHtml = buildUsoProfissionalHtml(usoData);
+        if (usoHtml) {
+          let currentDesc = String(wooProduct.description || product.optimized_description || product.original_description || "");
+          // Respect placement preference
+          const placement = usoData.placement || "before_faq";
+          if (placement === "before_faq" && currentDesc.includes("<!-- HOTELEQUIP:FAQ_START -->")) {
+            const faqIdx = currentDesc.indexOf("<!-- HOTELEQUIP:FAQ_START -->");
+            currentDesc = currentDesc.substring(0, faqIdx) + usoHtml + currentDesc.substring(faqIdx);
+            // Remove any old uso block if it exists elsewhere
+            currentDesc = currentDesc.replace(/<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->[\s\S]*?<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->/g, "");
+            // Re-inject cleanly
+            wooProduct.description = injectOrReplaceBlock(
+              currentDesc.replace(usoHtml, ""), // remove the one we just added to avoid duplicates
+              "<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->",
+              "<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->",
+              ""
+            );
+            // Now place before FAQ
+            const desc = String(wooProduct.description);
+            const faqPos = desc.indexOf("<!-- HOTELEQUIP:FAQ_START -->");
+            if (faqPos >= 0) {
+              wooProduct.description = desc.substring(0, faqPos) + usoHtml + desc.substring(faqPos);
+            } else {
+              wooProduct.description = desc + usoHtml;
+            }
+          } else {
+            wooProduct.description = injectOrReplaceBlock(
+              currentDesc,
+              "<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->",
+              "<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->",
+              usoHtml
+            );
+          }
+          console.log(`[enrichExtraContent] Uso Profissional injected in description for ${product.id} (placement: ${placement})`);
+        }
+      }
+
+      if (wantsUsoCustom) {
+        const meta = ensureMeta();
+        meta.push({ key: "_uso_profissional", value: buildUsoProfissionalJson(usoData) });
+        console.log(`[enrichExtraContent] Uso Profissional sent to custom meta field for ${product.id}`);
+      }
+    }
+  }
+}
+
 async function buildBasePayload(
   product: any,
   supabase: any,
@@ -1664,6 +1835,9 @@ async function publishSingleProduct(
 
   const wooProduct = await buildBasePayload(enrichedProduct, supabase, baseUrl, auth, has, markupPercent, discountPercent);
 
+  // ── FAQ & Uso Profissional Content Routing ──
+  await enrichWithExtraContent(wooProduct, enrichedProduct, supabase, adminClient, has);
+
   // ── SEO Lifecycle integration ──
   // Check if product has a lifecycle record and enrich WooCommerce payload accordingly
   try {
@@ -1810,6 +1984,9 @@ async function publishVariableProduct(
 
   const parentPayload = await buildBasePayload(parent, supabase, baseUrl, auth, has, markupPercent, discountPercent);
   parentPayload.type = "variable";
+
+  // ── FAQ & Uso Profissional Content Routing for variable parent ──
+  await enrichWithExtraContent(parentPayload, parent, supabase, adminClient, has);
 
   // If the parent has no images, aggregate unique images from children for the gallery
   if (has("images") && (!parent.image_urls || parent.image_urls.length === 0) && children.length > 0) {
