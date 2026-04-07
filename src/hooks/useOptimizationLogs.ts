@@ -40,7 +40,7 @@ export function useProductOptimizationLogs(productId: string | null) {
           .limit(10),
         supabase
           .from("optimization_job_items" as any)
-          .select("id, product_id, status, error_message, task_type, created_at, completed_at")
+          .select("id, product_id, status, error_message, model_used, fields_optimized, tokens_used, created_at, completed_at")
           .eq("product_id", productId!)
           .order("created_at", { ascending: false })
           .limit(10),
@@ -65,20 +65,20 @@ export function useProductOptimizationLogs(productId: string | null) {
           model: "",
           prompt_tokens: 0,
           completion_tokens: 0,
-          total_tokens: 0,
+          total_tokens: ji.tokens_used || 0,
           knowledge_sources: [],
           supplier_name: null,
           supplier_url: null,
           had_knowledge: false,
           had_supplier: false,
           had_catalog: false,
-          fields_optimized: [],
+          fields_optimized: ji.fields_optimized || [],
           prompt_length: 0,
           created_at: ji.created_at,
           source: "job_item" as const,
           status: ji.status,
           error_message: ji.error_message,
-          task_type: ji.task_type,
+          task_type: ji.model_used ? `Modelo: ${ji.model_used}` : null,
         }));
 
       // Combine and sort by date

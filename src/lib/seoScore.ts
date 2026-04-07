@@ -103,7 +103,17 @@ export function calculateSeoScore(product: Product): { score: number; checks: Se
     detail: imageCount === 0 ? "Sem imagens" : `${altTexts.length}/${imageCount} preenchidos`,
   });
 
-  // 10. Category defined
+  // 10. Headings H1/H2/H3 hierarchy
+  const descHtml = product.optimized_description ?? "";
+  const headingCheck = analyzeHeadingHierarchy(descHtml, focusKws);
+  checks.push({
+    label: "Headings H1/H2/H3",
+    passed: headingCheck.failedCount === 0,
+    weight: 10,
+    detail: headingCheck.summary,
+  });
+
+  // 11. Category defined
   checks.push({
     label: "Categoria",
     passed: (product.category ?? "").length > 0,
@@ -117,6 +127,74 @@ export function calculateSeoScore(product: Product): { score: number; checks: Se
   const score = Math.round((earnedWeight / totalWeight) * 100);
 
   return { score, checks };
+}
+
+interface HeadingAnalysis {
+  rules: { label: string; passed: boolean; message: string }[];
+  failedCount: number;
+  summary: string;
+}
+
+export function analyzeHeadingHierarchy(html: string, focusKeywords: string[]): HeadingAnalysis {
+  const rules: { label: string; passed: boolean; message: string }[] = [];
+
+  if (typeof window === "undefined" || !html) {
+    return { rules: [], failedCount: 0, summary: "Sem descrição para analisar" };
+  }
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
+  const h1s = doc.querySelectorAll("h1");
+  const h2s = doc.querySelectorAll("h2");
+  const h3s = doc.querySelectorAll("h3");
+
+  // RULE 1: No H1 in description
+  const noH1 = h1s.length === 0;
+  rules.push({
+    label: "H1",
+    passed: noH1,
+    message: noH1 ? `H1: ausente ✅` : `H1 encontrado na descrição — deve ser apenas o título do produto`,
+  });
+
+  // RULE 2: At least 2 H2 or H3
+  const hasEnoughHeadings = h2s.length >= 2 || h3s.length >= 2;
+  rules.push({
+    label: "H2/H3",
+    passed: hasEnoughHeadings,
+    message: hasEnoughHeadings
+      ? `H2/H3: ${h2s.length + h3s.length} encontrados ✅`
+      : `Adiciona pelo menos 2 secções com H2 ou H3`,
+  });
+
+  // RULE 3: Focus keyword in first H2 or H3
+  const firstHeading = doc.querySelector("h2, h3");
+  const firstHeadingText = firstHeading?.textContent?.toLowerCase() ?? "";
+  const kwInHeading = focusKeywords.length > 0 && focusKeywords.some(kw =>
+    kw.split(/\s+/).some(word => firstHeadingText.includes(word.toLowerCase()))
+  );
+  const kwCheckApplicable = focusKeywords.length > 0 && firstHeading;
+  rules.push({
+    label: "Keyword",
+    passed: !kwCheckApplicable || kwInHeading,
+    message: kwInHeading || !kwCheckApplicable
+      ? `Keyword no heading: ${kwInHeading ? "✅" : "N/A"}`
+      : `Focus keyword ausente nos headings da descrição`,
+  });
+
+  // RULE 4: No skipping levels (H3 without H2)
+  const h3WithoutH2 = h3s.length > 0 && h2s.length === 0;
+  rules.push({
+    label: "Hierarquia",
+    passed: !h3WithoutH2,
+    message: h3WithoutH2
+      ? `Hierarquia de headings incorreta: H3 sem H2 pai (info: pode ser aceitável se WooCommerce usa H2 no título)`
+      : `Hierarquia: OK ✅`,
+  });
+
+  const failedCount = rules.filter(r => !r.passed).length;
+  const summary = rules.map(r => r.message).join(" | ");
+
+  return { rules, failedCount, summary };
 }
 
 export function getSeoFixSuggestions(checks: SeoCheck[]): string[] {
@@ -154,6 +232,9 @@ export function getSeoFixSuggestions(checks: SeoCheck[]): string[] {
         break;
       case "Categoria":
         suggestions.push("Defina manualmente ou otimize com Fase 1 para sugerir uma categoria.");
+        break;
+      case "Headings H1/H2/H3":
+        suggestions.push("Revise a descrição para ter hierarquia de headings correta (sem H1, pelo menos 2 H2/H3, keyword no primeiro heading).");
         break;
     }
   }
