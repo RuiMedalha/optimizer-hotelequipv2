@@ -189,6 +189,7 @@ serve(async (req) => {
         skipScraping,
         skipReranking,
         includeUsoProfissional,
+        usoProfissionalRouting,
         includeImageProcessing,
         promptTemplateId,
       } = body;
@@ -212,7 +213,7 @@ serve(async (req) => {
           fields_to_optimize: fieldsToOptimize || [],
           model_override: modelOverride || null,
           started_at: new Date().toISOString(),
-          results: JSON.parse(JSON.stringify({ skipKnowledge, skipScraping, skipReranking, includeUsoProfissional: !!includeUsoProfissional, includeImageProcessing: !!includeImageProcessing, promptTemplateId: promptTemplateId || null })),
+          results: JSON.parse(JSON.stringify({ skipKnowledge, skipScraping, skipReranking, includeUsoProfissional: !!includeUsoProfissional, usoProfissionalRouting: usoProfissionalRouting || null, includeImageProcessing: !!includeImageProcessing, promptTemplateId: promptTemplateId || null })),
         })
         .select("id")
         .single();
