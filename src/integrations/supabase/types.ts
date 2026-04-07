@@ -9535,6 +9535,8 @@ export type Database = {
           product_id: string
           professional_tips: Json | null
           publish_enabled: boolean | null
+          routing_in_custom_field: boolean
+          routing_in_description: boolean
           target_profiles: Json | null
           updated_at: string | null
           use_cases: Json | null
@@ -9548,6 +9550,8 @@ export type Database = {
           product_id: string
           professional_tips?: Json | null
           publish_enabled?: boolean | null
+          routing_in_custom_field?: boolean
+          routing_in_description?: boolean
           target_profiles?: Json | null
           updated_at?: string | null
           use_cases?: Json | null
@@ -9561,6 +9565,8 @@ export type Database = {
           product_id?: string
           professional_tips?: Json | null
           publish_enabled?: boolean | null
+          routing_in_custom_field?: boolean
+          routing_in_description?: boolean
           target_profiles?: Json | null
           updated_at?: string | null
           use_cases?: Json | null

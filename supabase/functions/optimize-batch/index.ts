@@ -189,6 +189,7 @@ serve(async (req) => {
         skipScraping,
         skipReranking,
         includeUsoProfissional,
+        usoProfissionalRouting,
         includeImageProcessing,
         promptTemplateId,
       } = body;
@@ -212,7 +213,7 @@ serve(async (req) => {
           fields_to_optimize: fieldsToOptimize || [],
           model_override: modelOverride || null,
           started_at: new Date().toISOString(),
-          results: JSON.parse(JSON.stringify({ skipKnowledge, skipScraping, skipReranking, includeUsoProfissional: !!includeUsoProfissional, includeImageProcessing: !!includeImageProcessing, promptTemplateId: promptTemplateId || null })),
+          results: JSON.parse(JSON.stringify({ skipKnowledge, skipScraping, skipReranking, includeUsoProfissional: !!includeUsoProfissional, usoProfissionalRouting: usoProfissionalRouting || null, includeImageProcessing: !!includeImageProcessing, promptTemplateId: promptTemplateId || null })),
         })
         .select("id")
         .single();
@@ -364,6 +365,7 @@ serve(async (req) => {
         skipReranking: jobFlags.skipReranking || false,
       };
       const jobIncludeUsoProfissional = jobFlags.includeUsoProfissional || false;
+      const jobUsoProfissionalRouting = jobFlags.usoProfissionalRouting || { inDescription: true, inCustomField: false };
       const jobIncludeImageProcessing = jobFlags.includeImageProcessing || false;
       const jobPromptTemplateId = jobFlags.promptTemplateId || null;
 
@@ -550,6 +552,8 @@ serve(async (req) => {
                       generated_at: new Date().toISOString(),
                       updated_at: new Date().toISOString(),
                       publish_enabled: true,
+                      routing_in_description: jobUsoProfissionalRouting.inDescription ?? true,
+                      routing_in_custom_field: jobUsoProfissionalRouting.inCustomField ?? false,
                     }, { onConflict: "product_id" });
                   console.log(`📖 Uso Profissional generated & saved for ${productId}`);
                 } else {
