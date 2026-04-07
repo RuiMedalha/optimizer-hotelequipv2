@@ -121,6 +121,7 @@ export const navGroups: NavGroup[] = [
     label: "Inteligência",
     icon: TrendingUp,
     items: [
+      { title: "Command Center", icon: TrendingUp, route: "/command-center", badge: "Novo" },
       { title: "Commerce Intelligence", icon: TrendingUp, route: "/inteligencia" },
       { title: "Market Intelligence", icon: Globe, route: "/market-intelligence" },
       { title: "Revenue & Demand", icon: DollarSign, route: "/revenue-demand" },
