@@ -29,9 +29,10 @@ Deno.serve(async (req) => {
     const { data: { user }, error: userError } = await userClient.auth.getUser(token);
     if (userError || !user) throw new Error("Não autenticado");
 
-    const { productIds, workspaceId, mode = "optimize", modelOverride } = await req.json();
+    const { productIds, workspaceId, mode = "optimize", modelOverride, imagePromptTemplateId } = await req.json();
     // mode: "optimize" = pad+enhance, "lifestyle" = generate contextual image
     // modelOverride: optional AI model to use (e.g. "google/gemini-3-pro-image-preview")
+    // imagePromptTemplateId: optional specific prompt template ID to use for lifestyle generation
     // Model is passed through to resolve-ai-route which handles provider routing
     const imageModel = modelOverride || undefined; // let resolve-ai-route pick the best default
 
