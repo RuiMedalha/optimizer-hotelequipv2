@@ -933,15 +933,50 @@ function buildUsoProfissionalHtml(data: any): string {
   return `<!-- HOTELEQUIP:USO_PROFISSIONAL_START --><div class="hotelequip-uso-profissional" style="margin-top:24px;border-top:1px solid #e5e7eb;padding-top:16px;">${parts.join("")}</div><!-- HOTELEQUIP:USO_PROFISSIONAL_END -->`;
 }
 
-// ── Uso Profissional JSON for custom field ──
+// ── Uso Profissional JSON for custom field (_product_conselhos repeater) ──
 function buildUsoProfissionalJson(data: any): string {
-  if (!data) return "{}";
-  return JSON.stringify({
-    intro: data.intro || "",
-    use_cases: Array.isArray(data.use_cases) ? data.use_cases : [],
-    professional_tips: Array.isArray(data.professional_tips) ? data.professional_tips : [],
-    target_profiles: Array.isArray(data.target_profiles) ? data.target_profiles : [],
-  });
+  if (!data) return "[]";
+  const repeater: Array<{ title: string; description: string }> = [];
+
+  // Add intro as first item if present
+  if (data.intro) {
+    repeater.push({ title: "Introdução", description: String(data.intro) });
+  }
+
+  // Add use cases
+  if (Array.isArray(data.use_cases)) {
+    for (const uc of data.use_cases) {
+      if (typeof uc === "string") {
+        repeater.push({ title: "Caso de Uso", description: uc });
+      } else if (uc && typeof uc === "object") {
+        repeater.push({ title: String(uc.title || uc.name || "Caso de Uso"), description: String(uc.description || uc.text || "") });
+      }
+    }
+  }
+
+  // Add professional tips
+  if (Array.isArray(data.professional_tips)) {
+    for (const tip of data.professional_tips) {
+      if (typeof tip === "string") {
+        repeater.push({ title: "Dica Profissional", description: tip });
+      } else if (tip && typeof tip === "object") {
+        repeater.push({ title: String(tip.title || tip.name || "Dica Profissional"), description: String(tip.description || tip.text || "") });
+      }
+    }
+  }
+
+  // Add target profiles
+  if (Array.isArray(data.target_profiles)) {
+    for (const tp of data.target_profiles) {
+      if (typeof tp === "string") {
+        repeater.push({ title: "Perfil Alvo", description: tp });
+      } else if (tp && typeof tp === "object") {
+        repeater.push({ title: String(tp.title || tp.name || "Perfil Alvo"), description: String(tp.description || tp.text || "") });
+      }
+    }
+  }
+
+  return JSON.stringify(repeater);
 }
 
 // ── Inject or replace a block in description using HTML markers ──
@@ -1048,7 +1083,7 @@ async function enrichWithExtraContent(
 
       if (wantsUsoCustom) {
         const meta = ensureMeta();
-        meta.push({ key: "_uso_profissional", value: buildUsoProfissionalJson(usoData) });
+        meta.push({ key: "_product_conselhos", value: buildUsoProfissionalJson(usoData) });
         console.log(`[enrichExtraContent] Uso Profissional sent to custom meta field for ${product.id}`);
       }
     }
