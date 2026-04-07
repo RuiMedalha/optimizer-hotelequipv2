@@ -546,6 +546,8 @@ const ProductsPage = () => {
                         console.log("[Uso Prof] Upsert success:", upsertResult);
                       }
                       usoOkCount++;
+                    } else {
+                      console.warn("[Uso Prof] Edge function returned no intro:", { usoErr, usoResult });
                     }
                   } catch (e) { console.warn("Uso Prof direct mode error:", e); }
                 }
