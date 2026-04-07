@@ -107,22 +107,24 @@ export function useOptimizationJob() {
     checkActiveJobs();
   }, []);
 
-  // Wakeup apenas para jobs queued presos; jobs processing são retomados pelo worker para evitar loops duplicados.
+  // Wakeup para jobs queued OU processing que estejam parados (sem progresso recente).
   useEffect(() => {
     if (!activeJob) return;
     if (["completed", "cancelled", "failed"].includes(activeJob.status)) return;
-    if (activeJob.status !== "queued") return;
     if (activeJob.processed_products >= activeJob.total_products) return;
 
     const interval = setInterval(async () => {
       if (!activeJob || wakeupInFlightRef.current) return;
 
       const ageMs = Date.now() - new Date(activeJob.updated_at).getTime();
-      const isStalled = ageMs > 120_000;
+      // queued: 120s, processing: 90s (mais agressivo para jobs stuck em processing)
+      const stalledThreshold = activeJob.status === "queued" ? 120_000 : 90_000;
+      const isStalled = ageMs > stalledThreshold;
       if (!isStalled) return;
 
       wakeupInFlightRef.current = true;
       try {
+        logger.info("Wakeup attempt for stalled job", { jobId: activeJob.id, status: activeJob.status, ageMs });
         await invokeEdgeFunction("optimize-batch", {
           body: {
             jobId: activeJob.id,
