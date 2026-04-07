@@ -95,11 +95,49 @@ Responde APENAS com JSON válido, sem markdown, sem code blocks:
   "targetProfiles": ["perfil 1", "perfil 2", "perfil 3"]
 }`;
 
-    // Use direct-ai-call with Lovable gateway as primary (no GEMINI_API_KEY needed)
+    // Resolve model from workspace ai_routing_rules (task_type = 'uso_profissional' or 'content_generation')
+    let resolvedModel = "lovable/gemini-2.5-flash"; // fallback only
+    try {
+      const serviceClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      );
+      const { data: routingRule } = await serviceClient
+        .from("ai_routing_rules")
+        .select("model_override, recommended_model, fallback_model")
+        .eq("workspace_id", workspaceId)
+        .in("task_type", ["uso_profissional", "content_generation"])
+        .eq("is_active", true)
+        .order("execution_priority", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (routingRule) {
+        resolvedModel = routingRule.model_override || routingRule.recommended_model || routingRule.fallback_model || resolvedModel;
+        console.log(`[generate-uso-profissional] Using configured model: ${resolvedModel}`);
+      } else {
+        // Check workspace default provider
+        const { data: defaultProvider } = await serviceClient
+          .from("ai_providers")
+          .select("default_model")
+          .eq("workspace_id", workspaceId)
+          .eq("is_active", true)
+          .order("priority_order", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        if (defaultProvider?.default_model) {
+          resolvedModel = defaultProvider.default_model;
+          console.log(`[generate-uso-profissional] Using workspace default model: ${resolvedModel}`);
+        }
+      }
+    } catch (routeErr) {
+      console.warn("[generate-uso-profissional] Failed to resolve model from routing, using fallback:", routeErr);
+    }
+
     const aiResponse = await directAICall({
       systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
-      model: "lovable/gemini-2.5-flash",
+      model: resolvedModel,
       temperature: 0.7,
       maxTokens: 2000,
       jsonMode: true,
