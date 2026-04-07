@@ -1143,7 +1143,15 @@ REGRAS OBRIGATÓRIAS:
         const fieldInstructions: string[] = [];
         if (fields.includes("title")) fieldInstructions.push(`TÍTULO:\n${getFieldPrompt("title", "Um título otimizado")}`);
         if (fields.includes("description")) {
-          let descPrompt = getFieldPrompt("description", "Uma descrição otimizada");
+          // If a description-type prompt template was selected, use its text as the field prompt
+          // This ensures Bullet Points vs Paragraph format is respected in the user prompt too
+          let descPrompt: string;
+          if (descriptionTemplateOverride) {
+            descPrompt = descriptionTemplateOverride;
+            console.log(`📋 Using description template override for field prompt (${descPrompt.substring(0, 60)}...)`);
+          } else {
+            descPrompt = getFieldPrompt("description", "Uma descrição otimizada");
+          }
           if (descriptionTemplate) {
             descPrompt += `\n\nTEMPLATE DE ESTRUTURA OBRIGATÓRIO — segue EXATAMENTE esta estrutura, substituindo as variáveis {{...}} pelo conteúdo gerado:\n${descriptionTemplate}`;
           }
