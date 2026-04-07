@@ -104,12 +104,45 @@ Deno.serve(async (req) => {
       return version?.prompt_text || template.base_prompt || null;
     }
 
-    const [altPromptTemplate, lifestylePromptTemplate, optimizePromptTemplate, lifestyleGeneratorPrompt] = await Promise.all([
+    async function getImagePromptById(templateId: string): Promise<string | null> {
+      const { data: template } = await sb
+        .from("prompt_templates")
+        .select("id, base_prompt")
+        .eq("id", templateId)
+        .maybeSingle();
+
+      if (!template?.id) return null;
+
+      const { data: version } = await sb
+        .from("prompt_versions")
+        .select("prompt_text")
+        .eq("template_id", template.id)
+        .eq("is_active", true)
+        .order("version_number", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      return version?.prompt_text || template.base_prompt || null;
+    }
+
+    // If a specific image prompt template is provided, use it; otherwise use default active prompts
+    let lifestyleGeneratorPrompt: string | null = null;
+    if (imagePromptTemplateId) {
+      lifestyleGeneratorPrompt = await getImagePromptById(imagePromptTemplateId);
+      console.log(`🎯 [process-images] Using specific image prompt template: ${imagePromptTemplateId} (found: ${!!lifestyleGeneratorPrompt})`);
+    }
+
+    const [altPromptTemplate, lifestylePromptTemplate, optimizePromptTemplate, defaultGeneratorPrompt] = await Promise.all([
       getActiveImagePrompt("Imagem — Alt Text SEO"),
       getActiveImagePrompt("Imagem — Lifestyle"),
       getActiveImagePrompt("Imagem — Otimização"),
-      getActiveImagePrompt("Imagem — Lifestyle Prompt Generator"),
+      !imagePromptTemplateId ? getActiveImagePrompt("Imagem — Lifestyle Prompt Generator") : Promise.resolve(null),
     ]);
+
+    // Use specific template if provided, otherwise use default active generator
+    if (!lifestyleGeneratorPrompt) {
+      lifestyleGeneratorPrompt = defaultGeneratorPrompt;
+    }
 
     // Helper: generate SEO alt text for an image URL
     async function generateAltText(imageUrl: string, productName: string): Promise<string | null> {
