@@ -1070,25 +1070,25 @@ async function enrichWithExtraContent(
       .maybeSingle();
 
     if (usoData && usoData.publish_enabled) {
-      if (wantsUsoInDesc) {
+      // Inject in description — ONLY if explicitly selected AND custom field is NOT selected (avoid duplication)
+      // If both are selected, inject in both places
+      const shouldInjectInDesc = wantsUsoInDesc && (!wantsUsoCustom || (wantsUsoInDesc && wantsUsoCustom));
+
+      if (shouldInjectInDesc) {
         const usoHtml = buildUsoProfissionalHtml(usoData);
         if (usoHtml) {
           let currentDesc = String(wooProduct.description || product.optimized_description || product.original_description || "");
-          // Respect placement preference
           const placement = usoData.placement || "before_faq";
           if (placement === "before_faq" && currentDesc.includes("<!-- HOTELEQUIP:FAQ_START -->")) {
             const faqIdx = currentDesc.indexOf("<!-- HOTELEQUIP:FAQ_START -->");
             currentDesc = currentDesc.substring(0, faqIdx) + usoHtml + currentDesc.substring(faqIdx);
-            // Remove any old uso block if it exists elsewhere
             currentDesc = currentDesc.replace(/<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->[\s\S]*?<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->/g, "");
-            // Re-inject cleanly
             wooProduct.description = injectOrReplaceBlock(
-              currentDesc.replace(usoHtml, ""), // remove the one we just added to avoid duplicates
+              currentDesc.replace(usoHtml, ""),
               "<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->",
               "<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->",
               ""
             );
-            // Now place before FAQ
             const desc = String(wooProduct.description);
             const faqPos = desc.indexOf("<!-- HOTELEQUIP:FAQ_START -->");
             if (faqPos >= 0) {
@@ -1105,6 +1105,17 @@ async function enrichWithExtraContent(
             );
           }
           console.log(`[enrichExtraContent] Uso Profissional injected in description for ${product.id} (placement: ${placement})`);
+        }
+      } else if (wantsUsoCustom && !wantsUsoInDesc) {
+        // Custom field only — strip Uso Profissional from description if present
+        if (wooProduct.description && String(wooProduct.description).includes("<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->")) {
+          wooProduct.description = injectOrReplaceBlock(
+            String(wooProduct.description),
+            "<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->",
+            "<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->",
+            ""
+          );
+          console.log(`[enrichExtraContent] Uso Profissional removed from description for ${product.id} (custom field only)`);
         }
       }
 
