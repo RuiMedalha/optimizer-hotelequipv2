@@ -141,6 +141,26 @@ const ProductsPage = () => {
   const [skipKnowledge, setSkipKnowledge] = useState(false);
   const [skipScraping, setSkipScraping] = useState(false);
   const [skipReranking, setSkipReranking] = useState(false);
+  const [includeUsoProfissional, setIncludeUsoProfissional] = useState(false);
+  const [selectedPromptTemplate, setSelectedPromptTemplate] = useState<string>("active");
+
+  // Fetch prompt templates for the selector
+  const { data: promptTemplates } = useQuery({
+    queryKey: ["prompt-templates-for-optimize", activeWorkspace?.id],
+    enabled: !!activeWorkspace?.id,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("prompt_templates")
+        .select("id, prompt_name, prompt_type, is_active")
+        .eq("workspace_id", activeWorkspace!.id)
+        .in("prompt_type", ["description", "seo", "enrichment"])
+        .order("prompt_type")
+        .order("is_active", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
   const [showVariations, setShowVariations] = useState(false);
   const [detectedGroups, setDetectedGroups] = useState<VariationGroup[]>([]);
   const [selectedGroups, setSelectedGroups] = useState<Set<number>>(new Set());
@@ -413,6 +433,8 @@ const ProductsPage = () => {
         fieldsToOptimize: fieldsToUse,
         modelOverride: selectedModel !== "default" ? selectedModel : undefined,
         workspaceId: activeWorkspace?.id,
+        includeUsoProfissional,
+        promptTemplateId: selectedPromptTemplate !== "active" ? selectedPromptTemplate : undefined,
         ...speedFlags,
       });
       setShowFieldSelector(false);
@@ -1914,6 +1936,36 @@ const ProductsPage = () => {
                   <p className="text-[10px] text-muted-foreground">Usa ranking simples em vez de IA. Poupa 1 chamada de IA por produto.</p>
                 </div>
                 <Switch id="skip-reranking" checked={skipReranking} onCheckedChange={setSkipReranking} />
+              </div>
+            </div>
+          </div>
+          {/* Conteúdo Extra: Uso Profissional + Prompt Selector */}
+          <div className="space-y-2 mt-3 pt-3 border-t">
+            <Label className="text-xs font-medium text-muted-foreground">📖 Conteúdo Extra & Prompts</Label>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                <div>
+                  <Label className="text-xs font-medium cursor-pointer" htmlFor="uso-prof">Gerar Uso Profissional</Label>
+                  <p className="text-[10px] text-muted-foreground">Gera conteúdo editorial sobre uso profissional HORECA para cada produto.</p>
+                </div>
+                <Switch id="uso-prof" checked={includeUsoProfissional} onCheckedChange={setIncludeUsoProfissional} />
+              </div>
+              <div className="p-2 rounded-lg bg-muted/30">
+                <Label className="text-xs font-medium">Prompt de Descrição</Label>
+                <Select value={selectedPromptTemplate} onValueChange={setSelectedPromptTemplate}>
+                  <SelectTrigger className="h-8 mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">✅ Usar prompt ativo (padrão)</SelectItem>
+                    {(promptTemplates || []).map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.is_active ? "✅ " : ""}{t.prompt_name} ({t.prompt_type})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground mt-1">Escolha qual prompt usar para esta otimização. O padrão usa o prompt marcado como ativo.</p>
               </div>
             </div>
           </div>
