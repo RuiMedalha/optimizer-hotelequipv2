@@ -7,6 +7,89 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/** Robust JSON extraction — handles markdown, bullets, partial JSON */
+function extractJsonFromResponse(raw: string): unknown {
+  // Strip markdown code blocks
+  let cleaned = raw
+    .replace(/```json\s*/gi, "")
+    .replace(/```\s*/g, "")
+    .trim();
+
+  // Find JSON boundaries
+  const jsonStart = cleaned.search(/[\{\[]/);
+  if (jsonStart === -1) {
+    throw new Error("No JSON object found in response");
+  }
+  const opener = cleaned[jsonStart];
+  const closer = opener === "[" ? "]" : "}";
+  const jsonEnd = cleaned.lastIndexOf(closer);
+  if (jsonEnd === -1 || jsonEnd <= jsonStart) {
+    throw new Error("No matching JSON close bracket found");
+  }
+
+  cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+
+  // First attempt
+  try {
+    return JSON.parse(cleaned);
+  } catch (_e) {
+    // Fix common LLM issues
+    cleaned = cleaned
+      .replace(/,\s*}/g, "}")          // trailing commas before }
+      .replace(/,\s*]/g, "]")          // trailing commas before ]
+      .replace(/[\x00-\x1F\x7F]/g, " ") // control characters
+      .replace(/"\s*\n\s*"/g, '", "');   // newline-split strings
+
+    try {
+      return JSON.parse(cleaned);
+    } catch (_e2) {
+      throw new Error("Could not parse JSON after cleanup");
+    }
+  }
+}
+
+/** Build result from a possibly messy AI response — extracts fields even if structure varies */
+function normalizeUsoProfissional(parsed: any): {
+  intro: string;
+  useCases: Array<{ context: string; description: string }>;
+  professionalTips: string[];
+  targetProfiles: string[];
+} {
+  const intro = typeof parsed.intro === "string" ? parsed.intro : "";
+
+  // useCases might be an array of objects or an array of strings
+  let useCases: Array<{ context: string; description: string }> = [];
+  if (Array.isArray(parsed.useCases)) {
+    useCases = parsed.useCases
+      .map((uc: any) => {
+        if (typeof uc === "string") return { context: uc, description: uc };
+        if (uc && typeof uc === "object" && (uc.context || uc.description)) {
+          return { context: uc.context || "", description: uc.description || "" };
+        }
+        return null;
+      })
+      .filter(Boolean);
+  } else if (Array.isArray(parsed.use_cases)) {
+    useCases = parsed.use_cases
+      .map((uc: any) => {
+        if (typeof uc === "string") return { context: uc, description: uc };
+        if (uc && typeof uc === "object") return { context: uc.context || uc.nome || "", description: uc.description || uc.descricao || "" };
+        return null;
+      })
+      .filter(Boolean);
+  }
+
+  const extractStrings = (val: any): string[] => {
+    if (Array.isArray(val)) return val.filter((t: any) => typeof t === "string" && t.trim());
+    return [];
+  };
+
+  const professionalTips = extractStrings(parsed.professionalTips || parsed.professional_tips || parsed.dicas);
+  const targetProfiles = extractStrings(parsed.targetProfiles || parsed.target_profiles || parsed.perfis);
+
+  return { intro, useCases, professionalTips, targetProfiles };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -83,7 +166,7 @@ Atributos:
 ${attributesText}
 
 Gera conteúdo editorial de uso profissional para este produto.
-Responde APENAS com JSON válido, sem markdown, sem code blocks:
+Responde APENAS com JSON válido, sem markdown, sem code blocks, sem bullets:
 {
   "intro": "1 parágrafo sobre o que este equipamento faz para profissionais",
   "useCases": [
@@ -93,9 +176,11 @@ Responde APENAS com JSON válido, sem markdown, sem code blocks:
   ],
   "professionalTips": ["dica 1", "dica 2", "dica 3"],
   "targetProfiles": ["perfil 1", "perfil 2", "perfil 3"]
-}`;
+}
 
-    // Resolve model from workspace ai_routing_rules (task_type = 'uso_profissional' or 'content_generation')
+IMPORTANTE: Devolve APENAS o JSON acima. Sem texto antes ou depois. Sem markdown.`;
+
+    // Resolve model from workspace ai_routing_rules
     let resolvedModel = "lovable/gemini-2.5-flash"; // fallback only
     try {
       const serviceClient = createClient(
@@ -116,7 +201,6 @@ Responde APENAS com JSON válido, sem markdown, sem code blocks:
         resolvedModel = routingRule.model_override || routingRule.recommended_model || routingRule.fallback_model || resolvedModel;
         console.log(`[generate-uso-profissional] Using configured model: ${resolvedModel}`);
       } else {
-        // Check workspace default provider
         const { data: defaultProvider } = await serviceClient
           .from("ai_providers")
           .select("default_model")
@@ -148,30 +232,30 @@ Responde APENAS com JSON válido, sem markdown, sem code blocks:
       throw new Error("AI returned empty response");
     }
 
-    // Parse the JSON response
-    let parsed;
+    console.log("[generate-uso-profissional] Raw AI response length:", rawContent.length);
+
+    // Parse with robust extractor
+    let parsed: any;
     try {
-      // Clean potential markdown code blocks
-      const cleaned = rawContent.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-      parsed = JSON.parse(cleaned);
+      parsed = extractJsonFromResponse(rawContent);
     } catch (parseErr) {
-      console.error("[generate-uso-profissional] Failed to parse AI response:", rawContent);
-      throw new Error("AI response was not valid JSON");
+      console.error("[generate-uso-profissional] JSON extraction failed. Raw:", rawContent.substring(0, 500));
+      // Last resort: try to build from raw text
+      parsed = {
+        intro: rawContent.substring(0, 300),
+        useCases: [],
+        professionalTips: [],
+        targetProfiles: [],
+      };
     }
 
-    // Validate structure
-    const result = {
-      intro: typeof parsed.intro === "string" ? parsed.intro : "",
-      useCases: Array.isArray(parsed.useCases)
-        ? parsed.useCases.filter((uc: any) => uc.context && uc.description)
-        : [],
-      professionalTips: Array.isArray(parsed.professionalTips)
-        ? parsed.professionalTips.filter((t: any) => typeof t === "string")
-        : [],
-      targetProfiles: Array.isArray(parsed.targetProfiles)
-        ? parsed.targetProfiles.filter((t: any) => typeof t === "string")
-        : [],
-    };
+    // Normalize to expected structure
+    const result = normalizeUsoProfissional(parsed);
+
+    // Warn if empty
+    if (!result.intro && result.useCases.length === 0) {
+      console.warn("[generate-uso-profissional] AI produced empty/unparseable content for product:", productId);
+    }
 
     // Log AI usage
     try {
