@@ -365,6 +365,7 @@ serve(async (req) => {
         skipReranking: jobFlags.skipReranking || false,
       };
       const jobIncludeUsoProfissional = jobFlags.includeUsoProfissional || false;
+      const jobUsoProfissionalRouting = jobFlags.usoProfissionalRouting || { inDescription: true, inCustomField: false };
       const jobIncludeImageProcessing = jobFlags.includeImageProcessing || false;
       const jobPromptTemplateId = jobFlags.promptTemplateId || null;
 
