@@ -422,7 +422,7 @@ O alt text deve:
                     sort_order: nextSortOrder,
                     status: "done",
                     alt_text: lifestyleAlt,
-                    generation_prompt: `${imagePrompt}\n\n--- METADATA ---\nprompt_source: ${promptSource}\ntext_provider: ${textProvider}\nimage_provider: ${imageModel || "default_routed"}`,
+                    generation_prompt: `${imagePrompt}\n\n--- METADATA ---\nprompt_source: ${promptSource}\ntext_provider: ${textProvider}\nimage_provider: ${imageModel || "default_routed"}${generatorError ? `\ngenerator_error: ${generatorError}` : ""}`,
                   });
 
                   nextSortOrder += 1;
