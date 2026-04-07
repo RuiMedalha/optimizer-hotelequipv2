@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Plus, FileCode, Cog, Wrench, ScrollText, Loader2, Sparkles, Palette, Image as ImageIcon, BookOpen } from "lucide-react";
+import { Plus, FileCode, Cog, Wrench, ScrollText, Loader2, Sparkles, Palette, Image as ImageIcon, BookOpen, ArrowRightLeft } from "lucide-react";
 import { DescriptionTemplateEditor } from "@/components/DescriptionTemplateEditor";
 import { PromptTemplatesTable } from "@/components/prompt-governance/PromptTemplatesTable";
 import { EditPromptTemplateDialog } from "@/components/prompt-governance/EditPromptTemplateDialog";
@@ -15,6 +15,7 @@ import { PromptVersionHistoryPanel } from "@/components/prompt-governance/Prompt
 import { PromptVersionCompareDialog } from "@/components/prompt-governance/PromptVersionCompareDialog";
 import { PromptPerformancePanel } from "@/components/prompt-governance/PromptPerformancePanel";
 import { ConfirmArchiveDialog } from "@/components/prompt-governance/ConfirmArchiveDialog";
+import { PromptSwitcherPanel } from "@/components/prompt-governance/PromptSwitcherPanel";
 import { ConfirmDeleteDialog } from "@/components/prompt-governance/ConfirmDeleteDialog";
 import { FieldPromptsSettings } from "@/components/FieldPromptsSettings";
 import { toast } from "sonner";
@@ -339,12 +340,12 @@ export default function PromptGovernancePage() {
   const {
     templates, createTemplate, updateTemplate, archiveTemplate, restoreTemplate,
     deleteTemplate, duplicateTemplate, useVersions, createVersion, activateVersion,
-    usageLogs, useVersionPerformance,
+    usageLogs, useVersionPerformance, switchActivePrompt,
   } = usePromptGovernance();
 
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [selectedVersion, setSelectedVersion] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("system");
+  const [activeTab, setActiveTab] = useState("switcher");
   const [seeding, setSeeding] = useState(false);
 
   // Create form
@@ -527,7 +528,10 @@ export default function PromptGovernancePage() {
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
+        <TabsList className="flex-wrap">
+          <TabsTrigger value="switcher" className="gap-1.5">
+            <ArrowRightLeft className="h-4 w-4" /> Troca Rápida
+          </TabsTrigger>
           <TabsTrigger value="system" className="gap-1.5">
             <Cog className="h-4 w-4" /> Sistema ({systemTemplates.length})
           </TabsTrigger>
@@ -551,6 +555,15 @@ export default function PromptGovernancePage() {
           </TabsTrigger>
           <TabsTrigger value="performance" disabled={!selectedVersion}>Performance</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="switcher" className="mt-4">
+          <PromptSwitcherPanel
+            templates={templates.data || []}
+            onSwitch={(p) => switchActivePrompt.mutate(p)}
+            switching={switchActivePrompt.isPending}
+            onSelectTemplate={(id) => { setSelectedTemplate(id); setSelectedVersion(null); setActiveTab("versions"); }}
+          />
+        </TabsContent>
 
         <TabsContent value="system" className="mt-4">
           <div className="mb-4 p-3 bg-muted/50 rounded-lg">
