@@ -1037,15 +1037,27 @@ async function enrichWithExtraContent(
       }
     } else if (wantsFaqCustom) {
       // Custom field only — strip FAQ from description if present
-      if (wooProduct.description && String(wooProduct.description).includes("<!-- HOTELEQUIP:FAQ_START -->")) {
-        wooProduct.description = injectOrReplaceBlock(
-          String(wooProduct.description),
-          "<!-- HOTELEQUIP:FAQ_START -->",
-          "<!-- HOTELEQUIP:FAQ_END -->",
-          ""
-        );
-        console.log(`[enrichExtraContent] FAQ removed from description for ${product.id} (custom field only)`);
+      let desc = String(wooProduct.description || "");
+      // Strip marker-based FAQ blocks
+      if (desc.includes("<!-- HOTELEQUIP:FAQ_START -->")) {
+        desc = injectOrReplaceBlock(desc, "<!-- HOTELEQUIP:FAQ_START -->", "<!-- HOTELEQUIP:FAQ_END -->", "");
+        console.log(`[enrichExtraContent] FAQ markers removed from description for ${product.id}`);
       }
+      // Also strip inline product-faq divs (embedded by optimize-product)
+      if (desc.includes('class="product-faq"') || desc.includes("product-faq")) {
+        desc = desc.replace(/<div\s+class=["']product-faq["'][\s\S]*?<\/div>\s*<\/div>/gi, "");
+        console.log(`[enrichExtraContent] Inline FAQ div removed from description for ${product.id}`);
+      }
+      // Strip "Perguntas Frequentes" h3 sections that might be standalone
+      desc = desc.replace(/<h3[^>]*>Perguntas Frequentes<\/h3>[\s\S]*?(?=<h3|<div class="hotelequip|<!-- HOTELEQUIP|$)/gi, (match) => {
+        // Only strip if it looks like an FAQ section (has Q&A patterns)
+        if (match.includes("font-weight:bold") || match.includes("font-style:italic")) {
+          console.log(`[enrichExtraContent] Standalone FAQ h3 section removed from description for ${product.id}`);
+          return "";
+        }
+        return match;
+      });
+      wooProduct.description = desc.trim();
     }
 
     // FAQ to custom field
