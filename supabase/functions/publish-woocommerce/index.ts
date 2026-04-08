@@ -1201,7 +1201,7 @@ async function buildBasePayload(
       if (filteredImages.length > 0) {
         wooProduct.images = filteredImages;
       }
-      console.log(`[buildBasePayload] Product images: ${product.image_urls.length} input → ${filteredImages.length} resolved (wpMediaUploadDisabled=${wpMediaUploadDisabled})`);
+      console.log(`[buildBasePayload] Product images: ${product.image_urls.length} input → ${filteredImages.length} resolved`);
     }
   }
 
