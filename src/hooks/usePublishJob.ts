@@ -107,7 +107,7 @@ export function usePublishJob() {
       if (!activePublishJob || wakeupInFlightRef.current) return;
 
       const ageMs = Date.now() - new Date(activePublishJob.updated_at).getTime();
-      if (ageMs <= 120_000) return;
+      if (ageMs <= 60_000) return;
 
       wakeupInFlightRef.current = true;
       try {
