@@ -762,8 +762,12 @@ async function uploadImageToWPMedia(
   auth: string,
   filename?: string
 ): Promise<number | null> {
-  // Fast-fail: if a previous upload got 401/403, skip all subsequent uploads
-  if (wpMediaUploadDisabled) return null;
+  // Fast-fail: if a previous upload got 401/403, skip physical upload only
+  // The caller MUST still include the image URL directly in the payload
+  if (wpMediaUploadDisabled) {
+    console.log(`⏭️ WP Media upload skipped (disabled) for ${sourceUrl} — caller will use direct URL`);
+    return null;
+  }
 
   try {
     const resp = await fetch(sourceUrl);
@@ -788,10 +792,10 @@ async function uploadImageToWPMedia(
     if (!uploadResp.ok) {
       const errText = await uploadResp.text().catch(() => "");
       console.warn(`Failed to upload image to WP Media: ${uploadResp.status} ${errText.substring(0, 200)}`);
-      // If auth error, disable all future uploads for this batch to avoid repeated slow failures
+      // If auth error, disable physical uploads for this batch — images will still be sent as direct URLs
       if (uploadResp.status === 401 || uploadResp.status === 403) {
         wpMediaUploadDisabled = true;
-        console.warn(`⚡ WP Media uploads disabled for this batch due to ${uploadResp.status} auth error — using direct URLs instead`);
+        console.warn(`⚡ WP Media physical uploads disabled for this batch due to ${uploadResp.status} — all images will use direct URLs instead`);
       }
       return null;
     }
@@ -1206,7 +1210,12 @@ async function buildBasePayload(
         return resolveImageRef(ref, i, baseUrl, auth, altStr, has("image_alt_text") && !!altRaw);
       });
       const resolved = await Promise.all(imagePromises);
-      wooProduct.images = resolved.filter(Boolean);
+      const filteredImages = resolved.filter(Boolean);
+      // NEVER send images:[] — omit the field entirely if no images resolved
+      if (filteredImages.length > 0) {
+        wooProduct.images = filteredImages;
+      }
+      console.log(`[buildBasePayload] Product images: ${product.image_urls.length} input → ${filteredImages.length} resolved (wpMediaUploadDisabled=${wpMediaUploadDisabled})`);
     }
   }
 
