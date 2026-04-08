@@ -229,7 +229,7 @@ export function ProductDetailModal({ product, onClose }: Props) {
               locks={publishLocks} 
               className="mt-2"
               onForcePublish={() => {
-                publishWoo.mutate({ productIds: [product.id], workspaceId: activeWorkspace?.id });
+                publishWoo.mutate({ productIds: [product.id], workspaceId: activeWorkspace?.id, forcePublish: true });
                 onClose();
               }}
               isPublishing={publishWoo.isPending}
