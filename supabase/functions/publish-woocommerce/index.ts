@@ -191,39 +191,44 @@ Deno.serve(async (req) => {
         const itemStartedAt = new Date().toISOString();
         const itemStartMs = Date.now();
 
-        // Check publish locks before attempting to publish
-        const { data: activeLocks } = await adminClient
-          .from("publish_locks")
-          .select("id, reason, lock_type")
-          .eq("product_id", product.id)
-          .eq("is_active", true)
-          .limit(1);
+        // Check publish locks before attempting to publish (skip if force_publish)
+        const forcePublish = !!(job.pricing as any)?.forcePublish;
+        if (!forcePublish) {
+          const { data: activeLocks } = await adminClient
+            .from("publish_locks")
+            .select("id, reason, lock_type")
+            .eq("product_id", product.id)
+            .eq("is_active", true)
+            .limit(1);
 
-        if (activeLocks && activeLocks.length > 0) {
-          const lockReason = activeLocks[0].reason || "Produto bloqueado para publicação";
-          console.warn(`⛔ Product ${product.id} skipped: publish lock active (${activeLocks[0].lock_type})`);
-          existingResults.push({
-            id: product.id,
-            status: "error",
-            error: `Publicação bloqueada: ${lockReason}`,
-          });
+          if (activeLocks && activeLocks.length > 0) {
+            const lockReason = activeLocks[0].reason || "Produto bloqueado para publicação";
+            console.warn(`⛔ Product ${product.id} skipped: publish lock active (${activeLocks[0].lock_type})`);
+            existingResults.push({
+              id: product.id,
+              status: "error",
+              error: `Publicação bloqueada: ${lockReason}`,
+            });
 
-          await adminClient.from("publish_job_items").insert({
-            job_id: jobId,
-            product_id: product.id,
-            status: "skipped",
-            started_at: itemStartedAt,
-            completed_at: new Date().toISOString(),
-            duration_ms: Date.now() - itemStartMs,
-            error_message: `Publish lock: ${lockReason}`,
-          });
+            await adminClient.from("publish_job_items").insert({
+              job_id: jobId,
+              product_id: product.id,
+              status: "skipped",
+              started_at: itemStartedAt,
+              completed_at: new Date().toISOString(),
+              duration_ms: Date.now() - itemStartMs,
+              error_message: `Publish lock: ${lockReason}`,
+            });
 
-          await adminClient.from("publish_jobs").update({
-            processed_products: startIndex + existingResults.length - (job.results as any[])?.length + (job.processed_products || 0),
-            failed_products: (job.failed_products || 0) + 1,
-            results: existingResults,
-          }).eq("id", jobId);
-          continue;
+            await adminClient.from("publish_jobs").update({
+              processed_products: startIndex + existingResults.length - (job.results as any[])?.length + (job.processed_products || 0),
+              failed_products: (job.failed_products || 0) + 1,
+              results: existingResults,
+            }).eq("id", jobId);
+            continue;
+          }
+        } else {
+          console.log(`⚡ Force publish: skipping lock check for product ${product.id}`);
         }
 
         try {
@@ -305,7 +310,7 @@ Deno.serve(async (req) => {
     }
 
     // ── MODE: Create a new job ──
-    const { productIds, publishFields, pricing, scheduledFor, workspaceId } = body;
+    const { productIds, publishFields, pricing, scheduledFor, workspaceId, forcePublish } = body;
     if (!Array.isArray(productIds) || productIds.length === 0) {
       return new Response(JSON.stringify({ error: "Nenhum produto selecionado" }), {
         status: 400,
@@ -375,7 +380,7 @@ Deno.serve(async (req) => {
         total_products: allIds.length,
         product_ids: allIds,
         publish_fields: publishFields || [],
-        pricing: pricing || null,
+        pricing: { ...(pricing || {}), ...(forcePublish ? { forcePublish: true } : {}) },
         scheduled_for: scheduledFor || null,
       })
       .select("id")
