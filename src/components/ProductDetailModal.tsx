@@ -225,7 +225,15 @@ export function ProductDetailModal({ product, onClose }: Props) {
 
           {/* PUBLISH BLOCKER ALERT */}
           {publishLocks && publishLocks.length > 0 && (
-            <PublishBlockerAlert locks={publishLocks} className="mt-2" />
+            <PublishBlockerAlert 
+              locks={publishLocks} 
+              className="mt-2"
+              onForcePublish={() => {
+                publishWoo.mutate({ productIds: [product.id], workspaceId: activeWorkspace?.id });
+                onClose();
+              }}
+              isPublishing={publishWoo.isPending}
+            />
           )}
 
           {/* TEXTOS TAB */}
