@@ -1210,7 +1210,12 @@ async function buildBasePayload(
         return resolveImageRef(ref, i, baseUrl, auth, altStr, has("image_alt_text") && !!altRaw);
       });
       const resolved = await Promise.all(imagePromises);
-      wooProduct.images = resolved.filter(Boolean);
+      const filteredImages = resolved.filter(Boolean);
+      // NEVER send images:[] — omit the field entirely if no images resolved
+      if (filteredImages.length > 0) {
+        wooProduct.images = filteredImages;
+      }
+      console.log(`[buildBasePayload] Product images: ${product.image_urls.length} input → ${filteredImages.length} resolved (wpMediaUploadDisabled=${wpMediaUploadDisabled})`);
     }
   }
 
