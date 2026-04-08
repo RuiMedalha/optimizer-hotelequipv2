@@ -707,9 +707,11 @@ async function enrichProductImages(product: any, supabase: any): Promise<any> {
 // ── Image reference resolution ──
 const IMAGE_EXTENSIONS = /\.(webp|jpeg|jpg|png|gif|svg|bmp|avif|tiff|tif)$/i;
 const imageCache = new Map<string, Record<string, unknown>>();
+let wpMediaUploadDisabled = false;
 
 function resetImageCache() {
   imageCache.clear();
+  wpMediaUploadDisabled = false;
 }
 
 async function searchWPMediaByFilename(baseUrl: string, auth: string, filename: string): Promise<number | null> {
@@ -760,6 +762,9 @@ async function uploadImageToWPMedia(
   auth: string,
   filename?: string
 ): Promise<number | null> {
+  // Fast-fail: if a previous upload got 401/403, skip all subsequent uploads
+  if (wpMediaUploadDisabled) return null;
+
   try {
     const resp = await fetch(sourceUrl);
     if (!resp.ok) {
@@ -783,6 +788,11 @@ async function uploadImageToWPMedia(
     if (!uploadResp.ok) {
       const errText = await uploadResp.text().catch(() => "");
       console.warn(`Failed to upload image to WP Media: ${uploadResp.status} ${errText.substring(0, 200)}`);
+      // If auth error, disable all future uploads for this batch to avoid repeated slow failures
+      if (uploadResp.status === 401 || uploadResp.status === 403) {
+        wpMediaUploadDisabled = true;
+        console.warn(`⚡ WP Media uploads disabled for this batch due to ${uploadResp.status} auth error — using direct URLs instead`);
+      }
       return null;
     }
 
