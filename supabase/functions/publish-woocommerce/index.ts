@@ -310,7 +310,7 @@ Deno.serve(async (req) => {
     }
 
     // ── MODE: Create a new job ──
-    const { productIds, publishFields, pricing, scheduledFor, workspaceId } = body;
+    const { productIds, publishFields, pricing, scheduledFor, workspaceId, forcePublish } = body;
     if (!Array.isArray(productIds) || productIds.length === 0) {
       return new Response(JSON.stringify({ error: "Nenhum produto selecionado" }), {
         status: 400,
@@ -380,7 +380,7 @@ Deno.serve(async (req) => {
         total_products: allIds.length,
         product_ids: allIds,
         publish_fields: publishFields || [],
-        pricing: pricing || null,
+        pricing: { ...(pricing || {}), ...(forcePublish ? { forcePublish: true } : {}) },
         scheduled_for: scheduledFor || null,
       })
       .select("id")
