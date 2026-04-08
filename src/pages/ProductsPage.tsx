@@ -2481,8 +2481,14 @@ const ProductsPage = () => {
                 });
                 setSelected(new Set());
                 setShowPublishModal(false);
-              } catch (err) {
-                // Modal permanece aberto e seleção mantida em caso de erro
+                toast.success("Publicação iniciada em background", {
+                  description: `${allPublishIds.length} produto(s) a ser publicado(s). Pode fechar o browser.`,
+                });
+              } catch (err: any) {
+                console.error("[publish] Failed to start job", err);
+                toast.error("Falha ao iniciar publicação", {
+                  description: err?.message || "Erro desconhecido. Tente novamente.",
+                });
               }
             }}
           />
