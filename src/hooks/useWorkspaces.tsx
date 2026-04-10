@@ -50,9 +50,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     return getStorageItem("active_workspace_id");
   });
 
-  const { data: workspaces = [], isLoading } = useQuery({
+  const { data: workspaces = [], isLoading, error: workspacesError } = useQuery({
     queryKey: ["workspaces"],
     enabled: !!user,
+    retry: 3,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("workspaces")
@@ -62,6 +64,14 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       return data as unknown as Workspace[];
     },
   });
+
+  // Show error toast when workspace loading fails persistently
+  useEffect(() => {
+    if (workspacesError) {
+      console.error("[WorkspaceProvider] Failed to load workspaces:", workspacesError);
+      toast.error("Erro ao carregar workspaces. Verifique a sua conexão e tente recarregar.");
+    }
+  }, [workspacesError]);
 
   // Auto-create default workspace if none exist
   useEffect(() => {
