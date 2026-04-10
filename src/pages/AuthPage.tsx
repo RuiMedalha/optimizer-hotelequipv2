@@ -10,6 +10,38 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
 type View = "login" | "register" | "forgot";
+const AUTH_REQUEST_TIMEOUT_MS = 12000;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+
+    promise
+      .then((value) => {
+        window.clearTimeout(timeoutId);
+        resolve(value);
+      })
+      .catch((error) => {
+        window.clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
+}
+
+function toAuthMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : "Erro inesperado na autenticação.";
+
+  if (
+    message.includes("timed out") ||
+    message.includes("context canceled") ||
+    message.includes("Database error querying schema") ||
+    message.includes("Processing this request timed out")
+  ) {
+    return "O backend de autenticação está com timeouts neste momento. Tente novamente dentro de instantes.";
+  }
+
+  return message;
+}
 
 const AuthPage = () => {
   const [view, setView] = useState<View>("login");
@@ -23,12 +55,26 @@ const AuthPage = () => {
     setLoading(true);
 
     if (view === "forgot") {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
+      let error: Error | null = null;
+
+      try {
+        const result = await withTimeout(
+          supabase.auth.resetPasswordForEmail(email.trim(), {
+            redirectTo: `${window.location.origin}/reset-password`,
+          }),
+          AUTH_REQUEST_TIMEOUT_MS,
+          "Password reset request timed out",
+        );
+
+        error = result.error ? new Error(result.error.message) : null;
+      } catch (caughtError) {
+        error = caughtError instanceof Error ? caughtError : new Error("Erro inesperado.");
+      }
+
       setLoading(false);
+
       if (error) {
-        toast.error(error.message);
+        toast.error(toAuthMessage(error));
       } else {
         toast.success("Email de recuperação enviado! Verifique a sua caixa de entrada.");
         setView("login");

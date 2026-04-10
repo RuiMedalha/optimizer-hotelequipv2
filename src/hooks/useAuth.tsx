@@ -16,6 +16,38 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const SESSION_INIT_TIMEOUT_MS = 8000;
+const AUTH_REQUEST_TIMEOUT_MS = 12000;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+
+    promise
+      .then((value) => {
+        window.clearTimeout(timeoutId);
+        resolve(value);
+      })
+      .catch((error) => {
+        window.clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
+}
+
+function toAuthError(error: unknown) {
+  const message = error instanceof Error ? error.message : "Erro inesperado na autenticação.";
+
+  if (
+    message.includes("timed out") ||
+    message.includes("context canceled") ||
+    message.includes("Database error querying schema") ||
+    message.includes("Processing this request timed out")
+  ) {
+    return new Error("O backend de autenticação está com timeouts. Tente novamente dentro de instantes.");
+  }
+
+  return error instanceof Error ? error : new Error(message);
+}
 
 function getAuthStorageKey() {
   try {
@@ -123,17 +155,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error ? new Error(error.message) : null };
+    try {
+      const { error } = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password }),
+        AUTH_REQUEST_TIMEOUT_MS,
+        "Auth sign-in request timed out",
+      );
+
+      return { error: error ? toAuthError(error) : null };
+    } catch (error) {
+      return { error: toAuthError(error) };
+    }
   }, []);
 
   const signUp = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: window.location.origin },
-    });
-    return { error: error ? new Error(error.message) : null };
+    try {
+      const { error } = await withTimeout(
+        supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: window.location.origin },
+        }),
+        AUTH_REQUEST_TIMEOUT_MS,
+        "Auth sign-up request timed out",
+      );
+
+      return { error: error ? toAuthError(error) : null };
+    } catch (error) {
+      return { error: toAuthError(error) };
+    }
   }, []);
 
   const signOut = useCallback(async () => {
