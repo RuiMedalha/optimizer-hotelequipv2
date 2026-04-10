@@ -34,7 +34,7 @@ import { calculateSeoScore, getSeoScoreColor, getSeoScoreBg, getSeoFixSuggestion
 import { format } from "date-fns";
 import { pt } from "date-fns/locale";
 import { useProductLocalizations, useTranslateProduct, useApproveLocalization, SUPPORTED_LOCALES } from "@/hooks/useTranslations";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/auth-context";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Props {

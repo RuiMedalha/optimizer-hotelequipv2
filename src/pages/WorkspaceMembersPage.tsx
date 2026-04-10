@@ -16,7 +16,7 @@ import {
 import { MemberRoleBadge } from "@/components/MemberRoleBadge";
 import { InviteMemberDialog } from "@/components/InviteMemberDialog";
 import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/auth-context";
 
 const WorkspaceMembersPage = () => {
   const { activeWorkspace } = useWorkspaceContext();

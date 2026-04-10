@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/auth-context";
 import { useCurrentUserProfile } from "@/hooks/useUserManagement";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { supabase } from "@/integrations/supabase/client";
