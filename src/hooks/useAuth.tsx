@@ -68,7 +68,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error("[useAuth] signOut error, forcing local clear", err);
+    }
+    // Always force-clear local state even if network call fails
+    setSession(null);
+    setUser(null);
   }, []);
 
   return (

@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   ChevronLeft,
   ChevronRight,
@@ -62,6 +62,7 @@ function saveGroupState(state: Record<string, boolean>) {
 export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const { signOut, user } = useAuth();
   const { data: profile } = useCurrentUserProfile();
   const {
@@ -386,7 +387,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
           )}
           <ThemeToggle collapsed={collapsed} />
           <button
-            onClick={signOut}
+            onClick={async () => { await signOut(); navigate("/login"); }}
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent hover:text-destructive transition-colors w-full"
             )}
