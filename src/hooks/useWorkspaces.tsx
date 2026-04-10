@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -46,6 +46,7 @@ export function useWorkspaceContext() {
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const defaultWorkspaceBootstrapAttempted = useRef(false);
   const [activeId, setActiveId] = useState<string | null>(() => {
     return getStorageItem("active_workspace_id");
   });
@@ -75,19 +76,37 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
 
   // Auto-create default workspace if none exist
   useEffect(() => {
+    if (
+      isLoading ||
+      workspacesError ||
+      !user ||
+      workspaces.length > 0 ||
+      defaultWorkspaceBootstrapAttempted.current
+    ) {
+      return;
+    }
+
+    defaultWorkspaceBootstrapAttempted.current = true;
+
     if (!isLoading && workspaces.length === 0 && user) {
       supabase
         .from("workspaces")
         .insert({ user_id: user.id, name: "Geral", description: "Workspace padrão" } as any)
         .select()
         .single()
-        .then(({ data }) => {
+        .then(({ data, error }) => {
+          if (error) {
+            defaultWorkspaceBootstrapAttempted.current = false;
+            console.error("[WorkspaceProvider] Failed to auto-create default workspace:", error);
+            return;
+          }
+
           if (data) {
             qc.invalidateQueries({ queryKey: ["workspaces"] });
           }
         });
     }
-  }, [isLoading, workspaces.length, user]);
+  }, [isLoading, workspaces.length, user, workspacesError, qc]);
 
   // Auto-select first workspace
   useEffect(() => {
