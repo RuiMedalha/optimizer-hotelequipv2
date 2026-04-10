@@ -22,7 +22,8 @@ REGRAS OBRIGATÓRIAS:
 - Inclui linha/série se aplicável (ex: "Linha 700", "Linha 900")
 - Inclui capacidade/dimensão se relevante (ex: "40x40", "4 Bicos", "8 Litros")
 - Mantém o tipo de energia se aplicável (Gás, Elétrico, etc.)
-- Nunca uses palavras genéricas como "Profissional" sem contexto técnico`,
+- Nunca uses palavras genéricas como "Profissional" sem contexto técnico
+- REGRA CRÍTICA DE CLASSIFICAÇÃO TÉRMICA: Respeita SEMPRE a classificação térmica original do produto. Se o título original diz "neutra", o título otimizado DEVE manter "Neutra" — NUNCA substituir por "Refrigerada" ou "Aquecida". O mesmo aplica-se ao inverso. A classificação térmica (Neutra/Refrigerada/Aquecida) é um dado técnico factual que NUNCA pode ser alterado ou "melhorado" por SEO.`,
   },
   {
     key: "description",
