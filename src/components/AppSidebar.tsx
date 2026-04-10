@@ -426,6 +426,8 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                 onChange={(e) => setNewWsName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleCreateWorkspace()}
                 autoFocus
+                id="new-workspace-name"
+                name="new-workspace-name"
               />
             </div>
 
@@ -499,6 +501,8 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                 }
                 onKeyDown={(e) => e.key === "Enter" && handleEditWorkspace()}
                 autoFocus
+                id="edit-workspace-name"
+                name="edit-workspace-name"
               />
             </div>
           </div>
