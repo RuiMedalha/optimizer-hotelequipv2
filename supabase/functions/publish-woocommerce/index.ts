@@ -2397,7 +2397,19 @@ async function resolveUpsellCrosssellPass(adminClient: any, job: any, userId: st
         .in("sku", skuList)
         .not("woocommerce_id", "is", null);
       const ids = (found || []).map((f: any) => f.woocommerce_id).filter(Boolean);
-      if (ids.length > 0) updates.upsell_ids = ids;
+      if (ids.length > 0) {
+        // Validate IDs exist in WooCommerce before sending
+        const validIds: number[] = [];
+        for (const wid of ids) {
+          try {
+            await wooFetch(baseUrl, auth, `/products/${wid}`, "GET");
+            validIds.push(wid);
+          } catch {
+            console.warn(`Upsell WC#${wid} not found in WooCommerce, skipping.`);
+          }
+        }
+        if (validIds.length > 0) updates.upsell_ids = validIds;
+      }
     }
 
     if (crosssellSkus.length > 0) {
@@ -2408,7 +2420,18 @@ async function resolveUpsellCrosssellPass(adminClient: any, job: any, userId: st
         .in("sku", skuList)
         .not("woocommerce_id", "is", null);
       const ids = (found || []).map((f: any) => f.woocommerce_id).filter(Boolean);
-      if (ids.length > 0) updates.cross_sell_ids = ids;
+      if (ids.length > 0) {
+        const validIds: number[] = [];
+        for (const wid of ids) {
+          try {
+            await wooFetch(baseUrl, auth, `/products/${wid}`, "GET");
+            validIds.push(wid);
+          } catch {
+            console.warn(`Crosssell WC#${wid} not found in WooCommerce, skipping.`);
+          }
+        }
+        if (validIds.length > 0) updates.cross_sell_ids = validIds;
+      }
     }
 
     if (Object.keys(updates).length > 0) {
