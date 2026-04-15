@@ -2436,10 +2436,17 @@ async function resolveUpsellCrosssellPass(adminClient: any, job: any, userId: st
 
     if (Object.keys(updates).length > 0) {
       try {
+        // Validate the target product itself exists before updating
+        await wooFetch(baseUrl, auth, `/products/${product.woocommerce_id}`, "GET");
         await wooFetch(baseUrl, auth, `/products/${product.woocommerce_id}`, "PUT", updates);
         console.log(`✅ Updated upsell/crosssell for WC#${product.woocommerce_id}`);
       } catch (e: unknown) {
-        console.warn(`Failed to update upsell/crosssell for WC#${product.woocommerce_id}:`, e);
+        console.warn(`Skipped upsell/crosssell for WC#${product.woocommerce_id} (product may not exist on WooCommerce):`, (e as Error).message || e);
+        // Clear stale woocommerce_id if product doesn't exist
+        if (e instanceof WooNotFoundError || ((e as Error).message || "").includes("invalid_id")) {
+          await adminClient.from("products").update({ woocommerce_id: null }).eq("id", product.id);
+          console.warn(`🧹 Cleared stale woocommerce_id for product ${product.id} (WC#${product.woocommerce_id})`);
+        }
       }
     }
   }
