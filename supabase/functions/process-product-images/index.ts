@@ -563,6 +563,7 @@ INFORMAÇÃO DO PRODUTO:
                     ],
                     options: {
                       modalities: ["image", "text"],
+                      image_size: "1024x1024",
                     },
                   }),
                 }
