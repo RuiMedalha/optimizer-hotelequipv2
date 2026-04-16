@@ -755,10 +755,10 @@ async function resolveSkusToWooIds(supabase: any, adminClient: any, baseUrl: str
 // ── Enrich product images from `images` table ──
 // Replaces original URLs with optimized versions and adds any extra processed images
 // Lifestyle images are inserted as 2nd/3rd position (never first)
-async function enrichProductImages(product: any, supabase: any): Promise<any> {
+async function enrichProductImages(product: any, supabase: any, opts?: { skipOriginals?: boolean; skipLifestyle?: boolean }): Promise<any> {
   const { data: imageRows } = await supabase
     .from("images")
-    .select("original_url, optimized_url, sort_order, s3_key")
+    .select("original_url, optimized_url, sort_order, s3_key, alt_text")
     .eq("product_id", product.id)
     .eq("status", "done")
     .not("optimized_url", "is", null)
@@ -772,17 +772,49 @@ async function enrichProductImages(product: any, supabase: any): Promise<any> {
   const lifestyleUrls: string[] = [];
   const optimizedMap = new Map<string, string>();
 
+  // Build alt text migration map: when original→optimized, carry over alt text
+  const existingAlts = product.image_alt_texts && typeof product.image_alt_texts === "object" && !Array.isArray(product.image_alt_texts)
+    ? { ...product.image_alt_texts } : {};
+
   for (const row of imageRows) {
     const isLifestyle = row.s3_key && String(row.s3_key).includes("lifestyle");
     if (isLifestyle && row.optimized_url) {
       lifestyleUrls.push(row.optimized_url);
+      // Add alt text for lifestyle images from images table
+      if (row.alt_text) existingAlts[row.optimized_url] = row.alt_text;
     } else if (row.original_url && row.optimized_url) {
       optimizedMap.set(row.original_url, row.optimized_url);
+      // Migrate alt text from original URL to optimized URL
+      if (existingAlts[row.original_url] && !existingAlts[row.optimized_url]) {
+        existingAlts[row.optimized_url] = existingAlts[row.original_url];
+      }
+      // Also use alt_text from images table if available
+      if (row.alt_text && !existingAlts[row.optimized_url]) {
+        existingAlts[row.optimized_url] = row.alt_text;
+      }
     }
   }
 
+  const skipOriginals = opts?.skipOriginals ?? false;
+  const skipLifestyle = opts?.skipLifestyle ?? false;
+
   // Replace originals with optimized versions
-  const enriched = urls.map((url: string) => optimizedMap.get(url) || url);
+  let enriched: string[];
+  if (skipOriginals && optimizedMap.size > 0) {
+    // Only include URLs that have optimized versions (skip originals that weren't optimized)
+    enriched = urls
+      .map((url: string) => optimizedMap.get(url) || (optimizedMap.has(url) ? null : null))
+      .filter(Boolean) as string[];
+    // Actually: keep URLs that have an optimized replacement, drop originals without one
+    enriched = [];
+    for (const url of urls) {
+      const opt = optimizedMap.get(url);
+      if (opt) enriched.push(opt); // Use optimized version
+      // Skip original if skipOriginals is true and an optimized version exists for any image
+    }
+  } else {
+    enriched = urls.map((url: string) => optimizedMap.get(url) || url);
+  }
 
   // Add any non-lifestyle optimized URLs not already in the list
   for (const row of imageRows) {
@@ -793,18 +825,18 @@ async function enrichProductImages(product: any, supabase: any): Promise<any> {
   }
 
   // Insert lifestyle images as 2nd/3rd position (after the first/main image)
-  if (lifestyleUrls.length > 0 && enriched.length > 0) {
+  let finalList = enriched;
+  if (!skipLifestyle && lifestyleUrls.length > 0 && enriched.length > 0) {
     const firstImage = enriched[0];
     const rest = enriched.slice(1);
-    // Filter out lifestyle URLs that might already be in the list
     const newLifestyle = lifestyleUrls.filter(u => !enriched.includes(u));
-    const finalList = [firstImage, ...newLifestyle, ...rest];
-    console.log(`[enrichProductImages] Product ${product.id}: ${urls.length} original → ${finalList.length} enriched (${lifestyleUrls.length} lifestyle inserted after first)`);
-    return { ...product, image_urls: finalList };
+    finalList = [firstImage, ...newLifestyle, ...rest];
+    console.log(`[enrichProductImages] Product ${product.id}: ${urls.length} original → ${finalList.length} enriched (${lifestyleUrls.length} lifestyle, skipOrig=${skipOriginals}, skipLife=${skipLifestyle})`);
+  } else {
+    console.log(`[enrichProductImages] Product ${product.id}: ${urls.length} original → ${enriched.length} enriched (skipOrig=${skipOriginals}, skipLife=${skipLifestyle})`);
   }
 
-  console.log(`[enrichProductImages] Product ${product.id}: ${urls.length} original → ${enriched.length} enriched (${imageRows.length} optimized rows)`);
-  return { ...product, image_urls: enriched };
+  return { ...product, image_urls: finalList, image_alt_texts: existingAlts };
 }
 
 // ── Image reference resolution ──
@@ -1292,11 +1324,25 @@ async function buildBasePayload(
 
   if (has("images")) {
     if (product.image_urls && product.image_urls.length > 0) {
-      const altTexts = product.image_alt_texts || [];
+      // image_alt_texts can be: object {url: altText}, array [{url, alt_text}], or array [string]
+      const rawAlts = product.image_alt_texts;
+      const altMap = new Map<string, string>();
+      if (rawAlts && typeof rawAlts === "object" && !Array.isArray(rawAlts)) {
+        // Object format: { "https://...image.jpg": "alt text" }
+        for (const [url, alt] of Object.entries(rawAlts)) {
+          if (typeof alt === "string") altMap.set(url, alt);
+        }
+      } else if (Array.isArray(rawAlts)) {
+        for (const item of rawAlts) {
+          if (typeof item === "object" && item?.url && item?.alt_text) {
+            altMap.set(item.url, item.alt_text);
+          }
+        }
+      }
       const imagePromises = product.image_urls.map((ref: string, i: number) => {
-        const altRaw = altTexts[i];
-        const altStr = typeof altRaw === "string" ? altRaw : (altRaw as any)?.alt || "";
-        return resolveImageRef(ref, i, baseUrl, auth, altStr, has("image_alt_text") && !!altRaw);
+        // Look up alt text by URL key (works with both original and optimized URLs)
+        const altStr = altMap.get(ref) || "";
+        return resolveImageRef(ref, i, baseUrl, auth, altStr, has("image_alt_text") && !!altStr);
       });
       const resolved = await Promise.all(imagePromises);
       const filteredImages = resolved.filter(Boolean);
@@ -1304,7 +1350,7 @@ async function buildBasePayload(
       if (filteredImages.length > 0) {
         wooProduct.images = filteredImages;
       }
-      console.log(`[buildBasePayload] Product images: ${product.image_urls.length} input → ${filteredImages.length} resolved`);
+      console.log(`[buildBasePayload] Product images: ${product.image_urls.length} input → ${filteredImages.length} resolved, alt texts found: ${altMap.size}`);
     }
   }
 
@@ -2016,7 +2062,7 @@ async function publishSingleProduct(
   markupPercent: number,
   discountPercent: number
 ): Promise<WooResult> {
-  const enrichedProduct = has("images") ? await enrichProductImages(product, supabase) : product;
+  const enrichedProduct = has("images") ? await enrichProductImages(product, supabase, { skipOriginals: has("skip_original_images"), skipLifestyle: has("skip_lifestyle_images") }) : product;
 
   if (enrichedProduct.product_type === "variable") {
     return await publishVariableProduct(enrichedProduct, supabase, adminClient, baseUrl, auth, has, markupPercent, discountPercent);
@@ -2184,7 +2230,7 @@ async function publishVariableProduct(
   const children: any[] = [];
   if (rawChildren && rawChildren.length > 0 && has("images")) {
     for (const child of rawChildren) {
-      children.push(await enrichProductImages(child, supabase));
+      children.push(await enrichProductImages(child, supabase, { skipOriginals: has("skip_original_images"), skipLifestyle: has("skip_lifestyle_images") }));
     }
   } else {
     children.push(...(rawChildren || []));
@@ -2204,15 +2250,27 @@ async function publishVariableProduct(
     const seenRefs = new Set<string>();
     for (const child of children) {
       const refs: string[] = Array.isArray(child.image_urls) ? child.image_urls : [];
-      const altTexts = child.image_alt_texts || [];
+      // Build alt text map from child's image_alt_texts (object or array format)
+      const rawAlts = child.image_alt_texts;
+      const childAltMap = new Map<string, string>();
+      if (rawAlts && typeof rawAlts === "object" && !Array.isArray(rawAlts)) {
+        for (const [url, alt] of Object.entries(rawAlts)) {
+          if (typeof alt === "string") childAltMap.set(url, alt);
+        }
+      } else if (Array.isArray(rawAlts)) {
+        for (const item of rawAlts) {
+          if (typeof item === "object" && item?.url && item?.alt_text) {
+            childAltMap.set(item.url, item.alt_text);
+          }
+        }
+      }
       for (let i = 0; i < refs.length; i++) {
         const ref = String(refs[i] || "").trim();
         if (ref && !seenRefs.has(ref)) {
           seenRefs.add(ref);
           const pos = childImagePromises.length;
-          const altRaw = altTexts[i];
-          const altStr = typeof altRaw === "string" ? altRaw : (altRaw as any)?.alt || "";
-          childImagePromises.push(resolveImageRef(ref, pos, baseUrl, auth, altStr, has("image_alt_text") && !!altRaw));
+          const altStr = childAltMap.get(ref) || "";
+          childImagePromises.push(resolveImageRef(ref, pos, baseUrl, auth, altStr, has("image_alt_text") && !!altStr));
         }
       }
     }

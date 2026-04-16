@@ -43,6 +43,8 @@ export const WOO_PUBLISH_GROUPS: WooPublishGroup[] = [
     fields: [
       { key: "images", label: "Imagens", group: "media" },
       { key: "image_alt_text", label: "Alt Text das Imagens", group: "media" },
+      { key: "skip_original_images", label: "Excluir imagens originais", group: "media", description: "Não enviar as imagens originais se existirem versões otimizadas" },
+      { key: "skip_lifestyle_images", label: "Excluir imagens lifestyle", group: "media", description: "Não enviar as imagens lifestyle geradas por IA" },
     ],
   },
   {
