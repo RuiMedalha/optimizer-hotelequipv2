@@ -38,6 +38,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useDuplicateDetection } from "@/hooks/useDuplicateDetection";
 import { DuplicateDetectionDialog } from "@/components/DuplicateDetectionDialog";
 import { AiComparisonWizard } from "@/components/ai-comparison/AiComparisonWizard";
+import { CategoryReviewModal } from "@/components/CategoryReviewModal";
 const statusLabels: Record<Enums<"product_status">, string> = {
   pending: "Pendente",
   processing: "A Processar",
