@@ -235,11 +235,13 @@ export async function exportProductsToExcel(products: Product[], fileName = "pro
   }
   const uniqueUserIds = [...new Set(products.map((p: any) => p.user_id).filter(Boolean))];
   const uniqueRunIds = [...new Set(products.map((p: any) => p.workflow_run_id).filter(Boolean))];
-  const [userMap, sessionMap] = await Promise.all([
+  const productIds = products.map((p: any) => p.id).filter(Boolean);
+  const [userMap, sessionMap, usoMap] = await Promise.all([
     fetchUserLookup(uniqueUserIds),
     fetchSessionLookup(uniqueRunIds),
+    fetchUsoProfissionalLookup(productIds),
   ]);
-  const lookups: ProductLookups = { users: userMap, sessions: sessionMap };
+  const lookups: ProductLookups = { users: userMap, sessions: sessionMap, usoProfissional: usoMap };
   const rows = products.map((p) => productToRow(p, skuPrefix, lookups));
   writeExcel(rows, fileName);
   toast.success(`${products.length} produto(s) exportado(s) com sucesso!`);
@@ -309,11 +311,13 @@ export async function exportAllProductsToExcel(
   // Build lookup maps for user names and session names
   const uniqueUserIds = [...new Set(allProducts.map((p: any) => p.user_id).filter(Boolean))];
   const uniqueRunIds = [...new Set(allProducts.map((p: any) => p.workflow_run_id).filter(Boolean))];
-  const [userMap, sessionMap] = await Promise.all([
+  const productIds = allProducts.map((p: any) => p.id).filter(Boolean);
+  const [userMap, sessionMap, usoMap] = await Promise.all([
     fetchUserLookup(uniqueUserIds),
     fetchSessionLookup(uniqueRunIds),
+    fetchUsoProfissionalLookup(productIds),
   ]);
-  const lookups: ProductLookups = { users: userMap, sessions: sessionMap };
+  const lookups: ProductLookups = { users: userMap, sessions: sessionMap, usoProfissional: usoMap };
 
   const excelRows = allProducts.map((p) => productToRow(p, skuPrefix, lookups));
   writeExcel(excelRows, fileName);
