@@ -38,6 +38,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useDuplicateDetection } from "@/hooks/useDuplicateDetection";
 import { DuplicateDetectionDialog } from "@/components/DuplicateDetectionDialog";
 import { AiComparisonWizard } from "@/components/ai-comparison/AiComparisonWizard";
+import { CategoryReviewModal } from "@/components/CategoryReviewModal";
 const statusLabels: Record<Enums<"product_status">, string> = {
   pending: "Pendente",
   processing: "A Processar",
@@ -198,6 +199,7 @@ const ProductsPage = () => {
   const [exportTarget, setExportTarget] = useState<"all" | "selected">("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [showDuplicates, setShowDuplicates] = useState(false);
+  const [showCategoryReview, setShowCategoryReview] = useState(false);
   const PAGE_SIZE = 100;
 
   // Debounce search input
@@ -1017,6 +1019,20 @@ const ProductsPage = () => {
             <Copy className="w-3.5 h-3.5 mr-1" />
             Duplicados{duplicateGroups.length > 0 ? ` (${duplicateGroups.length})` : ""}
           </Button>
+          {(() => {
+            const catCount = (allProductsLight ?? []).filter((p: any) => p.suggested_category && p.suggested_category !== p.category).length;
+            return catCount > 0 ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs h-8 border-amber-500/50 text-amber-600"
+                onClick={() => setShowCategoryReview(true)}
+              >
+                <Wand2 className="w-3.5 h-3.5 mr-1" />
+                Rever Categorias IA ({catCount})
+              </Button>
+            ) : null;
+          })()}
           <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => {
             setExportTarget("all");
             setExportSkuPrefix("");
@@ -2578,6 +2594,11 @@ const ProductsPage = () => {
             setDetailProduct(p);
           }
         }}
+      />
+      <CategoryReviewModal
+        open={showCategoryReview}
+        onOpenChange={setShowCategoryReview}
+        products={(allProductsLight ?? []) as any}
       />
     </div>
   );
