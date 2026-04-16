@@ -153,6 +153,31 @@ function productToRow(p: Product, skuPrefix?: string, lookups?: ProductLookups) 
       continue;
     }
 
+    // Uso Profissional columns from lookups
+    if (col.key === "uso_profissional_intro") {
+      const uso = lookups?.usoProfissional?.get((p as any).id);
+      row[col.header] = uso?.intro || "";
+      continue;
+    }
+    if (col.key === "uso_profissional_cases") {
+      const uso = lookups?.usoProfissional?.get((p as any).id);
+      const cases = Array.isArray(uso?.use_cases) ? uso.use_cases : [];
+      row[col.header] = cases.map((uc: any) => `${uc.context || uc.title || ""}: ${uc.description || ""}`).join(" | ");
+      continue;
+    }
+    if (col.key === "uso_profissional_tips") {
+      const uso = lookups?.usoProfissional?.get((p as any).id);
+      const tips = Array.isArray(uso?.professional_tips) ? uso.professional_tips : [];
+      row[col.header] = tips.map((t: any) => typeof t === "string" ? t : (t?.tip || t?.text || "")).join(" | ");
+      continue;
+    }
+    if (col.key === "uso_profissional_profiles") {
+      const uso = lookups?.usoProfissional?.get((p as any).id);
+      const profiles = Array.isArray(uso?.target_profiles) ? uso.target_profiles : [];
+      row[col.header] = profiles.map((p: any) => typeof p === "string" ? p : (p?.name || "")).filter(Boolean).join(" | ");
+      continue;
+    }
+
     // Standard columns
     if (col.key === "faq" && Array.isArray(val)) {
       row[col.header] = val.map((f: any) => `Q: ${f.question} A: ${f.answer}`).join(" | ");
@@ -161,7 +186,6 @@ function productToRow(p: Product, skuPrefix?: string, lookups?: ProductLookups) 
     } else if (col.key === "image_alt_texts" && Array.isArray(val)) {
       row[col.header] = val.map((a: any) => a.alt_text).join(" | ");
     } else if (col.key === "attributes" && Array.isArray(val)) {
-      // Exclude EAN and Modelo — they have dedicated columns
       const others = val.filter((a: any) => !CRITICAL_ATTR_NAMES.has((a.name ?? "").toLowerCase().trim()));
       row[col.header] = others.map((a: any) => `${a.name}: ${a.value || (a.values || []).join(", ")}`).join(" | ");
     } else if (col.key === "focus_keyword" && Array.isArray(val)) {
