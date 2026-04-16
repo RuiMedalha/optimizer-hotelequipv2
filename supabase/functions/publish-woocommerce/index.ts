@@ -454,10 +454,16 @@ async function wooFetch(baseUrl: string, auth: string, endpoint: string, method:
     }
     try {
       const parsed = JSON.parse(errBody);
+      // Treat "invalid_id" (stale/non-existent WC IDs from other sites) as not-found
+      if (parsed.code === "woocommerce_rest_product_invalid_id") {
+        console.warn(`WooCommerce invalid_id at ${endpoint}, treating as not-found (stale ID from another site?)`);
+        throw new WooNotFoundError(endpoint);
+      }
       if (parsed.code === "product_invalid_sku" && parsed.data?.resource_id) {
         throw new WooSkuConflictError(parsed.data.resource_id, `SKU conflict: existing ID ${parsed.data.resource_id}`);
       }
     } catch (e: unknown) {
+      if (e instanceof WooNotFoundError) throw e;
       if (e instanceof WooSkuConflictError) throw e;
     }
     throw new Error(`WooCommerce ${resp.status}: ${errBody.substring(0, 300)}`);
