@@ -758,7 +758,7 @@ async function resolveSkusToWooIds(supabase: any, adminClient: any, baseUrl: str
 async function enrichProductImages(product: any, supabase: any): Promise<any> {
   const { data: imageRows } = await supabase
     .from("images")
-    .select("original_url, optimized_url, sort_order, s3_key")
+    .select("original_url, optimized_url, sort_order, s3_key, alt_text")
     .eq("product_id", product.id)
     .eq("status", "done")
     .not("optimized_url", "is", null)
@@ -772,12 +772,26 @@ async function enrichProductImages(product: any, supabase: any): Promise<any> {
   const lifestyleUrls: string[] = [];
   const optimizedMap = new Map<string, string>();
 
+  // Build alt text migration map: when original→optimized, carry over alt text
+  const existingAlts = product.image_alt_texts && typeof product.image_alt_texts === "object" && !Array.isArray(product.image_alt_texts)
+    ? { ...product.image_alt_texts } : {};
+
   for (const row of imageRows) {
     const isLifestyle = row.s3_key && String(row.s3_key).includes("lifestyle");
     if (isLifestyle && row.optimized_url) {
       lifestyleUrls.push(row.optimized_url);
+      // Add alt text for lifestyle images from images table
+      if (row.alt_text) existingAlts[row.optimized_url] = row.alt_text;
     } else if (row.original_url && row.optimized_url) {
       optimizedMap.set(row.original_url, row.optimized_url);
+      // Migrate alt text from original URL to optimized URL
+      if (existingAlts[row.original_url] && !existingAlts[row.optimized_url]) {
+        existingAlts[row.optimized_url] = existingAlts[row.original_url];
+      }
+      // Also use alt_text from images table if available
+      if (row.alt_text && !existingAlts[row.optimized_url]) {
+        existingAlts[row.optimized_url] = row.alt_text;
+      }
     }
   }
 
@@ -793,18 +807,18 @@ async function enrichProductImages(product: any, supabase: any): Promise<any> {
   }
 
   // Insert lifestyle images as 2nd/3rd position (after the first/main image)
+  let finalList = enriched;
   if (lifestyleUrls.length > 0 && enriched.length > 0) {
     const firstImage = enriched[0];
     const rest = enriched.slice(1);
-    // Filter out lifestyle URLs that might already be in the list
     const newLifestyle = lifestyleUrls.filter(u => !enriched.includes(u));
-    const finalList = [firstImage, ...newLifestyle, ...rest];
+    finalList = [firstImage, ...newLifestyle, ...rest];
     console.log(`[enrichProductImages] Product ${product.id}: ${urls.length} original → ${finalList.length} enriched (${lifestyleUrls.length} lifestyle inserted after first)`);
-    return { ...product, image_urls: finalList };
+  } else {
+    console.log(`[enrichProductImages] Product ${product.id}: ${urls.length} original → ${enriched.length} enriched (${imageRows.length} optimized rows)`);
   }
 
-  console.log(`[enrichProductImages] Product ${product.id}: ${urls.length} original → ${enriched.length} enriched (${imageRows.length} optimized rows)`);
-  return { ...product, image_urls: enriched };
+  return { ...product, image_urls: finalList, image_alt_texts: existingAlts };
 }
 
 // ── Image reference resolution ──
