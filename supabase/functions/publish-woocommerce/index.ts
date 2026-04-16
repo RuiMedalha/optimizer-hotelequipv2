@@ -2062,7 +2062,7 @@ async function publishSingleProduct(
   markupPercent: number,
   discountPercent: number
 ): Promise<WooResult> {
-  const enrichedProduct = has("images") ? await enrichProductImages(product, supabase) : product;
+  const enrichedProduct = has("images") ? await enrichProductImages(product, supabase, { skipOriginals: has("skip_original_images"), skipLifestyle: has("skip_lifestyle_images") }) : product;
 
   if (enrichedProduct.product_type === "variable") {
     return await publishVariableProduct(enrichedProduct, supabase, adminClient, baseUrl, auth, has, markupPercent, discountPercent);
