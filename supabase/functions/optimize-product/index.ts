@@ -1027,9 +1027,14 @@ Envolve TUDO num div raiz: <div class="product-description" style="font-size:15p
 Cada secção é um div com classe própria e margin-bottom:22px. Usa h3 (NÃO h2) com este estilo EXATO:
 style="margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;"
 
+REGRA SEO CRÍTICA PARA HEADINGS:
+- O PRIMEIRO h3 da descrição DEVE conter a focus keyword principal do produto (ex: se a focus keyword é "fritadeira a gás profissional", o primeiro h3 deve ser algo como "Vantagens da Fritadeira a Gás Profissional" ou "Fritadeira a Gás Profissional — Principais Benefícios")
+- Adapta o texto do heading para ser natural e incluir a keyword — NÃO uses apenas "Principais Vantagens" genérico
+
 SECÇÕES OBRIGATÓRIAS (nesta ordem):
 
-1. <div class="product-benefits" style="margin-bottom:22px;"> com <h3>Principais Vantagens</h3>
+1. <div class="product-benefits" style="margin-bottom:22px;"> com <h3>[Focus Keyword] — Principais Vantagens</h3>
+   - O h3 DEVE incluir a focus keyword principal integrada naturalmente
    - Dentro de <div style="margin-top:10px;">, parágrafos com benefícios-chave (2-4 parágrafos)
 
 2. <div class="product-applications" style="margin-bottom:22px;"> com <h3>Aplicações</h3>
@@ -1122,13 +1127,15 @@ REGRAS OBRIGATÓRIAS:
 - Prioriza: acessórios, produtos da mesma linha/família, consumíveis
 - Procura produtos que formem uma "estação de trabalho" completa
 - NÃO sugiras produtos redundantes`,
-          image_alt: `Gera alt text SEO para cada imagem do produto (máx 125 chars cada).
+          image_alt: `Gera alt text SEO para CADA UMA das imagens do produto (máx 125 chars cada).
 REGRAS OBRIGATÓRIAS:
+- Deves gerar EXATAMENTE 1 alt text por cada URL de imagem fornecida — sem exceção
 - Descritivo e relevante para o produto
 - Inclui keyword principal + linha
 - NÃO incluas a marca no alt text
-- Inclui ângulo/perspetiva se possível
-- Não comeces com "Imagem de" — sê direto`,
+- Inclui ângulo/perspetiva se possível (ex: "vista frontal", "detalhe do painel")
+- Não comeces com "Imagem de" — sê direto
+- Se houver imagens originais e optimizadas do mesmo produto, diferencia os alt texts`,
           category: `Analisa o produto e sugere a melhor categoria e subcategoria.
 REGRAS OBRIGATÓRIAS:
 - Usa o formato "Categoria > Subcategoria" (ex: "Cozinha > Fritadeiras")
