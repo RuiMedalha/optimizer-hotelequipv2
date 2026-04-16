@@ -2595,6 +2595,11 @@ const ProductsPage = () => {
           }
         }}
       />
+      <CategoryReviewModal
+        open={showCategoryReview}
+        onOpenChange={setShowCategoryReview}
+        products={(allProductsLight ?? []) as any}
+      />
     </div>
   );
 };
