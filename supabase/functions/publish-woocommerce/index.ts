@@ -2303,6 +2303,23 @@ async function publishVariableProduct(
   delete parentPayload.regular_price;
   delete parentPayload.sale_price;
 
+  // ── Ensure brand attribute/term exists for variable products ──
+  if (Array.isArray((parentPayload as any).attributes)) {
+    for (const attr of (parentPayload as any).attributes) {
+      const aName = String(attr.name || "").toLowerCase().trim();
+      if (aName === "marca" || aName === "brand") {
+        const brandVal = attr.options?.[0];
+        if (brandVal) {
+          const attrId = await ensureWooBrandAttribute(baseUrl, auth);
+          if (attrId) {
+            await ensureWooBrandTerm(baseUrl, auth, attrId, brandVal);
+          }
+        }
+        break;
+      }
+    }
+  }
+
   let existingParentWooId = parent.woocommerce_id;
   if (!existingParentWooId && parent.sku) {
     existingParentWooId = await findWooProductBySku(baseUrl, auth, parent.sku);
