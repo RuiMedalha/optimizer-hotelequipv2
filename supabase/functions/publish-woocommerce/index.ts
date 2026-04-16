@@ -2218,15 +2218,27 @@ async function publishVariableProduct(
     const seenRefs = new Set<string>();
     for (const child of children) {
       const refs: string[] = Array.isArray(child.image_urls) ? child.image_urls : [];
-      const altTexts = child.image_alt_texts || [];
+      // Build alt text map from child's image_alt_texts (object or array format)
+      const rawAlts = child.image_alt_texts;
+      const childAltMap = new Map<string, string>();
+      if (rawAlts && typeof rawAlts === "object" && !Array.isArray(rawAlts)) {
+        for (const [url, alt] of Object.entries(rawAlts)) {
+          if (typeof alt === "string") childAltMap.set(url, alt);
+        }
+      } else if (Array.isArray(rawAlts)) {
+        for (const item of rawAlts) {
+          if (typeof item === "object" && item?.url && item?.alt_text) {
+            childAltMap.set(item.url, item.alt_text);
+          }
+        }
+      }
       for (let i = 0; i < refs.length; i++) {
         const ref = String(refs[i] || "").trim();
         if (ref && !seenRefs.has(ref)) {
           seenRefs.add(ref);
           const pos = childImagePromises.length;
-          const altRaw = altTexts[i];
-          const altStr = typeof altRaw === "string" ? altRaw : (altRaw as any)?.alt || "";
-          childImagePromises.push(resolveImageRef(ref, pos, baseUrl, auth, altStr, has("image_alt_text") && !!altRaw));
+          const altStr = childAltMap.get(ref) || "";
+          childImagePromises.push(resolveImageRef(ref, pos, baseUrl, auth, altStr, has("image_alt_text") && !!altStr));
         }
       }
     }
