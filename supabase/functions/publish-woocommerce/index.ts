@@ -2230,7 +2230,7 @@ async function publishVariableProduct(
   const children: any[] = [];
   if (rawChildren && rawChildren.length > 0 && has("images")) {
     for (const child of rawChildren) {
-      children.push(await enrichProductImages(child, supabase));
+      children.push(await enrichProductImages(child, supabase, { skipOriginals: has("skip_original_images"), skipLifestyle: has("skip_lifestyle_images") }));
     }
   } else {
     children.push(...(rawChildren || []));
