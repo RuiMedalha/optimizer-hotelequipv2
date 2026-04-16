@@ -795,8 +795,26 @@ async function enrichProductImages(product: any, supabase: any, opts?: { skipOri
     }
   }
 
+  const skipOriginals = opts?.skipOriginals ?? false;
+  const skipLifestyle = opts?.skipLifestyle ?? false;
+
   // Replace originals with optimized versions
-  const enriched = urls.map((url: string) => optimizedMap.get(url) || url);
+  let enriched: string[];
+  if (skipOriginals && optimizedMap.size > 0) {
+    // Only include URLs that have optimized versions (skip originals that weren't optimized)
+    enriched = urls
+      .map((url: string) => optimizedMap.get(url) || (optimizedMap.has(url) ? null : null))
+      .filter(Boolean) as string[];
+    // Actually: keep URLs that have an optimized replacement, drop originals without one
+    enriched = [];
+    for (const url of urls) {
+      const opt = optimizedMap.get(url);
+      if (opt) enriched.push(opt); // Use optimized version
+      // Skip original if skipOriginals is true and an optimized version exists for any image
+    }
+  } else {
+    enriched = urls.map((url: string) => optimizedMap.get(url) || url);
+  }
 
   // Add any non-lifestyle optimized URLs not already in the list
   for (const row of imageRows) {
@@ -808,14 +826,14 @@ async function enrichProductImages(product: any, supabase: any, opts?: { skipOri
 
   // Insert lifestyle images as 2nd/3rd position (after the first/main image)
   let finalList = enriched;
-  if (lifestyleUrls.length > 0 && enriched.length > 0) {
+  if (!skipLifestyle && lifestyleUrls.length > 0 && enriched.length > 0) {
     const firstImage = enriched[0];
     const rest = enriched.slice(1);
     const newLifestyle = lifestyleUrls.filter(u => !enriched.includes(u));
     finalList = [firstImage, ...newLifestyle, ...rest];
-    console.log(`[enrichProductImages] Product ${product.id}: ${urls.length} original → ${finalList.length} enriched (${lifestyleUrls.length} lifestyle inserted after first)`);
+    console.log(`[enrichProductImages] Product ${product.id}: ${urls.length} original → ${finalList.length} enriched (${lifestyleUrls.length} lifestyle, skipOrig=${skipOriginals}, skipLife=${skipLifestyle})`);
   } else {
-    console.log(`[enrichProductImages] Product ${product.id}: ${urls.length} original → ${enriched.length} enriched (${imageRows.length} optimized rows)`);
+    console.log(`[enrichProductImages] Product ${product.id}: ${urls.length} original → ${enriched.length} enriched (skipOrig=${skipOriginals}, skipLife=${skipLifestyle})`);
   }
 
   return { ...product, image_urls: finalList, image_alt_texts: existingAlts };
