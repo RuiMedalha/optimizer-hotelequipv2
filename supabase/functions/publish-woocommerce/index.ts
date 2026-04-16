@@ -563,6 +563,7 @@ async function ensureWooBrandTerm(baseUrl: string, auth: string, attrId: number,
   }
 }
 
+async function findWooProductBySku(baseUrl: string, auth: string, sku: string | null): Promise<number | null> {
   if (!sku) return null;
   try {
     const resp = await fetch(`${baseUrl}/wp-json/wc/v3/products?sku=${encodeURIComponent(sku)}&per_page=1`, {
