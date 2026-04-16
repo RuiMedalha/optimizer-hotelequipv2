@@ -2262,7 +2262,7 @@ async function publishSingleProduct(
 
   wooProduct.type = "simple";
 
-  // ── Ensure brand attribute/term exists in WooCommerce ──
+  // ── Ensure brand attribute/term + PWB brand taxonomy ──
   if (Array.isArray(wooProduct.attributes)) {
     for (const attr of wooProduct.attributes as any[]) {
       const aName = String(attr.name || "").toLowerCase().trim();
@@ -2272,6 +2272,11 @@ async function publishSingleProduct(
           const attrId = await ensureWooBrandAttribute(baseUrl, auth);
           if (attrId) {
             await ensureWooBrandTerm(baseUrl, auth, attrId, brandVal);
+          }
+          // Also assign PWB brand taxonomy
+          const pwbId = await ensurePwbBrand(baseUrl, auth, brandVal);
+          if (pwbId) {
+            wooProduct.brands = [pwbId];
           }
         }
         break;
@@ -2463,7 +2468,7 @@ async function publishVariableProduct(
   delete parentPayload.regular_price;
   delete parentPayload.sale_price;
 
-  // ── Ensure brand attribute/term exists for variable products ──
+  // ── Ensure brand attribute/term + PWB brand taxonomy for variable products ──
   if (Array.isArray((parentPayload as any).attributes)) {
     for (const attr of (parentPayload as any).attributes) {
       const aName = String(attr.name || "").toLowerCase().trim();
@@ -2473,6 +2478,11 @@ async function publishVariableProduct(
           const attrId = await ensureWooBrandAttribute(baseUrl, auth);
           if (attrId) {
             await ensureWooBrandTerm(baseUrl, auth, attrId, brandVal);
+          }
+          // Also assign PWB brand taxonomy
+          const pwbId = await ensurePwbBrand(baseUrl, auth, brandVal);
+          if (pwbId) {
+            (parentPayload as any).brands = [pwbId];
           }
         }
         break;
