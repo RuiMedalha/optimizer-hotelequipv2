@@ -199,6 +199,7 @@ const ProductsPage = () => {
   const [exportTarget, setExportTarget] = useState<"all" | "selected">("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [showDuplicates, setShowDuplicates] = useState(false);
+  const [showCategoryReview, setShowCategoryReview] = useState(false);
   const PAGE_SIZE = 100;
 
   // Debounce search input
