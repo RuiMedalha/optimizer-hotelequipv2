@@ -1046,25 +1046,47 @@ function buildFaqSchemaJson(faq: any[]): string {
 function buildUsoProfissionalHtml(data: any): string {
   if (!data) return "";
   const parts: string[] = [];
+
+  // Section heading
+  parts.push(`<h3 style="color:#00526d;font-size:18px;margin:0 0 12px;">Como é usado por profissionais</h3>`);
+
+  // Intro paragraph
   if (data.intro) {
-    parts.push(`<p style="color:#374151;line-height:1.6;">${data.intro}</p>`);
+    parts.push(`<p style="color:#374151;line-height:1.7;margin-bottom:16px;">${data.intro}</p>`);
   }
+
+  // Use Cases with title + description
   const useCases = Array.isArray(data.use_cases) ? data.use_cases : [];
   if (useCases.length > 0) {
-    const items = useCases.map((uc: any) => `<li><strong>${uc.context || ""}</strong>: ${uc.description || ""}</li>`).join("");
-    parts.push(`<h4 style="color:#00526d;margin:12px 0 6px;">Aplicações Profissionais</h4><ul style="padding-left:20px;">${items}</ul>`);
+    parts.push(`<h4 style="color:#00526d;margin:16px 0 10px;font-size:15px;">Contextos de utilização</h4>`);
+    const items = useCases.map((uc: any) => {
+      const title = uc.context || uc.title || uc.name || "";
+      const desc = uc.description || uc.text || "";
+      if (!title && !desc) return "";
+      return `<div style="margin-bottom:12px;"><p style="font-weight:bold;color:#00526d;margin:0 0 4px 0;">${title}</p>${desc ? `<p style="color:#374151;line-height:1.6;margin:0;">${desc}</p>` : ""}</div>`;
+    }).filter(Boolean);
+    parts.push(items.join(""));
   }
+
+  // Professional tips
   const tips = Array.isArray(data.professional_tips) ? data.professional_tips : [];
   if (tips.length > 0) {
-    const items = tips.map((t: any) => `<li>${typeof t === "string" ? t : (t?.tip || t?.text || "")}</li>`).join("");
-    parts.push(`<h4 style="color:#00526d;margin:12px 0 6px;">Dicas Profissionais</h4><ul style="padding-left:20px;">${items}</ul>`);
+    parts.push(`<h4 style="color:#00526d;margin:16px 0 10px;font-size:15px;">Dicas de profissionais</h4>`);
+    const items = tips.map((t: any) => `<li style="margin-bottom:6px;">${typeof t === "string" ? t : (t?.tip || t?.text || "")}</li>`).join("");
+    parts.push(`<ul style="padding-left:20px;color:#374151;line-height:1.6;">${items}</ul>`);
   }
+
+  // Target profiles
   const profiles = Array.isArray(data.target_profiles) ? data.target_profiles : [];
   if (profiles.length > 0) {
     const items = profiles.map((p: any) => typeof p === "string" ? p : (p?.name || "")).filter(Boolean);
-    if (items.length > 0) parts.push(`<h4 style="color:#00526d;margin:12px 0 6px;">Para Quem</h4><p>${items.join(" · ")}</p>`);
+    if (items.length > 0) {
+      parts.push(`<h4 style="color:#00526d;margin:16px 0 10px;font-size:15px;">Perfis Profissionais</h4>`);
+      parts.push(`<p style="color:#374151;">${items.join(" · ")}</p>`);
+    }
   }
-  if (parts.length === 0) return "";
+
+  if (parts.length <= 1) return ""; // only heading, no content
   return `<!-- HOTELEQUIP:USO_PROFISSIONAL_START --><div class="hotelequip-uso-profissional" style="margin-top:24px;border-top:1px solid #e5e7eb;padding-top:16px;">${parts.join("")}</div><!-- HOTELEQUIP:USO_PROFISSIONAL_END -->`;
 }
 
@@ -1078,13 +1100,13 @@ function buildUsoProfissionalJson(data: any): string {
     repeater.push({ title: "Introdução", description: String(data.intro) });
   }
 
-  // Add use cases
+  // Add use cases (context = title in the DB)
   if (Array.isArray(data.use_cases)) {
     for (const uc of data.use_cases) {
       if (typeof uc === "string") {
         repeater.push({ title: "Caso de Uso", description: uc });
       } else if (uc && typeof uc === "object") {
-        repeater.push({ title: String(uc.title || uc.name || "Caso de Uso"), description: String(uc.description || uc.text || "") });
+        repeater.push({ title: String(uc.context || uc.title || uc.name || "Caso de Uso"), description: String(uc.description || uc.text || "") });
       }
     }
   }
@@ -1295,7 +1317,13 @@ async function buildBasePayload(
   }
 
   if (has("short_description")) {
-    wooProduct.short_description = product.optimized_short_description || product.short_description || "";
+    const rawShort = product.optimized_short_description || product.short_description || "";
+    // Style the short description with a highlighted box for WooCommerce
+    if (rawShort) {
+      wooProduct.short_description = `<div class="hotelequip-short-description" style="background:linear-gradient(135deg,#eef6fb 0%,#e8f1f8 100%);border-left:4px solid #0077b6;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:12px;"><p style="color:#1a3a4a;font-size:15px;line-height:1.7;margin:0;">${rawShort}</p></div>`;
+    } else {
+      wooProduct.short_description = "";
+    }
   }
 
   if (has("price")) {
