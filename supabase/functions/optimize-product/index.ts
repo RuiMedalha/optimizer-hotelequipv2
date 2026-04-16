@@ -1566,7 +1566,21 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
 
         const updateData: Record<string, any> = { status: productStatus };
         if (optimized.optimized_title) updateData.optimized_title = optimized.optimized_title;
-        if (optimized.optimized_description) updateData.optimized_description = optimized.optimized_description;
+        if (optimized.optimized_description) {
+          // POST-PROCESSING: Ensure first H3 contains focus keyword
+          let desc = optimized.optimized_description as string;
+          const focusKw = optimized.focus_keywords?.[0] || updateData.focus_keyword?.[0] || "";
+          if (focusKw) {
+            const h3Match = desc.match(/<h3([^>]*)>(.*?)<\/h3>/i);
+            if (h3Match && !h3Match[2].toLowerCase().includes(focusKw.toLowerCase().substring(0, 20))) {
+              const originalH3Content = h3Match[2];
+              const newH3Content = `${focusKw} — ${originalH3Content}`;
+              desc = desc.replace(h3Match[0], `<h3${h3Match[1]}>${newH3Content}</h3>`);
+              console.log(`✅ Focus keyword injected into first H3: "${newH3Content}"`);
+            }
+          }
+          updateData.optimized_description = desc;
+        }
         if (optimized.optimized_short_description !== undefined) updateData.optimized_short_description = optimized.optimized_short_description || null;
         if (optimized.meta_title) updateData.meta_title = optimized.meta_title;
         if (optimized.meta_description) updateData.meta_description = optimized.meta_description;
