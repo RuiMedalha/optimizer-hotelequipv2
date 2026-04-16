@@ -1027,9 +1027,14 @@ Envolve TUDO num div raiz: <div class="product-description" style="font-size:15p
 Cada secção é um div com classe própria e margin-bottom:22px. Usa h3 (NÃO h2) com este estilo EXATO:
 style="margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;"
 
+REGRA SEO CRÍTICA PARA HEADINGS:
+- O PRIMEIRO h3 da descrição DEVE conter a focus keyword principal do produto (ex: se a focus keyword é "fritadeira a gás profissional", o primeiro h3 deve ser algo como "Vantagens da Fritadeira a Gás Profissional" ou "Fritadeira a Gás Profissional — Principais Benefícios")
+- Adapta o texto do heading para ser natural e incluir a keyword — NÃO uses apenas "Principais Vantagens" genérico
+
 SECÇÕES OBRIGATÓRIAS (nesta ordem):
 
-1. <div class="product-benefits" style="margin-bottom:22px;"> com <h3>Principais Vantagens</h3>
+1. <div class="product-benefits" style="margin-bottom:22px;"> com <h3>[Focus Keyword] — Principais Vantagens</h3>
+   - O h3 DEVE incluir a focus keyword principal integrada naturalmente
    - Dentro de <div style="margin-top:10px;">, parágrafos com benefícios-chave (2-4 parágrafos)
 
 2. <div class="product-applications" style="margin-bottom:22px;"> com <h3>Aplicações</h3>
@@ -1122,13 +1127,15 @@ REGRAS OBRIGATÓRIAS:
 - Prioriza: acessórios, produtos da mesma linha/família, consumíveis
 - Procura produtos que formem uma "estação de trabalho" completa
 - NÃO sugiras produtos redundantes`,
-          image_alt: `Gera alt text SEO para cada imagem do produto (máx 125 chars cada).
+          image_alt: `Gera alt text SEO para CADA UMA das imagens do produto (máx 125 chars cada).
 REGRAS OBRIGATÓRIAS:
+- Deves gerar EXATAMENTE 1 alt text por cada URL de imagem fornecida — sem exceção
 - Descritivo e relevante para o produto
 - Inclui keyword principal + linha
 - NÃO incluas a marca no alt text
-- Inclui ângulo/perspetiva se possível
-- Não comeces com "Imagem de" — sê direto`,
+- Inclui ângulo/perspetiva se possível (ex: "vista frontal", "detalhe do painel")
+- Não comeces com "Imagem de" — sê direto
+- Se houver imagens originais e optimizadas do mesmo produto, diferencia os alt texts`,
           category: `Analisa o produto e sugere a melhor categoria e subcategoria.
 REGRAS OBRIGATÓRIAS:
 - Usa o formato "Categoria > Subcategoria" (ex: "Cozinha > Fritadeiras")
@@ -1559,7 +1566,21 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
 
         const updateData: Record<string, any> = { status: productStatus };
         if (optimized.optimized_title) updateData.optimized_title = optimized.optimized_title;
-        if (optimized.optimized_description) updateData.optimized_description = optimized.optimized_description;
+        if (optimized.optimized_description) {
+          // POST-PROCESSING: Ensure first H3 contains focus keyword
+          let desc = optimized.optimized_description as string;
+          const focusKw = optimized.focus_keywords?.[0] || updateData.focus_keyword?.[0] || "";
+          if (focusKw) {
+            const h3Match = desc.match(/<h3([^>]*)>(.*?)<\/h3>/i);
+            if (h3Match && !h3Match[2].toLowerCase().includes(focusKw.toLowerCase().substring(0, 20))) {
+              const originalH3Content = h3Match[2];
+              const newH3Content = `${focusKw} — ${originalH3Content}`;
+              desc = desc.replace(h3Match[0], `<h3${h3Match[1]}>${newH3Content}</h3>`);
+              console.log(`✅ Focus keyword injected into first H3: "${newH3Content}"`);
+            }
+          }
+          updateData.optimized_description = desc;
+        }
         if (optimized.optimized_short_description !== undefined) updateData.optimized_short_description = optimized.optimized_short_description || null;
         if (optimized.meta_title) updateData.meta_title = optimized.meta_title;
         if (optimized.meta_description) updateData.meta_description = optimized.meta_description;
@@ -1569,19 +1590,33 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
         if (optimized.faq) updateData.faq = optimized.faq;
         if (optimized.upsell_skus) updateData.upsell_skus = optimized.upsell_skus;
         if (optimized.crosssell_skus) updateData.crosssell_skus = optimized.crosssell_skus;
-        if (optimized.image_alt_texts) {
+        if (optimized.image_alt_texts || (product.image_urls && product.image_urls.length > 0)) {
           // Convert array format [{url, alt_text}] to object format {url: alt_text} for DB
-          if (Array.isArray(optimized.image_alt_texts)) {
-            const altObj: Record<string, string> = {};
-            for (const item of optimized.image_alt_texts) {
-              if (item?.url && item?.alt_text) {
-                altObj[item.url] = item.alt_text;
+          let altObj: Record<string, string> = {};
+          if (optimized.image_alt_texts) {
+            if (Array.isArray(optimized.image_alt_texts)) {
+              for (const item of optimized.image_alt_texts) {
+                if (item?.url && item?.alt_text) {
+                  altObj[item.url] = item.alt_text;
+                }
+              }
+            } else {
+              altObj = optimized.image_alt_texts as Record<string, string>;
+            }
+          }
+          // FALLBACK: Ensure ALL image URLs have alt text — fill missing ones
+          if (product.image_urls && Array.isArray(product.image_urls)) {
+            const focusKw = (optimized.focus_keywords?.[0] || updateData.focus_keyword?.[0] || product.original_title || "produto profissional").substring(0, 80);
+            for (let i = 0; i < product.image_urls.length; i++) {
+              const url = product.image_urls[i];
+              if (url && !altObj[url]) {
+                const suffix = product.image_urls.length > 1 ? ` — vista ${i + 1}` : "";
+                altObj[url] = `${focusKw}${suffix}`.substring(0, 125);
+                console.log(`⚠️ Alt text fallback generated for image ${i + 1}: ${url.substring(0, 60)}...`);
               }
             }
-            updateData.image_alt_texts = altObj;
-          } else {
-            updateData.image_alt_texts = optimized.image_alt_texts;
           }
+          updateData.image_alt_texts = altObj;
         }
         if (optimized.suggested_category) updateData.suggested_category = optimized.suggested_category;
         if (optimized.focus_keywords && Array.isArray(optimized.focus_keywords) && optimized.focus_keywords.length > 0) {
