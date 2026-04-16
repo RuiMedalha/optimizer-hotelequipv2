@@ -597,6 +597,12 @@ INFORMAÇÃO DO PRODUTO:
                 }
                 const bytes = new Uint8Array(chunks);
 
+                const fileSizeKB = Math.round(bytes.length / 1024);
+                console.log(`📐 [upscale] Image size: ${fileSizeKB}KB for ${productId} image ${i}`);
+                if (bytes.length > 1024 * 1024) {
+                  console.warn(`⚠️ [upscale] Image exceeds 1MB (${fileSizeKB}KB) for ${productId} image ${i} — WooCommerce may timeout on download`);
+                }
+
                 const upscaleId = `${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
                 const path = `${workspaceId}/${productId}/upscale_${upscaleId}.webp`;
                 await sb.storage
