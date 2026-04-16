@@ -2114,6 +2114,23 @@ async function publishSingleProduct(
 
   wooProduct.type = "simple";
 
+  // ── Ensure brand attribute/term exists in WooCommerce ──
+  if (Array.isArray(wooProduct.attributes)) {
+    for (const attr of wooProduct.attributes as any[]) {
+      const aName = String(attr.name || "").toLowerCase().trim();
+      if (aName === "marca" || aName === "brand") {
+        const brandVal = attr.options?.[0];
+        if (brandVal) {
+          const attrId = await ensureWooBrandAttribute(baseUrl, auth);
+          if (attrId) {
+            await ensureWooBrandTerm(baseUrl, auth, attrId, brandVal);
+          }
+        }
+        break;
+      }
+    }
+  }
+
   let existingWooId = enrichedProduct.woocommerce_id;
   if (!existingWooId && enrichedProduct.sku) {
     existingWooId = await findWooProductBySku(baseUrl, auth, enrichedProduct.sku);
