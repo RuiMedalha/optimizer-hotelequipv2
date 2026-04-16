@@ -55,6 +55,26 @@ async function fetchSessionLookup(runIds: string[]): Promise<Map<string, string>
   }
 }
 
+async function fetchUsoProfissionalLookup(productIds: string[]): Promise<Map<string, any>> {
+  const map = new Map<string, any>();
+  if (productIds.length === 0) return map;
+  try {
+    for (let i = 0; i < productIds.length; i += 200) {
+      const batch = productIds.slice(i, i + 200);
+      const { data } = await supabase
+        .from("product_uso_profissional")
+        .select("product_id, intro, use_cases, professional_tips, target_profiles")
+        .in("product_id", batch);
+      for (const row of data ?? []) {
+        map.set(row.product_id, row);
+      }
+    }
+    return map;
+  } catch {
+    return map;
+  }
+}
+
 const EXPORT_COLUMNS = [
   { key: "sku", header: "SKU" },
   { key: "woocommerce_id", header: "WooCommerce ID" },
@@ -82,6 +102,10 @@ const EXPORT_COLUMNS = [
   { key: "seo_slug", header: "SEO Slug" },
   { key: "focus_keyword", header: "Focus Keyword" },
   { key: "faq", header: "FAQ" },
+  { key: "uso_profissional_intro", header: "Uso Profissional - Introdução" },
+  { key: "uso_profissional_cases", header: "Uso Profissional - Casos de Uso" },
+  { key: "uso_profissional_tips", header: "Uso Profissional - Dicas" },
+  { key: "uso_profissional_profiles", header: "Uso Profissional - Perfis" },
   { key: "upsell_skus", header: "Upsells (SKU | Título)" },
   { key: "crosssell_skus", header: "Cross-sells (SKU | Título)" },
   { key: "image_urls", header: "URLs Imagens" },
@@ -97,6 +121,7 @@ const EXPORT_COLUMNS = [
 interface ProductLookups {
   users: Map<string, string>;
   sessions: Map<string, string>;
+  usoProfissional: Map<string, any>;
 }
 
 function productToRow(p: Product, skuPrefix?: string, lookups?: ProductLookups) {
@@ -149,6 +174,31 @@ function productToRow(p: Product, skuPrefix?: string, lookups?: ProductLookups) 
       continue;
     }
 
+    // Uso Profissional columns from lookups
+    if (col.key === "uso_profissional_intro") {
+      const uso = lookups?.usoProfissional?.get((p as any).id);
+      row[col.header] = uso?.intro || "";
+      continue;
+    }
+    if (col.key === "uso_profissional_cases") {
+      const uso = lookups?.usoProfissional?.get((p as any).id);
+      const cases = Array.isArray(uso?.use_cases) ? uso.use_cases : [];
+      row[col.header] = cases.map((uc: any) => `${uc.context || uc.title || ""}: ${uc.description || ""}`).join(" | ");
+      continue;
+    }
+    if (col.key === "uso_profissional_tips") {
+      const uso = lookups?.usoProfissional?.get((p as any).id);
+      const tips = Array.isArray(uso?.professional_tips) ? uso.professional_tips : [];
+      row[col.header] = tips.map((t: any) => typeof t === "string" ? t : (t?.tip || t?.text || "")).join(" | ");
+      continue;
+    }
+    if (col.key === "uso_profissional_profiles") {
+      const uso = lookups?.usoProfissional?.get((p as any).id);
+      const profiles = Array.isArray(uso?.target_profiles) ? uso.target_profiles : [];
+      row[col.header] = profiles.map((p: any) => typeof p === "string" ? p : (p?.name || "")).filter(Boolean).join(" | ");
+      continue;
+    }
+
     // Standard columns
     if (col.key === "faq" && Array.isArray(val)) {
       row[col.header] = val.map((f: any) => `Q: ${f.question} A: ${f.answer}`).join(" | ");
@@ -157,7 +207,6 @@ function productToRow(p: Product, skuPrefix?: string, lookups?: ProductLookups) 
     } else if (col.key === "image_alt_texts" && Array.isArray(val)) {
       row[col.header] = val.map((a: any) => a.alt_text).join(" | ");
     } else if (col.key === "attributes" && Array.isArray(val)) {
-      // Exclude EAN and Modelo — they have dedicated columns
       const others = val.filter((a: any) => !CRITICAL_ATTR_NAMES.has((a.name ?? "").toLowerCase().trim()));
       row[col.header] = others.map((a: any) => `${a.name}: ${a.value || (a.values || []).join(", ")}`).join(" | ");
     } else if (col.key === "focus_keyword" && Array.isArray(val)) {
@@ -186,11 +235,13 @@ export async function exportProductsToExcel(products: Product[], fileName = "pro
   }
   const uniqueUserIds = [...new Set(products.map((p: any) => p.user_id).filter(Boolean))];
   const uniqueRunIds = [...new Set(products.map((p: any) => p.workflow_run_id).filter(Boolean))];
-  const [userMap, sessionMap] = await Promise.all([
+  const productIds = products.map((p: any) => p.id).filter(Boolean);
+  const [userMap, sessionMap, usoMap] = await Promise.all([
     fetchUserLookup(uniqueUserIds),
     fetchSessionLookup(uniqueRunIds),
+    fetchUsoProfissionalLookup(productIds),
   ]);
-  const lookups: ProductLookups = { users: userMap, sessions: sessionMap };
+  const lookups: ProductLookups = { users: userMap, sessions: sessionMap, usoProfissional: usoMap };
   const rows = products.map((p) => productToRow(p, skuPrefix, lookups));
   writeExcel(rows, fileName);
   toast.success(`${products.length} produto(s) exportado(s) com sucesso!`);
@@ -260,11 +311,13 @@ export async function exportAllProductsToExcel(
   // Build lookup maps for user names and session names
   const uniqueUserIds = [...new Set(allProducts.map((p: any) => p.user_id).filter(Boolean))];
   const uniqueRunIds = [...new Set(allProducts.map((p: any) => p.workflow_run_id).filter(Boolean))];
-  const [userMap, sessionMap] = await Promise.all([
+  const productIds = allProducts.map((p: any) => p.id).filter(Boolean);
+  const [userMap, sessionMap, usoMap] = await Promise.all([
     fetchUserLookup(uniqueUserIds),
     fetchSessionLookup(uniqueRunIds),
+    fetchUsoProfissionalLookup(productIds),
   ]);
-  const lookups: ProductLookups = { users: userMap, sessions: sessionMap };
+  const lookups: ProductLookups = { users: userMap, sessions: sessionMap, usoProfissional: usoMap };
 
   const excelRows = allProducts.map((p) => productToRow(p, skuPrefix, lookups));
   writeExcel(excelRows, fileName);
