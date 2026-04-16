@@ -1019,6 +1019,20 @@ const ProductsPage = () => {
             <Copy className="w-3.5 h-3.5 mr-1" />
             Duplicados{duplicateGroups.length > 0 ? ` (${duplicateGroups.length})` : ""}
           </Button>
+          {(() => {
+            const catCount = (allProductsLight ?? []).filter((p: any) => p.suggested_category && p.suggested_category !== p.category).length;
+            return catCount > 0 ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-xs h-8 border-amber-500/50 text-amber-600"
+                onClick={() => setShowCategoryReview(true)}
+              >
+                <Wand2 className="w-3.5 h-3.5 mr-1" />
+                Rever Categorias IA ({catCount})
+              </Button>
+            ) : null;
+          })()}
           <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => {
             setExportTarget("all");
             setExportSkuPrefix("");
