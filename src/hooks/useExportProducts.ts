@@ -55,6 +55,26 @@ async function fetchSessionLookup(runIds: string[]): Promise<Map<string, string>
   }
 }
 
+async function fetchUsoProfissionalLookup(productIds: string[]): Promise<Map<string, any>> {
+  const map = new Map<string, any>();
+  if (productIds.length === 0) return map;
+  try {
+    for (let i = 0; i < productIds.length; i += 200) {
+      const batch = productIds.slice(i, i + 200);
+      const { data } = await supabase
+        .from("product_uso_profissional")
+        .select("product_id, intro, use_cases, professional_tips, target_profiles")
+        .in("product_id", batch);
+      for (const row of data ?? []) {
+        map.set(row.product_id, row);
+      }
+    }
+    return map;
+  } catch {
+    return map;
+  }
+}
+
 const EXPORT_COLUMNS = [
   { key: "sku", header: "SKU" },
   { key: "woocommerce_id", header: "WooCommerce ID" },
@@ -101,6 +121,7 @@ const EXPORT_COLUMNS = [
 interface ProductLookups {
   users: Map<string, string>;
   sessions: Map<string, string>;
+  usoProfissional: Map<string, any>;
 }
 
 function productToRow(p: Product, skuPrefix?: string, lookups?: ProductLookups) {
