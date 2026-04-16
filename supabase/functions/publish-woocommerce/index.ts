@@ -563,6 +563,79 @@ async function ensureWooBrandTerm(baseUrl: string, auth: string, attrId: number,
   }
 }
 
+// ── PWB (Perfect WooCommerce Brands) taxonomy support ──
+const _pwbBrandCache = new Map<string, number>();
+
+/**
+ * Ensures a brand term exists in the pwb-brand taxonomy (REST: /wp/v2/pwb-brand).
+ * Returns the term ID so we can assign it to the product.
+ */
+async function ensurePwbBrand(baseUrl: string, auth: string, brandName: string): Promise<number | null> {
+  if (!brandName) return null;
+  const key = brandName.toLowerCase().trim();
+  if (_pwbBrandCache.has(key)) return _pwbBrandCache.get(key)!;
+
+  try {
+    // Search existing PWB brands
+    const searchResp = await fetch(
+      `${baseUrl}/wp-json/wp/v2/pwb-brand?search=${encodeURIComponent(brandName)}&per_page=100`,
+      { headers: { Authorization: `Basic ${auth}` } }
+    );
+    if (searchResp.ok) {
+      const terms = await searchResp.json();
+      const match = (terms as any[]).find(
+        (t: any) => String(t.name).toLowerCase().trim() === key
+      );
+      if (match) {
+        _pwbBrandCache.set(key, match.id);
+        return match.id;
+      }
+    }
+
+    // Create the brand term
+    const createResp = await fetch(`${baseUrl}/wp-json/wp/v2/pwb-brand`, {
+      method: "POST",
+      headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: brandName }),
+    });
+    if (!createResp.ok) {
+      const errText = await createResp.text().catch(() => "");
+      if (createResp.status === 400 && errText.includes("term_exists")) {
+        try {
+          const parsed = JSON.parse(errText);
+          if (parsed?.data?.term_id) {
+            _pwbBrandCache.set(key, parsed.data.term_id);
+            return parsed.data.term_id;
+          }
+        } catch {}
+      }
+      console.warn(`[pwb-brand] Failed to create "${brandName}": ${createResp.status}`);
+      return null;
+    }
+    const created = await createResp.json();
+    console.log(`[pwb-brand] Created brand "${brandName}" with ID ${created.id}`);
+    _pwbBrandCache.set(key, created.id);
+    return created.id;
+  } catch (e) {
+    console.warn(`[pwb-brand] Error ensuring "${brandName}":`, e);
+    return null;
+  }
+}
+
+/**
+ * Extracts brand value from product attributes array.
+ */
+function extractBrandFromAttributes(attributes: any[]): string | null {
+  if (!Array.isArray(attributes)) return null;
+  for (const attr of attributes) {
+    const n = String(attr?.name || "").toLowerCase().trim();
+    if (n === "marca" || n === "brand") {
+      return String(attr?.value || attr?.options?.[0] || "").trim() || null;
+    }
+  }
+  return null;
+}
+
 async function findWooProductBySku(baseUrl: string, auth: string, sku: string | null): Promise<number | null> {
   if (!sku) return null;
   try {
