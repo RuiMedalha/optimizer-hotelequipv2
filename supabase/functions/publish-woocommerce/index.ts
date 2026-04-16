@@ -1292,11 +1292,25 @@ async function buildBasePayload(
 
   if (has("images")) {
     if (product.image_urls && product.image_urls.length > 0) {
-      const altTexts = product.image_alt_texts || [];
+      // image_alt_texts can be: object {url: altText}, array [{url, alt_text}], or array [string]
+      const rawAlts = product.image_alt_texts;
+      const altMap = new Map<string, string>();
+      if (rawAlts && typeof rawAlts === "object" && !Array.isArray(rawAlts)) {
+        // Object format: { "https://...image.jpg": "alt text" }
+        for (const [url, alt] of Object.entries(rawAlts)) {
+          if (typeof alt === "string") altMap.set(url, alt);
+        }
+      } else if (Array.isArray(rawAlts)) {
+        for (const item of rawAlts) {
+          if (typeof item === "object" && item?.url && item?.alt_text) {
+            altMap.set(item.url, item.alt_text);
+          }
+        }
+      }
       const imagePromises = product.image_urls.map((ref: string, i: number) => {
-        const altRaw = altTexts[i];
-        const altStr = typeof altRaw === "string" ? altRaw : (altRaw as any)?.alt || "";
-        return resolveImageRef(ref, i, baseUrl, auth, altStr, has("image_alt_text") && !!altRaw);
+        // Look up alt text by URL key (works with both original and optimized URLs)
+        const altStr = altMap.get(ref) || "";
+        return resolveImageRef(ref, i, baseUrl, auth, altStr, has("image_alt_text") && !!altStr);
       });
       const resolved = await Promise.all(imagePromises);
       const filteredImages = resolved.filter(Boolean);
@@ -1304,7 +1318,7 @@ async function buildBasePayload(
       if (filteredImages.length > 0) {
         wooProduct.images = filteredImages;
       }
-      console.log(`[buildBasePayload] Product images: ${product.image_urls.length} input → ${filteredImages.length} resolved`);
+      console.log(`[buildBasePayload] Product images: ${product.image_urls.length} input → ${filteredImages.length} resolved, alt texts found: ${altMap.size}`);
     }
   }
 
