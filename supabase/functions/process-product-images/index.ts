@@ -462,6 +462,7 @@ INFORMAÇÃO DO PRODUTO:
                       ],
                       options: {
                         modalities: ["image", "text"],
+                        image_size: "1024x1024",
                       },
                     }),
                   }
@@ -480,6 +481,12 @@ INFORMAÇÃO DO PRODUTO:
                   const bytes = Uint8Array.from(atob(base64Data), (c) =>
                     c.charCodeAt(0)
                   );
+
+                  const fileSizeKB = Math.round(bytes.length / 1024);
+                  console.log(`📐 [lifestyle] Image size: ${fileSizeKB}KB for ${productId}`);
+                  if (bytes.length > 1024 * 1024) {
+                    console.warn(`⚠️ [lifestyle] Image exceeds 1MB (${fileSizeKB}KB) for ${productId} — WooCommerce may timeout on download`);
+                  }
 
                   const lifestyleId = `${Date.now()}_${crypto
                     .randomUUID()
@@ -562,6 +569,7 @@ INFORMAÇÃO DO PRODUTO:
                     ],
                     options: {
                       modalities: ["image", "text"],
+                      image_size: "1024x1024",
                     },
                   }),
                 }
@@ -588,6 +596,12 @@ INFORMAÇÃO DO PRODUTO:
                   }
                 }
                 const bytes = new Uint8Array(chunks);
+
+                const fileSizeKB = Math.round(bytes.length / 1024);
+                console.log(`📐 [upscale] Image size: ${fileSizeKB}KB for ${productId} image ${i}`);
+                if (bytes.length > 1024 * 1024) {
+                  console.warn(`⚠️ [upscale] Image exceeds 1MB (${fileSizeKB}KB) for ${productId} image ${i} — WooCommerce may timeout on download`);
+                }
 
                 const upscaleId = `${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
                 const path = `${workspaceId}/${productId}/upscale_${upscaleId}.webp`;

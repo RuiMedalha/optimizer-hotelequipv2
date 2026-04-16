@@ -471,6 +471,98 @@ async function wooFetch(baseUrl: string, auth: string, endpoint: string, method:
   return resp.json();
 }
 
+// ── Brand/Attribute auto-creation cache (per request) ──
+const _brandAttrCache = new Map<string, number>(); // brandValue -> termId
+
+/**
+ * Ensures the pa_marca (or pa_brand) attribute exists in WooCommerce.
+ * Returns the attribute ID, or null if it couldn't be resolved.
+ */
+async function ensureWooBrandAttribute(baseUrl: string, auth: string): Promise<number | null> {
+  try {
+    // Check if pa_marca attribute already exists
+    const resp = await fetch(`${baseUrl}/wp-json/wc/v3/products/attributes`, {
+      headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/json" },
+    });
+    if (!resp.ok) return null;
+    const attrs = await resp.json();
+    const existing = (attrs as any[]).find((a: any) => {
+      const slug = String(a.slug || "").toLowerCase();
+      return slug === "pa_marca" || slug === "pa_brand" || slug === "marca" || slug === "brand";
+    });
+    if (existing) return existing.id;
+
+    // Create it
+    const createResp = await fetch(`${baseUrl}/wp-json/wc/v3/products/attributes`, {
+      method: "POST",
+      headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Marca", slug: "pa_marca", type: "select", order_by: "menu_order", has_archives: true }),
+    });
+    if (!createResp.ok) {
+      console.warn(`[brand] Failed to create pa_marca attribute: ${createResp.status}`);
+      return null;
+    }
+    const created = await createResp.json();
+    console.log(`[brand] Created pa_marca attribute with ID ${created.id}`);
+    return created.id;
+  } catch (e) {
+    console.warn("[brand] Error ensuring attribute:", e);
+    return null;
+  }
+}
+
+/**
+ * Ensures a brand term exists under the given attribute.
+ * Creates it if missing. Returns the term ID, or null on failure.
+ */
+async function ensureWooBrandTerm(baseUrl: string, auth: string, attrId: number, brandName: string): Promise<number | null> {
+  const cacheKey = `${attrId}:${brandName}`;
+  if (_brandAttrCache.has(cacheKey)) return _brandAttrCache.get(cacheKey)!;
+  
+  try {
+    // Search for existing term
+    const searchResp = await fetch(
+      `${baseUrl}/wp-json/wc/v3/products/attributes/${attrId}/terms?search=${encodeURIComponent(brandName)}&per_page=100`,
+      { headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/json" } }
+    );
+    if (searchResp.ok) {
+      const terms = await searchResp.json();
+      const match = (terms as any[]).find((t: any) => String(t.name).toLowerCase().trim() === brandName.toLowerCase().trim());
+      if (match) {
+        _brandAttrCache.set(cacheKey, match.id);
+        return match.id;
+      }
+    }
+
+    // Create the term
+    const createResp = await fetch(`${baseUrl}/wp-json/wc/v3/products/attributes/${attrId}/terms`, {
+      method: "POST",
+      headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: brandName }),
+    });
+    if (!createResp.ok) {
+      const errText = await createResp.text().catch(() => "");
+      // If term already exists (slug conflict), try to find it
+      if (createResp.status === 400 && errText.includes("term_exists")) {
+        const parsed = JSON.parse(errText);
+        if (parsed?.data?.resource_id) {
+          _brandAttrCache.set(cacheKey, parsed.data.resource_id);
+          return parsed.data.resource_id;
+        }
+      }
+      console.warn(`[brand] Failed to create term "${brandName}": ${createResp.status} ${errText.substring(0, 200)}`);
+      return null;
+    }
+    const created = await createResp.json();
+    console.log(`[brand] Created brand term "${brandName}" with ID ${created.id}`);
+    _brandAttrCache.set(cacheKey, created.id);
+    return created.id;
+  } catch (e) {
+    console.warn(`[brand] Error ensuring term "${brandName}":`, e);
+    return null;
+  }
+}
+
 async function findWooProductBySku(baseUrl: string, auth: string, sku: string | null): Promise<number | null> {
   if (!sku) return null;
   try {
@@ -2023,6 +2115,23 @@ async function publishSingleProduct(
 
   wooProduct.type = "simple";
 
+  // ── Ensure brand attribute/term exists in WooCommerce ──
+  if (Array.isArray(wooProduct.attributes)) {
+    for (const attr of wooProduct.attributes as any[]) {
+      const aName = String(attr.name || "").toLowerCase().trim();
+      if (aName === "marca" || aName === "brand") {
+        const brandVal = attr.options?.[0];
+        if (brandVal) {
+          const attrId = await ensureWooBrandAttribute(baseUrl, auth);
+          if (attrId) {
+            await ensureWooBrandTerm(baseUrl, auth, attrId, brandVal);
+          }
+        }
+        break;
+      }
+    }
+  }
+
   let existingWooId = enrichedProduct.woocommerce_id;
   if (!existingWooId && enrichedProduct.sku) {
     existingWooId = await findWooProductBySku(baseUrl, auth, enrichedProduct.sku);
@@ -2194,6 +2303,23 @@ async function publishVariableProduct(
   // Variable parents must not have prices; prices live on variations
   delete parentPayload.regular_price;
   delete parentPayload.sale_price;
+
+  // ── Ensure brand attribute/term exists for variable products ──
+  if (Array.isArray((parentPayload as any).attributes)) {
+    for (const attr of (parentPayload as any).attributes) {
+      const aName = String(attr.name || "").toLowerCase().trim();
+      if (aName === "marca" || aName === "brand") {
+        const brandVal = attr.options?.[0];
+        if (brandVal) {
+          const attrId = await ensureWooBrandAttribute(baseUrl, auth);
+          if (attrId) {
+            await ensureWooBrandTerm(baseUrl, auth, attrId, brandVal);
+          }
+        }
+        break;
+      }
+    }
+  }
 
   let existingParentWooId = parent.woocommerce_id;
   if (!existingParentWooId && parent.sku) {
