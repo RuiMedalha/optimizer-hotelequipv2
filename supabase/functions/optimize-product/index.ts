@@ -1576,19 +1576,33 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
         if (optimized.faq) updateData.faq = optimized.faq;
         if (optimized.upsell_skus) updateData.upsell_skus = optimized.upsell_skus;
         if (optimized.crosssell_skus) updateData.crosssell_skus = optimized.crosssell_skus;
-        if (optimized.image_alt_texts) {
+        if (optimized.image_alt_texts || (product.image_urls && product.image_urls.length > 0)) {
           // Convert array format [{url, alt_text}] to object format {url: alt_text} for DB
-          if (Array.isArray(optimized.image_alt_texts)) {
-            const altObj: Record<string, string> = {};
-            for (const item of optimized.image_alt_texts) {
-              if (item?.url && item?.alt_text) {
-                altObj[item.url] = item.alt_text;
+          let altObj: Record<string, string> = {};
+          if (optimized.image_alt_texts) {
+            if (Array.isArray(optimized.image_alt_texts)) {
+              for (const item of optimized.image_alt_texts) {
+                if (item?.url && item?.alt_text) {
+                  altObj[item.url] = item.alt_text;
+                }
+              }
+            } else {
+              altObj = optimized.image_alt_texts as Record<string, string>;
+            }
+          }
+          // FALLBACK: Ensure ALL image URLs have alt text — fill missing ones
+          if (product.image_urls && Array.isArray(product.image_urls)) {
+            const focusKw = (optimized.focus_keywords?.[0] || updateData.focus_keyword?.[0] || product.original_title || "produto profissional").substring(0, 80);
+            for (let i = 0; i < product.image_urls.length; i++) {
+              const url = product.image_urls[i];
+              if (url && !altObj[url]) {
+                const suffix = product.image_urls.length > 1 ? ` — vista ${i + 1}` : "";
+                altObj[url] = `${focusKw}${suffix}`.substring(0, 125);
+                console.log(`⚠️ Alt text fallback generated for image ${i + 1}: ${url.substring(0, 60)}...`);
               }
             }
-            updateData.image_alt_texts = altObj;
-          } else {
-            updateData.image_alt_texts = optimized.image_alt_texts;
           }
+          updateData.image_alt_texts = altObj;
         }
         if (optimized.suggested_category) updateData.suggested_category = optimized.suggested_category;
         if (optimized.focus_keywords && Array.isArray(optimized.focus_keywords) && optimized.focus_keywords.length > 0) {
