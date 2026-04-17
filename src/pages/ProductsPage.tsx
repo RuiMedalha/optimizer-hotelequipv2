@@ -579,6 +579,7 @@ const ProductsPage = () => {
                     workspaceId: directWorkspaceId,
                     productIds: directModeIds,
                     mode: "lifestyle",
+                    imagePromptTemplateId: directImagePromptTemplateId,
                   });
                 } catch (e) { console.warn("Image processing direct mode error:", e); }
               }

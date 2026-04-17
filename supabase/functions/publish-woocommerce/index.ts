@@ -622,6 +622,74 @@ async function ensurePwbBrand(baseUrl: string, auth: string, brandName: string):
   }
 }
 
+async function ensureBrandTaxonomy(baseUrl: string, auth: string, brandName: string): Promise<number | null> {
+  if (!brandName) return null;
+  const key = brandName.toLowerCase().trim();
+  if (_pwbBrandCache.has(`brand:${key}`)) return _pwbBrandCache.get(`brand:${key}`)!;
+
+  try {
+    const searchResp = await fetch(
+      `${baseUrl}/wp-json/wp/v2/brand?search=${encodeURIComponent(brandName)}&per_page=100`,
+      { headers: { Authorization: `Basic ${auth}` } }
+    );
+    if (searchResp.ok) {
+      const terms = await searchResp.json();
+      const match = (terms as any[]).find((t: any) => String(t.name).toLowerCase().trim() === key);
+      if (match) {
+        _pwbBrandCache.set(`brand:${key}`, match.id);
+        return match.id;
+      }
+    }
+
+    const createResp = await fetch(`${baseUrl}/wp-json/wp/v2/brand`, {
+      method: "POST",
+      headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: brandName }),
+    });
+    if (!createResp.ok) {
+      const errText = await createResp.text().catch(() => "");
+      if (createResp.status === 400 && errText.includes("term_exists")) {
+        try {
+          const parsed = JSON.parse(errText);
+          const termId = parsed?.data?.term_id || parsed?.data?.resource_id;
+          if (termId) {
+            _pwbBrandCache.set(`brand:${key}`, termId);
+            return termId;
+          }
+        } catch {}
+      }
+      console.warn(`[brand-taxonomy] Failed to create "${brandName}": ${createResp.status}`);
+      return null;
+    }
+    const created = await createResp.json();
+    _pwbBrandCache.set(`brand:${key}`, created.id);
+    return created.id;
+  } catch (e) {
+    console.warn(`[brand-taxonomy] Error ensuring "${brandName}":`, e);
+    return null;
+  }
+}
+
+function ensureBrandMeta(target: Record<string, unknown>, brandValue: string) {
+  if (!brandValue) return;
+  const existingMeta = Array.isArray(target.meta_data) ? target.meta_data as Array<{ key: string; value: string }> : [];
+  const upsert = (key: string, value: string) => {
+    const idx = existingMeta.findIndex((m) => String(m?.key || "") === key);
+    if (idx >= 0) existingMeta[idx] = { key, value };
+    else existingMeta.push({ key, value });
+  };
+  upsert("_brand", brandValue);
+  upsert("xstore_brand", brandValue);
+  upsert("brand_id", brandValue);
+  target.meta_data = existingMeta;
+}
+
+function ensureBrandAssignment(target: Record<string, unknown>, brandId: number) {
+  if (!brandId) return;
+  target.brands = [brandId];
+  (target as any).brand = [brandId];
+}
+
 /**
  * Extracts brand value from product attributes array.
  */

@@ -150,6 +150,63 @@ Deno.serve(async (req) => {
     // Log generator resolution for debugging
     console.log(`🔍 [process-images] Generator resolution: generator_found=${!!lifestyleGeneratorPrompt}, generator_name="${lifestyleGeneratorName}", fallback_prompt_found=${!!lifestylePromptTemplate}`);
 
+    function normalizeAltText(value: string | null | undefined): string | null {
+      const text = String(value || "").replace(/\s+/g, " ").trim();
+      return text ? text.slice(0, 125) : null;
+    }
+
+    function buildFallbackAltText(productName: string, imageIndex: number, totalImages: number): string {
+      const base = String(productName || "produto profissional").replace(/\s+/g, " ").trim().slice(0, 90) || "produto profissional";
+      const suffix = totalImages > 1 ? ` — imagem ${imageIndex + 1}` : "";
+      return `${base}${suffix}`.slice(0, 125);
+    }
+
+    async function ensureAllProductImageAlts(product: {
+      id: string;
+      sku?: string | null;
+      original_title?: string | null;
+      optimized_title?: string | null;
+      image_urls?: string[] | null;
+      image_alt_texts?: Record<string, string> | null;
+    }): Promise<Record<string, string>> {
+      const urls = Array.isArray(product.image_urls) ? product.image_urls.filter((url): url is string => typeof url === "string" && url.trim().length > 0) : [];
+      if (urls.length === 0) return {};
+
+      const altTextsObj: Record<string, string> = {};
+      const seedAlts = product.image_alt_texts && typeof product.image_alt_texts === "object" && !Array.isArray(product.image_alt_texts)
+        ? product.image_alt_texts
+        : {};
+
+      for (const [url, alt] of Object.entries(seedAlts)) {
+        const normalized = normalizeAltText(alt);
+        if (url && normalized) altTextsObj[url] = normalized;
+      }
+
+      const { data: existingImages } = await sb
+        .from("images")
+        .select("optimized_url, alt_text")
+        .eq("product_id", product.id)
+        .not("optimized_url", "is", null);
+
+      for (const row of existingImages || []) {
+        const url = typeof row.optimized_url === "string" ? row.optimized_url : "";
+        const normalized = normalizeAltText(row.alt_text);
+        if (url && normalized && !altTextsObj[url]) {
+          altTextsObj[url] = normalized;
+        }
+      }
+
+      const productName = product.optimized_title || product.original_title || product.sku || "produto profissional";
+      await Promise.all(urls.map(async (url, index) => {
+        if (altTextsObj[url]) return;
+        const generated = normalizeAltText(await generateAltText(url, productName));
+        altTextsObj[url] = generated || buildFallbackAltText(productName, index, urls.length);
+      }));
+
+      await sb.from("products").update({ image_alt_texts: altTextsObj }).eq("id", product.id);
+      return altTextsObj;
+    }
+
     // Helper: generate SEO alt text for an image URL
     async function generateAltText(imageUrl: string, productName: string): Promise<string | null> {
       try {
@@ -188,7 +245,7 @@ O alt text deve:
 
         if (!aiResp.ok) return null;
         const aiWrapper = await aiResp.json();
-        const altText = (aiWrapper.result?.choices?.[0]?.message?.content || "").trim().slice(0, 125);
+        const altText = normalizeAltText(aiWrapper.result?.choices?.[0]?.message?.content || "");
         return altText || null;
       } catch (e) {
         console.warn(`[alt-text] Failed for ${productName}:`, e);
@@ -203,7 +260,7 @@ O alt text deve:
         // Get product
         const { data: product } = await sb
           .from("products")
-          .select("id, sku, original_title, image_urls, product_type, parent_product_id, category, optimized_short_description, short_description")
+          .select("id, sku, original_title, optimized_title, image_urls, image_alt_texts, product_type, parent_product_id, category, optimized_short_description, short_description")
           .eq("id", productId)
           .single();
 
@@ -510,7 +567,7 @@ INFORMAÇÃO DO PRODUTO:
 
                   // Generate alt text for the lifestyle image
                   const productName = product.original_title || product.sku || "produto";
-                  const lifestyleAlt = await generateAltText(lifestyleUrl, productName);
+                  const lifestyleAlt = normalizeAltText(await generateAltText(lifestyleUrl, productName)) || buildFallbackAltText(productName, nextSortOrder, (product.image_urls?.length ?? 0) + 1);
                   console.log(`🏷️ [lifestyle] Alt text generated: "${lifestyleAlt}" for ${productId}`);
 
                   await sb.from("images").insert({
@@ -619,7 +676,7 @@ INFORMAÇÃO DO PRODUTO:
 
                 // Generate alt text for the optimized image
                 const productName = product.original_title || product.sku || "produto";
-                const optimizedAlt = await generateAltText(urlData.publicUrl, productName);
+                  const optimizedAlt = normalizeAltText(await generateAltText(urlData.publicUrl, productName)) || buildFallbackAltText(productName, i, product.image_urls?.length ?? 1);
                 console.log(`🏷️ [optimize] Alt text generated: "${optimizedAlt}" for ${productId} image ${i}`);
 
                 // Update images table
@@ -738,23 +795,8 @@ INFORMAÇÃO DO PRODUTO:
           }
         }
 
-        // Sync image_alt_texts JSONB on the product from images table
-        const { data: allImgs } = await sb
-          .from("images")
-          .select("optimized_url, alt_text")
-          .eq("product_id", productId)
-          .not("alt_text", "is", null);
-
-        if (allImgs && allImgs.length > 0) {
-          const altTextsObj: Record<string, string> = {};
-          for (const img of allImgs) {
-            if (img.optimized_url && img.alt_text) {
-              altTextsObj[img.optimized_url] = img.alt_text;
-            }
-          }
-          await sb.from("products").update({ image_alt_texts: altTextsObj }).eq("id", productId);
-          console.log(`🏷️ Synced ${Object.keys(altTextsObj).length} alt texts to product ${productId}`);
-        }
+        const altTextsObj = await ensureAllProductImageAlts(product);
+        console.log(`🏷️ Synced ${Object.keys(altTextsObj).length} alt texts to product ${productId}`);
 
         // Only increment credits if images were actually generated by AI
         if (newGeneratedUrls.length > 0) {

@@ -21,11 +21,13 @@ export function useProcessImages() {
     productIds,
     mode = "optimize",
     modelOverride,
+    imagePromptTemplateId,
   }: {
     workspaceId: string;
     productIds: string[];
     mode?: "optimize" | "lifestyle";
     modelOverride?: string;
+    imagePromptTemplateId?: string;
   }) => {
     setIsProcessing(true);
     setProgress({ total: productIds.length, done: 0, currentProduct: "" });
@@ -47,6 +49,7 @@ export function useProcessImages() {
 
         const body: Record<string, unknown> = { productIds: batch, workspaceId, mode };
         if (modelOverride) body.modelOverride = modelOverride;
+        if (imagePromptTemplateId) body.imagePromptTemplateId = imagePromptTemplateId;
 
         const { data, error } = await supabase.functions.invoke(
           "process-product-images",
