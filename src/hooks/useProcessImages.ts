@@ -29,6 +29,9 @@ export function useProcessImages() {
     modelOverride?: string;
     imagePromptTemplateId?: string;
   }) => {
+    // Guard: imagePromptTemplateId só aplica ao modo lifestyle.
+    // Em modo "optimize" ignoramos para evitar misturar comportamentos.
+    const safeTemplateId = mode === "lifestyle" ? imagePromptTemplateId : undefined;
     setIsProcessing(true);
     setProgress({ total: productIds.length, done: 0, currentProduct: "" });
 
@@ -49,7 +52,7 @@ export function useProcessImages() {
 
         const body: Record<string, unknown> = { productIds: batch, workspaceId, mode };
         if (modelOverride) body.modelOverride = modelOverride;
-        if (imagePromptTemplateId) body.imagePromptTemplateId = imagePromptTemplateId;
+        if (safeTemplateId) body.imagePromptTemplateId = safeTemplateId;
 
         const { data, error } = await supabase.functions.invoke(
           "process-product-images",
