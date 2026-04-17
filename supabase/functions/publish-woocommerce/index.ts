@@ -2394,6 +2394,8 @@ async function publishSingleProduct(
       wooProduct.brands = [pwbId];
       console.log(`[publish] Assigned PWB brand "${brandVal}" (ID ${pwbId}) to product ${enrichedProduct.id}`);
     }
+    // XStore / theme compatibility meta fields
+    ensureBrandMeta(wooProduct, brandVal);
   }
 
   let existingWooId = enrichedProduct.woocommerce_id;
