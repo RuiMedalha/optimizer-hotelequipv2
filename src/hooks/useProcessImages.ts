@@ -29,6 +29,9 @@ export function useProcessImages() {
     modelOverride?: string;
     imagePromptTemplateId?: string;
   }) => {
+    // Guard: imagePromptTemplateId só aplica ao modo lifestyle.
+    // Em modo "optimize" ignoramos para evitar misturar comportamentos.
+    const safeTemplateId = mode === "lifestyle" ? imagePromptTemplateId : undefined;
     setIsProcessing(true);
     setProgress({ total: productIds.length, done: 0, currentProduct: "" });
 
