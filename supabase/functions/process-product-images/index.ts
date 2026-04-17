@@ -281,13 +281,29 @@ O alt text deve:
           .limit(1)
           .maybeSingle();
 
+        // === GUARD: filter out already-generated URLs (upscale_ / lifestyle_ / supabase storage) ===
+        // Prevents recursive re-processing that creates duplicates and explodes image count.
+        const isGeneratedUrl = (u: string) =>
+          typeof u === "string" && (
+            u.includes("/storage/v1/object/public/product-images/") ||
+            u.includes("upscale_") ||
+            u.includes("lifestyle_")
+          );
+
+        const sourceUrls: string[] = (product.image_urls as string[]).filter((u) => !isGeneratedUrl(u));
+        if (sourceUrls.length === 0) {
+          console.log(`⏭️ [process-images] Skipping ${productId}: all images are already generated (no original sources to process)`);
+          results.push({ productId, status: "skipped", reason: "Sem imagens originais para processar (todas já são geradas)" });
+          continue;
+        }
+
         let nextSortOrder =
           typeof latestImageRow?.sort_order === "number"
             ? latestImageRow.sort_order + 1
             : (product.image_urls?.length ?? 0);
 
-        for (let i = 0; i < product.image_urls.length; i++) {
-          const originalUrl = product.image_urls[i];
+        for (let i = 0; i < sourceUrls.length; i++) {
+          const originalUrl = sourceUrls[i];
           if (!originalUrl) continue;
 
           // Validate URL is absolute before processing
