@@ -704,6 +704,19 @@ function extractBrandFromAttributes(attributes: any[]): string | null {
   return null;
 }
 
+function extractBrandValue(product: any, fallbackAttributes?: any[]): string | null {
+  const fromPrimaryAttrs = extractBrandFromAttributes(Array.isArray(product?.attributes) ? product.attributes : []);
+  if (fromPrimaryAttrs) return fromPrimaryAttrs;
+
+  const fromFallbackAttrs = extractBrandFromAttributes(Array.isArray(fallbackAttributes) ? fallbackAttributes : []);
+  if (fromFallbackAttrs) return fromFallbackAttrs;
+
+  const supplierRef = String(product?.supplier_ref || "").trim();
+  if (supplierRef) return supplierRef;
+
+  return null;
+}
+
 async function findWooProductBySku(baseUrl: string, auth: string, sku: string | null): Promise<number | null> {
   if (!sku) return null;
   try {
@@ -2371,17 +2384,7 @@ async function publishSingleProduct(
     ? enrichedProduct.attributes
     : (Array.isArray(wooProduct.attributes) ? wooProduct.attributes as any[] : []);
 
-  let brandVal: string | null = null;
-  for (const attr of sourceAttrs) {
-    const aName = String(attr?.name || "").toLowerCase().trim();
-    if (aName === "marca" || aName === "brand") {
-      const v = attr?.value ?? attr?.options?.[0] ?? (Array.isArray(attr?.values) ? attr.values[0] : null);
-      if (v) {
-        brandVal = String(v).trim();
-        break;
-      }
-    }
-  }
+  const brandVal = extractBrandValue(enrichedProduct, sourceAttrs);
 
   if (brandVal) {
     const attrId = await ensureWooBrandAttribute(baseUrl, auth);
@@ -2520,24 +2523,7 @@ async function publishVariableProduct(
   }
 
   // Extract brand from static attributes for XStore meta_data
-  let brandValue: string | null = null;
-  for (const s of staticAttributes) {
-    const sLower = s.name.toLowerCase().trim();
-    if (sLower === "marca" || sLower === "brand") {
-      brandValue = s.options[0] || null;
-      break;
-    }
-  }
-  // Also check parent attributes directly
-  if (!brandValue && Array.isArray(parent.attributes)) {
-    for (const attr of parent.attributes) {
-      const n = String(attr?.name || "").toLowerCase().trim();
-      if (n === "marca" || n === "brand") {
-        brandValue = String(attr?.value || attr?.options?.[0] || "").trim() || null;
-        break;
-      }
-    }
-  }
+  const brandValue = extractBrandValue(parent, staticAttributes);
 
   if (variationAttributes.length > 0 || staticAttributes.length > 0) {
     const merged: any[] = [...variationAttributes];
