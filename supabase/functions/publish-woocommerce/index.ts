@@ -698,10 +698,35 @@ function extractBrandFromAttributes(attributes: any[]): string | null {
   for (const attr of attributes) {
     const n = String(attr?.name || "").toLowerCase().trim();
     if (n === "marca" || n === "brand") {
-      return String(attr?.value || attr?.options?.[0] || "").trim() || null;
+      const rawValue = attr?.value ?? attr?.options?.[0] ?? (Array.isArray(attr?.values) ? attr.values[0] : null);
+      return String(rawValue || "").trim() || null;
     }
   }
   return null;
+}
+
+async function assignBrandToProductTaxonomies(baseUrl: string, auth: string, brandValue: string, target: Record<string, unknown>) {
+  if (!brandValue) return;
+
+  const assignedIds = new Set<number>();
+
+  const brandTaxonomyId = await ensureBrandTaxonomy(baseUrl, auth, brandValue);
+  if (brandTaxonomyId) {
+    assignedIds.add(brandTaxonomyId);
+    (target as any).brand = [brandTaxonomyId];
+    console.log(`[brand-taxonomy] Assigned custom brand taxonomy "${brandValue}" (ID ${brandTaxonomyId})`);
+  }
+
+  const pwbId = await ensurePwbBrand(baseUrl, auth, brandValue);
+  if (pwbId) {
+    assignedIds.add(pwbId);
+    target.brands = [pwbId];
+    console.log(`[pwb-brand] Assigned PWB brand taxonomy "${brandValue}" (ID ${pwbId})`);
+  }
+
+  if (assignedIds.size > 0) {
+    (target as any).brand = Array.from(assignedIds);
+  }
 }
 
 function extractBrandValue(product: any, fallbackAttributes?: any[]): string | null {
