@@ -2513,24 +2513,36 @@ async function publishVariableProduct(
   delete parentPayload.sale_price;
 
   // ── Ensure brand attribute/term + PWB brand taxonomy for variable products ──
-  if (Array.isArray((parentPayload as any).attributes)) {
-    for (const attr of (parentPayload as any).attributes) {
-      const aName = String(attr.name || "").toLowerCase().trim();
-      if (aName === "marca" || aName === "brand") {
-        const brandVal = attr.options?.[0];
-        if (brandVal) {
-          const attrId = await ensureWooBrandAttribute(baseUrl, auth);
-          if (attrId) {
-            await ensureWooBrandTerm(baseUrl, auth, attrId, brandVal);
-          }
-          // Also assign PWB brand taxonomy
-          const pwbId = await ensurePwbBrand(baseUrl, auth, brandVal);
-          if (pwbId) {
-            (parentPayload as any).brands = [pwbId];
-          }
-        }
+  // Look in canonical parent.attributes first, fallback to parentPayload.attributes
+  const sourceAttrsVar: any[] = Array.isArray(parent.attributes)
+    ? parent.attributes
+    : (Array.isArray((parentPayload as any).attributes) ? (parentPayload as any).attributes : []);
+
+  let brandValVar: string | null = null;
+  for (const attr of sourceAttrsVar) {
+    const aName = String(attr?.name || "").toLowerCase().trim();
+    if (aName === "marca" || aName === "brand") {
+      const v = attr?.value ?? attr?.options?.[0] ?? (Array.isArray(attr?.values) ? attr.values[0] : null);
+      if (v) {
+        brandValVar = String(v).trim();
         break;
       }
+    }
+  }
+  // Fallback to brandValue captured earlier in this function (from buildAttributesForParent)
+  if (!brandValVar && typeof brandValue === "string" && brandValue) {
+    brandValVar = brandValue;
+  }
+
+  if (brandValVar) {
+    const attrId = await ensureWooBrandAttribute(baseUrl, auth);
+    if (attrId) {
+      await ensureWooBrandTerm(baseUrl, auth, attrId, brandValVar);
+    }
+    const pwbId = await ensurePwbBrand(baseUrl, auth, brandValVar);
+    if (pwbId) {
+      (parentPayload as any).brands = [pwbId];
+      console.log(`[publish-variable] Assigned PWB brand "${brandValVar}" (ID ${pwbId}) to parent ${parent.id}`);
     }
   }
 
