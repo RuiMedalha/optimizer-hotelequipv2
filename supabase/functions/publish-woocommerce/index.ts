@@ -684,12 +684,6 @@ function ensureBrandMeta(target: Record<string, unknown>, brandValue: string) {
   target.meta_data = existingMeta;
 }
 
-function ensureBrandAssignment(target: Record<string, unknown>, brandId: number) {
-  if (!brandId) return;
-  target.brands = [brandId];
-  (target as any).brand = [brandId];
-}
-
 /**
  * Extracts brand value from product attributes array.
  */
