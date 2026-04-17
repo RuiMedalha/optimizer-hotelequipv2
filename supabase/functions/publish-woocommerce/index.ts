@@ -1116,51 +1116,76 @@ function buildFaqSchemaJson(faq: any[]): string {
 }
 
 // ── Uso Profissional HTML builder ──
+// Mirrors the format used in src/components/UsoProfissionalTab.tsx (buildUsoHtml)
+// so o WooCommerce mostra exatamente o mesmo conteúdo do preview da otimização.
 function buildUsoProfissionalHtml(data: any): string {
   if (!data) return "";
-  const parts: string[] = [];
 
-  // Section heading
-  parts.push(`<h3 style="color:#00526d;font-size:18px;margin:0 0 12px;">Como é usado por profissionais</h3>`);
-
-  // Intro paragraph
-  if (data.intro) {
-    parts.push(`<p style="color:#374151;line-height:1.7;margin-bottom:16px;">${data.intro}</p>`);
-  }
-
-  // Use Cases with title + description
+  const intro: string = data.intro || "";
   const useCases = Array.isArray(data.use_cases) ? data.use_cases : [];
-  if (useCases.length > 0) {
-    parts.push(`<h4 style="color:#00526d;margin:16px 0 10px;font-size:15px;">Contextos de utilização</h4>`);
-    const items = useCases.map((uc: any) => {
-      const title = uc.context || uc.title || uc.name || "";
-      const desc = uc.description || uc.text || "";
-      if (!title && !desc) return "";
-      return `<div style="margin-bottom:12px;"><p style="font-weight:bold;color:#00526d;margin:0 0 4px 0;">${title}</p>${desc ? `<p style="color:#374151;line-height:1.6;margin:0;">${desc}</p>` : ""}</div>`;
-    }).filter(Boolean);
-    parts.push(items.join(""));
-  }
-
-  // Professional tips
   const tips = Array.isArray(data.professional_tips) ? data.professional_tips : [];
-  if (tips.length > 0) {
-    parts.push(`<h4 style="color:#00526d;margin:16px 0 10px;font-size:15px;">Dicas de profissionais</h4>`);
-    const items = tips.map((t: any) => `<li style="margin-bottom:6px;">${typeof t === "string" ? t : (t?.tip || t?.text || "")}</li>`).join("");
-    parts.push(`<ul style="padding-left:20px;color:#374151;line-height:1.6;">${items}</ul>`);
+  const profiles = Array.isArray(data.target_profiles) ? data.target_profiles : [];
+
+  // Need at least intro or use cases or tips to render anything meaningful
+  if (!intro && useCases.length === 0 && tips.length === 0 && profiles.length === 0) return "";
+
+  const sections: string[] = [];
+
+  // Heading
+  sections.push(
+    `<h3 style="font-size:1.1em;font-weight:600;margin-bottom:0.75em;color:#00526d;">Como é usado por profissionais</h3>`
+  );
+
+  // Intro
+  if (intro) {
+    sections.push(`<p style="color:#374151;line-height:1.7;margin:0 0 1em;">${intro}</p>`);
   }
 
-  // Target profiles
-  const profiles = Array.isArray(data.target_profiles) ? data.target_profiles : [];
-  if (profiles.length > 0) {
-    const items = profiles.map((p: any) => typeof p === "string" ? p : (p?.name || "")).filter(Boolean);
+  // Use Cases — list with "Title: Description" inline (formato do preview)
+  if (useCases.length > 0) {
+    const items = useCases
+      .map((uc: any) => {
+        const title = uc.context || uc.title || uc.name || "";
+        const desc = uc.description || uc.text || "";
+        if (!title && !desc) return "";
+        if (title && desc) {
+          return `<li style="margin-bottom:0.5em;"><strong>${title}:</strong> ${desc}</li>`;
+        }
+        return `<li style="margin-bottom:0.5em;">${title || desc}</li>`;
+      })
+      .filter(Boolean);
     if (items.length > 0) {
-      parts.push(`<h4 style="color:#00526d;margin:16px 0 10px;font-size:15px;">Perfis Profissionais</h4>`);
-      parts.push(`<p style="color:#374151;">${items.join(" · ")}</p>`);
+      sections.push(`<h4 style="font-weight:600;margin:1em 0 0.5em;color:#00526d;">Contextos de utilização</h4>`);
+      sections.push(`<ul style="padding-left:1.25em;color:#374151;line-height:1.6;">${items.join("")}</ul>`);
     }
   }
 
-  if (parts.length <= 1) return ""; // only heading, no content
-  return `<!-- HOTELEQUIP:USO_PROFISSIONAL_START --><div class="hotelequip-uso-profissional" style="margin-top:24px;border-top:1px solid #e5e7eb;padding-top:16px;">${parts.join("")}</div><!-- HOTELEQUIP:USO_PROFISSIONAL_END -->`;
+  // Professional tips
+  if (tips.length > 0) {
+    const items = tips
+      .map((t: any) => {
+        const text = typeof t === "string" ? t : (t?.tip || t?.text || "");
+        return text ? `<li style="margin-bottom:0.25em;">${text}</li>` : "";
+      })
+      .filter(Boolean);
+    if (items.length > 0) {
+      sections.push(`<h4 style="font-weight:600;margin:1em 0 0.5em;color:#00526d;">Dicas de profissionais</h4>`);
+      sections.push(`<ul style="padding-left:1.25em;color:#374151;line-height:1.6;">${items.join("")}</ul>`);
+    }
+  }
+
+  // Target profiles (mantém — útil para HORECA, mas opcional)
+  if (profiles.length > 0) {
+    const items = profiles
+      .map((p: any) => (typeof p === "string" ? p : p?.name || ""))
+      .filter(Boolean);
+    if (items.length > 0) {
+      sections.push(`<h4 style="font-weight:600;margin:1em 0 0.5em;color:#00526d;">Perfis Profissionais</h4>`);
+      sections.push(`<p style="color:#374151;line-height:1.6;margin:0;">${items.join(" · ")}</p>`);
+    }
+  }
+
+  return `<!-- HOTELEQUIP:USO_PROFISSIONAL_START --><div class="uso-profissional-hotelequip" style="margin-top:2em;padding-top:1.5em;border-top:1px solid #e5e7eb;">${sections.join("")}</div><!-- HOTELEQUIP:USO_PROFISSIONAL_END -->`;
 }
 
 // ── Uso Profissional JSON for custom field (_product_conselhos repeater) ──
@@ -1440,10 +1465,19 @@ async function buildBasePayload(
           }
         }
       }
+      // Fallback alt text: optimized_title or original_title (ensures every image has alt for SEO)
+      const fallbackAlt: string = String(
+        product.optimized_title || product.meta_title || product.original_title || product.sku || ""
+      ).trim();
+      const wantsAlt = has("image_alt_text");
       const imagePromises = product.image_urls.map((ref: string, i: number) => {
         // Look up alt text by URL key (works with both original and optimized URLs)
-        const altStr = altMap.get(ref) || "";
-        return resolveImageRef(ref, i, baseUrl, auth, altStr, has("image_alt_text") && !!altStr);
+        let altStr = altMap.get(ref) || "";
+        if (!altStr && wantsAlt && fallbackAlt) {
+          // Use product title as fallback so we never publish images without alt
+          altStr = i === 0 ? fallbackAlt : `${fallbackAlt} - imagem ${i + 1}`;
+        }
+        return resolveImageRef(ref, i, baseUrl, auth, altStr, wantsAlt && !!altStr);
       });
       const resolved = await Promise.all(imagePromises);
       const filteredImages = resolved.filter(Boolean);
@@ -2263,24 +2297,34 @@ async function publishSingleProduct(
   wooProduct.type = "simple";
 
   // ── Ensure brand attribute/term + PWB brand taxonomy ──
-  if (Array.isArray(wooProduct.attributes)) {
-    for (const attr of wooProduct.attributes as any[]) {
-      const aName = String(attr.name || "").toLowerCase().trim();
-      if (aName === "marca" || aName === "brand") {
-        const brandVal = attr.options?.[0];
-        if (brandVal) {
-          const attrId = await ensureWooBrandAttribute(baseUrl, auth);
-          if (attrId) {
-            await ensureWooBrandTerm(baseUrl, auth, attrId, brandVal);
-          }
-          // Also assign PWB brand taxonomy
-          const pwbId = await ensurePwbBrand(baseUrl, auth, brandVal);
-          if (pwbId) {
-            wooProduct.brands = [pwbId];
-          }
-        }
+  // Look in canonical product.attributes (not just wooProduct.attributes), since
+  // attributes may not be in the publish payload but the brand should still be assigned.
+  const sourceAttrs: any[] = Array.isArray(enrichedProduct.attributes)
+    ? enrichedProduct.attributes
+    : (Array.isArray(wooProduct.attributes) ? wooProduct.attributes as any[] : []);
+
+  let brandVal: string | null = null;
+  for (const attr of sourceAttrs) {
+    const aName = String(attr?.name || "").toLowerCase().trim();
+    if (aName === "marca" || aName === "brand") {
+      const v = attr?.value ?? attr?.options?.[0] ?? (Array.isArray(attr?.values) ? attr.values[0] : null);
+      if (v) {
+        brandVal = String(v).trim();
         break;
       }
+    }
+  }
+
+  if (brandVal) {
+    const attrId = await ensureWooBrandAttribute(baseUrl, auth);
+    if (attrId) {
+      await ensureWooBrandTerm(baseUrl, auth, attrId, brandVal);
+    }
+    // Always assign PWB brand taxonomy (independent of attribute publish flag)
+    const pwbId = await ensurePwbBrand(baseUrl, auth, brandVal);
+    if (pwbId) {
+      wooProduct.brands = [pwbId];
+      console.log(`[publish] Assigned PWB brand "${brandVal}" (ID ${pwbId}) to product ${enrichedProduct.id}`);
     }
   }
 
