@@ -684,12 +684,6 @@ function ensureBrandMeta(target: Record<string, unknown>, brandValue: string) {
   target.meta_data = existingMeta;
 }
 
-function ensureBrandAssignment(target: Record<string, unknown>, brandId: number) {
-  if (!brandId) return;
-  target.brands = [brandId];
-  (target as any).brand = [brandId];
-}
-
 /**
  * Extracts brand value from product attributes array.
  */
@@ -698,10 +692,35 @@ function extractBrandFromAttributes(attributes: any[]): string | null {
   for (const attr of attributes) {
     const n = String(attr?.name || "").toLowerCase().trim();
     if (n === "marca" || n === "brand") {
-      return String(attr?.value || attr?.options?.[0] || "").trim() || null;
+      const rawValue = attr?.value ?? attr?.options?.[0] ?? (Array.isArray(attr?.values) ? attr.values[0] : null);
+      return String(rawValue || "").trim() || null;
     }
   }
   return null;
+}
+
+async function assignBrandToProductTaxonomies(baseUrl: string, auth: string, brandValue: string, target: Record<string, unknown>) {
+  if (!brandValue) return;
+
+  const assignedIds = new Set<number>();
+
+  const brandTaxonomyId = await ensureBrandTaxonomy(baseUrl, auth, brandValue);
+  if (brandTaxonomyId) {
+    assignedIds.add(brandTaxonomyId);
+    (target as any).brand = [brandTaxonomyId];
+    console.log(`[brand-taxonomy] Assigned custom brand taxonomy "${brandValue}" (ID ${brandTaxonomyId})`);
+  }
+
+  const pwbId = await ensurePwbBrand(baseUrl, auth, brandValue);
+  if (pwbId) {
+    assignedIds.add(pwbId);
+    target.brands = [pwbId];
+    console.log(`[pwb-brand] Assigned PWB brand taxonomy "${brandValue}" (ID ${pwbId})`);
+  }
+
+  if (assignedIds.size > 0) {
+    (target as any).brand = Array.from(assignedIds);
+  }
 }
 
 function extractBrandValue(product: any, fallbackAttributes?: any[]): string | null {
@@ -2391,12 +2410,7 @@ async function publishSingleProduct(
     if (attrId) {
       await ensureWooBrandTerm(baseUrl, auth, attrId, brandVal);
     }
-    // Always assign PWB brand taxonomy (independent of attribute publish flag)
-    const pwbId = await ensurePwbBrand(baseUrl, auth, brandVal);
-    if (pwbId) {
-      wooProduct.brands = [pwbId];
-      console.log(`[publish] Assigned PWB brand "${brandVal}" (ID ${pwbId}) to product ${enrichedProduct.id}`);
-    }
+    await assignBrandToProductTaxonomies(baseUrl, auth, brandVal, wooProduct);
     // XStore / theme compatibility meta fields
     ensureBrandMeta(wooProduct, brandVal);
   }
@@ -2574,17 +2588,7 @@ async function publishVariableProduct(
     ? parent.attributes
     : (Array.isArray((parentPayload as any).attributes) ? (parentPayload as any).attributes : []);
 
-  let brandValVar: string | null = null;
-  for (const attr of sourceAttrsVar) {
-    const aName = String(attr?.name || "").toLowerCase().trim();
-    if (aName === "marca" || aName === "brand") {
-      const v = attr?.value ?? attr?.options?.[0] ?? (Array.isArray(attr?.values) ? attr.values[0] : null);
-      if (v) {
-        brandValVar = String(v).trim();
-        break;
-      }
-    }
-  }
+  let brandValVar = extractBrandValue(parent, sourceAttrsVar);
   // Fallback to brandValue captured earlier in this function (from buildAttributesForParent)
   if (!brandValVar && typeof brandValue === "string" && brandValue) {
     brandValVar = brandValue;
@@ -2595,11 +2599,7 @@ async function publishVariableProduct(
     if (attrId) {
       await ensureWooBrandTerm(baseUrl, auth, attrId, brandValVar);
     }
-    const pwbId = await ensurePwbBrand(baseUrl, auth, brandValVar);
-    if (pwbId) {
-      (parentPayload as any).brands = [pwbId];
-      console.log(`[publish-variable] Assigned PWB brand "${brandValVar}" (ID ${pwbId}) to parent ${parent.id}`);
-    }
+    await assignBrandToProductTaxonomies(baseUrl, auth, brandValVar, parentPayload);
   }
 
   let existingParentWooId = parent.woocommerce_id;
