@@ -52,7 +52,7 @@ export function useProcessImages() {
 
         const body: Record<string, unknown> = { productIds: batch, workspaceId, mode };
         if (modelOverride) body.modelOverride = modelOverride;
-        if (imagePromptTemplateId) body.imagePromptTemplateId = imagePromptTemplateId;
+        if (safeTemplateId) body.imagePromptTemplateId = safeTemplateId;
 
         const { data, error } = await supabase.functions.invoke(
           "process-product-images",
