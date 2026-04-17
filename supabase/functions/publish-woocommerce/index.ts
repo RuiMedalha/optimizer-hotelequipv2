@@ -2416,12 +2416,7 @@ async function publishSingleProduct(
     if (attrId) {
       await ensureWooBrandTerm(baseUrl, auth, attrId, brandVal);
     }
-    // Always assign PWB brand taxonomy (independent of attribute publish flag)
-    const pwbId = await ensurePwbBrand(baseUrl, auth, brandVal);
-    if (pwbId) {
-      wooProduct.brands = [pwbId];
-      console.log(`[publish] Assigned PWB brand "${brandVal}" (ID ${pwbId}) to product ${enrichedProduct.id}`);
-    }
+    await assignBrandToProductTaxonomies(baseUrl, auth, brandVal, wooProduct);
     // XStore / theme compatibility meta fields
     ensureBrandMeta(wooProduct, brandVal);
   }
@@ -2599,17 +2594,7 @@ async function publishVariableProduct(
     ? parent.attributes
     : (Array.isArray((parentPayload as any).attributes) ? (parentPayload as any).attributes : []);
 
-  let brandValVar: string | null = null;
-  for (const attr of sourceAttrsVar) {
-    const aName = String(attr?.name || "").toLowerCase().trim();
-    if (aName === "marca" || aName === "brand") {
-      const v = attr?.value ?? attr?.options?.[0] ?? (Array.isArray(attr?.values) ? attr.values[0] : null);
-      if (v) {
-        brandValVar = String(v).trim();
-        break;
-      }
-    }
-  }
+  let brandValVar = extractBrandValue(parent, sourceAttrsVar);
   // Fallback to brandValue captured earlier in this function (from buildAttributesForParent)
   if (!brandValVar && typeof brandValue === "string" && brandValue) {
     brandValVar = brandValue;
@@ -2620,11 +2605,7 @@ async function publishVariableProduct(
     if (attrId) {
       await ensureWooBrandTerm(baseUrl, auth, attrId, brandValVar);
     }
-    const pwbId = await ensurePwbBrand(baseUrl, auth, brandValVar);
-    if (pwbId) {
-      (parentPayload as any).brands = [pwbId];
-      console.log(`[publish-variable] Assigned PWB brand "${brandValVar}" (ID ${pwbId}) to parent ${parent.id}`);
-    }
+    await assignBrandToProductTaxonomies(baseUrl, auth, brandValVar, parentPayload);
   }
 
   let existingParentWooId = parent.woocommerce_id;
