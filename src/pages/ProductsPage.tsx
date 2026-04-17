@@ -1266,7 +1266,7 @@ const ProductsPage = () => {
                 <span className="text-sm font-medium">
                   Background: {activeJob.current_product_name || "A processar..."}
                 </span>
-                <Badge variant="secondary" className="text-[10px]">5x paralelo</Badge>
+                <Badge variant="secondary" className="text-[10px]">4x paralelo</Badge>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm font-mono text-muted-foreground">

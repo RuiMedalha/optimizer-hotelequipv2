@@ -10,7 +10,7 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const MAX_PROCESSING_MS = 95_000; // keep safe headroom before timeout
-const CONCURRENCY = 2; // lower concurrency to reduce function rate limiting
+const CONCURRENCY = 4; // raised from 2 → 4 (≈2× throughput; Lovable AI Gateway tolerates this)
 const SELF_INVOKE_RETRIES = 5;
 const TERMINAL_JOB_STATUSES = new Set(["completed", "cancelled", "failed"]);
 
@@ -580,54 +580,40 @@ serve(async (req) => {
             }
           }
 
-          // After all phases, call process-product-images if enabled
+          // === SEPARAR IMAGENS DO BATCH (opção 3) ===
+          // Disparar fire-and-forget para não bloquear o batch de texto.
+          // Texto fica concluído rapidamente; imagens correm em paralelo no
+          // process-product-images sem ocupar tempo do worker do optimize-batch.
+          // Optimize e lifestyle ficam SEMPRE separados (chamadas independentes).
           if (productOk && jobIncludeImageProcessing) {
-            try {
-              const imgResponse = await fetch(
-                `${SUPABASE_URL}/functions/v1/process-product-images`,
-                {
-                  method: "POST",
-                  headers: {
-                    Authorization: authHeader,
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    productIds: [productId],
-                    workspaceId: job.workspace_id,
-                    mode: "optimize",
-                  }),
-                }
-              );
-              if (imgResponse.ok) {
-                console.log(`🖼️ Image optimize done for ${productId}`);
-                // Also do lifestyle if requested
-                const lifestyleResponse = await fetch(
-                  `${SUPABASE_URL}/functions/v1/process-product-images`,
-                  {
-                    method: "POST",
-                    headers: {
-                      Authorization: authHeader,
-                      "Content-Type": "application/json",
-                    },
-                  body: JSON.stringify({
-                    productIds: [productId],
-                    workspaceId: job.workspace_id,
-                    mode: "lifestyle",
-                    ...(jobImagePromptTemplateId ? { imagePromptTemplateId: jobImagePromptTemplateId } : {}),
-                  }),
-                  }
-                );
-                if (lifestyleResponse.ok) {
-                  console.log(`🎨 Lifestyle image done for ${productId}`);
-                } else {
-                  console.warn(`Lifestyle image for ${productId} failed: ${lifestyleResponse.status}`);
-                }
-              } else {
-                console.warn(`Image optimize for ${productId} failed: ${imgResponse.status}`);
-              }
-            } catch (imgErr: any) {
-              console.warn(`Image processing error for ${productId} (non-fatal):`, imgErr?.message);
-            }
+            // 1) Otimização/upscale (não bloqueia)
+            fetch(`${SUPABASE_URL}/functions/v1/process-product-images`, {
+              method: "POST",
+              headers: { Authorization: authHeader, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                productIds: [productId],
+                workspaceId: job.workspace_id,
+                mode: "optimize",
+              }),
+            }).then((r) => {
+              if (!r.ok) console.warn(`[bg] optimize image ${productId} → ${r.status}`);
+              else console.log(`🖼️ [bg] optimize queued for ${productId}`);
+            }).catch((e) => console.warn(`[bg] optimize image error ${productId}:`, e?.message));
+
+            // 2) Lifestyle (separado, também fire-and-forget)
+            fetch(`${SUPABASE_URL}/functions/v1/process-product-images`, {
+              method: "POST",
+              headers: { Authorization: authHeader, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                productIds: [productId],
+                workspaceId: job.workspace_id,
+                mode: "lifestyle",
+                ...(jobImagePromptTemplateId ? { imagePromptTemplateId: jobImagePromptTemplateId } : {}),
+              }),
+            }).then((r) => {
+              if (!r.ok) console.warn(`[bg] lifestyle ${productId} → ${r.status}`);
+              else console.log(`🎨 [bg] lifestyle queued for ${productId}`);
+            }).catch((e) => console.warn(`[bg] lifestyle error ${productId}:`, e?.message));
           }
 
           // Write successful job item

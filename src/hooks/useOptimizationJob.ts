@@ -107,19 +107,21 @@ export function useOptimizationJob() {
     checkActiveJobs();
   }, []);
 
-  // Wakeup para jobs queued OU processing que estejam parados (sem progresso recente).
+  // Wakeup APENAS para jobs em estado `queued` que estejam parados.
+  // Jobs em `processing` NÃO são reativados — caso contrário corremos o risco
+  // de ter múltiplos workers a processar o mesmo lote em paralelo, gerando
+  // duplicação de imagens, custos e timeouts.
   useEffect(() => {
     if (!activeJob) return;
-    if (["completed", "cancelled", "failed"].includes(activeJob.status)) return;
+    if (activeJob.status !== "queued") return;
     if (activeJob.processed_products >= activeJob.total_products) return;
 
     const interval = setInterval(async () => {
       if (!activeJob || wakeupInFlightRef.current) return;
+      if (activeJob.status !== "queued") return;
 
       const ageMs = Date.now() - new Date(activeJob.updated_at).getTime();
-      // queued: 120s, processing: 90s (mais agressivo para jobs stuck em processing)
-      const stalledThreshold = activeJob.status === "queued" ? 120_000 : 90_000;
-      const isStalled = ageMs > stalledThreshold;
+      const isStalled = ageMs > 120_000; // queued > 2min sem update => wakeup
       if (!isStalled) return;
 
       wakeupInFlightRef.current = true;
