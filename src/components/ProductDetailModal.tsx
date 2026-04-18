@@ -54,6 +54,26 @@ export function ProductDetailModal({ product, onClose }: Props) {
   const { activeWorkspace } = useWorkspaceContext();
   const IMAGE_MODELS = useActiveImageModels();
   const [selectedImageModel, setSelectedImageModel] = useState<string>("default");
+  const [selectedImagePromptTemplate, setSelectedImagePromptTemplate] = useState<string>("active");
+
+  // Fetch image prompt templates so the user can pick one for Lifestyle re-runs from inside the modal
+  const { data: imagePromptTemplates } = useQuery({
+    queryKey: ["image-prompt-templates-modal", activeWorkspace?.id],
+    enabled: !!activeWorkspace?.id,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("prompt_templates")
+        .select("id, prompt_name, prompt_type, is_active")
+        .eq("workspace_id", activeWorkspace!.id)
+        .eq("prompt_type", "image")
+        .order("is_active", { ascending: false })
+        .order("prompt_name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const { data: gateResults } = useQualityGateResults(product?.id ?? null);
   const { data: publishLocks } = usePublishLocks(product?.id ?? null);
   const evaluateGate = useEvaluateQualityGate();
@@ -509,6 +529,19 @@ export function ProductDetailModal({ product, onClose }: Props) {
                         ))}
                       </SelectContent>
                     </Select>
+                    <Select value={selectedImagePromptTemplate} onValueChange={setSelectedImagePromptTemplate}>
+                      <SelectTrigger className="h-8 text-xs w-[210px]" title="Prompt usado para Lifestyle">
+                        <SelectValue placeholder="Prompt Lifestyle" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">✅ Prompt ativo (padrão)</SelectItem>
+                        {(imagePromptTemplates || []).map((t: any) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.is_active ? "✅ " : ""}{t.prompt_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <Button
                       size="sm"
                       variant="outline"
@@ -532,6 +565,7 @@ export function ProductDetailModal({ product, onClose }: Props) {
                         productIds: [product.id],
                         mode: "lifestyle",
                         modelOverride: selectedImageModel !== "default" ? selectedImageModel : undefined,
+                        imagePromptTemplateId: selectedImagePromptTemplate !== "active" ? selectedImagePromptTemplate : undefined,
                       })}
                     >
                       {isProcessing ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
