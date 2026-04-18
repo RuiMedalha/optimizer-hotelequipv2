@@ -2,14 +2,14 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-secret",
 };
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const supabase = createClient(
+    const adminClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
@@ -18,7 +18,59 @@ Deno.serve(async (req) => {
     const { workspaceId, sourceId, data } = body;
 
     if (!workspaceId || !data || !Array.isArray(data)) {
-      throw new Error("workspaceId and data[] required");
+      return new Response(JSON.stringify({ success: false, error: "workspaceId and data[] required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ---- Authentication: require either valid user JWT (workspace member) OR webhook secret ----
+    const authHeader = req.headers.get("Authorization");
+    const webhookSecret = req.headers.get("x-webhook-secret");
+    let authorized = false;
+
+    if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.replace("Bearer ", "");
+      const userClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data: claims } = await userClient.auth.getClaims(token);
+      if (claims?.claims?.sub) {
+        const { data: member } = await adminClient
+          .from("workspace_members")
+          .select("role")
+          .eq("workspace_id", workspaceId)
+          .eq("user_id", claims.claims.sub)
+          .eq("status", "active")
+          .maybeSingle();
+        if (member) authorized = true;
+      }
+    }
+
+    // Source-level webhook secret (for external systems calling this endpoint)
+    if (!authorized && sourceId && webhookSecret) {
+      const { data: source } = await adminClient
+        .from("ingestion_sources")
+        .select("workspace_id, webhook_secret")
+        .eq("id", sourceId)
+        .maybeSingle();
+      if (
+        source &&
+        source.workspace_id === workspaceId &&
+        source.webhook_secret &&
+        source.webhook_secret === webhookSecret
+      ) {
+        authorized = true;
+      }
+    }
+
+    if (!authorized) {
+      return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Load source config if sourceId provided
@@ -28,10 +80,11 @@ Deno.serve(async (req) => {
     let groupingConfig = {};
 
     if (sourceId) {
-      const { data: source } = await supabase
+      const { data: source } = await adminClient
         .from("ingestion_sources")
         .select("*")
         .eq("id", sourceId)
+        .eq("workspace_id", workspaceId)
         .single();
 
       if (source) {
@@ -40,8 +93,7 @@ Deno.serve(async (req) => {
         dupFields = source.duplicate_detection_fields || ["sku"];
         groupingConfig = source.grouping_config || {};
 
-        // Update last_run_at
-        await supabase.from("ingestion_sources").update({ last_run_at: new Date().toISOString() }).eq("id", sourceId);
+        await adminClient.from("ingestion_sources").update({ last_run_at: new Date().toISOString() }).eq("id", sourceId);
       }
     }
 
@@ -70,7 +122,6 @@ Deno.serve(async (req) => {
 
     if (!result.success) throw new Error(result.error);
 
-    // If live mode, execute the job
     if (result.jobId) {
       const runUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/run-ingestion-job`;
       const runResp = await fetch(runUrl, {
@@ -91,8 +142,9 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: unknown) {
-    return new Response(JSON.stringify({ success: false, error: (e as Error).message }), {
-      status: 400,
+    console.error("webhook-ingestion error:", e);
+    return new Response(JSON.stringify({ success: false, error: "Internal error" }), {
+      status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
