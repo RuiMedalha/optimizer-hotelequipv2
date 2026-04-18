@@ -133,6 +133,7 @@ Deno.serve(async (req) => {
 
       // Link to product if requested
       if (productId && asset) {
+        await assertProductInWorkspace(productId);
         const context = usageContext || "gallery";
         const order = sortOrder ?? 0;
 
@@ -165,6 +166,8 @@ Deno.serve(async (req) => {
     // ACTION: link an existing asset to a product
     if (action === "link") {
       if (!assetId || !productId) throw new Error("assetId e productId obrigatórios");
+      await assertAssetInWorkspace(assetId);
+      await assertProductInWorkspace(productId);
       const context = usageContext || "gallery";
 
       const { data: existingLink } = await sb
@@ -196,10 +199,12 @@ Deno.serve(async (req) => {
     // ACTION: review asset
     if (action === "review") {
       if (!assetId || !reviewStatus) throw new Error("assetId e reviewStatus obrigatórios");
+      await assertAssetInWorkspace(assetId);
 
       await sb.from("asset_library")
         .update({ review_status: reviewStatus })
-        .eq("id", assetId);
+        .eq("id", assetId)
+        .eq("workspace_id", workspaceId);
 
       return new Response(JSON.stringify({ updated: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -209,10 +214,12 @@ Deno.serve(async (req) => {
     // ACTION: delete asset
     if (action === "delete") {
       if (!assetId) throw new Error("assetId obrigatório");
+      await assertAssetInWorkspace(assetId);
 
       await sb.from("asset_library")
         .update({ status: "archived" })
-        .eq("id", assetId);
+        .eq("id", assetId)
+        .eq("workspace_id", workspaceId);
 
       return new Response(JSON.stringify({ archived: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
