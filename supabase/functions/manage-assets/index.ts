@@ -29,6 +29,51 @@ Deno.serve(async (req) => {
 
     if (!workspaceId) throw new Error("workspaceId obrigatório");
 
+    // Verify the caller is an active member (editor+) of the supplied workspace.
+    // This applies to ALL mutable actions (register/link/review/delete) since they
+    // all touch workspace-scoped data.
+    const { data: membership, error: memErr } = await sb
+      .from("workspace_members")
+      .select("role, status")
+      .eq("workspace_id", workspaceId)
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .maybeSingle();
+
+    if (memErr) throw memErr;
+    if (!membership || !["owner", "admin", "editor"].includes(membership.role)) {
+      return new Response(
+        JSON.stringify({ error: "Sem permissão neste workspace" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Helper: ensure an asset belongs to the supplied workspace before mutating it.
+    const assertAssetInWorkspace = async (id: string) => {
+      const { data: a, error: ae } = await sb
+        .from("asset_library")
+        .select("workspace_id")
+        .eq("id", id)
+        .maybeSingle();
+      if (ae) throw ae;
+      if (!a || a.workspace_id !== workspaceId) {
+        throw new Error("Asset não pertence a este workspace");
+      }
+    };
+
+    // Helper: ensure a product belongs to the supplied workspace.
+    const assertProductInWorkspace = async (id: string) => {
+      const { data: p, error: pe } = await sb
+        .from("products")
+        .select("workspace_id")
+        .eq("id", id)
+        .maybeSingle();
+      if (pe) throw pe;
+      if (!p || p.workspace_id !== workspaceId) {
+        throw new Error("Produto não pertence a este workspace");
+      }
+    };
+
     // ACTION: upload / register a new asset from URL
     if (action === "register" || !action) {
       if (!imageUrl) throw new Error("imageUrl obrigatório");
@@ -88,6 +133,7 @@ Deno.serve(async (req) => {
 
       // Link to product if requested
       if (productId && asset) {
+        await assertProductInWorkspace(productId);
         const context = usageContext || "gallery";
         const order = sortOrder ?? 0;
 
@@ -120,6 +166,8 @@ Deno.serve(async (req) => {
     // ACTION: link an existing asset to a product
     if (action === "link") {
       if (!assetId || !productId) throw new Error("assetId e productId obrigatórios");
+      await assertAssetInWorkspace(assetId);
+      await assertProductInWorkspace(productId);
       const context = usageContext || "gallery";
 
       const { data: existingLink } = await sb
@@ -151,10 +199,12 @@ Deno.serve(async (req) => {
     // ACTION: review asset
     if (action === "review") {
       if (!assetId || !reviewStatus) throw new Error("assetId e reviewStatus obrigatórios");
+      await assertAssetInWorkspace(assetId);
 
       await sb.from("asset_library")
         .update({ review_status: reviewStatus })
-        .eq("id", assetId);
+        .eq("id", assetId)
+        .eq("workspace_id", workspaceId);
 
       return new Response(JSON.stringify({ updated: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -164,10 +214,12 @@ Deno.serve(async (req) => {
     // ACTION: delete asset
     if (action === "delete") {
       if (!assetId) throw new Error("assetId obrigatório");
+      await assertAssetInWorkspace(assetId);
 
       await sb.from("asset_library")
         .update({ status: "archived" })
-        .eq("id", assetId);
+        .eq("id", assetId)
+        .eq("workspace_id", workspaceId);
 
       return new Response(JSON.stringify({ archived: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
