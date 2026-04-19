@@ -11,6 +11,7 @@ export function useWorkspaceAiSettings() {
   return useQuery({
     queryKey: ["workspace-ai-settings", wsId],
     enabled: !!wsId,
+    staleTime: 10 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("workspace_ai_settings" as any)
@@ -52,6 +53,7 @@ export function useWorkspaceNotificationSettings() {
   return useQuery({
     queryKey: ["workspace-notification-settings", wsId],
     enabled: !!wsId,
+    staleTime: 10 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("workspace_notification_settings" as any)
@@ -93,6 +95,7 @@ export function useWorkspaceSupplierConfigs() {
   return useQuery({
     queryKey: ["workspace-supplier-configs", wsId],
     enabled: !!wsId,
+    staleTime: 10 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("workspace_supplier_configs" as any)
@@ -113,6 +116,7 @@ export function useWorkspacePromptProfiles() {
   return useQuery({
     queryKey: ["workspace-prompt-profiles", wsId],
     enabled: !!wsId,
+    staleTime: 10 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("workspace_prompt_profiles" as any)
@@ -133,6 +137,7 @@ export function useWorkspacePublishProfiles() {
   return useQuery({
     queryKey: ["workspace-publish-profiles", wsId],
     enabled: !!wsId,
+    staleTime: 10 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("workspace_publish_profiles" as any)

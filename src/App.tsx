@@ -68,7 +68,14 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import PublicLandingPage from "./pages/PublicLandingPage";
 import { Loader2 } from "lucide-react";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30 * 1000, // 30 seconds default for all queries
+      retry: 1,
+    },
+  },
+});
 
 function ProtectedRoutes() {
   const { user, loading } = useAuth();
