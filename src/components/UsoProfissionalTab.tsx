@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import DOMPurify from "dompurify";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -248,7 +249,7 @@ export function UsoProfissionalTab({ product, workspaceId }: Props) {
       {/* Preview */}
       {showPreview && usoContent && (
         <div className="border rounded-lg p-4 bg-muted/30 text-sm prose max-w-none">
-          <div dangerouslySetInnerHTML={{ __html: usoHtml }} />
+          <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(usoHtml) }} />
         </div>
       )}
 
