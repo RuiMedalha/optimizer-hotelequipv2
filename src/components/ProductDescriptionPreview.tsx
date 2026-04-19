@@ -1,4 +1,5 @@
 import { useState } from "react";
+import DOMPurify from "dompurify";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -138,7 +139,7 @@ export function ProductDescriptionPreview({
                       [&_li]:mb-1 [&_strong]:text-foreground [&_strong]:font-bold
                       [&_.product-faq]:bg-[#fcfcfd] [&_.product-faq]:border [&_.product-faq]:border-[#e5e7eb] [&_.product-faq]:rounded-lg [&_.product-faq]:p-4
                       [&_.specs-table]:bg-[#f9fafb] [&_.specs-table]:border [&_.specs-table]:border-[#e5e7eb] [&_.specs-table]:rounded-lg [&_.specs-table]:overflow-hidden"
-                    dangerouslySetInnerHTML={{ __html: longDescription }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(longDescription) }}
                   />
                 </TabsContent>
               </Tabs>
