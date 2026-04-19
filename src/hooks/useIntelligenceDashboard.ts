@@ -218,6 +218,6 @@ export function useIntelligenceDashboard() {
       };
     },
     enabled: !!wsId,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 60_000,
   });
 }
