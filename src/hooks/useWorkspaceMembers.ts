@@ -36,6 +36,7 @@ export function useWorkspaceMembers(workspaceId: string | undefined) {
   return useQuery({
     queryKey: ["workspace-members", workspaceId],
     enabled: !!workspaceId,
+    staleTime: 10 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("workspace_members")
@@ -53,6 +54,7 @@ export function useWorkspaceInvitations(workspaceId: string | undefined) {
   return useQuery({
     queryKey: ["workspace-invitations", workspaceId],
     enabled: !!workspaceId,
+    staleTime: 10 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("workspace_invitations_safe" as any)
@@ -71,6 +73,7 @@ export function useCurrentMemberRole(workspaceId: string | undefined) {
   return useQuery({
     queryKey: ["workspace-my-role", workspaceId, user?.id],
     enabled: !!workspaceId && !!user,
+    staleTime: 10 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("workspace_members")

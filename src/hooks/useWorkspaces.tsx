@@ -56,6 +56,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     enabled: !!user,
     retry: 3,
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
+    staleTime: 10 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("workspaces")
