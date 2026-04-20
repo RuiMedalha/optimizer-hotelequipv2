@@ -2414,8 +2414,7 @@ const ProductsPage = () => {
                         </Button>
                       </div>
                       <div className="space-y-1.5">
-                        {group.variations.map((v, vi) => (
-                          {(() => {
+                        {group.variations.map((v, vi) => {
                           const prod = products.find(p => p.id === v.product_id);
                           const sku = prod?.sku || prod?.original_sku;
                           const title = prod?.original_title;
