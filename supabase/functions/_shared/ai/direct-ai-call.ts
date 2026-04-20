@@ -302,12 +302,13 @@ export async function directAICall(params: DirectAICallParams): Promise<DirectAI
   }
 
   // Fallback chain: lovable_gateway -> gemini -> openai
+  // Keep gateway fallback on a stable low-cost model to avoid surprise spend.
   const fallbacks = ["lovable_gateway", "gemini", "openai"].filter((p) => p !== resolved.provider);
   for (const fb of fallbacks) {
     const key = getApiKey(fb);
     if (!key) continue;
     try {
-      if (fb === "lovable_gateway") return await callLovableGateway({ ...params }, "google/gemini-3-flash-preview");
+      if (fb === "lovable_gateway") return await callLovableGateway({ ...params }, "google/gemini-2.5-flash");
       const fbModel = fb === "gemini" ? "gemini-2.5-flash" : "gpt-4o-mini";
       if (fb === "gemini") return await callGemini({ ...params }, fbModel);
       if (fb === "openai") return await callOpenAI({ ...params }, fbModel);
