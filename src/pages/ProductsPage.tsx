@@ -2134,14 +2134,46 @@ const ProductsPage = () => {
                 )}
               </div>
               <div className="rounded-lg bg-muted/30 overflow-hidden">
-                <div className="flex items-center justify-between p-2">
+                <div className="p-2 space-y-2">
                   <div>
-                    <Label className="text-xs font-medium cursor-pointer" htmlFor="img-proc">🖼️ Processar Imagens (Optimize + Lifestyle)</Label>
-                    <p className="text-[10px] text-muted-foreground">Otimiza e gera imagens lifestyle para cada produto após a otimização.</p>
+                    <Label className="text-xs font-medium">🖼️ Processamento de Imagens</Label>
+                    <p className="text-[10px] text-muted-foreground">Escolhe o que correr depois da otimização de texto. Os modos seguintes correm em background, em paralelo com o resto do pipeline.</p>
                   </div>
-                  <Switch id="img-proc" checked={includeImageProcessing} onCheckedChange={setIncludeImageProcessing} />
+                  <RadioGroup
+                    value={imageProcessingMode}
+                    onValueChange={(v) => {
+                      const next = v as ImageProcessingMode;
+                      setImageProcessingMode(next);
+                      // Mantém o booleano legado em sync para qualquer UI que ainda dependa dele.
+                      setIncludeImageProcessing(next !== "off");
+                      try { localStorage.setItem("optimize_image_processing_mode", next); } catch {}
+                    }}
+                    className="gap-1.5"
+                  >
+                    <div className="flex items-start gap-2 rounded-md p-1.5 hover:bg-muted/40">
+                      <RadioGroupItem value="off" id="img-mode-off" className="mt-0.5" />
+                      <Label htmlFor="img-mode-off" className="text-[11px] cursor-pointer leading-tight">
+                        <span className="font-medium">❌ Sem imagens</span>
+                        <span className="block text-[10px] text-muted-foreground">Não processa imagens — mais rápido.</span>
+                      </Label>
+                    </div>
+                    <div className="flex items-start gap-2 rounded-md p-1.5 hover:bg-muted/40">
+                      <RadioGroupItem value="optimize_only" id="img-mode-opt" className="mt-0.5" />
+                      <Label htmlFor="img-mode-opt" className="text-[11px] cursor-pointer leading-tight">
+                        <span className="font-medium">🖼️ Só otimizar (recomendado)</span>
+                        <span className="block text-[10px] text-muted-foreground">Limpa fundo, faz upscale. Mantém qualidade visual sem custo de IA generativa.</span>
+                      </Label>
+                    </div>
+                    <div className="flex items-start gap-2 rounded-md p-1.5 hover:bg-muted/40">
+                      <RadioGroupItem value="optimize_and_lifestyle" id="img-mode-life" className="mt-0.5" />
+                      <Label htmlFor="img-mode-life" className="text-[11px] cursor-pointer leading-tight">
+                        <span className="font-medium">✨ Otimizar + Lifestyle</span>
+                        <span className="block text-[10px] text-muted-foreground">Os 2 pipelines em paralelo. Mais lento e usa mais quota de IA, mas gera imagens contextuais HORECA.</span>
+                      </Label>
+                    </div>
+                  </RadioGroup>
                 </div>
-                {includeImageProcessing && (
+                {imageProcessingMode === "optimize_and_lifestyle" && (
                   <div className="px-3 pb-2 pt-1 border-t border-border/50">
                     <Label className="text-xs font-medium">🖼️ Prompt de Imagem Lifestyle</Label>
                     <Select
@@ -2163,7 +2195,7 @@ const ProductsPage = () => {
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-[10px] text-muted-foreground mt-1">Escolha qual prompt usar para gerar as imagens lifestyle. O padrão usa o prompt marcado como ativo no Prompt Governance.</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Só aplicado ao pipeline lifestyle. O padrão usa o prompt marcado como ativo no Prompt Governance.</p>
                   </div>
                 )}
               </div>
