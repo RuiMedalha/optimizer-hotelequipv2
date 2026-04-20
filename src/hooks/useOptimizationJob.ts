@@ -157,6 +157,7 @@ export function useOptimizationJob() {
       includeUsoProfissional,
       usoProfissionalRouting,
       includeImageProcessing,
+      imageProcessingMode,
       promptTemplateId,
       imagePromptTemplateId,
     }: {
@@ -171,6 +172,13 @@ export function useOptimizationJob() {
       includeUsoProfissional?: boolean;
       usoProfissionalRouting?: { inDescription: boolean; inCustomField: boolean };
       includeImageProcessing?: boolean;
+      /**
+       * Modo explícito de processamento de imagens.
+       * "off" | "optimize_only" | "optimize_and_lifestyle".
+       * Se omitido, o backend deriva do booleano `includeImageProcessing`
+       * (true → "optimize_and_lifestyle", false → "off") por compat.
+       */
+      imageProcessingMode?: "off" | "optimize_only" | "optimize_and_lifestyle";
       promptTemplateId?: string;
       imagePromptTemplateId?: string;
     }) => {
@@ -189,6 +197,7 @@ export function useOptimizationJob() {
             includeUsoProfissional,
             usoProfissionalRouting,
             includeImageProcessing,
+            imageProcessingMode,
             promptTemplateId,
             imagePromptTemplateId,
           },
