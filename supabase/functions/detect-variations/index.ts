@@ -285,7 +285,7 @@ ${JSON.stringify(productList, null, 1).substring(0, 25000)}${existingGroupsConte
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey2}` },
       body: JSON.stringify({
         taskType: "variation_detection",
-        workspaceId: workspace_id,
+        workspaceId: workspaceId,
         systemPrompt,
         messages: [{ role: "user", content: userContent }],
         options: {
