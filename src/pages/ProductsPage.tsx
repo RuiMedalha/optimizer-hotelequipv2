@@ -500,7 +500,7 @@ const ProductsPage = () => {
     const directWorkspaceId = activeWorkspace?.id;
     const directIncludeUso = includeUsoProfissional;
     const directUsoRouting = includeUsoProfissional ? { inDescription: usoProfissionalInDescription, inCustomField: usoProfissionalInCustomField } : undefined;
-    const directIncludeImages = includeImageProcessing;
+    const directImageMode = imageProcessingMode;
     const directImagePromptTemplateId = selectedImagePromptTemplate !== "active" ? selectedImagePromptTemplate : undefined;
 
     optimizeProducts.mutate({
