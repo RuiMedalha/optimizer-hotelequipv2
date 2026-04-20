@@ -239,7 +239,7 @@ O alt text deve:
                 { type: "text", text: `Produto: ${productName}. Gera o alt text para esta imagem.` },
               ],
             }],
-            options: { max_tokens: 200 },
+            options: { max_tokens: 60 },
           }),
         });
 
