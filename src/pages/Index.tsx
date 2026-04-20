@@ -121,15 +121,23 @@ const Dashboard = () => {
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">🖼️ Imagens</span>
                 <span className="text-xs text-muted-foreground">
-                  {imageCredits ? `${imageCredits.used_this_month} / ${imageCredits.monthly_limit}` : "0 / 100"}
+                  {imageCredits
+                    ? `${imageCredits.used_this_month} / ${imageCredits.monthly_limit >= 1000000 ? "∞" : imageCredits.monthly_limit}`
+                    : "0 / 100"}
                 </span>
               </div>
               <Progress
-                value={imageCredits ? (imageCredits.used_this_month / imageCredits.monthly_limit) * 100 : 0}
+                value={
+                  imageCredits && imageCredits.monthly_limit < 1000000
+                    ? (imageCredits.used_this_month / imageCredits.monthly_limit) * 100
+                    : 0
+                }
                 className="h-2"
               />
               <p className="text-xs text-muted-foreground">
-                Otimização e geração lifestyle com IA
+                {imageCredits && imageCredits.monthly_limit >= 1000000
+                  ? "Sem limite ativo • otimização e lifestyle com IA"
+                  : "Otimização e geração lifestyle com IA"}
               </p>
             </div>
             <div className="space-y-2">
