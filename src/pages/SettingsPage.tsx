@@ -398,19 +398,78 @@ const SettingsPage = () => {
             <div className="flex items-center justify-between">
               <Label className="text-sm font-medium">🖼️ Créditos de Imagens</Label>
               <span className="text-xs text-muted-foreground">
-                {imageCredits ? `${imageCredits.used_this_month} / ${imageCredits.monthly_limit}` : "0 / 100"}
+                {imageCredits
+                  ? `${imageCredits.used_this_month} / ${imageCredits.monthly_limit >= 1000000 ? "∞" : imageCredits.monthly_limit}`
+                  : "0 / 100"}
               </span>
             </div>
             <Progress
-              value={imageCredits ? (imageCredits.used_this_month / imageCredits.monthly_limit) * 100 : 0}
+              value={
+                imageCredits && imageCredits.monthly_limit < 1000000
+                  ? (imageCredits.used_this_month / imageCredits.monthly_limit) * 100
+                  : 0
+              }
               className="h-2"
             />
             <p className="text-xs text-muted-foreground">
               Processamento de imagens com IA (otimização + lifestyle).
-              {imageCredits?.reset_at && (
+              {imageCredits?.reset_at && imageCredits.monthly_limit < 1000000 && (
                 <> Renova a {new Date(imageCredits.reset_at).toLocaleDateString("pt-PT")}.</>
               )}
+              {imageCredits && imageCredits.monthly_limit >= 1000000 && (
+                <> <span className="text-primary font-medium">Sem limite ativo.</span></>
+              )}
             </p>
+
+            {/* Admin: editar limite mensal */}
+            <div className="flex items-end gap-2 pt-2">
+              <div className="flex-1 space-y-1">
+                <Label htmlFor="img-limit" className="text-xs text-muted-foreground">
+                  Limite mensal (admin)
+                </Label>
+                <Input
+                  id="img-limit"
+                  type="number"
+                  min={0}
+                  value={imageLimitDraft}
+                  onChange={(e) => setImageLimitDraft(e.target.value)}
+                  placeholder="100"
+                  className="h-8"
+                />
+              </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={async () => {
+                  if (!activeWorkspace) return;
+                  const n = parseInt(imageLimitDraft, 10);
+                  if (isNaN(n) || n < 0) {
+                    toast.error("Valor inválido");
+                    return;
+                  }
+                  const { error } = await supabase
+                    .from("image_credits" as any)
+                    .update({ monthly_limit: n, updated_at: new Date().toISOString() })
+                    .eq("workspace_id", activeWorkspace.id);
+                  if (error) {
+                    toast.error("Falha ao guardar limite");
+                  } else {
+                    toast.success(n >= 1000000 ? "Limite removido" : `Limite atualizado para ${n}`);
+                    refetchImageCredits();
+                  }
+                }}
+              >
+                Guardar
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setImageLimitDraft("1000000")}
+                title="Definir como ilimitado"
+              >
+                ∞ Sem limite
+              </Button>
+            </div>
           </div>
 
           <Separator />
