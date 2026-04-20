@@ -191,9 +191,20 @@ serve(async (req) => {
         includeUsoProfissional,
         usoProfissionalRouting,
         includeImageProcessing,
+        imageProcessingMode: rawImageProcessingMode,
         promptTemplateId,
         imagePromptTemplateId,
       } = body;
+
+      // Backwards-compat: clientes antigos enviavam só o booleano `includeImageProcessing`
+      // (true → otimização + lifestyle). Agora suportamos um modo explícito:
+      //   "off" | "optimize_only" | "optimize_and_lifestyle"
+      // Se vier um modo novo, usa-o; senão deriva do booleano legacy.
+      const allowedImageModes = new Set(["off", "optimize_only", "optimize_and_lifestyle"]);
+      const imageProcessingMode: "off" | "optimize_only" | "optimize_and_lifestyle" =
+        allowedImageModes.has(String(rawImageProcessingMode))
+          ? rawImageProcessingMode
+          : (includeImageProcessing ? "optimize_and_lifestyle" : "off");
 
       if (!Array.isArray(productIds) || productIds.length === 0) {
         return new Response(JSON.stringify({ error: "productIds é obrigatório" }), {
