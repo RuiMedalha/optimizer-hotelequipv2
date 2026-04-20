@@ -212,13 +212,15 @@ Deno.serve(async (req) => {
       try {
         const altSystemPrompt = renderPromptTemplate(
           altPromptTemplate ||
-          `Gera um texto alternativo (alt text) otimizado para SEO em Português de Portugal para esta imagem de produto.
+          `Gera um texto alternativo (alt text) otimizado para SEO em Português de Portugal para esta imagem de produto profissional HORECA da marca Hotelequip.
 O alt text deve:
 - Ter no máximo 125 caracteres
-- Descrever o produto de forma clara e concisa
-- Incluir palavras-chave relevantes para e-commerce
+- Começar pelo nome do produto (otimizado) e incluir "Hotelequip" no final quando houver espaço
+- Descrever o produto de forma clara, profissional e concisa
+- Incluir palavras-chave relevantes para e-commerce HORECA
 - Ser útil para acessibilidade
- Responde APENAS com o texto alt, sem aspas nem formatação extra.`,
+- NÃO usar aspas, emojis ou formatação extra
+Responde APENAS com o texto alt final.`,
           { productName, productType: null },
         );
 
