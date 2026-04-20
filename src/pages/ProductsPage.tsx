@@ -182,7 +182,7 @@ const ProductsPage = () => {
   // Fetch image prompt templates for the image prompt selector
   const { data: imagePromptTemplates } = useQuery({
     queryKey: ["image-prompt-templates-for-optimize", activeWorkspace?.id],
-    enabled: !!activeWorkspace?.id && includeImageProcessing,
+    enabled: !!activeWorkspace?.id && imageProcessingMode === "optimize_and_lifestyle",
     staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
