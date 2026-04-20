@@ -579,18 +579,14 @@ const ProductsPage = () => {
                 }
                 if (usoOkCount > 0) toast.success(`📖 Uso Profissional gerado para ${usoOkCount} produto(s)!`);
               }
-              // Images
-              if (directIncludeImages) {
+              // Images — usa o helper que respeita o modo escolhido
+              // ("off" → no-op, "optimize_only" → 1 chamada, "optimize_and_lifestyle" → 2 em paralelo)
+              if (directImageMode !== "off") {
                 try {
-                  await processImages({
+                  await processImagesByMode({
                     workspaceId: directWorkspaceId,
                     productIds: directModeIds,
-                    mode: "optimize",
-                  });
-                  await processImages({
-                    workspaceId: directWorkspaceId,
-                    productIds: directModeIds,
-                    mode: "lifestyle",
+                    mode: directImageMode,
                     imagePromptTemplateId: directImagePromptTemplateId,
                   });
                 } catch (e) { console.warn("Image processing direct mode error:", e); }
