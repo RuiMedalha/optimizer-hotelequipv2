@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { enforceFieldLimits } from "../_shared/ai/output-guardrails.ts";
 import { formatProductOutput } from "../_shared/ai/output-formatter.ts";
+import { cleanHtmlContentWithStats } from "../_shared/text/clean-html-content.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -933,11 +934,25 @@ IMPORTANTE: Otimiza o conteúdo BASE que será propagado para todas as variaçõ
           }
         }
 
+        // === FASE 1: Limpeza HTML inteligente (sem truncar) ===
+        // Remove apenas lixo (HTML, estilos, scripts, boilerplate). Preserva 100% da informação técnica.
+        const descClean = cleanHtmlContentWithStats(product.original_description);
+        const shortDescClean = cleanHtmlContentWithStats(product.short_description);
+        const techClean = cleanHtmlContentWithStats(product.technical_specs);
+        if (descClean.reductionPct >= 30 || techClean.reductionPct >= 30) {
+          console.log(
+            `🧹 [optimize-product] HTML cleanup for ${product.sku || product.id}: ` +
+            `desc ${descClean.originalLength}→${descClean.cleanedLength} (-${descClean.reductionPct}%), ` +
+            `short ${shortDescClean.originalLength}→${shortDescClean.cleanedLength} (-${shortDescClean.reductionPct}%), ` +
+            `tech ${techClean.originalLength}→${techClean.cleanedLength} (-${techClean.reductionPct}%)`
+          );
+        }
+
         const productInfo = `Produto original:
 - Título: ${product.original_title || "N/A"}
-- Descrição: ${product.original_description || "N/A"}
-- Descrição Curta: ${product.short_description || "N/A"}
-- Características Técnicas: ${product.technical_specs || "N/A"}
+- Descrição: ${descClean.cleaned || "N/A"}
+- Descrição Curta: ${shortDescClean.cleaned || "N/A"}
+- Características Técnicas: ${techClean.cleaned || "N/A"}
 - Categoria: ${product.category || "N/A"}
 - Preço: ${product.original_price || "N/A"}€
 - SKU: ${product.sku || "N/A"}
