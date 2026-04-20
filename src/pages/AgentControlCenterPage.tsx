@@ -180,7 +180,7 @@ export default function AgentControlCenterPage() {
   const runPublishAudit = useRunPublishAudit();
   const approveAction = useApproveAction();
   const createPolicy = useCreatePolicy();
-  const { processImages, isProcessing } = useProcessImages();
+  const { processImages, processImagesByMode, isProcessing } = useProcessImages();
   const publishWoo = usePublishWooCommerce();
 
   const [newAgentName, setNewAgentName] = useState("");
