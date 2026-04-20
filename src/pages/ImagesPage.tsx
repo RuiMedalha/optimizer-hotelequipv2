@@ -70,6 +70,62 @@ const ImagesPage = () => {
     },
   });
 
+  // ===== Recuperação: produtos com status='optimized' SEM imagens processadas =====
+  // Estes são os produtos que foram otimizados (texto/SEO) mas o pipeline de imagens
+  // nunca correu para eles. Identificamos cruzando `products` (status=optimized e com image_urls)
+  // contra a tabela `images` (que regista o resultado do pipeline).
+  const { data: orphanIds, refetch: refetchOrphans } = useQuery({
+    queryKey: ["orphan-optimized-no-images", activeWorkspace?.id],
+    enabled: !!activeWorkspace?.id,
+    queryFn: async () => {
+      // 1) Produtos optimized COM imagens originais (pré-requisito para processar).
+      const { data: opt, error: e1 } = await supabase
+        .from("products")
+        .select("id, image_urls")
+        .eq("workspace_id", activeWorkspace!.id)
+        .eq("status", "optimized");
+      if (e1) throw e1;
+      const candidates = (opt || []).filter((p: any) => Array.isArray(p.image_urls) && p.image_urls.length > 0);
+      if (candidates.length === 0) return [] as string[];
+
+      // 2) Produtos que JÁ têm pelo menos uma imagem processada.
+      const { data: imgs, error: e2 } = await supabase
+        .from("images")
+        .select("product_id")
+        .in("product_id", candidates.map((p: any) => p.id))
+        .not("optimized_url", "is", null);
+      if (e2) throw e2;
+      const processed = new Set((imgs || []).map((r: any) => r.product_id));
+
+      // 3) Órfãos = candidatos que NÃO estão em `processed`.
+      return candidates.filter((p: any) => !processed.has(p.id)).map((p: any) => p.id);
+    },
+  });
+
+  const handleRecoverOrphans = () => {
+    if (!activeWorkspace || !orphanIds || orphanIds.length === 0) {
+      toast.info("Não há produtos otimizados sem imagens processadas.");
+      return;
+    }
+    const confirmed = window.confirm(
+      `Vão ser processadas as imagens de ${orphanIds.length} produto(s) já otimizado(s).\n\n` +
+      `• Modo: Otimizar (Upscale) — rápido e barato.\n` +
+      `• Os alt text e o conteúdo SEO existentes NÃO são alterados.\n` +
+      `• Nada é re-otimizado a nível de texto.\n\nContinuar?`
+    );
+    if (!confirmed) return;
+    processImagesByMode({
+      workspaceId: activeWorkspace.id,
+      productIds: orphanIds,
+      mode: "optimize_only",
+      modelOverride: selectedImageModel !== "default" ? selectedImageModel : undefined,
+    });
+    // Recarrega a lista quando terminar (best-effort).
+    setTimeout(() => refetchOrphans(), 60_000);
+  };
+  // pseudo-close to keep next block aligned
+  const _orphanCount = orphanIds?.length ?? 0;
+
   const filteredProcessed = useMemo(() => {
     let list = processedImages || [];
     if (processedFilter === "optimized") list = list.filter(i => !i.isLifestyle);
