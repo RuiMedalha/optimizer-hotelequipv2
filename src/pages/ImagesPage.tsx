@@ -21,12 +21,13 @@ type ImageFilter = "all" | "with_images" | "without_images" | "optimized";
 
 const ImagesPage = () => {
   const { activeWorkspace } = useWorkspaceContext();
-  const { processImages, isProcessing, progress } = useProcessImages();
+  const { processImages, processImagesByMode, isProcessing, progress } = useProcessImages();
   const { data: allProducts } = useAllProductIds();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<ImageFilter>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [mode, setMode] = useState<"optimize" | "lifestyle">("optimize");
+  // "optimize" | "lifestyle" | "both" — "both" paraleliza optimize + lifestyle
+  const [mode, setMode] = useState<"optimize" | "lifestyle" | "both">("optimize");
   const [selectedImageModel, setSelectedImageModel] = useState<string>("default");
   const IMAGE_MODELS = useActiveImageModels();
   const [processedFilter, setProcessedFilter] = useState<"all" | "optimized" | "lifestyle">("all");
