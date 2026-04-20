@@ -602,8 +602,13 @@ serve(async (req) => {
           // Texto fica concluído rapidamente; imagens correm em paralelo no
           // process-product-images sem ocupar tempo do worker do optimize-batch.
           // Optimize e lifestyle ficam SEMPRE separados (chamadas independentes).
-          if (productOk && jobIncludeImageProcessing) {
-            // 1) Otimização/upscale (não bloqueia)
+          //
+          // Modos suportados:
+          //   "off"                    → não dispara nada
+          //   "optimize_only"          → só upscale/limpeza (1 chamada)
+          //   "optimize_and_lifestyle" → upscale + lifestyle em paralelo (2 chamadas)
+          if (productOk && jobImageProcessingMode !== "off") {
+            // 1) Otimização/upscale — corre em "optimize_only" e "optimize_and_lifestyle"
             fetch(`${SUPABASE_URL}/functions/v1/process-product-images`, {
               method: "POST",
               headers: { Authorization: authHeader, "Content-Type": "application/json" },
@@ -617,20 +622,22 @@ serve(async (req) => {
               else console.log(`🖼️ [bg] optimize queued for ${productId}`);
             }).catch((e) => console.warn(`[bg] optimize image error ${productId}:`, e?.message));
 
-            // 2) Lifestyle (separado, também fire-and-forget)
-            fetch(`${SUPABASE_URL}/functions/v1/process-product-images`, {
-              method: "POST",
-              headers: { Authorization: authHeader, "Content-Type": "application/json" },
-              body: JSON.stringify({
-                productIds: [productId],
-                workspaceId: job.workspace_id,
-                mode: "lifestyle",
-                ...(jobImagePromptTemplateId ? { imagePromptTemplateId: jobImagePromptTemplateId } : {}),
-              }),
-            }).then((r) => {
-              if (!r.ok) console.warn(`[bg] lifestyle ${productId} → ${r.status}`);
-              else console.log(`🎨 [bg] lifestyle queued for ${productId}`);
-            }).catch((e) => console.warn(`[bg] lifestyle error ${productId}:`, e?.message));
+            // 2) Lifestyle — só corre em "optimize_and_lifestyle"
+            if (jobImageProcessingMode === "optimize_and_lifestyle") {
+              fetch(`${SUPABASE_URL}/functions/v1/process-product-images`, {
+                method: "POST",
+                headers: { Authorization: authHeader, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  productIds: [productId],
+                  workspaceId: job.workspace_id,
+                  mode: "lifestyle",
+                  ...(jobImagePromptTemplateId ? { imagePromptTemplateId: jobImagePromptTemplateId } : {}),
+                }),
+              }).then((r) => {
+                if (!r.ok) console.warn(`[bg] lifestyle ${productId} → ${r.status}`);
+                else console.log(`🎨 [bg] lifestyle queued for ${productId}`);
+              }).catch((e) => console.warn(`[bg] lifestyle error ${productId}:`, e?.message));
+            }
           }
 
           // Write successful job item
