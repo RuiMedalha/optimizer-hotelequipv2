@@ -379,6 +379,12 @@ serve(async (req) => {
       const jobIncludeUsoProfissional = jobFlags.includeUsoProfissional || false;
       const jobUsoProfissionalRouting = jobFlags.usoProfissionalRouting || { inDescription: true, inCustomField: false };
       const jobIncludeImageProcessing = jobFlags.includeImageProcessing || false;
+      // Modo explícito (novo). Compat: jobs antigos só tinham o booleano.
+      const allowedJobImageModes = new Set(["off", "optimize_only", "optimize_and_lifestyle"]);
+      const jobImageProcessingMode: "off" | "optimize_only" | "optimize_and_lifestyle" =
+        allowedJobImageModes.has(String(jobFlags.imageProcessingMode))
+          ? jobFlags.imageProcessingMode
+          : (jobIncludeImageProcessing ? "optimize_and_lifestyle" : "off");
       const jobPromptTemplateId = jobFlags.promptTemplateId || null;
       const jobImagePromptTemplateId = jobFlags.imagePromptTemplateId || null;
 
