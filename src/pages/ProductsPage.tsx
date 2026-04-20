@@ -2416,7 +2416,7 @@ const ProductsPage = () => {
                       <div className="space-y-1.5">
                         {group.variations.map((v, vi) => {
                           const prod = products.find(p => p.id === v.product_id);
-                          const sku = prod?.sku || prod?.original_sku;
+                          const sku = prod?.sku;
                           const title = prod?.original_title;
                           return (
                           <div key={vi} className="flex items-center gap-2 p-1.5 rounded bg-muted/30">
