@@ -137,6 +137,16 @@ const ImagesPage = () => {
       toast.warning("Nenhum produto com imagens para processar.");
       return;
     }
+    if (mode === "both") {
+      // Paraleliza optimize + lifestyle (mais rápido, mais quota AI).
+      processImagesByMode({
+        workspaceId: activeWorkspace.id,
+        productIds: ids,
+        mode: "optimize_and_lifestyle",
+        modelOverride: selectedImageModel !== "default" ? selectedImageModel : undefined,
+      });
+      return;
+    }
     processImages({
       workspaceId: activeWorkspace.id,
       productIds: ids,
@@ -166,13 +176,14 @@ const ImagesPage = () => {
               ))}
             </SelectContent>
           </Select>
-          <Select value={mode} onValueChange={(v) => setMode(v as "optimize" | "lifestyle")}>
-            <SelectTrigger className="w-40 h-9 text-xs">
+          <Select value={mode} onValueChange={(v) => setMode(v as "optimize" | "lifestyle" | "both")}>
+            <SelectTrigger className="w-48 h-9 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="optimize">Otimizar (Upscale)</SelectItem>
-              <SelectItem value="lifestyle">Lifestyle (IA)</SelectItem>
+              <SelectItem value="optimize">🖼️ Otimizar (Upscale)</SelectItem>
+              <SelectItem value="lifestyle">✨ Lifestyle (IA)</SelectItem>
+              <SelectItem value="both">⚡ Otimizar + Lifestyle (paralelo)</SelectItem>
             </SelectContent>
           </Select>
           <Button onClick={handleProcess} disabled={isProcessing} size="sm">
