@@ -11,6 +11,21 @@ export interface ImageProcessProgress {
   currentProduct: string;
 }
 
+/**
+ * Modos de processamento de imagens disponíveis em toda a app.
+ *
+ *  - "off":                    não processa imagens.
+ *  - "optimize_only":          só corre o pipeline de otimização (limpar fundo,
+ *                              upscale). Mais rápido. Recomendado por defeito.
+ *  - "optimize_and_lifestyle": corre os dois pipelines (optimize + lifestyle).
+ *                              Quando usado via {@link useProcessImages.processImagesByMode}
+ *                              os dois lotes correm em PARALELO para reduzir
+ *                              tempo total à custa de mais quota AI simultânea.
+ */
+export type ImageProcessingMode = "off" | "optimize_only" | "optimize_and_lifestyle";
+
+export const IMAGE_PROCESSING_MODE_DEFAULT: ImageProcessingMode = "optimize_only";
+
 export function useProcessImages() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState<ImageProcessProgress | null>(null);
@@ -104,5 +119,37 @@ export function useProcessImages() {
     }
   };
 
-  return { processImages, isProcessing, progress };
+  /**
+   * Helper de alto nível: corre o pipeline correto consoante o modo escolhido.
+   *
+   * Regras:
+   *  - "off"                    → no-op (devolve null).
+   *  - "optimize_only"          → 1 chamada (mode: "optimize").
+   *  - "optimize_and_lifestyle" → 2 chamadas em PARALELO (Promise.all):
+   *                               optimize + lifestyle. Reduz tempo total
+   *                               à custa de mais quota AI simultânea.
+   */
+  const processImagesByMode = async (params: {
+    workspaceId: string;
+    productIds: string[];
+    mode: ImageProcessingMode;
+    modelOverride?: string;
+    imagePromptTemplateId?: string;
+  }) => {
+    const { workspaceId, productIds, mode, modelOverride, imagePromptTemplateId } = params;
+    if (mode === "off" || productIds.length === 0) return null;
+
+    if (mode === "optimize_only") {
+      return processImages({ workspaceId, productIds, mode: "optimize", modelOverride });
+    }
+
+    // optimize_and_lifestyle → paraleliza os dois lotes.
+    const [optRes, lifeRes] = await Promise.all([
+      processImages({ workspaceId, productIds, mode: "optimize", modelOverride }),
+      processImages({ workspaceId, productIds, mode: "lifestyle", modelOverride, imagePromptTemplateId }),
+    ]);
+    return { optimize: optRes, lifestyle: lifeRes };
+  };
+
+  return { processImages, processImagesByMode, isProcessing, progress };
 }
