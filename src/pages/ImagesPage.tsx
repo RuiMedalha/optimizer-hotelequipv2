@@ -123,8 +123,7 @@ const ImagesPage = () => {
     // Recarrega a lista quando terminar (best-effort).
     setTimeout(() => refetchOrphans(), 60_000);
   };
-  // pseudo-close to keep next block aligned
-  const _orphanCount = orphanIds?.length ?? 0;
+  const orphanCount = orphanIds?.length ?? 0;
 
   const filteredProcessed = useMemo(() => {
     let list = processedImages || [];
