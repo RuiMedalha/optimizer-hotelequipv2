@@ -180,42 +180,51 @@ Responde APENAS com JSON válido, sem markdown, sem code blocks, sem bullets:
 
 IMPORTANTE: Devolve APENAS o JSON acima. Sem texto antes ou depois. Sem markdown.`;
 
-    // Resolve model from workspace ai_routing_rules
-    let resolvedModel = "lovable/gemini-2.5-flash"; // fallback only
+    // Resolve model from ai_routing_rules with precedence:
+    // workspace-specific rule -> global rule -> safe low-cost fallback.
+    // Important: never fall back to workspace default provider here, because
+    // direct-only defaults can silently bounce into a paid gateway preview model.
+    let resolvedModel = "google/gemini-2.5-flash";
+    let modelSource = "safe_fallback";
     try {
       const serviceClient = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
-      const { data: routingRule } = await serviceClient
+
+      const taskTypes = ["uso_profissional_generation", "uso_profissional", "content_generation"];
+
+      const { data: workspaceRule } = await serviceClient
         .from("ai_routing_rules")
         .select("model_override, recommended_model, fallback_model")
         .eq("workspace_id", workspaceId)
-        .in("task_type", ["uso_profissional", "content_generation"])
+        .in("task_type", taskTypes)
         .eq("is_active", true)
         .order("execution_priority", { ascending: true })
         .limit(1)
         .maybeSingle();
 
+      const { data: globalRule } = workspaceRule
+        ? { data: null }
+        : await serviceClient
+            .from("ai_routing_rules")
+            .select("model_override, recommended_model, fallback_model")
+            .is("workspace_id", null)
+            .in("task_type", taskTypes)
+            .eq("is_active", true)
+            .order("execution_priority", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+      const routingRule = workspaceRule || globalRule;
       if (routingRule) {
         resolvedModel = routingRule.model_override || routingRule.recommended_model || routingRule.fallback_model || resolvedModel;
-        console.log(`[generate-uso-profissional] Using configured model: ${resolvedModel}`);
-      } else {
-        const { data: defaultProvider } = await serviceClient
-          .from("ai_providers")
-          .select("default_model")
-          .eq("workspace_id", workspaceId)
-          .eq("is_active", true)
-          .order("priority_order", { ascending: true })
-          .limit(1)
-          .maybeSingle();
-        if (defaultProvider?.default_model) {
-          resolvedModel = defaultProvider.default_model;
-          console.log(`[generate-uso-profissional] Using workspace default model: ${resolvedModel}`);
-        }
+        modelSource = workspaceRule ? "workspace_rule" : "global_rule";
       }
+
+      console.log(`[generate-uso-profissional] Model resolved from ${modelSource}: ${resolvedModel}`);
     } catch (routeErr) {
-      console.warn("[generate-uso-profissional] Failed to resolve model from routing, using fallback:", routeErr);
+      console.warn("[generate-uso-profissional] Failed to resolve model from routing, using safe fallback:", routeErr);
     }
 
     const aiResponse = await directAICall({
@@ -223,7 +232,7 @@ IMPORTANTE: Devolve APENAS o JSON acima. Sem texto antes ou depois. Sem markdown
       messages: [{ role: "user", content: userPrompt }],
       model: resolvedModel,
       temperature: 0.7,
-      maxTokens: 2000,
+      maxTokens: 1200,
       jsonMode: true,
     });
 
