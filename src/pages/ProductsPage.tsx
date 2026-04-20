@@ -471,7 +471,9 @@ const ProductsPage = () => {
         workspaceId: activeWorkspace?.id,
         includeUsoProfissional,
         usoProfissionalRouting: includeUsoProfissional ? { inDescription: usoProfissionalInDescription, inCustomField: usoProfissionalInCustomField } : undefined,
-        includeImageProcessing,
+        // Compat: mantemos o booleano mas o backend dá prioridade ao modo explícito.
+        includeImageProcessing: imageProcessingMode !== "off",
+        imageProcessingMode,
         promptTemplateId: selectedPromptTemplate !== "active" ? selectedPromptTemplate : undefined,
         imagePromptTemplateId: selectedImagePromptTemplate !== "active" ? selectedImagePromptTemplate : undefined,
         ...speedFlags,
