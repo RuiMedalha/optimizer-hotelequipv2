@@ -233,6 +233,9 @@ export default function AgentControlCenterPage() {
     } else if (action === "lifestyle_images") {
       toast.info(`A gerar imagens lifestyle de ${productIds.length} produto(s)...`);
       await processImages({ workspaceId: wsId, productIds, mode: "lifestyle" });
+    } else if (action === "optimize_and_lifestyle_images") {
+      toast.info(`A otimizar + gerar lifestyle (paralelo) de ${productIds.length} produto(s)...`);
+      await processImagesByMode({ workspaceId: wsId, productIds, mode: "optimize_and_lifestyle" });
     } else if (action === "audit_reoptimize" || action === "audit_reoptimize_with_images") {
       const withImages = action === "audit_reoptimize_with_images";
       if (withImages) setAuditReoptimizingWithImages(true); else setAuditReoptimizing(true);
