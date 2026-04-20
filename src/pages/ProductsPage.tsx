@@ -2415,10 +2415,18 @@ const ProductsPage = () => {
                       </div>
                       <div className="space-y-1.5">
                         {group.variations.map((v, vi) => (
+                          {(() => {
+                          const prod = products.find(p => p.id === v.product_id);
+                          const sku = prod?.sku || prod?.original_sku;
+                          const title = prod?.original_title;
+                          return (
                           <div key={vi} className="flex items-center gap-2 p-1.5 rounded bg-muted/30">
                             <Badge variant="secondary" className="text-xs shrink-0">{Object.values(v.attribute_values).join(" / ")}</Badge>
-                            <span className="text-xs truncate flex-1">
-                              {products.find(p => p.id === v.product_id)?.original_title ?? v.product_id.substring(0, 8)}
+                            <Badge variant="outline" className="text-[10px] shrink-0 font-mono">
+                              {sku || v.product_id.substring(0, 8)}
+                            </Badge>
+                            <span className="text-xs truncate flex-1 text-muted-foreground">
+                              {title ?? ""}
                             </span>
                             {/* Move to another group */}
                             {detectedGroups.length > 1 && (
