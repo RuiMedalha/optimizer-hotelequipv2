@@ -2475,8 +2475,7 @@ const ProductsPage = () => {
                             </Button>
                           </div>
                           );
-                          })()}
-                        ))}
+                        })}
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {group.variations.length} variações → 1 produto pai + {group.variations.length - 1} variação(ões)
