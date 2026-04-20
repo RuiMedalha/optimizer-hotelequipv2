@@ -1091,6 +1091,24 @@ const ProductsPage = () => {
                 ))}
               </SelectContent>
             </Select>
+            {/* Modo: só otimizar (rápido) ou otimizar + lifestyle (paralelo, mais caro) */}
+            <Select
+              value={imageProcessingMode === "off" ? "optimize_only" : imageProcessingMode}
+              onValueChange={(v) => {
+                const next = v as ImageProcessingMode;
+                setImageProcessingMode(next);
+                setIncludeImageProcessing(next !== "off");
+                try { localStorage.setItem("optimize_image_processing_mode", next); } catch {}
+              }}
+            >
+              <SelectTrigger className="h-8 text-xs w-[170px]" title="Modo de processamento de imagens">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="optimize_only">🖼️ Só otimizar</SelectItem>
+                <SelectItem value="optimize_and_lifestyle">✨ Otimizar + Lifestyle</SelectItem>
+              </SelectContent>
+            </Select>
             <Button
               size="sm"
               variant="outline"
@@ -1102,17 +1120,19 @@ const ProductsPage = () => {
                   toast.warning("Nenhum produto com imagens para processar.");
                   return;
                 }
-                processImages({
+                // Usa o helper que respeita o modo escolhido (paraleliza quando lifestyle).
+                processImagesByMode({
                   workspaceId: activeWorkspace.id,
                   productIds: ids,
-                  mode: "optimize",
+                  mode: imageProcessingMode === "off" ? "optimize_only" : imageProcessingMode,
                   modelOverride: selectedImageModel !== "default" ? selectedImageModel : undefined,
+                  imagePromptTemplateId: selectedImagePromptTemplate !== "active" ? selectedImagePromptTemplate : undefined,
                 });
               }}
               disabled={isProcessingImages}
             >
               {isProcessingImages ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5 mr-1" />}
-              <span className="hidden sm:inline">Otimizar </span>Imagens{selected.size > 0 ? ` (${selected.size})` : ""}
+              <span className="hidden sm:inline">Processar </span>Imagens{selected.size > 0 ? ` (${selected.size})` : ""}
             </Button>
           </div>
           {activeWorkspace?.has_variable_products && (
