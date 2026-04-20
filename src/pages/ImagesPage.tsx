@@ -245,6 +245,18 @@ const ImagesPage = () => {
             {isProcessing ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1.5" />}
             Processar{selected.size > 0 ? ` (${selected.size})` : " Todos"}
           </Button>
+          {orphanCount > 0 && (
+            <Button
+              onClick={handleRecoverOrphans}
+              disabled={isProcessing}
+              size="sm"
+              variant="secondary"
+              title="Produtos com status 'optimized' que ainda não tiveram imagens processadas. Corre o pipeline de upscale (não toca em texto/SEO/alt text)."
+            >
+              <Wand2 className="w-4 h-4 mr-1.5" />
+              Recuperar {orphanCount} sem imagens
+            </Button>
+          )}
         </div>
       </div>
 
