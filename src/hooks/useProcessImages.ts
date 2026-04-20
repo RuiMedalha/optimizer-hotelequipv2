@@ -111,6 +111,9 @@ export function useProcessImages() {
         toast.success(
           `${totalProcessed} imagem(ns) ${modeLabel}!${totalSkipped > 0 ? ` (${totalSkipped} sem imagens)` : ""}`
         );
+      } else if (lastErrorMessage) {
+        // Mostra erro real do servidor (ex: limite mensal atingido)
+        toast.error(lastErrorMessage);
       } else if (totalSkipped > 0) {
         toast.info("Nenhum produto tinha imagens para processar.");
       } else {
