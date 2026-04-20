@@ -60,8 +60,9 @@ const SettingsPage = () => {
   const [testingLoading, setTestingLoading] = useState<Record<number, boolean>>({});
   const [testResult, setTestResult] = useState<{ index: number; preview: string; chars: number; url: string } | null>(null);
   const [wooPublishFields, setWooPublishFields] = useState<Set<string>>(new Set(DEFAULT_WOO_FIELDS));
+  const [imageLimitDraft, setImageLimitDraft] = useState<string>("");
 
-  const { data: imageCredits } = useQuery({
+  const { data: imageCredits, refetch: refetchImageCredits } = useQuery({
     queryKey: ["image-credits", activeWorkspace?.id],
     queryFn: async () => {
       if (!activeWorkspace) return null;
@@ -74,6 +75,13 @@ const SettingsPage = () => {
     },
     enabled: !!activeWorkspace,
   });
+
+  // Sincroniza draft do limite quando os créditos carregam
+  useEffect(() => {
+    if (imageCredits && imageLimitDraft === "") {
+      setImageLimitDraft(String(imageCredits.monthly_limit));
+    }
+  }, [imageCredits, imageLimitDraft]);
 
   const { data: scrapingCredits } = useQuery({
     queryKey: ["scraping-credits", activeWorkspace?.id],
