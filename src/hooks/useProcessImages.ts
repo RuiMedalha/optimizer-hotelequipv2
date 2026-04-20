@@ -56,6 +56,7 @@ export function useProcessImages() {
       let totalProcessed = 0;
       let totalSkipped = 0;
       let totalFailed = 0;
+      let lastErrorMessage: string | null = null;
 
       for (let i = 0; i < productIds.length; i += batchSize) {
         const batch = productIds.slice(i, i + batchSize);
@@ -76,6 +77,17 @@ export function useProcessImages() {
 
         if (error) {
           totalFailed += batch.length;
+          // Tenta extrair mensagem real do servidor (ex: "Limite de 100 imagens/mês atingido")
+          try {
+            const ctx = (error as { context?: Response }).context;
+            if (ctx && typeof ctx.json === "function") {
+              const errBody = await ctx.json();
+              if (errBody?.error) lastErrorMessage = String(errBody.error);
+            }
+          } catch {
+            // ignore parse errors
+          }
+          if (!lastErrorMessage && error.message) lastErrorMessage = error.message;
           continue;
         }
 
@@ -99,6 +111,9 @@ export function useProcessImages() {
         toast.success(
           `${totalProcessed} imagem(ns) ${modeLabel}!${totalSkipped > 0 ? ` (${totalSkipped} sem imagens)` : ""}`
         );
+      } else if (lastErrorMessage) {
+        // Mostra erro real do servidor (ex: limite mensal atingido)
+        toast.error(lastErrorMessage);
       } else if (totalSkipped > 0) {
         toast.info("Nenhum produto tinha imagens para processar.");
       } else {
