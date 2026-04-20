@@ -156,9 +156,10 @@ Deno.serve(async (req) => {
     }
 
     function buildFallbackAltText(productName: string, imageIndex: number, totalImages: number): string {
-      const base = String(productName || "produto profissional").replace(/\s+/g, " ").trim().slice(0, 90) || "produto profissional";
+      const base = String(productName || "produto profissional").replace(/\s+/g, " ").trim().slice(0, 80) || "produto profissional";
       const suffix = totalImages > 1 ? ` — imagem ${imageIndex + 1}` : "";
-      return `${base}${suffix}`.slice(0, 125);
+      const withBrand = /hotelequip/i.test(base) ? `${base}${suffix}` : `${base}${suffix} | Hotelequip`;
+      return withBrand.slice(0, 125);
     }
 
     async function ensureAllProductImageAlts(product: {
