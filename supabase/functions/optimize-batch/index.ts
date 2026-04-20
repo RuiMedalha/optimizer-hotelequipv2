@@ -191,9 +191,20 @@ serve(async (req) => {
         includeUsoProfissional,
         usoProfissionalRouting,
         includeImageProcessing,
+        imageProcessingMode: rawImageProcessingMode,
         promptTemplateId,
         imagePromptTemplateId,
       } = body;
+
+      // Backwards-compat: clientes antigos enviavam só o booleano `includeImageProcessing`
+      // (true → otimização + lifestyle). Agora suportamos um modo explícito:
+      //   "off" | "optimize_only" | "optimize_and_lifestyle"
+      // Se vier um modo novo, usa-o; senão deriva do booleano legacy.
+      const allowedImageModes = new Set(["off", "optimize_only", "optimize_and_lifestyle"]);
+      const imageProcessingMode: "off" | "optimize_only" | "optimize_and_lifestyle" =
+        allowedImageModes.has(String(rawImageProcessingMode))
+          ? rawImageProcessingMode
+          : (includeImageProcessing ? "optimize_and_lifestyle" : "off");
 
       if (!Array.isArray(productIds) || productIds.length === 0) {
         return new Response(JSON.stringify({ error: "productIds é obrigatório" }), {
@@ -214,7 +225,7 @@ serve(async (req) => {
           fields_to_optimize: fieldsToOptimize || [],
           model_override: modelOverride || null,
           started_at: new Date().toISOString(),
-          results: JSON.parse(JSON.stringify({ skipKnowledge, skipScraping, skipReranking, includeUsoProfissional: !!includeUsoProfissional, usoProfissionalRouting: usoProfissionalRouting || null, includeImageProcessing: !!includeImageProcessing, promptTemplateId: promptTemplateId || null, imagePromptTemplateId: imagePromptTemplateId || null })),
+          results: JSON.parse(JSON.stringify({ skipKnowledge, skipScraping, skipReranking, includeUsoProfissional: !!includeUsoProfissional, usoProfissionalRouting: usoProfissionalRouting || null, includeImageProcessing: imageProcessingMode !== "off", imageProcessingMode, promptTemplateId: promptTemplateId || null, imagePromptTemplateId: imagePromptTemplateId || null })),
         })
         .select("id")
         .single();
@@ -368,6 +379,12 @@ serve(async (req) => {
       const jobIncludeUsoProfissional = jobFlags.includeUsoProfissional || false;
       const jobUsoProfissionalRouting = jobFlags.usoProfissionalRouting || { inDescription: true, inCustomField: false };
       const jobIncludeImageProcessing = jobFlags.includeImageProcessing || false;
+      // Modo explícito (novo). Compat: jobs antigos só tinham o booleano.
+      const allowedJobImageModes = new Set(["off", "optimize_only", "optimize_and_lifestyle"]);
+      const jobImageProcessingMode: "off" | "optimize_only" | "optimize_and_lifestyle" =
+        allowedJobImageModes.has(String(jobFlags.imageProcessingMode))
+          ? jobFlags.imageProcessingMode
+          : (jobIncludeImageProcessing ? "optimize_and_lifestyle" : "off");
       const jobPromptTemplateId = jobFlags.promptTemplateId || null;
       const jobImagePromptTemplateId = jobFlags.imagePromptTemplateId || null;
 
@@ -585,8 +602,13 @@ serve(async (req) => {
           // Texto fica concluído rapidamente; imagens correm em paralelo no
           // process-product-images sem ocupar tempo do worker do optimize-batch.
           // Optimize e lifestyle ficam SEMPRE separados (chamadas independentes).
-          if (productOk && jobIncludeImageProcessing) {
-            // 1) Otimização/upscale (não bloqueia)
+          //
+          // Modos suportados:
+          //   "off"                    → não dispara nada
+          //   "optimize_only"          → só upscale/limpeza (1 chamada)
+          //   "optimize_and_lifestyle" → upscale + lifestyle em paralelo (2 chamadas)
+          if (productOk && jobImageProcessingMode !== "off") {
+            // 1) Otimização/upscale — corre em "optimize_only" e "optimize_and_lifestyle"
             fetch(`${SUPABASE_URL}/functions/v1/process-product-images`, {
               method: "POST",
               headers: { Authorization: authHeader, "Content-Type": "application/json" },
@@ -600,20 +622,22 @@ serve(async (req) => {
               else console.log(`🖼️ [bg] optimize queued for ${productId}`);
             }).catch((e) => console.warn(`[bg] optimize image error ${productId}:`, e?.message));
 
-            // 2) Lifestyle (separado, também fire-and-forget)
-            fetch(`${SUPABASE_URL}/functions/v1/process-product-images`, {
-              method: "POST",
-              headers: { Authorization: authHeader, "Content-Type": "application/json" },
-              body: JSON.stringify({
-                productIds: [productId],
-                workspaceId: job.workspace_id,
-                mode: "lifestyle",
-                ...(jobImagePromptTemplateId ? { imagePromptTemplateId: jobImagePromptTemplateId } : {}),
-              }),
-            }).then((r) => {
-              if (!r.ok) console.warn(`[bg] lifestyle ${productId} → ${r.status}`);
-              else console.log(`🎨 [bg] lifestyle queued for ${productId}`);
-            }).catch((e) => console.warn(`[bg] lifestyle error ${productId}:`, e?.message));
+            // 2) Lifestyle — só corre em "optimize_and_lifestyle"
+            if (jobImageProcessingMode === "optimize_and_lifestyle") {
+              fetch(`${SUPABASE_URL}/functions/v1/process-product-images`, {
+                method: "POST",
+                headers: { Authorization: authHeader, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  productIds: [productId],
+                  workspaceId: job.workspace_id,
+                  mode: "lifestyle",
+                  ...(jobImagePromptTemplateId ? { imagePromptTemplateId: jobImagePromptTemplateId } : {}),
+                }),
+              }).then((r) => {
+                if (!r.ok) console.warn(`[bg] lifestyle ${productId} → ${r.status}`);
+                else console.log(`🎨 [bg] lifestyle queued for ${productId}`);
+              }).catch((e) => console.warn(`[bg] lifestyle error ${productId}:`, e?.message));
+            }
           }
 
           // Write successful job item

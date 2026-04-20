@@ -11,7 +11,7 @@ import { Search, ImageIcon, Loader2, Sparkles, Check, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAllProductIds } from "@/hooks/useProducts";
-import { useProcessImages } from "@/hooks/useProcessImages";
+import { useProcessImages, type ImageProcessingMode } from "@/hooks/useProcessImages";
 import { useActiveImageModels } from "@/hooks/useAiProviderCenter";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { useQuery } from "@tanstack/react-query";
@@ -21,12 +21,13 @@ type ImageFilter = "all" | "with_images" | "without_images" | "optimized";
 
 const ImagesPage = () => {
   const { activeWorkspace } = useWorkspaceContext();
-  const { processImages, isProcessing, progress } = useProcessImages();
+  const { processImages, processImagesByMode, isProcessing, progress } = useProcessImages();
   const { data: allProducts } = useAllProductIds();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<ImageFilter>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [mode, setMode] = useState<"optimize" | "lifestyle">("optimize");
+  // "optimize" | "lifestyle" | "both" — "both" paraleliza optimize + lifestyle
+  const [mode, setMode] = useState<"optimize" | "lifestyle" | "both">("optimize");
   const [selectedImageModel, setSelectedImageModel] = useState<string>("default");
   const IMAGE_MODELS = useActiveImageModels();
   const [processedFilter, setProcessedFilter] = useState<"all" | "optimized" | "lifestyle">("all");
@@ -136,6 +137,16 @@ const ImagesPage = () => {
       toast.warning("Nenhum produto com imagens para processar.");
       return;
     }
+    if (mode === "both") {
+      // Paraleliza optimize + lifestyle (mais rápido, mais quota AI).
+      processImagesByMode({
+        workspaceId: activeWorkspace.id,
+        productIds: ids,
+        mode: "optimize_and_lifestyle",
+        modelOverride: selectedImageModel !== "default" ? selectedImageModel : undefined,
+      });
+      return;
+    }
     processImages({
       workspaceId: activeWorkspace.id,
       productIds: ids,
@@ -165,13 +176,14 @@ const ImagesPage = () => {
               ))}
             </SelectContent>
           </Select>
-          <Select value={mode} onValueChange={(v) => setMode(v as "optimize" | "lifestyle")}>
-            <SelectTrigger className="w-40 h-9 text-xs">
+          <Select value={mode} onValueChange={(v) => setMode(v as "optimize" | "lifestyle" | "both")}>
+            <SelectTrigger className="w-48 h-9 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="optimize">Otimizar (Upscale)</SelectItem>
-              <SelectItem value="lifestyle">Lifestyle (IA)</SelectItem>
+              <SelectItem value="optimize">🖼️ Otimizar (Upscale)</SelectItem>
+              <SelectItem value="lifestyle">✨ Lifestyle (IA)</SelectItem>
+              <SelectItem value="both">⚡ Otimizar + Lifestyle (paralelo)</SelectItem>
             </SelectContent>
           </Select>
           <Button onClick={handleProcess} disabled={isProcessing} size="sm">

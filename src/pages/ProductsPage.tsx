@@ -32,7 +32,8 @@ import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { calculateSeoScore } from "@/lib/seoScore";
 import { useRepairAttributes } from "@/hooks/useRepairAttributes";
 import { useEnrichProducts } from "@/hooks/useEnrichProducts";
-import { useProcessImages } from "@/hooks/useProcessImages";
+import { useProcessImages, type ImageProcessingMode, IMAGE_PROCESSING_MODE_DEFAULT } from "@/hooks/useProcessImages";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useSettings } from "@/hooks/useSettings";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useDuplicateDetection } from "@/hooks/useDuplicateDetection";
@@ -76,7 +77,7 @@ const ProductsPage = () => {
   const qc = useQueryClient();
   useRepairAttributes();
   const { enrich, isEnriching, missingVariations, createMissingVariations, progress: enrichProgress } = useEnrichProducts();
-  const { processImages, isProcessing: isProcessingImages, progress: imgProgress } = useProcessImages();
+  const { processImages, processImagesByMode, isProcessing: isProcessingImages, progress: imgProgress } = useProcessImages();
   const { data: settings } = useSettings();
   const AI_MODELS = useActiveAiModels();
   const IMAGE_MODELS = useActiveImageModels();
@@ -147,6 +148,15 @@ const ProductsPage = () => {
   const [usoProfissionalInDescription, setUsoProfissionalInDescription] = useState(true);
   const [usoProfissionalInCustomField, setUsoProfissionalInCustomField] = useState(false);
   const [includeImageProcessing, setIncludeImageProcessing] = useState(false);
+  // Modo granular: "off" | "optimize_only" | "optimize_and_lifestyle"
+  // Persistido em localStorage; default = "optimize_only" (mais rápido, sem perda).
+  const [imageProcessingMode, setImageProcessingMode] = useState<ImageProcessingMode>(() => {
+    try {
+      const saved = localStorage.getItem("optimize_image_processing_mode") as ImageProcessingMode | null;
+      if (saved === "off" || saved === "optimize_only" || saved === "optimize_and_lifestyle") return saved;
+    } catch {}
+    return IMAGE_PROCESSING_MODE_DEFAULT;
+  });
   const [selectedPromptTemplate, setSelectedPromptTemplate] = useState<string>("active");
   const [selectedImagePromptTemplate, setSelectedImagePromptTemplate] = useState<string>(() => {
     try { return localStorage.getItem("optimize_image_prompt_template") || "active"; } catch { return "active"; }
@@ -172,7 +182,7 @@ const ProductsPage = () => {
   // Fetch image prompt templates for the image prompt selector
   const { data: imagePromptTemplates } = useQuery({
     queryKey: ["image-prompt-templates-for-optimize", activeWorkspace?.id],
-    enabled: !!activeWorkspace?.id && includeImageProcessing,
+    enabled: !!activeWorkspace?.id && imageProcessingMode === "optimize_and_lifestyle",
     staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -461,7 +471,9 @@ const ProductsPage = () => {
         workspaceId: activeWorkspace?.id,
         includeUsoProfissional,
         usoProfissionalRouting: includeUsoProfissional ? { inDescription: usoProfissionalInDescription, inCustomField: usoProfissionalInCustomField } : undefined,
-        includeImageProcessing,
+        // Compat: mantemos o booleano mas o backend dá prioridade ao modo explícito.
+        includeImageProcessing: imageProcessingMode !== "off",
+        imageProcessingMode,
         promptTemplateId: selectedPromptTemplate !== "active" ? selectedPromptTemplate : undefined,
         imagePromptTemplateId: selectedImagePromptTemplate !== "active" ? selectedImagePromptTemplate : undefined,
         ...speedFlags,
@@ -488,7 +500,7 @@ const ProductsPage = () => {
     const directWorkspaceId = activeWorkspace?.id;
     const directIncludeUso = includeUsoProfissional;
     const directUsoRouting = includeUsoProfissional ? { inDescription: usoProfissionalInDescription, inCustomField: usoProfissionalInCustomField } : undefined;
-    const directIncludeImages = includeImageProcessing;
+    const directImageMode = imageProcessingMode;
     const directImagePromptTemplateId = selectedImagePromptTemplate !== "active" ? selectedImagePromptTemplate : undefined;
 
     optimizeProducts.mutate({
@@ -567,18 +579,14 @@ const ProductsPage = () => {
                 }
                 if (usoOkCount > 0) toast.success(`📖 Uso Profissional gerado para ${usoOkCount} produto(s)!`);
               }
-              // Images
-              if (directIncludeImages) {
+              // Images — usa o helper que respeita o modo escolhido
+              // ("off" → no-op, "optimize_only" → 1 chamada, "optimize_and_lifestyle" → 2 em paralelo)
+              if (directImageMode !== "off") {
                 try {
-                  await processImages({
+                  await processImagesByMode({
                     workspaceId: directWorkspaceId,
                     productIds: directModeIds,
-                    mode: "optimize",
-                  });
-                  await processImages({
-                    workspaceId: directWorkspaceId,
-                    productIds: directModeIds,
-                    mode: "lifestyle",
+                    mode: directImageMode,
                     imagePromptTemplateId: directImagePromptTemplateId,
                   });
                 } catch (e) { console.warn("Image processing direct mode error:", e); }
@@ -1083,6 +1091,24 @@ const ProductsPage = () => {
                 ))}
               </SelectContent>
             </Select>
+            {/* Modo: só otimizar (rápido) ou otimizar + lifestyle (paralelo, mais caro) */}
+            <Select
+              value={imageProcessingMode === "off" ? "optimize_only" : imageProcessingMode}
+              onValueChange={(v) => {
+                const next = v as ImageProcessingMode;
+                setImageProcessingMode(next);
+                setIncludeImageProcessing(next !== "off");
+                try { localStorage.setItem("optimize_image_processing_mode", next); } catch {}
+              }}
+            >
+              <SelectTrigger className="h-8 text-xs w-[170px]" title="Modo de processamento de imagens">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="optimize_only">🖼️ Só otimizar</SelectItem>
+                <SelectItem value="optimize_and_lifestyle">✨ Otimizar + Lifestyle</SelectItem>
+              </SelectContent>
+            </Select>
             <Button
               size="sm"
               variant="outline"
@@ -1094,17 +1120,19 @@ const ProductsPage = () => {
                   toast.warning("Nenhum produto com imagens para processar.");
                   return;
                 }
-                processImages({
+                // Usa o helper que respeita o modo escolhido (paraleliza quando lifestyle).
+                processImagesByMode({
                   workspaceId: activeWorkspace.id,
                   productIds: ids,
-                  mode: "optimize",
+                  mode: imageProcessingMode === "off" ? "optimize_only" : imageProcessingMode,
                   modelOverride: selectedImageModel !== "default" ? selectedImageModel : undefined,
+                  imagePromptTemplateId: selectedImagePromptTemplate !== "active" ? selectedImagePromptTemplate : undefined,
                 });
               }}
               disabled={isProcessingImages}
             >
               {isProcessingImages ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5 mr-1" />}
-              <span className="hidden sm:inline">Otimizar </span>Imagens{selected.size > 0 ? ` (${selected.size})` : ""}
+              <span className="hidden sm:inline">Processar </span>Imagens{selected.size > 0 ? ` (${selected.size})` : ""}
             </Button>
           </div>
           {activeWorkspace?.has_variable_products && (
@@ -2126,14 +2154,46 @@ const ProductsPage = () => {
                 )}
               </div>
               <div className="rounded-lg bg-muted/30 overflow-hidden">
-                <div className="flex items-center justify-between p-2">
+                <div className="p-2 space-y-2">
                   <div>
-                    <Label className="text-xs font-medium cursor-pointer" htmlFor="img-proc">🖼️ Processar Imagens (Optimize + Lifestyle)</Label>
-                    <p className="text-[10px] text-muted-foreground">Otimiza e gera imagens lifestyle para cada produto após a otimização.</p>
+                    <Label className="text-xs font-medium">🖼️ Processamento de Imagens</Label>
+                    <p className="text-[10px] text-muted-foreground">Escolhe o que correr depois da otimização de texto. Os modos seguintes correm em background, em paralelo com o resto do pipeline.</p>
                   </div>
-                  <Switch id="img-proc" checked={includeImageProcessing} onCheckedChange={setIncludeImageProcessing} />
+                  <RadioGroup
+                    value={imageProcessingMode}
+                    onValueChange={(v) => {
+                      const next = v as ImageProcessingMode;
+                      setImageProcessingMode(next);
+                      // Mantém o booleano legado em sync para qualquer UI que ainda dependa dele.
+                      setIncludeImageProcessing(next !== "off");
+                      try { localStorage.setItem("optimize_image_processing_mode", next); } catch {}
+                    }}
+                    className="gap-1.5"
+                  >
+                    <div className="flex items-start gap-2 rounded-md p-1.5 hover:bg-muted/40">
+                      <RadioGroupItem value="off" id="img-mode-off" className="mt-0.5" />
+                      <Label htmlFor="img-mode-off" className="text-[11px] cursor-pointer leading-tight">
+                        <span className="font-medium">❌ Sem imagens</span>
+                        <span className="block text-[10px] text-muted-foreground">Não processa imagens — mais rápido.</span>
+                      </Label>
+                    </div>
+                    <div className="flex items-start gap-2 rounded-md p-1.5 hover:bg-muted/40">
+                      <RadioGroupItem value="optimize_only" id="img-mode-opt" className="mt-0.5" />
+                      <Label htmlFor="img-mode-opt" className="text-[11px] cursor-pointer leading-tight">
+                        <span className="font-medium">🖼️ Só otimizar (recomendado)</span>
+                        <span className="block text-[10px] text-muted-foreground">Limpa fundo, faz upscale. Mantém qualidade visual sem custo de IA generativa.</span>
+                      </Label>
+                    </div>
+                    <div className="flex items-start gap-2 rounded-md p-1.5 hover:bg-muted/40">
+                      <RadioGroupItem value="optimize_and_lifestyle" id="img-mode-life" className="mt-0.5" />
+                      <Label htmlFor="img-mode-life" className="text-[11px] cursor-pointer leading-tight">
+                        <span className="font-medium">✨ Otimizar + Lifestyle</span>
+                        <span className="block text-[10px] text-muted-foreground">Os 2 pipelines em paralelo. Mais lento e usa mais quota de IA, mas gera imagens contextuais HORECA.</span>
+                      </Label>
+                    </div>
+                  </RadioGroup>
                 </div>
-                {includeImageProcessing && (
+                {imageProcessingMode === "optimize_and_lifestyle" && (
                   <div className="px-3 pb-2 pt-1 border-t border-border/50">
                     <Label className="text-xs font-medium">🖼️ Prompt de Imagem Lifestyle</Label>
                     <Select
@@ -2155,7 +2215,7 @@ const ProductsPage = () => {
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-[10px] text-muted-foreground mt-1">Escolha qual prompt usar para gerar as imagens lifestyle. O padrão usa o prompt marcado como ativo no Prompt Governance.</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Só aplicado ao pipeline lifestyle. O padrão usa o prompt marcado como ativo no Prompt Governance.</p>
                   </div>
                 )}
               </div>
@@ -2237,9 +2297,14 @@ const ProductsPage = () => {
                   📖 Uso Profissional
                 </span>
               )}
-              {includeImageProcessing && (
+              {imageProcessingMode === "optimize_only" && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20">
-                  🖼️ Imagens{selectedImagePromptTemplate !== "active" ? ` (${(imagePromptTemplates || []).find((t: any) => t.id === selectedImagePromptTemplate)?.prompt_name || "Custom"})` : ""}
+                  🖼️ Só otimizar imagens
+                </span>
+              )}
+              {imageProcessingMode === "optimize_and_lifestyle" && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-purple-500/10 text-purple-700 dark:text-purple-300 border border-purple-500/20">
+                  ✨ Otimizar + Lifestyle{selectedImagePromptTemplate !== "active" ? ` (${(imagePromptTemplates || []).find((t: any) => t.id === selectedImagePromptTemplate)?.prompt_name || "Custom"})` : ""}
                 </span>
               )}
               {skipKnowledge && (
