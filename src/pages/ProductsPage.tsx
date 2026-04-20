@@ -148,6 +148,15 @@ const ProductsPage = () => {
   const [usoProfissionalInDescription, setUsoProfissionalInDescription] = useState(true);
   const [usoProfissionalInCustomField, setUsoProfissionalInCustomField] = useState(false);
   const [includeImageProcessing, setIncludeImageProcessing] = useState(false);
+  // Modo granular: "off" | "optimize_only" | "optimize_and_lifestyle"
+  // Persistido em localStorage; default = "optimize_only" (mais rápido, sem perda).
+  const [imageProcessingMode, setImageProcessingMode] = useState<ImageProcessingMode>(() => {
+    try {
+      const saved = localStorage.getItem("optimize_image_processing_mode") as ImageProcessingMode | null;
+      if (saved === "off" || saved === "optimize_only" || saved === "optimize_and_lifestyle") return saved;
+    } catch {}
+    return IMAGE_PROCESSING_MODE_DEFAULT;
+  });
   const [selectedPromptTemplate, setSelectedPromptTemplate] = useState<string>("active");
   const [selectedImagePromptTemplate, setSelectedImagePromptTemplate] = useState<string>(() => {
     try { return localStorage.getItem("optimize_image_prompt_template") || "active"; } catch { return "active"; }
