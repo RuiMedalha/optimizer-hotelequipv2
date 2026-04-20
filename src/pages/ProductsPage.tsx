@@ -77,7 +77,7 @@ const ProductsPage = () => {
   const qc = useQueryClient();
   useRepairAttributes();
   const { enrich, isEnriching, missingVariations, createMissingVariations, progress: enrichProgress } = useEnrichProducts();
-  const { processImages, isProcessing: isProcessingImages, progress: imgProgress } = useProcessImages();
+  const { processImages, processImagesByMode, isProcessing: isProcessingImages, progress: imgProgress } = useProcessImages();
   const { data: settings } = useSettings();
   const AI_MODELS = useActiveAiModels();
   const IMAGE_MODELS = useActiveImageModels();
