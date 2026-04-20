@@ -2475,6 +2475,8 @@ const ProductsPage = () => {
                               <X className="w-3 h-3" />
                             </Button>
                           </div>
+                          );
+                          })()}
                         ))}
                       </div>
                       <p className="text-xs text-muted-foreground">
