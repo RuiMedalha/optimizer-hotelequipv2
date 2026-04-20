@@ -11,7 +11,7 @@ import { Search, ImageIcon, Loader2, Sparkles, Check, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useAllProductIds } from "@/hooks/useProducts";
-import { useProcessImages } from "@/hooks/useProcessImages";
+import { useProcessImages, type ImageProcessingMode } from "@/hooks/useProcessImages";
 import { useActiveImageModels } from "@/hooks/useAiProviderCenter";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { useQuery } from "@tanstack/react-query";
