@@ -1148,7 +1148,29 @@ REGRAS OBRIGATÓRIAS:
 - NÃO mistures dados técnicos no texto comercial
 - Menciona aplicações práticas (restaurante, hotel, pastelaria, bar, etc.)
 - Inclui benefícios de eficiência energética se aplicável
-- Menciona conformidade com normas (CE, HACCP) se relevante`,
+- Menciona conformidade com normas (CE, HACCP) se relevante
+
+REGRA SEO — INTEGRAÇÃO NATURAL DE SINÓNIMOS NO TEXTO (CRÍTICO):
+- O Google indexa muito mais o TEXTO VISÍVEL da descrição do que tags ou meta-keywords.
+- Identifica 1-2 sinónimos PT/regionais/internacionais relevantes para o produto e integra-os de forma NATURAL e ÚTIL no corpo da descrição.
+- Locais ideais para inserir sinónimos:
+  • No primeiro ou segundo parágrafo de "Principais Vantagens" (ex: "Este exaustor profissional — também conhecido como hotte ou apanha-fumos — ...")
+  • Entre parêntesis na primeira menção do produto (ex: "O grelhador (plancha/chapa) garante...")
+  • Numa frase contextual de "Aplicações" (ex: "Ideal para cozinhas que necessitam de uma coifa potente...")
+- Mapeamento de referência (usa apenas o que se aplica ao produto):
+  • Exaustor → hotte, coifa, apanha-fumos, extractor hood
+  • Grelhador → plancha, chapa, griddle
+  • Forno combinado → combi, forno convetor
+  • Frigorífico → refrigerador, armário refrigerado
+  • Cortador → fiambreira, slicer
+  • Lava-louça → máquina de lavar loiça, dishwasher
+  • Bancada → mesa de trabalho, mesa inox
+  • Máquina de gelo → fabricador de gelo, ice maker
+- LIMITES OBRIGATÓRIOS para evitar keyword stuffing:
+  • MÁXIMO 2 sinónimos por descrição (não 5, não 10)
+  • Cada sinónimo aparece UMA SÓ VEZ no corpo
+  • A integração deve ler-se como linguagem natural — se forçada, NÃO insiras
+  • NUNCA uses listas tipo "exaustor, hotte, coifa, apanha-fumos" no texto`,
           short_description: `Gera uma descrição curta (máx 160 chars) para listagens.
 CONTEXTO: Equipamento profissional para hotelaria, restauração, cozinhas industriais e bares.
 REGRAS OBRIGATÓRIAS:
