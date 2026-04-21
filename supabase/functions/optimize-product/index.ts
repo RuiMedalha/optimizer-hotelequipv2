@@ -1374,39 +1374,32 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           requiredFields.push("focus_keywords");
         }
 
-        const aiResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/resolve-ai-route`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-          },
-          body: JSON.stringify({
-            taskType: "product_optimization",
-            workspaceId: workspaceId,
-            modelOverride: chosenModel.model,
-            providerOverride: chosenModel.provider,
-            ...(promptTemplateId ? { promptTemplateId } : {}),
-            systemPrompt: "És um especialista em e-commerce e SEO. Responde APENAS com a tool call pedida, sem texto adicional. Mantém sempre as características técnicas do produto NUMA TABELA HTML separada do texto comercial. Traduz tudo para português europeu.\n\nREGRAS DE QUALIDADE DE ESCRITA:\n- Escreve sempre em português europeu (PT-PT), nunca em português do Brasil\n- Mantém um tom profissional e orientado a vendas B2B para setor HORECA e hotelaria\n- Nunca cortes frases a meio — cada campo deve terminar com pontuação completa\n- Nunca mistures a tabela técnica com o texto descritivo — a tabela vai SEMPRE separada",
-            messages: [{ role: "user", content: finalPrompt }],
-            options: {
-              tools: [
-                {
-                  type: "function",
-                  function: {
-                    name: "optimize_product",
-                    description: "Devolve os campos otimizados do produto",
-                    parameters: {
-                      type: "object",
-                      properties: toolProperties,
-                      required: requiredFields,
-                      additionalProperties: false,
-                    },
+        const aiResponse = await callResolveAiRouteWithRetry({
+          taskType: "product_optimization",
+          workspaceId: workspaceId,
+          modelOverride: chosenModel.model,
+          providerOverride: chosenModel.provider,
+          ...(promptTemplateId ? { promptTemplateId } : {}),
+          systemPrompt: "És um especialista em e-commerce e SEO. Responde APENAS com a tool call pedida, sem texto adicional. Mantém sempre as características técnicas do produto NUMA TABELA HTML separada do texto comercial. Traduz tudo para português europeu.\n\nREGRAS DE QUALIDADE DE ESCRITA:\n- Escreve sempre em português europeu (PT-PT), nunca em português do Brasil\n- Mantém um tom profissional e orientado a vendas B2B para setor HORECA e hotelaria\n- Nunca cortes frases a meio — cada campo deve terminar com pontuação completa\n- Nunca mistures a tabela técnica com o texto descritivo — a tabela vai SEMPRE separada",
+          messages: [{ role: "user", content: finalPrompt }],
+          options: {
+            tools: [
+              {
+                type: "function",
+                function: {
+                  name: "optimize_product",
+                  description: "Devolve os campos otimizados do produto",
+                  parameters: {
+                    type: "object",
+                    properties: toolProperties,
+                    required: requiredFields,
+                    additionalProperties: false,
                   },
                 },
-              ],
-              tool_choice: { type: "function", function: { name: "optimize_product" } },
-            },
-          }),
+              },
+            ],
+            tool_choice: { type: "function", function: { name: "optimize_product" } },
+          },
         });
 
         if (!aiResponse.ok) {
