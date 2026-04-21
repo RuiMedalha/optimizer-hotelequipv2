@@ -1195,7 +1195,8 @@ REGRAS OBRIGATÓRIAS:
 - Menciona 1-2 benefícios chave
 - Inclui preço ou "Melhor preço" se aplicável
 - NÃO incluas o nome da marca
-- Usa linguagem que gere cliques`,
+- Usa linguagem que gere cliques
+- Se couber naturalmente (sem forçar), inclui 1 sinónimo popular do produto (ex: "exaustor / hotte", "grelhador (plancha)") — só se a frase ficar fluida`,
           seo_slug: `Gera um slug SEO-friendly.
 REGRAS OBRIGATÓRIAS:
 - Lowercase, sem acentos, com hífens
