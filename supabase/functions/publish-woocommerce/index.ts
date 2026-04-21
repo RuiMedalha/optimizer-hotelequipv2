@@ -297,7 +297,11 @@ Deno.serve(async (req) => {
           .eq("id", jobId)
           .single();
         if (checkJob?.status !== "cancelled") {
-          await selfInvokeWithRetry(authHeader!, jobId, endIndex);
+          // Fire-and-forget the next batch via background task to avoid the
+          // 150s idle timeout — the parent invocation must return immediately.
+          // EdgeRuntime.waitUntil keeps the runtime alive until the promise settles.
+          // @ts-ignore -- EdgeRuntime is provided by the Supabase Edge runtime
+          EdgeRuntime.waitUntil(selfInvokeWithRetry(authHeader!, jobId, endIndex));
         }
       } else {
         // Job complete
@@ -388,9 +392,12 @@ Deno.serve(async (req) => {
 
     if (insertErr) throw insertErr;
 
-    // If not scheduled, start processing immediately via self-invoke with retry
+    // If not scheduled, start processing immediately via self-invoke with retry.
+    // Fire-and-forget so the client gets the jobId instantly and the worker
+    // chain runs in background, immune to the 150s request idle timeout.
     if (!isScheduled) {
-      await selfInvokeWithRetry(authHeader!, newJob.id, 0);
+      // @ts-ignore -- EdgeRuntime is provided by the Supabase Edge runtime
+      EdgeRuntime.waitUntil(selfInvokeWithRetry(authHeader!, newJob.id, 0));
     }
 
     return new Response(JSON.stringify({ jobId: newJob.id }), {
