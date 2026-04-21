@@ -170,29 +170,33 @@ Deno.serve(async (req) => {
       const existingResults = (job.results || []) as WooResult[];
       resetImageCache(); // Clear image resolution cache for each batch invocation
 
-      // Process each product in the batch
-      for (const product of orderedBatchProducts) {
-        // Re-check cancellation
-        const { data: freshJob } = await adminClient
-          .from("publish_jobs")
-          .select("status")
-          .eq("id", jobId)
-          .single();
-        if (freshJob?.status === "cancelled") break;
+      // Re-check cancellation once before processing the batch in parallel
+      const { data: preBatchJob } = await adminClient
+        .from("publish_jobs")
+        .select("status")
+        .eq("id", jobId)
+        .single();
+      const cancelled = preBatchJob?.status === "cancelled";
 
-        const productName = product.optimized_title || product.original_title || product.sku || product.id.slice(0, 8);
+      const forcePublish = !!(job.pricing as any)?.forcePublish;
 
+      // Update current product name to indicate parallel processing
+      if (!cancelled && orderedBatchProducts.length > 0) {
+        const firstName = orderedBatchProducts[0].optimized_title || orderedBatchProducts[0].original_title || orderedBatchProducts[0].sku || orderedBatchProducts[0].id.slice(0, 8);
+        const indicator = orderedBatchProducts.length > 1 ? `${firstName} (+${orderedBatchProducts.length - 1} em paralelo)` : firstName;
         await adminClient.from("publish_jobs").update({
-          current_product_name: productName,
+          current_product_name: indicator,
           status: "processing",
           started_at: job.started_at || new Date().toISOString(),
         }).eq("id", jobId);
+      }
 
+      // Process products in PARALLEL (concurrency = BATCH_SIZE = 3)
+      const processOne = async (product: any): Promise<{ result: WooResult; itemStartedAt: string; durationMs: number }> => {
         const itemStartedAt = new Date().toISOString();
         const itemStartMs = Date.now();
 
-        // Check publish locks before attempting to publish (skip if force_publish)
-        const forcePublish = !!(job.pricing as any)?.forcePublish;
+        // Check publish locks (skip if force_publish)
         if (!forcePublish) {
           const { data: activeLocks } = await adminClient
             .from("publish_locks")
@@ -204,12 +208,11 @@ Deno.serve(async (req) => {
           if (activeLocks && activeLocks.length > 0) {
             const lockReason = activeLocks[0].reason || "Produto bloqueado para publicação";
             console.warn(`⛔ Product ${product.id} skipped: publish lock active (${activeLocks[0].lock_type})`);
-            existingResults.push({
+            const result: WooResult = {
               id: product.id,
               status: "error",
               error: `Publicação bloqueada: ${lockReason}`,
-            });
-
+            };
             await adminClient.from("publish_job_items").insert({
               job_id: jobId,
               product_id: product.id,
@@ -219,25 +222,14 @@ Deno.serve(async (req) => {
               duration_ms: Date.now() - itemStartMs,
               error_message: `Publish lock: ${lockReason}`,
             });
-
-            await adminClient.from("publish_jobs").update({
-              processed_products: startIndex + existingResults.length - (job.results as any[])?.length + (job.processed_products || 0),
-              failed_products: (job.failed_products || 0) + 1,
-              results: existingResults,
-            }).eq("id", jobId);
-            continue;
+            return { result, itemStartedAt, durationMs: Date.now() - itemStartMs };
           }
-        } else {
-          console.log(`⚡ Force publish: skipping lock check for product ${product.id}`);
         }
 
         try {
           const result = await publishSingleProduct(
             product, supabase, adminClient, baseUrl, auth, has, markupPercent, discountPercent
           );
-          existingResults.push(result);
-
-          // Write publish job item
           await adminClient.from("publish_job_items").insert({
             job_id: jobId,
             product_id: product.id,
@@ -249,21 +241,13 @@ Deno.serve(async (req) => {
             duration_ms: Date.now() - itemStartMs,
             error_message: result.error?.substring(0, 500) || null,
           });
-
-          const failed = result.status === "error" ? 1 : 0;
-          await adminClient.from("publish_jobs").update({
-            processed_products: startIndex + existingResults.length - (job.results as any[])?.length + (job.processed_products || 0),
-            failed_products: (job.failed_products || 0) + failed,
-            results: existingResults,
-          }).eq("id", jobId);
+          return { result, itemStartedAt, durationMs: Date.now() - itemStartMs };
         } catch (e: unknown) {
-          existingResults.push({
+          const result: WooResult = {
             id: product.id,
             status: "error",
             error: (e as Error).message,
-          });
-
-          // Write publish job item for error
+          };
           await adminClient.from("publish_job_items").insert({
             job_id: jobId,
             product_id: product.id,
@@ -273,13 +257,25 @@ Deno.serve(async (req) => {
             duration_ms: Date.now() - itemStartMs,
             error_message: (e as Error).message?.substring(0, 500),
           });
-
-          await adminClient.from("publish_jobs").update({
-            processed_products: startIndex + existingResults.length - (job.results as any[])?.length + (job.processed_products || 0),
-            failed_products: (job.failed_products || 0) + 1,
-            results: existingResults,
-          }).eq("id", jobId);
+          return { result, itemStartedAt, durationMs: Date.now() - itemStartMs };
         }
+      };
+
+      if (!cancelled && orderedBatchProducts.length > 0) {
+        // Run the entire batch concurrently (3 at a time, since BATCH_SIZE = 3)
+        const batchResults = await Promise.all(orderedBatchProducts.map(processOne));
+
+        // Preserve original order in results
+        for (const { result } of batchResults) {
+          existingResults.push(result);
+        }
+
+        const newFailed = batchResults.filter((r) => r.result.status === "error").length;
+        await adminClient.from("publish_jobs").update({
+          processed_products: startIndex + orderedBatchProducts.length,
+          failed_products: (job.failed_products || 0) + newFailed,
+          results: existingResults,
+        }).eq("id", jobId);
       }
 
       // Update total processed
