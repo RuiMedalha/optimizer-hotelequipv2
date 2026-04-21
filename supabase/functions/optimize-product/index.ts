@@ -10,6 +10,59 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const AI_RATE_LIMIT_RETRIES = 4;
+const AI_RATE_LIMIT_BASE_DELAY_MS = 2_000;
+const AI_RATE_LIMIT_MAX_DELAY_MS = 15_000;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function parseRetryAfterMs(retryAfter: string | null): number | null {
+  if (!retryAfter) return null;
+
+  const seconds = Number(retryAfter);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return seconds * 1_000;
+  }
+
+  const retryAt = new Date(retryAfter).getTime();
+  if (!Number.isNaN(retryAt)) {
+    const diff = retryAt - Date.now();
+    return diff > 0 ? diff : null;
+  }
+
+  return null;
+}
+
+async function callResolveAiRouteWithRetry(body: unknown): Promise<Response> {
+  for (let attempt = 1; attempt <= AI_RATE_LIMIT_RETRIES; attempt++) {
+    const response = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/resolve-ai-route`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (response.status !== 429 || attempt === AI_RATE_LIMIT_RETRIES) {
+      return response;
+    }
+
+    const retryAfterMs = parseRetryAfterMs(response.headers.get("retry-after"));
+    const delayMs = retryAfterMs ?? Math.min(AI_RATE_LIMIT_BASE_DELAY_MS * 2 ** (attempt - 1), AI_RATE_LIMIT_MAX_DELAY_MS);
+    const responseText = await response.text();
+
+    console.warn(
+      `[optimize-product] AI rate limit attempt ${attempt}/${AI_RATE_LIMIT_RETRIES}; retrying in ${delayMs}ms`,
+      responseText.slice(0, 240),
+    );
+
+    await sleep(delayMs);
+  }
+
+  throw new Error("Falha inesperada ao contactar o motor de IA.");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -1321,39 +1374,32 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           requiredFields.push("focus_keywords");
         }
 
-        const aiResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/resolve-ai-route`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-          },
-          body: JSON.stringify({
-            taskType: "product_optimization",
-            workspaceId: workspaceId,
-            modelOverride: chosenModel.model,
-            providerOverride: chosenModel.provider,
-            ...(promptTemplateId ? { promptTemplateId } : {}),
-            systemPrompt: "És um especialista em e-commerce e SEO. Responde APENAS com a tool call pedida, sem texto adicional. Mantém sempre as características técnicas do produto NUMA TABELA HTML separada do texto comercial. Traduz tudo para português europeu.\n\nREGRAS DE QUALIDADE DE ESCRITA:\n- Escreve sempre em português europeu (PT-PT), nunca em português do Brasil\n- Mantém um tom profissional e orientado a vendas B2B para setor HORECA e hotelaria\n- Nunca cortes frases a meio — cada campo deve terminar com pontuação completa\n- Nunca mistures a tabela técnica com o texto descritivo — a tabela vai SEMPRE separada",
-            messages: [{ role: "user", content: finalPrompt }],
-            options: {
-              tools: [
-                {
-                  type: "function",
-                  function: {
-                    name: "optimize_product",
-                    description: "Devolve os campos otimizados do produto",
-                    parameters: {
-                      type: "object",
-                      properties: toolProperties,
-                      required: requiredFields,
-                      additionalProperties: false,
-                    },
+        const aiResponse = await callResolveAiRouteWithRetry({
+          taskType: "product_optimization",
+          workspaceId: workspaceId,
+          modelOverride: chosenModel.model,
+          providerOverride: chosenModel.provider,
+          ...(promptTemplateId ? { promptTemplateId } : {}),
+          systemPrompt: "És um especialista em e-commerce e SEO. Responde APENAS com a tool call pedida, sem texto adicional. Mantém sempre as características técnicas do produto NUMA TABELA HTML separada do texto comercial. Traduz tudo para português europeu.\n\nREGRAS DE QUALIDADE DE ESCRITA:\n- Escreve sempre em português europeu (PT-PT), nunca em português do Brasil\n- Mantém um tom profissional e orientado a vendas B2B para setor HORECA e hotelaria\n- Nunca cortes frases a meio — cada campo deve terminar com pontuação completa\n- Nunca mistures a tabela técnica com o texto descritivo — a tabela vai SEMPRE separada",
+          messages: [{ role: "user", content: finalPrompt }],
+          options: {
+            tools: [
+              {
+                type: "function",
+                function: {
+                  name: "optimize_product",
+                  description: "Devolve os campos otimizados do produto",
+                  parameters: {
+                    type: "object",
+                    properties: toolProperties,
+                    required: requiredFields,
+                    additionalProperties: false,
                   },
                 },
-              ],
-              tool_choice: { type: "function", function: { name: "optimize_product" } },
-            },
-          }),
+              },
+            ],
+            tool_choice: { type: "function", function: { name: "optimize_product" } },
+          },
         });
 
         if (!aiResponse.ok) {
