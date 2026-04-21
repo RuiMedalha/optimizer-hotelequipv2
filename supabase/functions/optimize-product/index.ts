@@ -1182,14 +1182,28 @@ REGRAS OBRIGATÓRIAS:
 - NÃO incluas códigos EAN ou referências no slug
 - Máx 5-7 palavras
 - Exemplo: fritadeira-gas-linha-700-8-litros`,
-          tags: `Gera 4-8 tags relevantes.
+          tags: `Gera 6-10 tags relevantes (incluindo sinónimos de pesquisa).
 REGRAS OBRIGATÓRIAS:
 - Inclui categoria principal (ex: "fritadeira")
 - Inclui tipo de energia (ex: "gás", "elétrico")
 - Inclui linha/série (ex: "linha 700")
-- Inclui aplicação (ex: "restaurante", "hotelaria")
+- Inclui aplicação (ex: "restaurante", "hotelaria", "horeca")
 - NÃO incluas códigos EAN ou referências como tags
-- Inclui sinónimos de pesquisa comuns`,
+- OBRIGATÓRIO: Inclui SINÓNIMOS PT e INTERNACIONAIS pelos quais o cliente pode pesquisar.
+  Exemplos de mapeamento (aplica o que for relevante ao produto):
+   • Exaustor → "apanha-fumos", "hotte", "coifa", "extractor hood"
+   • Fogão → "placa", "cooker"
+   • Forno combinado → "combi", "forno convetor"
+   • Grelhador → "plancha", "chapa", "griddle", "grill"
+   • Vitrine → "expositor", "display"
+   • Frigorífico → "refrigerador", "armário refrigerado"
+   • Congelador → "freezer", "abatedor"
+   • Lava-louça → "máquina de lavar loiça", "dishwasher"
+   • Cortador → "fiambreira", "slicer"
+   • Bancada → "mesa de trabalho", "mesa inox"
+   • Máquina de gelo → "fabricador de gelo", "ice maker"
+   • Liquidificador → "blender", "triturador"
+- Sempre que existir um termo técnico em PT, adiciona o equivalente popular ou regional`,
           price: `Sugere um preço otimizado.
 REGRAS:
 - Mantém o preço original se parecer correto para o mercado
