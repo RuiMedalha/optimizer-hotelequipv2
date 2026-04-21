@@ -1,0 +1,2 @@
+UPDATE public.publish_jobs SET status = 'completed', completed_at = updated_at WHERE id = '7d6851ea-739d-44db-9235-d4f5118d8375';
+UPDATE public.publish_jobs SET status = 'cancelled', completed_at = now() WHERE id IN ('6c3cea1f-06ae-4e94-9e6b-c16a184a1c43','2c5bc285-837e-4db4-877d-066f98761bd7');
