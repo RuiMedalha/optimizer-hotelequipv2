@@ -230,6 +230,26 @@ serve(async (req) => {
       "wok": ["wok range", "fogão wok"],
       "pasta": ["cozedor de massa", "pasta cooker"],
       "arroz": ["rice cooker", "cozedor de arroz"],
+      // Exaustão / ventilação
+      "exaustor": ["apanha fumos", "apanha-fumos", "hotte", "coifa", "hood", "extractor hood", "exaustão", "campânula"],
+      "apanha-fumos": ["exaustor", "hotte", "coifa", "hood", "extractor hood", "campânula"],
+      "hotte": ["exaustor", "apanha fumos", "coifa", "hood", "extractor hood"],
+      // Bancadas e mobiliário inox
+      "bancada": ["mesa de trabalho", "bancada inox", "work table", "worktable", "mesa inox"],
+      "lavatório": ["lavatorio", "pia", "sink", "lava-mãos", "lava maos"],
+      // Cervejeira / vinho
+      "cervejeira": ["beer cooler", "expositor cerveja", "fridge bebidas"],
+      "garrafeira": ["wine cooler", "wine cellar", "adega", "expositor vinhos"],
+      // Embalagem
+      "seladora": ["sealer", "vacuum sealer", "embaladora vácuo", "máquina vácuo"],
+      // Preparação
+      "liquidificador": ["blender", "triturador", "varinha mágica", "robot copo"],
+      "processador": ["food processor", "robot cozinha", "cutter"],
+      "descascador": ["peeler", "descascadora batatas"],
+      // Cozedura específica
+      "crepeira": ["crepe maker", "máquina de crepes"],
+      "waffle": ["waffle maker", "máquina de waffles"],
+      "panela": ["marmita", "tacho", "stockpot", "panela cozedura"],
     };
 
     function normalizeForCategoryMatch(text: string): string {
