@@ -595,7 +595,11 @@ Deno.serve(async (req) => {
           console.warn("[turbo] batch POST exception", e);
         }
 
-        const failedToFallback: any[] = [];
+        const failedToFallback: Array<{ product: any; payload: Record<string, unknown> }> = [];
+        // Mapa rápido id-produto → payload para retry inline (sem reconstruir)
+        const payloadByProductId = new Map<string, Record<string, unknown>>();
+        for (const { product, payload } of payloads) payloadByProductId.set(product.id, payload);
+
         if (batchOk && batchResp) {
           const createdArr = Array.isArray(batchResp.create) ? batchResp.create : [];
           const updatedArr = Array.isArray(batchResp.update) ? batchResp.update : [];
@@ -621,33 +625,50 @@ Deno.serve(async (req) => {
               });
             } else {
               const errMsg = r?.error?.message || r?.message || "Falha em batch";
-              console.warn(`[turbo] item failed in batch product=${map.product.id}: ${errMsg} → fallback to classic`);
-              failedToFallback.push(map.product);
+              console.warn(`[turbo] item failed in batch product=${map.product.id}: ${errMsg} → retry inline`);
+              failedToFallback.push({ product: map.product, payload: payloadByProductId.get(map.product.id) || {} });
             }
           }
         } else {
-          // Batch inteiro falhou → fallback de TODOS para clássico
-          console.warn("[turbo] full batch failed → fallback all to classic");
-          failedToFallback.push(...simpleProducts);
-        }
-
-        // 3f) Fallback para o clássico para os falhados
-        if (failedToFallback.length > 0) {
-          const ok = await delegateToClassic(
-            authHeader!,
-            failedToFallback.map(p => p.id),
-            job.publish_fields || [],
-            job.pricing || {},
-            job.workspace_id || undefined,
-          );
-          for (const p of failedToFallback) {
-            existingResults.push({
-              id: p.id,
-              status: ok ? "delegated" : "error",
-              error: ok ? undefined : "Batch falhou e fallback clássico não iniciou",
-            });
+          // Batch inteiro falhou → retry inline para TODOS
+          console.warn("[turbo] full batch failed → retry inline all");
+          for (const { product, payload } of payloads) {
+            failedToFallback.push({ product, payload });
           }
         }
+
+        // 3f) Retry INLINE (item-a-item) para os falhados — só marca como
+        //     publicado quando o WooCommerce confirma com um ID real.
+        if (failedToFallback.length > 0) {
+          for (const { product, payload } of failedToFallback) {
+            const res = await publishSingleInline(baseUrl, auth, product, payload);
+            if (res.ok && res.woocommerce_id) {
+              await supabase.from("products")
+                .update({ woocommerce_id: res.woocommerce_id, status: "published" })
+                .eq("id", product.id);
+              existingResults.push({
+                id: product.id,
+                status: res.mode === "create" ? "created" : "updated",
+                woocommerce_id: res.woocommerce_id,
+              });
+              await adminClient.from("publish_job_items").insert({
+                job_id: jobId,
+                product_id: product.id,
+                status: "done",
+                woocommerce_id: res.woocommerce_id,
+                publish_fields: job.publish_fields || [],
+                completed_at: new Date().toISOString(),
+              });
+            } else {
+              existingResults.push({
+                id: product.id,
+                status: "error",
+                error: res.error || "Falha desconhecida ao publicar inline",
+              });
+            }
+          }
+        }
+      }
       }
 
       // 4) Persistir progresso
