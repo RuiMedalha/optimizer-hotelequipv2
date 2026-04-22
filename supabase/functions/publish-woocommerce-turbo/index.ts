@@ -61,22 +61,34 @@ async function selfInvokeTurbo(authHeader: string, jobId: string, startIndex: nu
   return false;
 }
 
-// ── Delegate fallback to classic publish-woocommerce (per-product) ─────────
-async function delegateToClassic(authHeader: string, productIds: string[], publishFields: string[], pricing: any, workspaceId?: string) {
+// ── Single-product POST/PUT inline (reaproveita o WC já autenticado) ──────
+// Substitui a delegação assíncrona ao clássico para garantir que NUNCA marcamos
+// um produto como "publicado" antes do WooCommerce confirmar com um ID real.
+async function publishSingleInline(
+  baseUrl: string,
+  auth: string,
+  product: any,
+  payload: Record<string, unknown>,
+): Promise<{ ok: boolean; woocommerce_id?: number; mode: "create" | "update"; error?: string }> {
+  const isUpdate = !!product.woocommerce_id;
+  const url = isUpdate
+    ? `${baseUrl}/wp-json/wc/v3/products/${product.woocommerce_id}`
+    : `${baseUrl}/wp-json/wc/v3/products`;
   try {
-    const r = await fetch(`${SUPABASE_URL}/functions/v1/publish-woocommerce`, {
-      method: "POST",
-      headers: { Authorization: authHeader, "Content-Type": "application/json" },
-      body: JSON.stringify({ productIds, publishFields, pricing, workspaceId, forcePublish: !!pricing?.forcePublish }),
+    const r = await fetch(url, {
+      method: isUpdate ? "PUT" : "POST",
+      headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     });
     if (!r.ok) {
-      console.warn(`[turbo→classic] delegate failed status=${r.status}`);
-      return false;
+      const text = await r.text().catch(() => "");
+      return { ok: false, mode: isUpdate ? "update" : "create", error: `WC ${r.status}: ${text.slice(0, 200)}` };
     }
-    return true;
-  } catch (e) {
-    console.warn("[turbo→classic] delegate exception", e);
-    return false;
+    const data = await r.json();
+    if (!data?.id) return { ok: false, mode: isUpdate ? "update" : "create", error: "WC respondeu sem ID" };
+    return { ok: true, mode: isUpdate ? "update" : "create", woocommerce_id: Number(data.id) };
+  } catch (e: any) {
+    return { ok: false, mode: isUpdate ? "update" : "create", error: e?.message || "Exceção HTTP" };
   }
 }
 
@@ -479,17 +491,16 @@ Deno.serve(async (req) => {
         }
       }
 
-      // ── 2) DELEGATE complexos ao clássico (item-a-item) ──
+      // ── 2) Produtos COMPLEXOS (variable / variation): Turbo NÃO os publica.
+      //     Marcamos como "skipped_complex" para que o utilizador veja claramente
+      //     que precisam do modo Clássico. NÃO são contados como "publicados".
       if (complexProducts.length > 0) {
-        const ok = await delegateToClassic(
-          authHeader!,
-          complexProducts.map(p => p.id),
-          job.publish_fields || [],
-          job.pricing || {},
-          job.workspace_id || undefined,
-        );
         for (const p of complexProducts) {
-          existingResults.push({ id: p.id, status: ok ? "delegated" : "error", error: ok ? undefined : "Falha ao delegar para modo clássico" });
+          existingResults.push({
+            id: p.id,
+            status: "skipped_complex",
+            error: "Produto variável/variação — use o modo Clássico para publicar",
+          });
         }
       }
 
@@ -584,7 +595,11 @@ Deno.serve(async (req) => {
           console.warn("[turbo] batch POST exception", e);
         }
 
-        const failedToFallback: any[] = [];
+        const failedToFallback: Array<{ product: any; payload: Record<string, unknown> }> = [];
+        // Mapa rápido id-produto → payload para retry inline (sem reconstruir)
+        const payloadByProductId = new Map<string, Record<string, unknown>>();
+        for (const { product, payload } of payloads) payloadByProductId.set(product.id, payload);
+
         if (batchOk && batchResp) {
           const createdArr = Array.isArray(batchResp.create) ? batchResp.create : [];
           const updatedArr = Array.isArray(batchResp.update) ? batchResp.update : [];
@@ -610,33 +625,50 @@ Deno.serve(async (req) => {
               });
             } else {
               const errMsg = r?.error?.message || r?.message || "Falha em batch";
-              console.warn(`[turbo] item failed in batch product=${map.product.id}: ${errMsg} → fallback to classic`);
-              failedToFallback.push(map.product);
+              console.warn(`[turbo] item failed in batch product=${map.product.id}: ${errMsg} → retry inline`);
+              failedToFallback.push({ product: map.product, payload: payloadByProductId.get(map.product.id) || {} });
             }
           }
         } else {
-          // Batch inteiro falhou → fallback de TODOS para clássico
-          console.warn("[turbo] full batch failed → fallback all to classic");
-          failedToFallback.push(...simpleProducts);
-        }
-
-        // 3f) Fallback para o clássico para os falhados
-        if (failedToFallback.length > 0) {
-          const ok = await delegateToClassic(
-            authHeader!,
-            failedToFallback.map(p => p.id),
-            job.publish_fields || [],
-            job.pricing || {},
-            job.workspace_id || undefined,
-          );
-          for (const p of failedToFallback) {
-            existingResults.push({
-              id: p.id,
-              status: ok ? "delegated" : "error",
-              error: ok ? undefined : "Batch falhou e fallback clássico não iniciou",
-            });
+          // Batch inteiro falhou → retry inline para TODOS
+          console.warn("[turbo] full batch failed → retry inline all");
+          for (const { product, payload } of payloads) {
+            failedToFallback.push({ product, payload });
           }
         }
+
+        // 3f) Retry INLINE (item-a-item) para os falhados — só marca como
+        //     publicado quando o WooCommerce confirma com um ID real.
+        if (failedToFallback.length > 0) {
+          for (const { product, payload } of failedToFallback) {
+            const res = await publishSingleInline(baseUrl, auth, product, payload);
+            if (res.ok && res.woocommerce_id) {
+              await supabase.from("products")
+                .update({ woocommerce_id: res.woocommerce_id, status: "published" })
+                .eq("id", product.id);
+              existingResults.push({
+                id: product.id,
+                status: res.mode === "create" ? "created" : "updated",
+                woocommerce_id: res.woocommerce_id,
+              });
+              await adminClient.from("publish_job_items").insert({
+                job_id: jobId,
+                product_id: product.id,
+                status: "done",
+                woocommerce_id: res.woocommerce_id,
+                publish_fields: job.publish_fields || [],
+                completed_at: new Date().toISOString(),
+              });
+            } else {
+              existingResults.push({
+                id: product.id,
+                status: "error",
+                error: res.error || "Falha desconhecida ao publicar inline",
+              });
+            }
+          }
+        }
+      }
       }
 
       // 4) Persistir progresso
