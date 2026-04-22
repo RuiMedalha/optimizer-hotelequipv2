@@ -9,7 +9,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ChevronDown, ChevronRight, Send, Loader2, TrendingUp, Percent, CalendarIcon, Clock, AlertTriangle, Check, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Send, Loader2, TrendingUp, Percent, CalendarIcon, Clock, AlertTriangle, Check, X, Zap } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { WOO_PUBLISH_GROUPS, ALL_WOO_FIELD_KEYS, DEFAULT_WOO_FIELDS, SETTING_KEY_WOO_PUBLISH_FIELDS } from "@/lib/wooPublishFields";
 import { useSettings } from "@/hooks/useSettings";
@@ -56,7 +57,7 @@ function validateProducts(products: Product[]): { items: ValidationItem[]; passR
 interface Props {
   open: boolean;
   onClose: () => void;
-  onConfirm: (fields: string[], pricing?: PricingOptions, scheduledFor?: string, skuPrefix?: SkuPrefixOptions) => void;
+  onConfirm: (fields: string[], pricing?: PricingOptions, scheduledFor?: string, skuPrefix?: SkuPrefixOptions, turboMode?: boolean) => void;
   productCount: number;
   variableParentCount?: number;
   autoIncludedVariationsCount?: number;
@@ -74,6 +75,10 @@ export function WooPublishModal({ open, onClose, onConfirm, productCount, variab
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [scheduleDate, setScheduleDate] = useState<Date | undefined>(undefined);
   const [scheduleTime, setScheduleTime] = useState("09:00");
+  // Modo Turbo (Batch API + pre-upload de imagens + payload consolidado).
+  // Default = OFF (modo Clássico, comportamento atual). Activar apenas para
+  // grandes volumes em servidores WC com hosting saudável.
+  const [turboMode, setTurboMode] = useState<boolean>(false);
 
   // Load defaults from settings
   useEffect(() => {
@@ -135,7 +140,7 @@ export function WooPublishModal({ open, onClose, onConfirm, productCount, variab
       scheduledFor = dt.toISOString();
     }
     const skuPrefixOpt = skuPrefix.trim() ? { prefix: skuPrefix.trim().toUpperCase(), onlyIfMissing: true } : undefined;
-    onConfirm(Array.from(selectedFields), pricing, scheduledFor, skuPrefixOpt);
+    onConfirm(Array.from(selectedFields), pricing, scheduledFor, skuPrefixOpt, turboMode);
   };
 
   // Example price calculation for preview
@@ -350,6 +355,22 @@ export function WooPublishModal({ open, onClose, onConfirm, productCount, variab
               />
             </div>
           )}
+        </div>
+
+        {/* Modo Turbo (Batch API) */}
+        <div className="border border-primary/30 rounded-md p-3 space-y-2 bg-primary/5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5 text-sm font-medium">
+              <Zap className="w-4 h-4 text-primary" />
+              Modo Turbo (Batch API)
+            </div>
+            <Switch checked={turboMode} onCheckedChange={setTurboMode} />
+          </div>
+          <p className="text-[11px] text-muted-foreground leading-snug">
+            {turboMode
+              ? "⚡ Lotes de 50 + pré-upload de imagens (dedup por hash) + payload consolidado. 5–10× mais rápido. Variáveis e itens com erro voltam ao Clássico automaticamente."
+              : "Modo Clássico: 1 produto por chamada. Mais lento, mas mais resiliente. Recomendado por defeito."}
+          </p>
         </div>
 
         <DialogFooter className="gap-2">
