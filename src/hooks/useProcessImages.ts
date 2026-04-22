@@ -17,12 +17,14 @@ export interface ImageProcessProgress {
  *  - "off":                    não processa imagens.
  *  - "optimize_only":          só corre o pipeline de otimização (limpar fundo,
  *                              upscale). Mais rápido. Recomendado por defeito.
+ *  - "lifestyle_only":         só corre o pipeline lifestyle (geração contextual
+ *                              HORECA com IA). Não toca nas imagens originais.
  *  - "optimize_and_lifestyle": corre os dois pipelines (optimize + lifestyle).
  *                              Quando usado via {@link useProcessImages.processImagesByMode}
  *                              os dois lotes correm em PARALELO para reduzir
  *                              tempo total à custa de mais quota AI simultânea.
  */
-export type ImageProcessingMode = "off" | "optimize_only" | "optimize_and_lifestyle";
+export type ImageProcessingMode = "off" | "optimize_only" | "lifestyle_only" | "optimize_and_lifestyle";
 
 export const IMAGE_PROCESSING_MODE_DEFAULT: ImageProcessingMode = "optimize_only";
 
@@ -140,6 +142,7 @@ export function useProcessImages() {
    * Regras:
    *  - "off"                    → no-op (devolve null).
    *  - "optimize_only"          → 1 chamada (mode: "optimize").
+   *  - "lifestyle_only"         → 1 chamada (mode: "lifestyle").
    *  - "optimize_and_lifestyle" → 2 chamadas em PARALELO (Promise.all):
    *                               optimize + lifestyle. Reduz tempo total
    *                               à custa de mais quota AI simultânea.
@@ -156,6 +159,10 @@ export function useProcessImages() {
 
     if (mode === "optimize_only") {
       return processImages({ workspaceId, productIds, mode: "optimize", modelOverride });
+    }
+
+    if (mode === "lifestyle_only") {
+      return processImages({ workspaceId, productIds, mode: "lifestyle", modelOverride, imagePromptTemplateId });
     }
 
     // optimize_and_lifestyle → paraleliza os dois lotes.
