@@ -357,6 +357,22 @@ export function WooPublishModal({ open, onClose, onConfirm, productCount, variab
           )}
         </div>
 
+        {/* Modo Turbo (Batch API) */}
+        <div className="border border-primary/30 rounded-md p-3 space-y-2 bg-primary/5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5 text-sm font-medium">
+              <Zap className="w-4 h-4 text-primary" />
+              Modo Turbo (Batch API)
+            </div>
+            <Switch checked={turboMode} onCheckedChange={setTurboMode} />
+          </div>
+          <p className="text-[11px] text-muted-foreground leading-snug">
+            {turboMode
+              ? "⚡ Lotes de 50 + pré-upload de imagens (dedup por hash) + payload consolidado. 5–10× mais rápido. Variáveis e itens com erro voltam ao Clássico automaticamente."
+              : "Modo Clássico: 1 produto por chamada. Mais lento, mas mais resiliente. Recomendado por defeito."}
+          </p>
+        </div>
+
         <DialogFooter className="gap-2">
           <Button variant="outline" size="sm" onClick={onClose} disabled={isPending}>
             Cancelar
