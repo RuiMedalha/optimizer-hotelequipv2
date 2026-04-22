@@ -318,6 +318,22 @@ const ProductsPage = () => {
 
   // paginatedFiltered is the same as filtered since pagination is server-side now
   const paginatedFiltered = filtered;
+
+  const publishStats = useMemo(() => {
+    const results = Array.isArray(activePublishJob?.results) ? (activePublishJob.results as any[]) : [];
+    const created = results.filter((r: any) => r.status === "created").length;
+    const updated = results.filter((r: any) => r.status === "updated").length;
+    const skipped = results.filter((r: any) => r.status === "skipped" || r.status === "skipped_complex").length;
+    const errorsFromResults = results.filter((r: any) => r.status === "error").length;
+
+    return {
+      created,
+      updated,
+      confirmed: created + updated,
+      skipped,
+      errors: Math.max(errorsFromResults, activePublishJob?.failed_products ?? 0),
+    };
+  }, [activePublishJob?.results, activePublishJob?.failed_products]);
   // Build grouped view structure
   const groupedView = useMemo(() => {
     if (viewMode !== "grouped") return null;
