@@ -1437,11 +1437,16 @@ const ProductsPage = () => {
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm font-mono text-muted-foreground">
-                  {activePublishJob.processed_products}/{activePublishJob.total_products}
+                  {publishStats.confirmed}/{activePublishJob.total_products}
                 </span>
-                {activePublishJob.failed_products > 0 && (
+                {publishStats.errors > 0 && (
                   <Badge variant="destructive" className="text-[10px]">
-                    {activePublishJob.failed_products} erros
+                    {publishStats.errors} erros
+                  </Badge>
+                )}
+                {publishStats.skipped > 0 && (
+                  <Badge variant="outline" className="text-[10px]">
+                    {publishStats.skipped} ignorados
                   </Badge>
                 )}
                 <Button size="sm" variant="destructive" onClick={cancelPublishJob} className="h-7 px-2 text-xs">
@@ -1449,9 +1454,9 @@ const ProductsPage = () => {
                 </Button>
               </div>
             </div>
-            <Progress value={activePublishJob.total_products > 0 ? (activePublishJob.processed_products / activePublishJob.total_products) * 100 : 0} className="h-2" />
+            <Progress value={activePublishJob.total_products > 0 ? (publishStats.confirmed / activePublishJob.total_products) * 100 : 0} className="h-2" />
             <p className="text-[10px] text-muted-foreground mt-1.5">
-              Pode fechar o browser — a publicação continua em segundo plano.
+              Só conta como publicado quando o WooCommerce confirma criação/atualização real.
             </p>
           </CardContent>
         </Card>
@@ -1473,8 +1478,8 @@ const ProductsPage = () => {
                 )}
                 <span className="text-sm">
                   {activePublishJob.status === "completed"
-                    ? `Publicação concluída: ${activePublishJob.processed_products - activePublishJob.failed_products} publicados, ${activePublishJob.failed_products} erros`
-                    : `Publicação cancelada: ${activePublishJob.processed_products} de ${activePublishJob.total_products} processados`
+                    ? `Publicação concluída: ${publishStats.confirmed} publicados, ${publishStats.errors} erros${publishStats.skipped > 0 ? `, ${publishStats.skipped} ignorados` : ""}`
+                    : `Publicação cancelada: ${publishStats.confirmed} publicados confirmados de ${activePublishJob.total_products}`
                   }
                 </span>
               </div>
