@@ -48,12 +48,16 @@ export function usePublishJob() {
             const created = results.filter((r: any) => r.status === "created").length;
             const updatedCount = results.filter((r: any) => r.status === "updated").length;
             const errors = results.filter((r: any) => r.status === "error").length;
+            const skipped = results.filter((r: any) => r.status === "skipped_complex").length;
             const parts: string[] = [];
             if (created > 0) parts.push(`${created} criado(s)`);
             if (updatedCount > 0) parts.push(`${updatedCount} atualizado(s)`);
+            if (skipped > 0) parts.push(`${skipped} ignorado(s) (variável — usar Clássico)`);
             if (errors > 0) {
               parts.push(`${errors} com erro`);
               toast.warning(`Publicação concluída: ${parts.join(", ")}`);
+            } else if (created + updatedCount === 0 && skipped > 0) {
+              toast.info(`Publicação concluída: ${parts.join(", ")}`);
             } else {
               toast.success(`${parts.join(", ")} no WooCommerce! 🚀`);
             }
