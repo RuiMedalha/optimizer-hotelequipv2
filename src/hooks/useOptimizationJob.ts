@@ -178,11 +178,11 @@ export function useOptimizationJob() {
       includeImageProcessing?: boolean;
       /**
        * Modo explícito de processamento de imagens.
-       * "off" | "optimize_only" | "optimize_and_lifestyle".
+       * "off" | "optimize_only" | "lifestyle_only" | "optimize_and_lifestyle".
        * Se omitido, o backend deriva do booleano `includeImageProcessing`
        * (true → "optimize_and_lifestyle", false → "off") por compat.
        */
-      imageProcessingMode?: "off" | "optimize_only" | "optimize_and_lifestyle";
+      imageProcessingMode?: "off" | "optimize_only" | "lifestyle_only" | "optimize_and_lifestyle";
       promptTemplateId?: string;
       imagePromptTemplateId?: string;
     }) => {
