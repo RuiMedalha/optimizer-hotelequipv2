@@ -136,6 +136,7 @@ export function usePublishJob() {
       scheduledFor,
       workspaceId,
       skuPrefix,
+      turboMode,
     }: {
       productIds: string[];
       publishFields?: string[];
@@ -143,15 +144,18 @@ export function usePublishJob() {
       scheduledFor?: string;
       workspaceId?: string;
       skuPrefix?: SkuPrefixOptions;
+      turboMode?: boolean;
     }) => {
       setIsCreating(true);
       const MAX_RETRIES = 3;
       let lastError: Error | null = null;
+      // Modo Turbo → função nova; Clássico → função actual (sem mexer no fluxo).
+      const fnName = turboMode ? "publish-woocommerce-turbo" : "publish-woocommerce";
 
       try {
         for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
           try {
-            const { data, error } = await supabase.functions.invoke("publish-woocommerce", {
+            const { data, error } = await supabase.functions.invoke(fnName, {
               body: {
                 productIds,
                 publishFields,
@@ -179,7 +183,7 @@ export function usePublishJob() {
               if (scheduledFor) {
                 toast.success(`Publicação agendada para ${new Date(scheduledFor).toLocaleString("pt-PT")} ⏰`);
               } else {
-                toast.success(`Publicação iniciada: ${productIds.length} produtos em background 🚀`);
+                toast.success(`Publicação iniciada (${turboMode ? "Turbo" : "Clássico"}): ${productIds.length} produtos em background 🚀`);
               }
             }
 

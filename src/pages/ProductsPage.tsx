@@ -2567,7 +2567,7 @@ const ProductsPage = () => {
             autoIncludedVariationsCount={variationCount}
             isPending={isCreatingPublish}
             products={products.filter(p => allPublishIds.includes(p.id))}
-            onConfirm={async (fields, pricing, scheduledFor, skuPrefix) => {
+            onConfirm={async (fields, pricing, scheduledFor, skuPrefix, turboMode) => {
               try {
                 await createPublishJob({
                   productIds: allPublishIds,
@@ -2576,11 +2576,12 @@ const ProductsPage = () => {
                   scheduledFor,
                   workspaceId: activeWorkspace?.id,
                   skuPrefix,
+                  turboMode,
                 });
                 setSelected(new Set());
                 setShowPublishModal(false);
                 toast.success("Publicação iniciada em background", {
-                  description: `${allPublishIds.length} produto(s) a ser publicado(s). Pode fechar o browser.`,
+                  description: `${allPublishIds.length} produto(s) a publicar${turboMode ? " (Turbo)" : ""}. Pode fechar o browser.`,
                 });
               } catch (err: any) {
                 console.error("[publish] Failed to start job", err);
