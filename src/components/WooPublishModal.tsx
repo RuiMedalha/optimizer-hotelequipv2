@@ -9,7 +9,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { ChevronDown, ChevronRight, Send, Loader2, TrendingUp, Percent, CalendarIcon, Clock, AlertTriangle, Check, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Send, Loader2, TrendingUp, Percent, CalendarIcon, Clock, AlertTriangle, Check, X, Zap } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { WOO_PUBLISH_GROUPS, ALL_WOO_FIELD_KEYS, DEFAULT_WOO_FIELDS, SETTING_KEY_WOO_PUBLISH_FIELDS } from "@/lib/wooPublishFields";
 import { useSettings } from "@/hooks/useSettings";
@@ -56,7 +57,7 @@ function validateProducts(products: Product[]): { items: ValidationItem[]; passR
 interface Props {
   open: boolean;
   onClose: () => void;
-  onConfirm: (fields: string[], pricing?: PricingOptions, scheduledFor?: string, skuPrefix?: SkuPrefixOptions) => void;
+  onConfirm: (fields: string[], pricing?: PricingOptions, scheduledFor?: string, skuPrefix?: SkuPrefixOptions, turboMode?: boolean) => void;
   productCount: number;
   variableParentCount?: number;
   autoIncludedVariationsCount?: number;
@@ -74,6 +75,10 @@ export function WooPublishModal({ open, onClose, onConfirm, productCount, variab
   const [scheduleEnabled, setScheduleEnabled] = useState(false);
   const [scheduleDate, setScheduleDate] = useState<Date | undefined>(undefined);
   const [scheduleTime, setScheduleTime] = useState("09:00");
+  // Modo Turbo (Batch API + pre-upload de imagens + payload consolidado).
+  // Default = OFF (modo Clássico, comportamento atual). Activar apenas para
+  // grandes volumes em servidores WC com hosting saudável.
+  const [turboMode, setTurboMode] = useState<boolean>(false);
 
   // Load defaults from settings
   useEffect(() => {
@@ -135,7 +140,7 @@ export function WooPublishModal({ open, onClose, onConfirm, productCount, variab
       scheduledFor = dt.toISOString();
     }
     const skuPrefixOpt = skuPrefix.trim() ? { prefix: skuPrefix.trim().toUpperCase(), onlyIfMissing: true } : undefined;
-    onConfirm(Array.from(selectedFields), pricing, scheduledFor, skuPrefixOpt);
+    onConfirm(Array.from(selectedFields), pricing, scheduledFor, skuPrefixOpt, turboMode);
   };
 
   // Example price calculation for preview
