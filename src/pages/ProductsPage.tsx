@@ -147,12 +147,12 @@ const ProductsPage = () => {
   const [includeUsoProfissional, setIncludeUsoProfissional] = useState(false);
   const [usoProfissionalInDescription, setUsoProfissionalInDescription] = useState(true);
   const [usoProfissionalInCustomField, setUsoProfissionalInCustomField] = useState(false);
-  // Modo granular: "off" | "optimize_only" | "optimize_and_lifestyle"
+  // Modo granular: "off" | "optimize_only" | "lifestyle_only" | "optimize_and_lifestyle"
   // Persistido em localStorage; default = "optimize_only" (mais rápido, sem perda).
   const [imageProcessingMode, setImageProcessingMode] = useState<ImageProcessingMode>(() => {
     try {
       const saved = localStorage.getItem("optimize_image_processing_mode") as ImageProcessingMode | null;
-      if (saved === "off" || saved === "optimize_only" || saved === "optimize_and_lifestyle") return saved;
+      if (saved === "off" || saved === "optimize_only" || saved === "lifestyle_only" || saved === "optimize_and_lifestyle") return saved;
     } catch {}
     return IMAGE_PROCESSING_MODE_DEFAULT;
   });
@@ -161,7 +161,7 @@ const ProductsPage = () => {
     try {
       const saved = localStorage.getItem("optimize_image_processing_mode") as ImageProcessingMode | null;
       if (saved === "off") return false;
-      if (saved === "optimize_only" || saved === "optimize_and_lifestyle") return true;
+      if (saved === "optimize_only" || saved === "lifestyle_only" || saved === "optimize_and_lifestyle") return true;
     } catch {}
     return IMAGE_PROCESSING_MODE_DEFAULT !== "off";
   });
@@ -190,7 +190,7 @@ const ProductsPage = () => {
   // Fetch image prompt templates for the image prompt selector
   const { data: imagePromptTemplates } = useQuery({
     queryKey: ["image-prompt-templates-for-optimize", activeWorkspace?.id],
-    enabled: !!activeWorkspace?.id && imageProcessingMode === "optimize_and_lifestyle",
+    enabled: !!activeWorkspace?.id && (imageProcessingMode === "optimize_and_lifestyle" || imageProcessingMode === "lifestyle_only"),
     staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -1130,7 +1130,8 @@ const ProductsPage = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="optimize_only">🖼️ Só otimizar</SelectItem>
-                <SelectItem value="optimize_and_lifestyle">✨ Otimizar + Lifestyle</SelectItem>
+                <SelectItem value="lifestyle_only">✨ Só lifestyle</SelectItem>
+                <SelectItem value="optimize_and_lifestyle">🖼️ + ✨ Otimizar + Lifestyle</SelectItem>
               </SelectContent>
             </Select>
             <Button
@@ -2214,15 +2215,22 @@ const ProductsPage = () => {
                       </Label>
                     </div>
                     <div className="flex items-start gap-2 rounded-md p-1.5 hover:bg-muted/40">
+                      <RadioGroupItem value="lifestyle_only" id="img-mode-life-only" className="mt-0.5" />
+                      <Label htmlFor="img-mode-life-only" className="text-[11px] cursor-pointer leading-tight">
+                        <span className="font-medium">✨ Só lifestyle</span>
+                        <span className="block text-[10px] text-muted-foreground">Gera apenas as imagens contextuais HORECA com IA. Não toca nas imagens originais — mais barato que o modo combinado.</span>
+                      </Label>
+                    </div>
+                    <div className="flex items-start gap-2 rounded-md p-1.5 hover:bg-muted/40">
                       <RadioGroupItem value="optimize_and_lifestyle" id="img-mode-life" className="mt-0.5" />
                       <Label htmlFor="img-mode-life" className="text-[11px] cursor-pointer leading-tight">
-                        <span className="font-medium">✨ Otimizar + Lifestyle</span>
-                        <span className="block text-[10px] text-muted-foreground">Os 2 pipelines em paralelo. Mais lento e usa mais quota de IA, mas gera imagens contextuais HORECA.</span>
+                        <span className="font-medium">🖼️ + ✨ Otimizar + Lifestyle</span>
+                        <span className="block text-[10px] text-muted-foreground">Os 2 pipelines em paralelo. Mais lento e usa mais quota de IA, mas gera tudo de uma vez.</span>
                       </Label>
                     </div>
                   </RadioGroup>
                 </div>
-                {imageProcessingMode === "optimize_and_lifestyle" && (
+                {(imageProcessingMode === "optimize_and_lifestyle" || imageProcessingMode === "lifestyle_only") && (
                   <div className="px-3 pb-2 pt-1 border-t border-border/50">
                     <Label className="text-xs font-medium">🖼️ Prompt de Imagem Lifestyle</Label>
                     <Select
