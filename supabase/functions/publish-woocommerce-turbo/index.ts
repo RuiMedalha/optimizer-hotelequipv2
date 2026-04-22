@@ -491,17 +491,16 @@ Deno.serve(async (req) => {
         }
       }
 
-      // ── 2) DELEGATE complexos ao clássico (item-a-item) ──
+      // ── 2) Produtos COMPLEXOS (variable / variation): Turbo NÃO os publica.
+      //     Marcamos como "skipped_complex" para que o utilizador veja claramente
+      //     que precisam do modo Clássico. NÃO são contados como "publicados".
       if (complexProducts.length > 0) {
-        const ok = await delegateToClassic(
-          authHeader!,
-          complexProducts.map(p => p.id),
-          job.publish_fields || [],
-          job.pricing || {},
-          job.workspace_id || undefined,
-        );
         for (const p of complexProducts) {
-          existingResults.push({ id: p.id, status: ok ? "delegated" : "error", error: ok ? undefined : "Falha ao delegar para modo clássico" });
+          existingResults.push({
+            id: p.id,
+            status: "skipped_complex",
+            error: "Produto variável/variação — use o modo Clássico para publicar",
+          });
         }
       }
 
