@@ -61,22 +61,34 @@ async function selfInvokeTurbo(authHeader: string, jobId: string, startIndex: nu
   return false;
 }
 
-// ── Delegate fallback to classic publish-woocommerce (per-product) ─────────
-async function delegateToClassic(authHeader: string, productIds: string[], publishFields: string[], pricing: any, workspaceId?: string) {
+// ── Single-product POST/PUT inline (reaproveita o WC já autenticado) ──────
+// Substitui a delegação assíncrona ao clássico para garantir que NUNCA marcamos
+// um produto como "publicado" antes do WooCommerce confirmar com um ID real.
+async function publishSingleInline(
+  baseUrl: string,
+  auth: string,
+  product: any,
+  payload: Record<string, unknown>,
+): Promise<{ ok: boolean; woocommerce_id?: number; mode: "create" | "update"; error?: string }> {
+  const isUpdate = !!product.woocommerce_id;
+  const url = isUpdate
+    ? `${baseUrl}/wp-json/wc/v3/products/${product.woocommerce_id}`
+    : `${baseUrl}/wp-json/wc/v3/products`;
   try {
-    const r = await fetch(`${SUPABASE_URL}/functions/v1/publish-woocommerce`, {
-      method: "POST",
-      headers: { Authorization: authHeader, "Content-Type": "application/json" },
-      body: JSON.stringify({ productIds, publishFields, pricing, workspaceId, forcePublish: !!pricing?.forcePublish }),
+    const r = await fetch(url, {
+      method: isUpdate ? "PUT" : "POST",
+      headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     });
     if (!r.ok) {
-      console.warn(`[turbo→classic] delegate failed status=${r.status}`);
-      return false;
+      const text = await r.text().catch(() => "");
+      return { ok: false, mode: isUpdate ? "update" : "create", error: `WC ${r.status}: ${text.slice(0, 200)}` };
     }
-    return true;
-  } catch (e) {
-    console.warn("[turbo→classic] delegate exception", e);
-    return false;
+    const data = await r.json();
+    if (!data?.id) return { ok: false, mode: isUpdate ? "update" : "create", error: "WC respondeu sem ID" };
+    return { ok: true, mode: isUpdate ? "update" : "create", woocommerce_id: Number(data.id) };
+  } catch (e: any) {
+    return { ok: false, mode: isUpdate ? "update" : "create", error: e?.message || "Exceção HTTP" };
   }
 }
 
