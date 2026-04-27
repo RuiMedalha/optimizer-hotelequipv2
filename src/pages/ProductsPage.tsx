@@ -334,6 +334,28 @@ const ProductsPage = () => {
       errors: Math.max(errorsFromResults, activePublishJob?.failed_products ?? 0),
     };
   }, [activePublishJob?.results, activePublishJob?.failed_products]);
+
+  // Force refresh when progress hits 100%
+  useEffect(() => {
+    if (activeJob && activeJob.processed_products >= activeJob.total_products && activeJob.total_products > 0) {
+      const timer = setTimeout(() => {
+        qc.invalidateQueries({ queryKey: ["products"] });
+        qc.invalidateQueries({ queryKey: ["product-stats"] });
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [activeJob?.processed_products, activeJob?.total_products, qc]);
+
+  useEffect(() => {
+    if (activePublishJob && activePublishJob.processed_products >= activePublishJob.total_products && activePublishJob.total_products > 0) {
+      const timer = setTimeout(() => {
+        qc.invalidateQueries({ queryKey: ["products"] });
+        qc.invalidateQueries({ queryKey: ["product-stats"] });
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [activePublishJob?.processed_products, activePublishJob?.total_products, qc]);
+
   // Build grouped view structure
   const groupedView = useMemo(() => {
     if (viewMode !== "grouped") return null;
