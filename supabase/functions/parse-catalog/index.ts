@@ -131,7 +131,16 @@ async function insertProducts(
   const hasMapping = mappedFieldKeys.size > 0;
 
   // SKU lookup
-  const productSkus = products.map((p) => toStr(p.sku, 100)).filter((s): s is string => !!s);
+  const productSkus = products.map((p) => {
+    let sku = toStr(p.sku, 100);
+    if (skuPrefix && sku) {
+      const prefix = String(skuPrefix).trim();
+      if (!sku.toUpperCase().startsWith(prefix.toUpperCase())) {
+        sku = `${prefix}${sku}`;
+      }
+    }
+    return sku;
+  }).filter((s): s is string => !!s);
   const existingSkuMap = new Map<string, string>();
   if (productSkus.length > 0) {
     for (let i = 0; i < productSkus.length; i += 200) {
