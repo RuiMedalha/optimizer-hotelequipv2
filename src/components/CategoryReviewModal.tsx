@@ -5,7 +5,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Check, X, ArrowRight, Loader2, CheckCheck, XCircle } from "lucide-react";
+import { Check, X, ArrowRight, Loader2, CheckCheck, XCircle, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -42,6 +43,7 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
   const [isApproving, setIsApproving] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
   const [overrides, setOverrides] = useState<Record<string, string>>({});
+  const [searchQuery, setSearchQuery] = useState("");
 
   const getEffectiveSuggestion = (p: CategoryProduct) => overrides[p.id] || p.suggested_category;
 
@@ -64,6 +66,15 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
     candidates.filter(p => {
       if (filterCategory !== "all" && (p.category || "—") !== filterCategory) return false;
       if (filterSource !== "all" && (p.source_file || "") !== filterSource) return false;
+      
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return (
+          p.original_title.toLowerCase().includes(query) ||
+          p.sku.toLowerCase().includes(query)
+        );
+      }
+      
       return true;
     }),
     [candidates, filterCategory, filterSource]
@@ -201,6 +212,15 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
 
         {/* Filters */}
         <div className="flex items-center gap-3 flex-wrap">
+          <div className="relative w-[240px]">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Pesquisar produto ou SKU..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 h-8 text-xs"
+            />
+          </div>
           <Select value={filterCategory} onValueChange={setFilterCategory}>
             <SelectTrigger className="h-8 text-xs w-[200px]">
               <SelectValue placeholder="Categoria atual" />
