@@ -122,8 +122,19 @@ const IngestionHubPage = () => {
       rows = data;
     } else if (ext === "json") {
       const text = await file.text();
-      const parsed = JSON.parse(text);
-      rows = Array.isArray(parsed) ? parsed : [parsed];
+      let parsed = JSON.parse(text);
+      
+      // If the root is an object, look for common array keys
+      if (!Array.isArray(parsed) && typeof parsed === "object" && parsed !== null) {
+        const arrayKey = ["products", "items", "data", "rows"].find(k => Array.isArray(parsed[k]));
+        if (arrayKey) {
+          parsed = parsed[arrayKey];
+        } else {
+          parsed = [parsed];
+        }
+      }
+      
+      rows = parsed;
       if (rows.length === 0) return;
       headers = Object.keys(rows[0]);
     } else {
