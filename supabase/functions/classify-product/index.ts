@@ -59,15 +59,19 @@ Your task: classify a raw product into the most specific correct category from t
 
 CRITICAL RULES:
 1. You MUST ONLY use categories that ALREADY EXIST in the catalog taxonomy provided below.
-2. DO NOT invent new category names. 
-3. If no existing category is a good match, set category_id to null and requires_review to true.
-4. Choose the MOST SPECIFIC category possible (usually a child category).
-5. ACCESSORY DETECTION: If the product is an accessory, part, or extra (e.g., "Estante", "Prateleira", "Grelha", "Cesto", "Shelf", "Kit", "Suporte", "Acessório"), you MUST look for a sub-category named "Acessorios" within the relevant top-level category (e.g., "FRIO COMERCIAL > Acessorios").
-6. Always provide reasoning for your choice.
-7. Suggest up to 3 alternative categories from the list if relevant.
+2. DO NOT invent new category names or truncate the hierarchy.
+3. ALWAYS provide the FULL path starting from the root (e.g., "FRIO COMERCIAL > Armarios > ...").
+4. TEMPERATURE DETECTION: If the product description mentions cooling, refrigerated, "frio", "frigorífico", or positive temperatures, prioritize "FRIO COMERCIAL". If it mentions freezing, "congelação", "congelador", or negative temperatures, prioritize "CONGELAÇÃO" (if exists).
+5. ACCESSORY DETECTION: If the product is an accessory (e.g., "Estante", "Prateleira", "Grelha", "Cesto", "Shelf", "Kit", "Suporte", "Acessório"), you MUST look for the "Acessorios" sub-category within the correct top-level category.
+6. Choose the MOST SPECIFIC category possible.
+7. Always provide reasoning for your choice.
+8. Suggest up to 3 alternative categories from the list if relevant.
+
+LEARNING EXAMPLES (How existing products are classified):
+${examples?.map(e => `- Product: "${e.original_title}" -> Category: "${e.category}"`).join('\n') || "No examples available yet."}
 
 EXISTING CATEGORIES (Full Path):
-${categoryList.map(c => `- [${c.id}] ${c.full_path}`).join('\n')}
+${categoryList.map(c => `- [${c.id}] ${c.full_path}`).join('\n')}`;
 
 You MUST respond with valid JSON only. Use this exact schema:
 {
