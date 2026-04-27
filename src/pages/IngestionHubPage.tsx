@@ -492,11 +492,29 @@ const IngestionHubPage = () => {
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold">{fileName}</h2>
-                  <p className="text-sm text-muted-foreground">{parsedData.length} linhas detectadas · {parsedHeaders.length} colunas</p>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-lg font-semibold truncate">{fileName}</h2>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <p>{parsedData.length} linhas detectadas · {parsedHeaders.length} colunas</p>
+                    <Badge variant="outline" className="text-[10px] bg-primary/5 text-primary border-primary/20">
+                      Novo: Deteção de múltiplos arrays (Sillas/Mesas) ativa
+                    </Badge>
+                  </div>
                 </div>
-                <Button variant="ghost" size="sm" onClick={resetForm}><X className="w-4 h-4 mr-1" /> Cancelar</Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => {
+                    // Force a search for "Silla" in the detected rows to debug
+                    const chairs = parsedData.filter(r => JSON.stringify(r).toLowerCase().includes("silla"));
+                    if (chairs.length > 0) {
+                      toast.success(`Encontradas ${chairs.length} cadeiras (sillas) no ficheiro!`);
+                    } else {
+                      toast.error("Nenhuma cadeira (silla) encontrada no conteúdo processado.");
+                    }
+                  }}>
+                    <Search className="w-4 h-4 mr-1" /> Verificar Cadeiras
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={resetForm}><X className="w-4 h-4 mr-1" /> Cancelar</Button>
+                </div>
               </div>
 
               {/* Auto-detection panel */}
