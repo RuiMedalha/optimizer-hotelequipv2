@@ -206,9 +206,9 @@ Deno.serve(async (req) => {
       .eq("workspace_id", workspaceId)
       .in("sku", allSkus);
 
-    const existingProductsMap = new Map<string, string>();
+    const existingProductsMap = new Map<string, any>();
     existingProductsList?.forEach(p => {
-      if (p.sku) existingProductsMap.set(p.sku.toUpperCase(), p.id);
+      if (p.sku) existingProductsMap.set(p.sku.toUpperCase(), p);
     });
 
     // To handle case-insensitivity for those not found by exact match:
