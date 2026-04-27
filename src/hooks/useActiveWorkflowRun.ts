@@ -20,6 +20,31 @@ export function useActiveWorkflowRun(workspaceId?: string) {
 
   // Reset on real workspace change — never on first render
   const prevWorkspaceId = useRef<string | undefined>(undefined);
+  // Load active session from DB if not in localStorage
+  useEffect(() => {
+    if (!workspaceId || activeRunId) return;
+
+    const findActiveSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data: runs, error } = await supabase
+        .from("catalog_workflow_runs")
+        .select("id")
+        .eq("workspace_id", workspaceId)
+        .eq("status", "running")
+        .order("started_at", { ascending: false })
+        .limit(1);
+
+      if (!error && runs && runs.length > 0) {
+        setActiveRun(runs[0].id);
+      }
+    };
+
+    findActiveSession();
+  }, [workspaceId, activeRunId, setActiveRun]);
+
+  // Reset on real workspace change
   useEffect(() => {
     if (
       prevWorkspaceId.current !== undefined &&
