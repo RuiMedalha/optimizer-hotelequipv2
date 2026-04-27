@@ -75,6 +75,7 @@ Deno.serve(async (req) => {
       technical_specs: "technical_specs",
       product_type: "product_type",
       attributes: "attributes",
+      stock: "stock",
     };
 
     function buildProductData(mapped: Record<string, any>): Record<string, any> {
