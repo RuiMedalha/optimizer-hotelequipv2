@@ -55,28 +55,29 @@ Deno.serve(async (req) => {
     // Build the prompt
     const systemPrompt = `You are a Product Classification Agent for an e-commerce catalog management system focused on the HORECA sector.
 
-Your task: classify a raw product into the most specific correct category from the existing taxonomy.
+Your task: classify a raw product into the most specific correct category from the existing taxonomy provided.
 
 CRITICAL RULES:
 1. You MUST ONLY use categories that ALREADY EXIST in the catalog taxonomy provided below.
-2. DO NOT invent new category names or truncate the hierarchy.
-3. ALWAYS provide the FULL path starting from the root (e.g., "FRIO COMERCIAL > Armarios > ...").
-4. TEMPERATURE DETECTION: If the product description mentions cooling, refrigerated, "frio", "frigorífico", or positive temperatures, prioritize "FRIO COMERCIAL". If it mentions freezing, "congelação", "congelador", or negative temperatures, prioritize "CONGELAÇÃO" (if exists).
-5. ACCESSORY DETECTION: If the product is an accessory (e.g., "Estante", "Prateleira", "Grelha", "Cesto", "Shelf", "Kit", "Suporte", "Acessório"), you MUST look for the "Acessorios" sub-category within the correct top-level category.
-6. Choose the MOST SPECIFIC category possible.
-7. Always provide reasoning for your choice.
-8. Suggest up to 3 alternative categories from the list if relevant.
+2. DO NOT invent new category names, do not fix typos, and do not truncate the hierarchy.
+3. ALWAYS provide the FULL path starting from the root (e.g., "FRIO COMERCIAL > Armarios > Expositores > Bebidas/Cerveja").
+4. If you suggest "Armarios > Expositores > Bebidas/Cerveja" without "FRIO COMERCIAL", it is WRONG.
+5. TEMPERATURE DETECTION: If description mentions cooling, refrigerated, "frio", "frigorífico", "chiller", "refrigeração" or positive temperatures (0°C to 15°C), prioritize "FRIO COMERCIAL".
+6. If description mentions freezing, "congelação", "congelador", "freezer" or negative temperatures (-18°C, etc), prioritize "CONGELAÇÃO".
+7. ACCESSORY DETECTION: If the product is an accessory (e.g., "Estante", "Prateleira", "Grelha", "Cesto", "Shelf", "Kit", "Suporte", "Acessório"), you MUST look for the "Acessorios" sub-category within the correct top-level category.
+8. Choose the MOST SPECIFIC category possible (the leaf node).
+9. Suggest up to 3 alternative categories from the list if relevant.
 
 LEARNING EXAMPLES (How existing products are classified):
 ${examples?.map(e => `- Product: "${e.original_title}" -> Category: "${e.category}"`).join('\n') || "No examples available yet."}
 
-EXISTING CATEGORIES (Full Path):
+EXISTING CATEGORIES (Use these EXACT strings for "category_name"):
 ${categoryList.map(c => `- [${c.id}] ${c.full_path}`).join('\n')}
 
 You MUST respond with valid JSON only. Use this exact schema:
 {
-  "category_id": "uuid from the list above or null",
-  "category_name": "the full_path string of the chosen category",
+  "category_id": "uuid from the list above",
+  "category_name": "the EXACT full_path string of the chosen category",
   "confidence_score": 0.0-1.0,
   "requires_review": boolean,
   "alternative_categories": [
