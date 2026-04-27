@@ -653,6 +653,93 @@ const IngestionHubPage = () => {
           )}
         </TabsContent>
 
+        <TabsContent value="files" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-primary" />
+                  Biblioteca de Ficheiros do Workspace
+                </div>
+                <div className="relative w-64">
+                  <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Procurar ficheiros..."
+                    className="pl-8 h-8 text-xs"
+                    value={fileSearch}
+                    onChange={(e) => setFileSearch(e.target.value)}
+                  />
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoadingFiles ? (
+                <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+              ) : !uploadedFiles || uploadedFiles.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Database className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                  <p>Nenhum ficheiro carregado neste workspace.</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Ficheiro</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {uploadedFiles
+                      .filter(f => f.file_name.toLowerCase().includes(fileSearch.toLowerCase()))
+                      .map((file) => (
+                        <TableRow key={file.id}>
+                          <TableCell className="font-medium">
+                            <div className="flex flex-col">
+                              <span className="text-sm">{file.file_name}</span>
+                              <span className="text-[10px] text-muted-foreground">{(file.file_size / 1024).toFixed(1)} KB</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-[10px] uppercase">{file.file_type || "—"}</Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {format(new Date(file.created_at), "dd/MM/yyyy HH:mm")}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className="text-[10px]">{file.status}</Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs gap-1"
+                                onClick={() => handleFileFromLibrary(file)}
+                              >
+                                <Play className="w-3 h-3" /> Usar p/ Ingestão
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                onClick={() => deleteFile.mutate(file.id)}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="jobs" className="mt-4">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
