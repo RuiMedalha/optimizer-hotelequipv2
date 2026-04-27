@@ -23,6 +23,7 @@ import { IngestionJobActionsDropdown } from "@/components/playbook-engine/Ingest
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const PRODUCT_FIELDS = [
   { key: "sku", label: "SKU" },
