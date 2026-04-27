@@ -381,22 +381,38 @@ const UploadPage = () => {
                   "bg-primary/5"
                 )}>
                   <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      {file.status === "concluido" ? (
-                        <CheckCircle className="w-4 h-4 text-green-600" />
-                      ) : file.status === "erro" ? (
-                        <AlertCircle className="w-4 h-4 text-destructive" />
-                      ) : (
-                        <CheckCircle className="w-4 h-4 text-primary" />
+                    <CardTitle className="text-sm flex flex-col gap-1.5">
+                      <div className="flex items-center gap-2">
+                        {file.status === "concluido" ? (
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                        ) : file.status === "erro" ? (
+                          <AlertCircle className="w-4 h-4 text-destructive" />
+                        ) : (
+                          <CheckCircle className="w-4 h-4 text-primary" />
+                        )}
+                        <span className="truncate">
+                          {file.status === "concluido" ? "Processado" : file.status === "erro" ? "Erro" : "Mapeamento Confirmado"}
+                          {" — "}
+                        </span>
+                        <span className="font-normal text-muted-foreground truncate">{file.name}</span>
+                        <Badge variant="secondary" className="text-[10px] shrink-0">
+                          {Object.keys(file.columnMapping || {}).length} campos mapeados
+                        </Badge>
+                      </div>
+
+                      {/* SKU Prefix Selector in Upload Cards */}
+                      {!isConfirmed && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <Label className="text-[10px] uppercase font-bold text-muted-foreground whitespace-nowrap">Prefixo SKU:</Label>
+                          <Input
+                            placeholder="Ex: SIGLA-"
+                            value={file.skuPrefix || ""}
+                            onChange={(e) => setSkuPrefix(file.id, e.target.value.toUpperCase())}
+                            className="h-6 text-[10px] w-32 bg-background border-primary/20"
+                          />
+                          <p className="text-[10px] text-muted-foreground italic">(opcional)</p>
+                        </div>
                       )}
-                      <span className="truncate">
-                        {file.status === "concluido" ? "Processado" : file.status === "erro" ? "Erro" : "Mapeamento Confirmado"}
-                        {" — "}
-                      </span>
-                      <span className="font-normal text-muted-foreground truncate">{file.name}</span>
-                      <Badge variant="secondary" className="text-[10px] shrink-0">
-                        {Object.keys(file.columnMapping || {}).length} campos mapeados
-                      </Badge>
                     </CardTitle>
                     <div className="flex gap-2 shrink-0">
                       <Button
