@@ -43,7 +43,7 @@ export function usePublishJob() {
           const updated = payload.new as any;
           setActivePublishJob(updated);
 
-          if (updated.status === "completed") {
+          if (updated.status === "completed" || updated.status === "failed" || updated.processed_products >= updated.total_products) {
             const results = updated.results || [];
             const created = results.filter((r: any) => r.status === "created").length;
             const updatedCount = results.filter((r: any) => r.status === "updated").length;
@@ -53,7 +53,10 @@ export function usePublishJob() {
             if (created > 0) parts.push(`${created} criado(s)`);
             if (updatedCount > 0) parts.push(`${updatedCount} atualizado(s)`);
             if (skipped > 0) parts.push(`${skipped} ignorado(s) (variável — usar Clássico)`);
-            if (errors > 0) {
+            
+            if (updated.status === "failed") {
+              toast.error(`Publicação falhou: ${updated.error_message || "Erro desconhecido"}`);
+            } else if (errors > 0) {
               parts.push(`${errors} com erro`);
               toast.warning(`Publicação concluída: ${parts.join(", ")}`);
             } else if (created + updatedCount === 0 && skipped > 0) {
@@ -61,8 +64,14 @@ export function usePublishJob() {
             } else {
               toast.success(`${parts.join(", ")} no WooCommerce! 🚀`);
             }
+            
+            // Auto-dismiss after a delay if finished
+            setTimeout(() => {
+              setActivePublishJob(prev => (prev?.id === updated.id ? null : prev));
+            }, 5000);
           } else if (updated.status === "cancelled") {
             toast.info(`Publicação cancelada. ${updated.processed_products} de ${updated.total_products} processados.`);
+            setTimeout(() => setActivePublishJob(null), 3000);
           }
         }
       )
