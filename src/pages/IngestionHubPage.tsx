@@ -183,12 +183,14 @@ const IngestionHubPage = () => {
       const autoMap: Record<string, string> = {};
       headers.forEach(h => {
         const lower = h.toLowerCase().replace(/[^a-z0-9]/g, "");
-        if (lower.includes("sku") || lower === "ref") autoMap[h] = "sku";
-        else if (lower.includes("title") || lower.includes("titulo") || lower.includes("nome") || lower === "name") autoMap[h] = "original_title";
+        if (lower === "sku" || lower === "ref" || lower === "reference" || lower === "referencia" || lower === "cod" || lower === "codigo") autoMap[h] = "sku";
+        else if (lower.includes("title") || lower.includes("titulo") || lower.includes("nome") || lower === "name" || lower === "label") autoMap[h] = "original_title";
         else if (lower.includes("desc") && !lower.includes("short") && !lower.includes("curta")) autoMap[h] = "original_description";
         else if (lower.includes("price") || lower.includes("preco") || lower.includes("preço") || lower === "pvp") autoMap[h] = "original_price";
+        else if (lower.includes("saleprice") || lower.includes("promo")) autoMap[h] = "sale_price";
+        else if (lower.includes("stock") || lower.includes("stockquantity") || lower.includes("inv") || lower.includes("estoque") || lower.includes("existencia")) autoMap[h] = "stock";
         else if (lower.includes("categ")) autoMap[h] = "category";
-        else if (lower.includes("image") || lower.includes("imagem") || lower.includes("foto")) autoMap[h] = "image_urls";
+        else if (lower.includes("image") || lower.includes("imagem") || lower.includes("foto") || lower.includes("img")) autoMap[h] = "image_urls";
       });
       setFieldMappings(autoMap);
     }
