@@ -222,6 +222,8 @@ export function useRunIngestionJob() {
         
         if (!finished) {
           console.log(`Processed batch ${iterations}. Remaining items...`);
+          // Small delay to let the server breathe and prevent resource spikes
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
       

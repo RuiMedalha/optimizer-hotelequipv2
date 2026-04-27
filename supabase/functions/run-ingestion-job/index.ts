@@ -46,8 +46,8 @@ Deno.serve(async (req) => {
     }
 
     // Fetch items with status 'mapped' (not yet processed)
-    // We process in batches of 200 per invocation to stay within memory/time limits
-    const INVOCATION_BATCH_SIZE = 200;
+    // We process in batches of 50 per invocation to stay within memory/time limits
+    const INVOCATION_BATCH_SIZE = 50;
     
     const { data: pendingItems, error: itemsErr } = await supabase
       .from("ingestion_job_items")
@@ -149,8 +149,8 @@ Deno.serve(async (req) => {
       return result;
     }
 
-    // Process all items in batches of 100 for better throughput
-    const BATCH_SIZE = 100;
+    // Process all items in batches of 5 for better throughput and lower resource usage
+    const BATCH_SIZE = 5;
     let imported = 0, updated = 0, skipped = 0, failed = 0;
 
     // First, group by SKU
@@ -174,10 +174,30 @@ Deno.serve(async (req) => {
 
     const skuEntries = Array.from(skuGroups.entries());
     
+    const allSkus = Array.from(skuGroups.keys());
+    // Use an RPC or a sophisticated query to handle case-insensitive matching for the whole batch
+    // For simplicity and safety with 50 items, we'll fetch products where SKU is in the list
+    // and also do a secondary check if needed, but usually SKUs should be normalized.
+    const { data: existingProductsList } = await supabase
+      .from("products")
+      .select("id, sku")
+      .eq("workspace_id", workspaceId)
+      .in("sku", allSkus);
+
+    const existingProductsMap = new Map<string, string>();
+    existingProductsList?.forEach(p => {
+      if (p.sku) existingProductsMap.set(p.sku.toUpperCase(), p.id);
+    });
+
+    // To handle case-insensitivity for those not found by exact match:
+    // If we have many missing, we could do more, but for now this is much better than before.
+
+    const itemsToUpdateStatus: { id: string, status: string, product_id?: string, error_message?: string }[] = [];
+
     // Process SKU Groups in batches
     for (let i = 0; i < skuEntries.length; i += BATCH_SIZE) {
       const batch = skuEntries.slice(i, i + BATCH_SIZE);
-      const promises = batch.map(async ([sku, groupItems]) => {
+      await Promise.all(batch.map(async ([sku, groupItems]) => {
         try {
           let mergedData: Record<string, any> = {};
           for (const item of groupItems) {
@@ -187,21 +207,33 @@ Deno.serve(async (req) => {
           }
           mergedData.sku = sku;
 
-          const { data: existingProducts } = await supabase
-            .from("products")
-            .select("id")
-            .eq("workspace_id", workspaceId)
-            .ilike("sku", sku)
-            .limit(1);
+          const normalizedSku = sku.toUpperCase();
+          let existingId = existingProductsMap.get(normalizedSku);
+          
+          // Fallback check for case-insensitivity if not found in the initial IN query
+          if (!existingId) {
+            const { data: fallback } = await supabase
+              .from("products")
+              .select("id")
+              .eq("workspace_id", workspaceId)
+              .ilike("sku", sku)
+              .limit(1)
+              .maybeSingle();
+            if (fallback) {
+              existingId = fallback.id;
+              existingProductsMap.set(normalizedSku, existingId);
+            }
+          }
 
           let productId: string | null = null;
-          if (existingProducts && existingProducts.length > 0) {
+
+          if (existingId) {
             const { error: updateErr } = await supabase
               .from("products")
               .update({ ...mergedData, updated_at: new Date().toISOString() })
-              .eq("id", existingProducts[0].id);
+              .eq("id", existingId);
             if (updateErr) throw updateErr;
-            productId = existingProducts[0].id;
+            productId = existingId;
             updated++;
           } else {
             const { data: newProd, error: insertErr } = await supabase
@@ -219,26 +251,23 @@ Deno.serve(async (req) => {
             imported++;
           }
 
-          // Update item statuses in bulk later or here if manageable
-          await supabase.from("ingestion_job_items")
-            .update({ status: "processed", product_id: productId })
-            .in("id", groupItems.map(gi => gi.id));
-            
+          groupItems.forEach(gi => {
+            itemsToUpdateStatus.push({ id: gi.id, status: "processed", product_id: productId! });
+          });
         } catch (err) {
           console.error(`Error processing SKU ${sku}:`, err);
           failed += groupItems.length;
-          await supabase.from("ingestion_job_items")
-            .update({ status: "error", error_message: (err as Error).message })
-            .in("id", groupItems.map(gi => gi.id));
+          groupItems.forEach(gi => {
+            itemsToUpdateStatus.push({ id: gi.id, status: "error", error_message: (err as Error).message });
+          });
         }
-      });
-      await Promise.all(promises);
+      }));
     }
 
     // Process No-SKU items in batches
     for (let i = 0; i < noSkuItems.length; i += BATCH_SIZE) {
       const batch = noSkuItems.slice(i, i + BATCH_SIZE);
-      const promises = batch.map(async (item) => {
+      await Promise.all(batch.map(async (item) => {
         try {
           const mapped = item.mapped_data || item.source_data || {};
           const productData = buildProductData(mapped);
@@ -264,17 +293,28 @@ Deno.serve(async (req) => {
             if (insertErr) throw insertErr;
             imported++;
           }
-          await supabase.from("ingestion_job_items")
-            .update({ status: "processed" })
-            .eq("id", item.id);
+          itemsToUpdateStatus.push({ id: item.id, status: "processed" });
         } catch (err) {
           failed++;
-          await supabase.from("ingestion_job_items")
-            .update({ status: "error", error_message: (err as Error).message })
-            .eq("id", item.id);
+          itemsToUpdateStatus.push({ id: item.id, status: "error", error_message: (err as Error).message });
         }
-      });
-      await Promise.all(promises);
+      }));
+    }
+
+    // Bulk update ingestion_job_items status
+    if (itemsToUpdateStatus.length > 0) {
+      // Supabase insert with upsert on id to update multiple rows with different values
+      const { error: bulkErr } = await supabase
+        .from("ingestion_job_items")
+        .upsert(itemsToUpdateStatus.map(item => ({
+          id: item.id,
+          status: item.status,
+          product_id: item.product_id || null,
+          error_message: item.error_message || null,
+          job_id: jobId // required for RLS usually
+        })));
+      
+      if (bulkErr) console.error("Error in bulk update of items:", bulkErr);
     }
 
     // Check if there are more items to process for this job
