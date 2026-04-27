@@ -486,6 +486,7 @@ serve(async (req) => {
       const modelPatterns = [
         /\b(ht)\b/gi, /\b(lp)\b/gi, /\b(hp)\b/gi, /\b(hr)\b/gi,
         /\b(gn\s*\d+\/\d+)\b/gi, /\b(gn\d+\/\d+)\b/gi,
+        /\b([A-Z]{1,4}-?\d+[A-Z0-9\-]*)\b/gi, // Broader SKU-like pattern (e.g., XC-440C, XCLD-440)
         /\bp\/?\s*mod(?:elo)?s?\s*\.?\s*([a-z0-9\-]+(?:\s*[-\/,]\s*[a-z0-9\-]+)*)/gi,
         /\bmod(?:elo)?s?\s*\.?\s*([a-z0-9\-]+(?:\s*[-\/,]\s*[a-z0-9\-]+)*)/gi,
       ];
@@ -509,7 +510,7 @@ serve(async (req) => {
         "frigorifico", "frigorífico", "vitrine", "exaustor",
         "grelhador", "chapa", "basculante", "marmita", "batedeira", "cortador", "ralador",
         "microondas", "tostadeira", "torradeira", "salamandra", "abatedor", "ultracongelador",
-        "dispensador", "doseador", "cesto", "tabuleiro", "prateleira", "escorredor",
+        "dispensador", "doseador", "cesto", "tabuleiro", "prateleira", "estante", "escorredor",
         "cuba", "torneira", "pia", "suporte", "carro",
       ];
       let type: string | null = null;
@@ -581,8 +582,9 @@ serve(async (req) => {
           "bomba": ["lava", "maquina", "máquina"],
           "cesto": ["lava", "maquina", "máquina", "fritadeira"],
           "doseador": ["lava", "maquina", "máquina"],
-          "tabuleiro": ["forno"],
-          "prateleira": ["forno", "frigorifico", "frigorífico", "armario", "armário"],
+          "tabuleiro": ["forno", "armario", "armário"],
+          "prateleira": ["forno", "frigorifico", "frigorífico", "armario", "armário", "vitrine"],
+          "estante": ["frigorifico", "frigorífico", "armario", "armário", "vitrine"],
           "escorredor": ["lava", "fritadeira"],
         };
         if (current.type && candidate.type) {
@@ -614,6 +616,11 @@ serve(async (req) => {
           "maquina": ["cesto", "doseador", "mesa", "prateleira", "depurador", "descalcificador", "abrilhantador", "detergente", "bomba", "escorredor"],
           "máquina": ["cesto", "doseador", "mesa", "prateleira", "depurador", "descalcificador", "abrilhantador", "detergente", "bomba", "escorredor"],
           "lava": ["cesto", "doseador", "mesa", "escorredor", "depurador", "descalcificador", "abrilhantador", "detergente", "bomba", "suporte", "prateleira"],
+          "armario": ["prateleira", "estante", "cesto", "tabuleiro", "bancada"],
+          "armário": ["prateleira", "estante", "cesto", "tabuleiro", "bancada"],
+          "vitrine": ["prateleira", "estante", "suporte", "bancada"],
+          "frigorifico": ["prateleira", "estante", "suporte", "bancada"],
+          "frigorífico": ["prateleira", "estante", "suporte", "bancada"],
           "grelhador": ["bancada", "exaustor", "chapa"],
           "chapa": ["bancada", "exaustor", "grelhador"],
           // Accessories should cross-sell with the machines AND with other accessories
@@ -624,7 +631,9 @@ serve(async (req) => {
           "bomba": ["lava", "maquina", "máquina", "depurador", "abrilhantador", "detergente", "doseador"],
           "cesto": ["lava", "maquina", "máquina", "escorredor", "suporte", "prateleira"],
           "doseador": ["lava", "maquina", "máquina", "depurador", "abrilhantador", "detergente"],
-          "tabuleiro": ["forno", "carro", "prateleira"],
+          "tabuleiro": ["forno", "carro", "prateleira", "armario", "armário"],
+          "estante": ["armario", "armário", "vitrine", "frigorifico", "frigorífico"],
+          "prateleira": ["armario", "armário", "vitrine", "frigorifico", "frigorífico", "forno", "maquina", "máquina", "lava"],
           "escorredor": ["lava", "maquina", "máquina", "cesto"],
           "carro": ["forno", "tabuleiro"],
         };
