@@ -127,7 +127,7 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
             const { data: userData } = await supabase.auth.getUser();
             await supabase.functions.invoke("learn-from-review", {
               body: {
-                workspaceId: candidates[0].workspace_id || "", // We need workspace_id
+                workspaceId: prods[0]?.workspace_id || "", // We need workspace_id
                 reviewedBy: userData.user?.id,
                 corrections: learningEvents,
                 saveAsPatterns: true
