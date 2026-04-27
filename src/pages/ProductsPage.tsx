@@ -826,7 +826,7 @@ const ProductsPage = () => {
           </span>
         )}
       </td>
-      <td className="p-3 max-w-[140px]" onClick={(e) => e.stopPropagation()}>
+      <td className="p-3 max-w-[200px]" onClick={(e) => e.stopPropagation()}>
         {editingCell?.id === product.id && editingCell.field === "category" ? (
           <div className="flex gap-1">
             <Input
