@@ -310,19 +310,20 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                                   </div>
                                 </SelectItem>
                               ))}
-                          </Select>
-                        ) : (
-                          <Badge className="text-[10px] bg-primary/10 text-primary border-primary/20 py-0.5 px-2">
-                            {p.suggested_category}
-                          </Badge>
-                        )}
-                        
-                        {/* Reasoning small text */}
-                        {p.suggested_categories?.find(c => c.category_name === getEffectiveSuggestion(p))?.reasoning && (
-                          <span className="text-[9px] text-muted-foreground leading-tight px-1 italic">
-                            {p.suggested_categories.find(c => c.category_name === getEffectiveSuggestion(p))?.reasoning}
-                          </span>
-                        )}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Badge className="text-[10px] bg-primary/10 text-primary border-primary/20 py-0.5 px-2">
+                          {p.suggested_category}
+                        </Badge>
+                      )}
+                      
+                      {/* Reasoning small text */}
+                      {p.suggested_categories?.find(c => c.category_name === getEffectiveSuggestion(p))?.reasoning && (
+                        <span className="text-[9px] text-muted-foreground leading-tight px-1 italic">
+                          {p.suggested_categories.find(c => c.category_name === getEffectiveSuggestion(p))?.reasoning}
+                        </span>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
