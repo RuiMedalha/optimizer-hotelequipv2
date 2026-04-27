@@ -16,11 +16,11 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Fetch existing categories for this workspace
+    // Fetch existing categories for this workspace and global categories
     const { data: categories } = await supabase
       .from("categories")
-      .select("id, name, slug, parent_id, description")
-      .eq("workspace_id", workspace_id);
+      .select("id, name, slug, parent_id, description, workspace_id")
+      .or(`workspace_id.eq.${workspace_id},workspace_id.is.null`);
 
     // Fetch some successfully categorized products to use as examples (Few-Shot Prompting)
     const { data: examples } = await supabase
