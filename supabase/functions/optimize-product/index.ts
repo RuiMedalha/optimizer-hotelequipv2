@@ -1760,6 +1760,7 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           updateData.image_alt_texts = altObj;
         }
         if (optimized.suggested_category) updateData.suggested_category = optimized.suggested_category;
+        if (optimized.suggested_categories) updateData.suggested_categories = optimized.suggested_categories;
         if (optimized.focus_keywords && Array.isArray(optimized.focus_keywords) && optimized.focus_keywords.length > 0) {
           updateData.focus_keyword = optimized.focus_keywords.slice(0, 5);
         }
