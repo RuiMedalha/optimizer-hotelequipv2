@@ -277,7 +277,53 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                     <ArrowRight className="w-3.5 h-3.5 text-muted-foreground" />
                   </TableCell>
                   <TableCell className="text-xs">
-                    <Badge className="text-[10px] bg-primary/10 text-primary border-primary/20">{p.suggested_category}</Badge>
+                    <div className="flex flex-col gap-1.5 min-w-[180px]">
+                      {p.suggested_categories && p.suggested_categories.length > 0 ? (
+                        <Select 
+                          value={getEffectiveSuggestion(p) || ""} 
+                          onValueChange={(val) => setOverrides(prev => ({ ...prev, [p.id]: val }))}
+                        >
+                          <SelectTrigger className="h-7 text-[10px] py-0 px-2 bg-primary/5 border-primary/20 hover:bg-primary/10 transition-colors">
+                            <SelectValue placeholder="Escolher categoria..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {/* Primary suggestion first */}
+                            <SelectItem value={p.suggested_category || ""} className="text-[10px]">
+                              <div className="flex flex-col">
+                                <span className="font-semibold">{p.suggested_category}</span>
+                                <span className="text-[9px] text-muted-foreground">Sugestão principal</span>
+                              </div>
+                            </SelectItem>
+                            
+                            {/* Alternative suggestions */}
+                            {p.suggested_categories
+                              .filter(alt => alt.category_name !== p.suggested_category)
+                              .map((alt, idx) => (
+                                <SelectItem key={idx} value={alt.category_name} className="text-[10px]">
+                                  <div className="flex flex-col">
+                                    <span>{alt.category_name}</span>
+                                    {alt.confidence_score && (
+                                      <span className="text-[9px] text-muted-foreground">
+                                        Confiança: {(alt.confidence_score * 100).toFixed(0)}%
+                                      </span>
+                                    )}
+                                  </div>
+                                </SelectItem>
+                              ))}
+                          </Select>
+                        ) : (
+                          <Badge className="text-[10px] bg-primary/10 text-primary border-primary/20 py-0.5 px-2">
+                            {p.suggested_category}
+                          </Badge>
+                        )}
+                        
+                        {/* Reasoning small text */}
+                        {p.suggested_categories?.find(c => c.category_name === getEffectiveSuggestion(p))?.reasoning && (
+                          <span className="text-[9px] text-muted-foreground leading-tight px-1 italic">
+                            {p.suggested_categories.find(c => c.category_name === getEffectiveSuggestion(p))?.reasoning}
+                          </span>
+                        )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
