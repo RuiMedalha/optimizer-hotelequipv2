@@ -994,40 +994,51 @@ function JobDetailDialog({ job, items, onClose }: { job: IngestionJob | null; it
               ))}
             </div>
 
-            {/* Filters */}
-            <div className="flex flex-wrap gap-2">
-              <Button 
-                variant={filter === "all" ? "default" : "outline"} 
-                size="sm" 
-                className="h-7 text-[10px]" 
-                onClick={() => { setFilter("all"); setPage(1); }}
-              >
-                Todos ({items.length})
-              </Button>
-              <Button 
-                variant={filter === "new" ? "default" : "outline"} 
-                size="sm" 
-                className="h-7 text-[10px]" 
-                onClick={() => { setFilter("new"); setPage(1); }}
-              >
-                Novos ({insertCount})
-              </Button>
-              <Button 
-                variant={filter === "update" ? "default" : "outline"} 
-                size="sm" 
-                className="h-7 text-[10px]" 
-                onClick={() => { setFilter("update"); setPage(1); }}
-              >
-                Atualizações ({updateCount})
-              </Button>
-              <Button 
-                variant={filter === "error" ? "default" : "outline"} 
-                size="sm" 
-                className="h-7 text-[10px]" 
-                onClick={() => { setFilter("error"); setPage(1); }}
-              >
-                Erros ({job.failed_rows || 0})
-              </Button>
+            {/* Filters & Search */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-wrap gap-2 flex-1">
+                <Button 
+                  variant={filter === "all" ? "default" : "outline"} 
+                  size="sm" 
+                  className="h-7 text-[10px]" 
+                  onClick={() => { setFilter("all"); setPage(1); }}
+                >
+                  Todos ({items.length})
+                </Button>
+                <Button 
+                  variant={filter === "new" ? "default" : "outline"} 
+                  size="sm" 
+                  className="h-7 text-[10px]" 
+                  onClick={() => { setFilter("new"); setPage(1); }}
+                >
+                  Novos ({insertCount})
+                </Button>
+                <Button 
+                  variant={filter === "update" ? "default" : "outline"} 
+                  size="sm" 
+                  className="h-7 text-[10px]" 
+                  onClick={() => { setFilter("update"); setPage(1); }}
+                >
+                  Atualizações ({updateCount})
+                </Button>
+                <Button 
+                  variant={filter === "error" ? "default" : "outline"} 
+                  size="sm" 
+                  className="h-7 text-[10px]" 
+                  onClick={() => { setFilter("error"); setPage(1); }}
+                >
+                  Erros ({job.failed_rows || 0})
+                </Button>
+              </div>
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input 
+                  placeholder="Pesquisar por SKU ou Título..." 
+                  className="pl-8 h-7 text-xs"
+                  value={searchTerm}
+                  onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                />
+              </div>
             </div>
 
             {/* Items table */}
