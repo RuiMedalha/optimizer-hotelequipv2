@@ -1847,6 +1847,7 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
                 status: "optimized",
                 category: finalCategory,
                 suggested_category: updateData.suggested_category || null,
+                suggested_categories: updateData.suggested_categories || null,
               };
 
               // Propagate title with attribute suffix
