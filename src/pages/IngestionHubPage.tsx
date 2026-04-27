@@ -134,27 +134,67 @@ const IngestionHubPage = () => {
         if (Array.isArray(obj)) return obj;
         if (typeof obj !== 'object' || obj === null) return [];
         
-        let bestArray: any[] = [];
-        // Priority keys that we know usually contain product data
-        const priorityKeys = ["products", "items", "data", "rows", "results"];
-        for (const key of priorityKeys) {
-          if (Array.isArray(obj[key])) return obj[key];
-        }
+        const allProductArrays: any[][] = [];
+        const seenArrays = new Set<any[]>();
+        
+        const scoreArray = (arr: any[]): number => {
+          if (!Array.isArray(arr) || arr.length === 0) return 0;
+          const firstItem = arr[0];
+          if (typeof firstItem !== 'object' || firstItem === null) return 0;
+          
+          let score = 0;
+          const productKeys = ['sku', 'ref', 'reference', 'name', 'title', 'price', 'id', 'codigo', 'cod', 'imagen'];
+          const keys = Object.keys(firstItem).map(k => k.toLowerCase().replace(/[^a-z0-9]/g, ''));
+          
+          productKeys.forEach(pk => {
+            if (keys.some(k => k.includes(pk))) score++;
+          });
+          return score;
+        };
 
-        for (const key in obj) {
-          const val = obj[key];
-          if (Array.isArray(val)) {
-            if (val.length > bestArray.length) bestArray = val;
-          } else if (typeof val === 'object' && val !== null) {
-            // Only go one level deep to avoid picking up metadata
-            for (const subKey in val) {
-              if (Array.isArray(val[subKey]) && val[subKey].length > bestArray.length) {
-                bestArray = val[subKey];
-              }
-            }
+        // Priority keys check first (standard formats)
+        const priorityKeys = ["products", "items", "data", "rows", "results", "catalogo", "catalog"];
+        for (const key of priorityKeys) {
+          if (Array.isArray(obj[key])) {
+             seenArrays.add(obj[key]);
+             allProductArrays.push(obj[key]);
           }
         }
-        return bestArray;
+
+        // Recursive search for more arrays
+        const searchForArrays = (current: any, depth = 0) => {
+          if (depth > 3) return;
+          if (typeof current !== 'object' || current === null) return;
+          
+          for (const key in current) {
+            const val = current[key];
+            if (Array.isArray(val) && !seenArrays.has(val)) {
+              if (scoreArray(val) >= 2) { 
+                allProductArrays.push(val);
+                seenArrays.add(val);
+              }
+            } else if (typeof val === 'object' && val !== null) {
+              searchForArrays(val, depth + 1);
+            }
+          }
+        };
+
+        searchForArrays(obj);
+
+        if (allProductArrays.length > 0) {
+          // Flatten all found product arrays into one
+          return allProductArrays.flat();
+        }
+
+        // Fallback: Largest array if no product-like array found
+        let largest: any[] = [];
+        for (const key in obj) {
+          if (Array.isArray(obj[key]) && obj[key].length > largest.length) {
+            largest = obj[key];
+          }
+        }
+        
+        return largest.length > 0 ? largest : [obj];
       };
 
       const foundArray = findBestArray(parsed);
@@ -174,7 +214,7 @@ const IngestionHubPage = () => {
       const detResult = await autoDetect.mutateAsync({
         file_name: file.name,
         headers,
-        sample_data: rows.slice(0, 50),
+        sample_data: rows.length > 100 ? [...rows.slice(0, 50), ...rows.slice(-50)] : rows,
         source_type: ext || "excel",
       });
       setCurrentDetection(detResult.detection);
@@ -285,7 +325,9 @@ const IngestionHubPage = () => {
       ingestion_job_id: jobId,
       file_name: fileName,
       headers: parsedHeaders,
-      sample_data: parsedData.slice(0, 50),
+      sample_data: parsedData.length > 100 
+        ? [...parsedData.slice(0, 50), ...parsedData.slice(-50)] 
+        : parsedData,
       source_type: ext,
     });
   };
@@ -452,11 +494,29 @@ const IngestionHubPage = () => {
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold">{fileName}</h2>
-                  <p className="text-sm text-muted-foreground">{parsedData.length} linhas detectadas · {parsedHeaders.length} colunas</p>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-lg font-semibold truncate">{fileName}</h2>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <p>{parsedData.length} linhas detectadas · {parsedHeaders.length} colunas</p>
+                    <Badge variant="outline" className="text-[10px] bg-primary/5 text-primary border-primary/20">
+                      Novo: Deteção de múltiplos arrays (Sillas/Mesas) ativa
+                    </Badge>
+                  </div>
                 </div>
-                <Button variant="ghost" size="sm" onClick={resetForm}><X className="w-4 h-4 mr-1" /> Cancelar</Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => {
+                    // Force a search for "Silla" in the detected rows to debug
+                    const chairs = parsedData.filter(r => JSON.stringify(r).toLowerCase().includes("silla"));
+                    if (chairs.length > 0) {
+                      toast.success(`Encontradas ${chairs.length} cadeiras (sillas) no ficheiro!`);
+                    } else {
+                      toast.error("Nenhuma cadeira (silla) encontrada no conteúdo processado.");
+                    }
+                  }}>
+                    <Search className="w-4 h-4 mr-1" /> Verificar Cadeiras
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={resetForm}><X className="w-4 h-4 mr-1" /> Cancelar</Button>
+                </div>
               </div>
 
               {/* Auto-detection panel */}
@@ -875,17 +935,32 @@ function JobDetailDialog({ job, items, onClose }: { job: IngestionJob | null; it
   const [page, setPage] = useState(1);
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [filter, setFilter] = useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState("");
   const pageSize = 50;
   const runJob = useRunIngestionJob();
 
   if (!job) return null;
 
   const filteredItems = items.filter(item => {
-    if (filter === "all") return true;
-    if (filter === "new") return item.action === "insert";
-    if (filter === "update") return item.action === "merge" || item.action === "update";
-    if (filter === "skip") return item.action === "skip";
-    if (filter === "error") return item.status === "error";
+    // 1. Filter by status
+    let matchesStatus = true;
+    if (filter === "new") matchesStatus = item.action === "insert";
+    else if (filter === "update") matchesStatus = item.action === "merge" || item.action === "update";
+    else if (filter === "skip") matchesStatus = item.action === "skip";
+    else if (filter === "error") matchesStatus = item.status === "error";
+
+    if (!matchesStatus) return false;
+
+    // 2. Filter by search term
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      const sku = String(item.mapped_data?.sku || item.source_data?.sku || "").toLowerCase();
+      const title = String(item.mapped_data?.original_title || item.source_data?.original_title || "").toLowerCase();
+      const sourceStr = JSON.stringify(item.source_data).toLowerCase();
+      
+      return sku.includes(term) || title.includes(term) || sourceStr.includes(term);
+    }
+
     return true;
   });
 
@@ -939,40 +1014,51 @@ function JobDetailDialog({ job, items, onClose }: { job: IngestionJob | null; it
               ))}
             </div>
 
-            {/* Filters */}
-            <div className="flex flex-wrap gap-2">
-              <Button 
-                variant={filter === "all" ? "default" : "outline"} 
-                size="sm" 
-                className="h-7 text-[10px]" 
-                onClick={() => { setFilter("all"); setPage(1); }}
-              >
-                Todos ({items.length})
-              </Button>
-              <Button 
-                variant={filter === "new" ? "default" : "outline"} 
-                size="sm" 
-                className="h-7 text-[10px]" 
-                onClick={() => { setFilter("new"); setPage(1); }}
-              >
-                Novos ({insertCount})
-              </Button>
-              <Button 
-                variant={filter === "update" ? "default" : "outline"} 
-                size="sm" 
-                className="h-7 text-[10px]" 
-                onClick={() => { setFilter("update"); setPage(1); }}
-              >
-                Atualizações ({updateCount})
-              </Button>
-              <Button 
-                variant={filter === "error" ? "default" : "outline"} 
-                size="sm" 
-                className="h-7 text-[10px]" 
-                onClick={() => { setFilter("error"); setPage(1); }}
-              >
-                Erros ({job.failed_rows || 0})
-              </Button>
+            {/* Filters & Search */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-wrap gap-2 flex-1">
+                <Button 
+                  variant={filter === "all" ? "default" : "outline"} 
+                  size="sm" 
+                  className="h-7 text-[10px]" 
+                  onClick={() => { setFilter("all"); setPage(1); }}
+                >
+                  Todos ({items.length})
+                </Button>
+                <Button 
+                  variant={filter === "new" ? "default" : "outline"} 
+                  size="sm" 
+                  className="h-7 text-[10px]" 
+                  onClick={() => { setFilter("new"); setPage(1); }}
+                >
+                  Novos ({insertCount})
+                </Button>
+                <Button 
+                  variant={filter === "update" ? "default" : "outline"} 
+                  size="sm" 
+                  className="h-7 text-[10px]" 
+                  onClick={() => { setFilter("update"); setPage(1); }}
+                >
+                  Atualizações ({updateCount})
+                </Button>
+                <Button 
+                  variant={filter === "error" ? "default" : "outline"} 
+                  size="sm" 
+                  className="h-7 text-[10px]" 
+                  onClick={() => { setFilter("error"); setPage(1); }}
+                >
+                  Erros ({job.failed_rows || 0})
+                </Button>
+              </div>
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input 
+                  placeholder="Pesquisar por SKU ou Título..." 
+                  className="pl-8 h-7 text-xs"
+                  value={searchTerm}
+                  onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                />
+              </div>
             </div>
 
             {/* Items table */}
