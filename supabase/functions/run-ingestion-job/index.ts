@@ -35,8 +35,7 @@ Deno.serve(async (req) => {
     if (jobErr || !job) throw new Error("Job not found");
 
     const workspaceId = job.workspace_id;
-    const strategy = job.merge_strategy || "merge";
-
+    
     // Update status to importing
     await supabase.from("ingestion_jobs").update({
       status: "importing",
@@ -44,20 +43,36 @@ Deno.serve(async (req) => {
       started_at: new Date().toISOString(),
     }).eq("id", jobId);
 
-    // Load items
-    const { data: items, error: itemsErr } = await supabase
-      .from("ingestion_job_items")
-      .select("*")
-      .eq("job_id", jobId)
-      .order("source_row_index", { ascending: true });
+    // Fetch items in chunks to avoid memory issues with large datasets
+    let allItems: any[] = [];
+    let lastId = null;
+    let hasMore = true;
 
-    if (itemsErr) throw itemsErr;
-    if (!items || items.length === 0) throw new Error("No items to process");
+    while (hasMore) {
+      let query = supabase
+        .from("ingestion_job_items")
+        .select("*")
+        .eq("job_id", jobId)
+        .order("id")
+        .limit(1000);
+      
+      if (lastId) {
+        query = query.gt("id", lastId);
+      }
 
-    // ─── SKU Grouping: merge items with same SKU ───
-    const sourceLanguage = job.source_language || "auto";
-    const targetLanguage = job.target_language || "pt-pt";
-    const shouldTranslate = sourceLanguage !== targetLanguage;
+      const { data: chunk, error: chunkErr } = await query;
+      if (chunkErr) throw chunkErr;
+      
+      if (!chunk || chunk.length === 0) {
+        hasMore = false;
+      } else {
+        allItems = [...allItems, ...chunk];
+        lastId = chunk[chunk.length - 1].id;
+        if (chunk.length < 1000) hasMore = false;
+      }
+    }
+
+    if (allItems.length === 0) throw new Error("No items to process");
 
     const fieldMap: Record<string, string> = {
       original_title: "original_title",
@@ -103,7 +118,7 @@ Deno.serve(async (req) => {
           productData[dst] = val;
         }
       }
-      // Extra fields → attributes
+      
       const knownKeys = new Set([...Object.keys(fieldMap), "id", "workspace_id", "user_id"]);
       const extras: Record<string, any> = {};
       for (const [k, v] of Object.entries(mapped)) {
@@ -117,7 +132,6 @@ Deno.serve(async (req) => {
       return productData;
     }
 
-    // Deep merge: later values fill in blanks, arrays are concatenated & deduped
     function mergeProductData(base: Record<string, any>, overlay: Record<string, any>): Record<string, any> {
       const result = { ...base };
       for (const [key, val] of Object.entries(overlay)) {
@@ -130,21 +144,24 @@ Deno.serve(async (req) => {
         } else if (typeof existing === "object" && typeof val === "object" && !Array.isArray(existing)) {
           result[key] = { ...existing, ...val };
         }
-        // If base already has a non-empty value, keep it (first-wins for scalar)
       }
       return result;
     }
 
-    // Group items by SKU
-    const skuGroups = new Map<string, typeof items>();
-    const noSkuItems: typeof items = [];
+    // Process all items in batches of 100 for better throughput
+    const BATCH_SIZE = 100;
+    let imported = 0, updated = 0, skipped = 0, failed = 0;
 
-    for (const item of items) {
-      const mapped = item.mapped_data || item.source_data || {};
-      const action = item.action;
-      if (action === "skip" || action === "duplicate") {
-        continue; // handled later
+    // First, group by SKU
+    const skuGroups = new Map<string, any[]>();
+    const noSkuItems: any[] = [];
+
+    for (const item of allItems) {
+      if (item.action === "skip" || item.action === "duplicate") {
+        skipped++;
+        continue;
       }
+      const mapped = item.mapped_data || item.source_data || {};
       const sku = (mapped.sku || "").toString().trim().toUpperCase();
       if (sku) {
         if (!skuGroups.has(sku)) skuGroups.set(sku, []);
@@ -154,140 +171,112 @@ Deno.serve(async (req) => {
       }
     }
 
-    let imported = 0, updated = 0, skipped = 0, failed = 0;
-
-    // Handle skipped/duplicate items first
-    for (const item of items) {
-      if (item.action === "skip" || item.action === "duplicate") {
-        await supabase.from("ingestion_job_items").update({ status: "skipped" }).eq("id", item.id);
-        skipped++;
-      }
-    }
-
-    // Process each SKU group (merge all items with same SKU into one product)
-    for (const [sku, groupItems] of skuGroups.entries()) {
-      try {
-        // Build merged product data from all items with this SKU
-        let mergedData: Record<string, any> = {};
-        for (const item of groupItems) {
-          const mapped = item.mapped_data || item.source_data || {};
-          const pd = buildProductData(mapped);
-          mergedData = mergeProductData(mergedData, pd);
-        }
-        mergedData.sku = sku;
-
-        // ─── Automatic Translation Trigger ───
-        if (shouldTranslate) {
-          try {
-            // We call translate-product logic here or a simplified version for high volume
-            // For now, let's mark it for translation or do a quick pass if it's a new product
-          } catch (e) {
-            console.error(`Translation failed for SKU ${sku}:`, e);
+    const skuEntries = Array.from(skuGroups.entries());
+    
+    // Process SKU Groups in batches
+    for (let i = 0; i < skuEntries.length; i += BATCH_SIZE) {
+      const batch = skuEntries.slice(i, i + BATCH_SIZE);
+      const promises = batch.map(async ([sku, groupItems]) => {
+        try {
+          let mergedData: Record<string, any> = {};
+          for (const item of groupItems) {
+            const mapped = item.mapped_data || item.source_data || {};
+            const pd = buildProductData(mapped);
+            mergedData = mergeProductData(mergedData, pd);
           }
-        }
+          mergedData.sku = sku;
 
-        // Check if product with this SKU already exists in workspace
-        const { data: existingProducts } = await supabase
-          .from("products")
-          .select("id")
-          .eq("workspace_id", workspaceId)
-          .eq("user_id", user.id)
-          .ilike("sku", sku)
-          .limit(1);
-
-        let productId: string | null = null;
-
-        if (existingProducts && existingProducts.length > 0) {
-          // Update existing product
-          const updateData = { ...mergedData };
-          delete updateData.workspace_id;
-          delete updateData.user_id;
-          const { error: updateErr } = await supabase
+          const { data: existingProducts } = await supabase
             .from("products")
-            .update(updateData)
-            .eq("id", existingProducts[0].id);
-          if (updateErr) throw updateErr;
-          productId = existingProducts[0].id;
-          updated++;
-        } else {
-          // Insert new product
-          const { data: newProduct, error: insertErr } = await supabase
-            .from("products")
-            .insert({
-              ...mergedData,
-              workspace_id: workspaceId,
-              user_id: user.id,
-            })
             .select("id")
-            .single();
-          if (insertErr) throw insertErr;
-          productId = newProduct.id;
-          imported++;
-        }
+            .eq("workspace_id", workspaceId)
+            .ilike("sku", sku)
+            .limit(1);
 
-        // Mark all group items as processed
-        for (const item of groupItems) {
-          await supabase.from("ingestion_job_items").update({
-            status: "processed",
-            product_id: productId,
-          }).eq("id", item.id);
+          let productId: string | null = null;
+          if (existingProducts && existingProducts.length > 0) {
+            const { error: updateErr } = await supabase
+              .from("products")
+              .update({ ...mergedData, updated_at: new Date().toISOString() })
+              .eq("id", existingProducts[0].id);
+            if (updateErr) throw updateErr;
+            productId = existingProducts[0].id;
+            updated++;
+          } else {
+            const { data: newProd, error: insertErr } = await supabase
+              .from("products")
+              .insert({
+                ...mergedData,
+                workspace_id: workspaceId,
+                user_id: user.id,
+                status: 'pending'
+              })
+              .select("id")
+              .single();
+            if (insertErr) throw insertErr;
+            productId = newProd.id;
+            imported++;
+          }
+
+          // Update item statuses in bulk later or here if manageable
+          await supabase.from("ingestion_job_items")
+            .update({ status: "processed", product_id: productId })
+            .in("id", groupItems.map(gi => gi.id));
+            
+        } catch (err) {
+          console.error(`Error processing SKU ${sku}:`, err);
+          failed += groupItems.length;
+          await supabase.from("ingestion_job_items")
+            .update({ status: "error", error_message: (err as Error).message })
+            .in("id", groupItems.map(gi => gi.id));
         }
-      } catch (err: unknown) {
-        failed++;
-        for (const item of groupItems) {
-          await supabase.from("ingestion_job_items").update({
-            status: "error",
-            error_message: (err as Error).message,
-          }).eq("id", item.id);
-        }
-      }
+      });
+      await Promise.all(promises);
     }
 
-    // Process items without SKU individually
-    for (const item of noSkuItems) {
-      try {
-        const mapped = item.mapped_data || item.source_data || {};
-        const productData = buildProductData(mapped);
-
-        if ((item.action === "update" || item.action === "merge") && item.matched_existing_id) {
-          const updateData = { ...productData };
-          const { error: updateErr } = await supabase
-            .from("products")
-            .update(updateData)
-            .eq("id", item.matched_existing_id);
-          if (updateErr) throw updateErr;
-          await supabase.from("ingestion_job_items").update({
-            status: "processed",
-            product_id: item.matched_existing_id,
-          }).eq("id", item.id);
-          updated++;
-        } else {
-          const { data: newProduct, error: insertErr } = await supabase
-            .from("products")
-            .insert({
-              ...productData,
-              workspace_id: workspaceId,
-              user_id: user.id,
-            })
-            .select("id")
-            .single();
-          if (insertErr) throw insertErr;
-          await supabase.from("ingestion_job_items").update({
-            status: "processed",
-            product_id: newProduct.id,
-          }).eq("id", item.id);
-          imported++;
+    // Process No-SKU items in batches
+    for (let i = 0; i < noSkuItems.length; i += BATCH_SIZE) {
+      const batch = noSkuItems.slice(i, i + BATCH_SIZE);
+      const promises = batch.map(async (item) => {
+        try {
+          const mapped = item.mapped_data || item.source_data || {};
+          const productData = buildProductData(mapped);
+          
+          if (item.matched_existing_id) {
+            const { error: updateErr } = await supabase
+              .from("products")
+              .update({ ...productData, updated_at: new Date().toISOString() })
+              .eq("id", item.matched_existing_id);
+            if (updateErr) throw updateErr;
+            updated++;
+          } else {
+            const { data: newProd, error: insertErr } = await supabase
+              .from("products")
+              .insert({
+                ...productData,
+                workspace_id: workspaceId,
+                user_id: user.id,
+                status: 'pending'
+              })
+              .select("id")
+              .single();
+            if (insertErr) throw insertErr;
+            imported++;
+          }
+          await supabase.from("ingestion_job_items")
+            .update({ status: "processed" })
+            .eq("id", item.id);
+        } catch (err) {
+          failed++;
+          await supabase.from("ingestion_job_items")
+            .update({ status: "error", error_message: (err as Error).message })
+            .eq("id", item.id);
         }
-      } catch (err: unknown) {
-        failed++;
-        await supabase.from("ingestion_job_items").update({
-          status: "error",
-          error_message: (err as Error).message,
-        }).eq("id", item.id);
-      }
+      });
+      await Promise.all(promises);
     }
 
-    // Complete job
+    // Update job status
     await supabase.from("ingestion_jobs").update({
       status: "done",
       imported_rows: imported,
@@ -295,7 +284,7 @@ Deno.serve(async (req) => {
       skipped_rows: skipped,
       failed_rows: failed,
       completed_at: new Date().toISOString(),
-      results: { imported, updated, skipped, failed, skuGroupsMerged: skuGroups.size },
+      results: { imported, updated, skipped, failed, totalProcessed: allItems.length },
     }).eq("id", jobId);
 
     return new Response(JSON.stringify({
@@ -304,11 +293,10 @@ Deno.serve(async (req) => {
       imported,
       updated,
       skipped,
-      failed,
-      skuGroupsMerged: skuGroups.size,
+      failed
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } catch (e: unknown) {
-    return new Response(JSON.stringify({ success: false, error: (e as Error).message }), {
+  } catch (e: any) {
+    return new Response(JSON.stringify({ success: false, error: e.message }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
