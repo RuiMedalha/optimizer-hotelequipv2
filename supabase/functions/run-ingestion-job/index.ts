@@ -174,8 +174,10 @@ Deno.serve(async (req) => {
 
     const skuEntries = Array.from(skuGroups.entries());
     
-    // Fetch existing products for all SKUs in this batch at once
     const allSkus = Array.from(skuGroups.keys());
+    // Use an RPC or a sophisticated query to handle case-insensitive matching for the whole batch
+    // For simplicity and safety with 50 items, we'll fetch products where SKU is in the list
+    // and also do a secondary check if needed, but usually SKUs should be normalized.
     const { data: existingProductsList } = await supabase
       .from("products")
       .select("id, sku")
@@ -186,6 +188,9 @@ Deno.serve(async (req) => {
     existingProductsList?.forEach(p => {
       if (p.sku) existingProductsMap.set(p.sku.toUpperCase(), p.id);
     });
+
+    // To handle case-insensitivity for those not found by exact match:
+    // If we have many missing, we could do more, but for now this is much better than before.
 
     const itemsToUpdateStatus: { id: string, status: string, product_id?: string, error_message?: string }[] = [];
 
@@ -202,7 +207,24 @@ Deno.serve(async (req) => {
           }
           mergedData.sku = sku;
 
-          const existingId = existingProductsMap.get(sku);
+          const normalizedSku = sku.toUpperCase();
+          let existingId = existingProductsMap.get(normalizedSku);
+          
+          // Fallback check for case-insensitivity if not found in the initial IN query
+          if (!existingId) {
+            const { data: fallback } = await supabase
+              .from("products")
+              .select("id")
+              .eq("workspace_id", workspaceId)
+              .ilike("sku", sku)
+              .limit(1)
+              .maybeSingle();
+            if (fallback) {
+              existingId = fallback.id;
+              existingProductsMap.set(normalizedSku, existingId);
+            }
+          }
+
           let productId: string | null = null;
 
           if (existingId) {
