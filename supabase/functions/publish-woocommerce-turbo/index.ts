@@ -502,6 +502,11 @@ Deno.serve(async (req) => {
             error: "Produto variável/variação — use o modo Clássico para publicar",
           });
         }
+        // Sync processed_products for complex products that are skipped
+        await adminClient.from("publish_jobs").update({
+          processed_products: startIndex + complexProducts.length,
+          results: existingResults,
+        }).eq("id", jobId);
       }
 
       // ── 3) PROCESSAR simples em modo Turbo ──
@@ -677,6 +682,7 @@ Deno.serve(async (req) => {
         processed_products: endIndex,
         failed_products: Math.max(0, (job.failed_products || 0) + Math.max(0, newFailed)),
         results: existingResults,
+        updated_at: new Date().toISOString(),
       }).eq("id", jobId);
 
       // 5) Próximo lote ou finalizar
