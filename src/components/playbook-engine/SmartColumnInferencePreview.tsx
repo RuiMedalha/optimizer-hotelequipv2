@@ -134,11 +134,11 @@ export function SmartColumnInferencePreview({ inference, headers, sampleData, fi
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-xs w-10">#</TableHead>
-                    {headers.slice(0, 8).map(h => (
+                    {headers.filter(h => fieldMappings[h] || headers.indexOf(h) < 6).slice(0, 10).map(h => (
                       <TableHead key={h} className="text-xs">
                         {h}
                         {fieldMappings[h] && (
-                          <Badge variant="outline" className="ml-1 text-[9px]">{fieldMappings[h]}</Badge>
+                          <Badge variant="outline" className="ml-1 text-[9px] bg-primary/10">{fieldMappings[h]}</Badge>
                         )}
                       </TableHead>
                     ))}
@@ -148,9 +148,20 @@ export function SmartColumnInferencePreview({ inference, headers, sampleData, fi
                   {sampleData.slice(0, 5).map((row, i) => (
                     <TableRow key={i}>
                       <TableCell className="text-xs text-muted-foreground">{i + 1}</TableCell>
-                      {headers.slice(0, 8).map(h => (
-                        <TableCell key={h} className="text-xs max-w-[200px] truncate">{String(row[h] ?? "")}</TableCell>
-                      ))}
+                      {headers.filter(h => fieldMappings[h] || headers.indexOf(h) < 6).slice(0, 10).map(h => {
+                        const val = String(row[h] ?? "");
+                        const isImage = fieldMappings[h] === "image_urls";
+                        return (
+                          <TableCell key={h} className="text-xs max-w-[200px] truncate">
+                            {isImage && val.startsWith('http') ? (
+                              <div className="flex items-center gap-2">
+                                <img src={val.split(',')[0]} className="w-6 h-6 object-cover rounded border" alt="preview" />
+                                <span className="truncate">{val}</span>
+                              </div>
+                            ) : val}
+                          </TableCell>
+                        );
+                      })}
                     </TableRow>
                   ))}
                 </TableBody>

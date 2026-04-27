@@ -254,7 +254,7 @@ const IngestionHubPage = () => {
         else if (lower.includes("saleprice") || lower.includes("promo")) autoMap[h] = "sale_price";
         else if (lower.includes("stock") || lower.includes("stockquantity") || lower.includes("inv") || lower.includes("estoque") || lower.includes("existencia")) autoMap[h] = "stock";
         else if (lower.includes("categ")) autoMap[h] = "category";
-        else if (lower.includes("image") || lower.includes("imagem") || lower.includes("foto") || lower.includes("img")) autoMap[h] = "image_urls";
+        else if (lower.includes("image") || lower.includes("imagem") || lower.includes("foto") || lower.includes("img") || lower.includes("url") || lower === "imagen") autoMap[h] = "image_urls";
       });
       setFieldMappings(autoMap);
     }

@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
     // Load job
     const { data: job, error: jobErr } = await supabase
       .from("ingestion_jobs")
-      .select("*")
+      .select("*, workspace_id, merge_strategy")
       .eq("id", jobId)
       .single();
     if (jobErr || !job) throw new Error("Job not found");
@@ -202,13 +202,13 @@ Deno.serve(async (req) => {
     // and also do a secondary check if needed, but usually SKUs should be normalized.
     const { data: existingProductsList } = await supabase
       .from("products")
-      .select("id, sku")
+      .select("*")
       .eq("workspace_id", workspaceId)
       .in("sku", allSkus);
 
-    const existingProductsMap = new Map<string, string>();
+    const existingProductsMap = new Map<string, any>();
     existingProductsList?.forEach(p => {
-      if (p.sku) existingProductsMap.set(p.sku.toUpperCase(), p.id);
+      if (p.sku) existingProductsMap.set(p.sku.toUpperCase(), p);
     });
 
     // To handle case-insensitivity for those not found by exact match:
@@ -230,29 +230,42 @@ Deno.serve(async (req) => {
           mergedData.sku = sku;
 
           const normalizedSku = sku.toUpperCase();
-          let existingId = existingProductsMap.get(normalizedSku);
+          let existingProduct = existingProductsMap.get(normalizedSku);
           
           // Fallback check for case-insensitivity if not found in the initial IN query
-          if (!existingId) {
+          if (!existingProduct) {
             const { data: fallback } = await supabase
               .from("products")
-              .select("id")
+              .select("*")
               .eq("workspace_id", workspaceId)
               .ilike("sku", sku)
               .limit(1)
               .maybeSingle();
             if (fallback) {
-              existingId = fallback.id;
-              existingProductsMap.set(normalizedSku, existingId);
+              existingProduct = fallback;
+              existingProductsMap.set(normalizedSku, existingProduct);
             }
           }
 
+          const existingId = existingProduct?.id;
           let productId: string | null = null;
 
           if (existingId) {
+            let finalUpdateData = mergedData;
+            
+            // If merge strategy is 'merge', we combine with existing data
+            if (job.merge_strategy === 'merge') {
+              finalUpdateData = mergeProductData(existingProduct, mergedData);
+              
+              // For images, if merging, we want new ones to be primary (first in array)
+              if (Array.isArray(existingProduct.image_urls) && Array.isArray(mergedData.image_urls)) {
+                finalUpdateData.image_urls = [...new Set([...mergedData.image_urls, ...existingProduct.image_urls])];
+              }
+            }
+
             const { error: updateErr } = await supabase
               .from("products")
-              .update({ ...mergedData, updated_at: new Date().toISOString() })
+              .update({ ...finalUpdateData, updated_at: new Date().toISOString() })
               .eq("id", existingId);
             if (updateErr) throw updateErr;
             productId = existingId;
@@ -295,9 +308,26 @@ Deno.serve(async (req) => {
           const productData = buildProductData(mapped);
           
           if (item.matched_existing_id) {
+            let finalUpdateData = productData;
+            
+            if (job.merge_strategy === 'merge') {
+              const { data: existing } = await supabase
+                .from("products")
+                .select("*")
+                .eq("id", item.matched_existing_id)
+                .single();
+              
+              if (existing) {
+                finalUpdateData = mergeProductData(existing, productData);
+                if (Array.isArray(existing.image_urls) && Array.isArray(productData.image_urls)) {
+                  finalUpdateData.image_urls = [...new Set([...productData.image_urls, ...existing.image_urls])];
+                }
+              }
+            }
+
             const { error: updateErr } = await supabase
               .from("products")
-              .update({ ...productData, updated_at: new Date().toISOString() })
+              .update({ ...finalUpdateData, updated_at: new Date().toISOString() })
               .eq("id", item.matched_existing_id);
             if (updateErr) throw updateErr;
             updated++;
