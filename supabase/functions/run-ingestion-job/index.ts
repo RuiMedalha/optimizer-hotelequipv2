@@ -109,8 +109,19 @@ Deno.serve(async (req) => {
             }
           }
           if (dst === "original_price" || dst === "sale_price") {
-            val = parseFloat(String(val).replace(",", "."));
-            if (isNaN(val)) continue;
+            // Enhanced price parsing: strip currency symbols, handle European format (1.234,56)
+            const cleanVal = String(val).replace(/[^\d,.-]/g, "").trim();
+            val = parseFloat(cleanVal.replace(",", "."));
+            if (isNaN(val)) {
+              // Fallback: search source_data for a better price if current is just a symbol
+              const sourceData = mapped.source_data || {};
+              const potentialPrice = sourceData.price || sourceData.price_venda || sourceData.pvp;
+              if (potentialPrice && !isNaN(parseFloat(String(potentialPrice).replace(",", ".")))) {
+                val = parseFloat(String(potentialPrice).replace(",", "."));
+              } else {
+                continue;
+              }
+            }
           }
           if (dst === "stock") {
             val = parseInt(String(val).replace(/\D/g, ""), 10);
@@ -118,6 +129,17 @@ Deno.serve(async (req) => {
           }
           productData[dst] = val;
         }
+      }
+
+      // Enhanced fallback for empty descriptions or titles
+      if (!productData.original_description || productData.original_description === "") {
+        const sourceData = mapped.source_data || mapped;
+        productData.original_description = sourceData.description || sourceData.body_html || sourceData.description_long || sourceData.desc_longa;
+      }
+      
+      if (!productData.original_title || productData.original_title === "") {
+        const sourceData = mapped.source_data || mapped;
+        productData.original_title = sourceData.name || sourceData.title || sourceData.label || sourceData.producto;
       }
       
       const knownKeys = new Set([...Object.keys(fieldMap), "id", "workspace_id", "user_id"]);

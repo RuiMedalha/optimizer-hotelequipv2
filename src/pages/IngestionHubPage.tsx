@@ -250,7 +250,7 @@ const IngestionHubPage = () => {
         if (lower === "sku" || lower === "ref" || lower === "reference" || lower === "referencia" || lower === "cod" || lower === "codigo") autoMap[h] = "sku";
         else if (lower.includes("title") || lower.includes("titulo") || lower.includes("nome") || lower === "name" || lower === "label") autoMap[h] = "original_title";
         else if (lower.includes("desc") && !lower.includes("short") && !lower.includes("curta")) autoMap[h] = "original_description";
-        else if (lower.includes("price") || lower.includes("preco") || lower.includes("preço") || lower === "pvp") autoMap[h] = "original_price";
+        else if ((lower.includes("price") || lower.includes("preco") || lower.includes("preço") || lower === "pvp") && !lower.includes("unit") && !lower.includes("currency")) autoMap[h] = "original_price";
         else if (lower.includes("saleprice") || lower.includes("promo")) autoMap[h] = "sale_price";
         else if (lower.includes("stock") || lower.includes("stockquantity") || lower.includes("inv") || lower.includes("estoque") || lower.includes("existencia")) autoMap[h] = "stock";
         else if (lower.includes("categ")) autoMap[h] = "category";
