@@ -88,16 +88,33 @@ Deno.serve(async (req) => {
       }
 
       // ─── Apply SKU Prefix ───
-      // If we have a target SKU field (either 'sku' or the mapping results in 'sku')
       const targetSkuKey = Object.entries(mappings).find(([_, v]) => v === "sku")?.[1] || "sku";
       let sku = mapped[targetSkuKey];
       
       if (skuPrefix && sku) {
-        const prefixStr = String(skuPrefix).toUpperCase();
+        const prefixStr = String(skuPrefix).trim();
         const skuStr = String(sku).trim();
-        // Only apply if it doesn't already have the prefix
-        if (!skuStr.toUpperCase().startsWith(prefixStr)) {
-          mapped[targetSkuKey] = `${prefixStr}${skuStr}`;
+        
+        // If it starts with the prefix AND has a separator, skip.
+        // Otherwise, if it's just a string prefix like "CH" and the ref is "CH350", 
+        // we should probably prepend it to get "CHCH350" which is the user's convention.
+        const hasSeparator = /[-_:\s]/.test(prefixStr);
+        const alreadyHasPrefix = skuStr.toUpperCase().startsWith(prefixStr.toUpperCase());
+        
+        if (hasSeparator) {
+          if (!alreadyHasPrefix) {
+            mapped[targetSkuKey] = `${prefixStr}${skuStr}`;
+          }
+        } else {
+          // If no separator, and user explicitly provided a prefix, 
+          // we only skip if it already has the prefix TWICE (to prevent infinite growth)
+          // or if it matches some other safety criteria.
+          // For now, let's be more permissive: if the user provided a prefix, prepend it.
+          // To avoid CHCHCH350, we check if it already starts with (prefix + prefix)
+          const doublePrefix = (prefixStr + prefixStr).toUpperCase();
+          if (!skuStr.toUpperCase().startsWith(doublePrefix)) {
+            mapped[targetSkuKey] = `${prefixStr}${skuStr}`;
+          }
         }
       }
 
