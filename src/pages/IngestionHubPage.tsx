@@ -214,7 +214,7 @@ const IngestionHubPage = () => {
       const detResult = await autoDetect.mutateAsync({
         file_name: file.name,
         headers,
-        sample_data: rows.slice(0, 50),
+        sample_data: rows.length > 100 ? [...rows.slice(0, 50), ...rows.slice(-50)] : rows,
         source_type: ext || "excel",
       });
       setCurrentDetection(detResult.detection);
