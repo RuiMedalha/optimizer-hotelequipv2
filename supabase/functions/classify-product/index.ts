@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -22,35 +22,52 @@ Deno.serve(async (req) => {
       .select("id, name, slug, parent_id, description")
       .eq("workspace_id", workspace_id);
 
-    const categoryList = (categories || []).map((c: any) => ({
-      id: c.id, name: c.name, slug: c.slug, parent_id: c.parent_id, description: c.description,
+    const cats = categories || [];
+    
+    // Create a map for quick lookup and building full paths
+    const catMap = new Map(cats.map(c => [c.id, c]));
+    
+    const getFullPath = (catId: string): string => {
+      const cat = catMap.get(catId);
+      if (!cat) return "";
+      if (cat.parent_id) {
+        return `${getFullPath(cat.parent_id)} > ${cat.name}`;
+      }
+      return cat.name;
+    };
+
+    const categoryList = cats.map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      full_path: getFullPath(c.id),
+      description: c.description,
     }));
 
     // Build the prompt
-    const systemPrompt = `You are a Product Classification Agent for an e-commerce catalog management system focused on the HORECA sector (Hotels, Restaurants, Catering).
+    const systemPrompt = `You are a Product Classification Agent for an e-commerce catalog management system focused on the HORECA sector.
 
 Your task: classify a raw product into the most specific correct category from the existing taxonomy.
 
-RULES:
-1. Choose the MOST SPECIFIC category possible. Never pick a generic parent if a child matches.
-2. Prioritize categories that ALREADY EXIST in the catalog taxonomy provided below.
-3. ACCESSORY DETECTION: If the product is an accessory, part, or extra (e.g., "Estante", "Prateleira", "Grelha", "Cesto", "Shelf", "Kit"), you MUST look for a sub-category named "Acessorios" or similar within the relevant top-level category.
-4. Consider typical HORECA sector patterns (commercial kitchen equipment, tableware, food service, cleaning, etc.).
-5. If confidence is below 0.7, set requires_review = true.
+CRITICAL RULES:
+1. You MUST ONLY use categories that ALREADY EXIST in the catalog taxonomy provided below.
+2. DO NOT invent new category names. 
+3. If no existing category is a good match, set category_id to null and requires_review to true.
+4. Choose the MOST SPECIFIC category possible (usually a child category).
+5. ACCESSORY DETECTION: If the product is an accessory, part, or extra (e.g., "Estante", "Prateleira", "Grelha", "Cesto", "Shelf", "Kit", "Suporte", "Acessório"), you MUST look for a sub-category named "Acessorios" within the relevant top-level category (e.g., "FRIO COMERCIAL > Acessorios").
 6. Always provide reasoning for your choice.
-6. Suggest up to 3 alternative categories if relevant.
+7. Suggest up to 3 alternative categories from the list if relevant.
 
-EXISTING CATEGORIES:
-${JSON.stringify(categoryList, null, 2)}
+EXISTING CATEGORIES (Full Path):
+${categoryList.map(c => `- [${c.id}] ${c.full_path}`).join('\n')}
 
-You MUST respond with valid JSON only, no markdown, no extra text. Use this exact schema:
+You MUST respond with valid JSON only. Use this exact schema:
 {
-  "category_id": "uuid or null if no existing category matches",
-  "category_name": "string - the category name",
+  "category_id": "uuid from the list above or null",
+  "category_name": "the full_path string of the chosen category",
   "confidence_score": 0.0-1.0,
   "requires_review": boolean,
   "alternative_categories": [
-    { "category_id": "uuid or null", "category_name": "string", "confidence_score": 0.0-1.0 }
+    { "category_id": "uuid from list", "category_name": "full_path string", "confidence_score": 0.0-1.0 }
   ],
   "reasoning": "string explaining why this category was chosen"
 }`;
@@ -62,10 +79,8 @@ Description: ${product.description || product.original_description || "N/A"}
 Brand: ${product.brand || "N/A"}
 Supplier: ${product.supplier || "N/A"}
 Technical Specs: ${product.technical_specs || product.specifications || "N/A"}
-Attributes: ${product.attributes ? JSON.stringify(product.attributes) : "N/A"}
-${product.candidate_categories ? `Candidate categories: ${JSON.stringify(product.candidate_categories)}` : ""}`;
+Attributes: ${product.attributes ? JSON.stringify(product.attributes) : "N/A"}`;
 
-    // Call resolve-ai-route instead of hardcoded gateway
     const routeResp = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
       method: "POST",
       headers: {
@@ -94,6 +109,13 @@ ${product.candidate_categories ? `Candidate categories: ${JSON.stringify(product
     let classification;
     try {
       classification = JSON.parse(jsonStr);
+      
+      // Validation: Ensure the category_id exists in our list if not null
+      if (classification.category_id && !catMap.has(classification.category_id)) {
+        console.warn(`AI suggested non-existent category ID: ${classification.category_id}. Reverting to null.`);
+        classification.category_id = null;
+        classification.requires_review = true;
+      }
     } catch {
       classification = {
         category_id: null,
@@ -105,7 +127,7 @@ ${product.candidate_categories ? `Candidate categories: ${JSON.stringify(product
       };
     }
 
-    // Record agent run for observability
+    // Record agent run
     await supabase.from("agent_runs").insert({
       workspace_id,
       agent_name: "product_classification",
@@ -113,9 +135,8 @@ ${product.candidate_categories ? `Candidate categories: ${JSON.stringify(product
       input_payload: { product_title: product.title || product.original_title, workspace_id },
       output_payload: classification,
       confidence_score: classification.confidence_score,
-      cost_estimate: routeData.result?.usage ? (routeData.result.usage.prompt_tokens + routeData.result.usage.completion_tokens) * 0.000001 : null,
       completed_at: new Date().toISOString(),
-    }).throwOnError();
+    });
 
     return new Response(JSON.stringify({
       ...classification,
