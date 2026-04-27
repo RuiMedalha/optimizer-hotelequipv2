@@ -129,16 +129,37 @@ const IngestionHubPage = () => {
       const text = await file.text();
       let parsed = JSON.parse(text);
       
-      // If the root is an object, look for common array keys
-      if (!Array.isArray(parsed) && typeof parsed === "object" && parsed !== null) {
-        const arrayKey = ["products", "items", "data", "rows"].find(k => Array.isArray(parsed[k]));
-        if (arrayKey) {
-          parsed = parsed[arrayKey];
-        } else {
-          parsed = [parsed];
+      // Helper to find the largest array in a nested object (likely the product list)
+      const findBestArray = (obj: any): any[] => {
+        if (Array.isArray(obj)) return obj;
+        if (typeof obj !== 'object' || obj === null) return [];
+        
+        let bestArray: any[] = [];
+        // Priority keys that we know usually contain product data
+        const priorityKeys = ["products", "items", "data", "rows", "results"];
+        for (const key of priorityKeys) {
+          if (Array.isArray(obj[key])) return obj[key];
         }
-      }
-      
+
+        for (const key in obj) {
+          const val = obj[key];
+          if (Array.isArray(val)) {
+            if (val.length > bestArray.length) bestArray = val;
+          } else if (typeof val === 'object' && val !== null) {
+            // Only go one level deep to avoid picking up metadata
+            for (const subKey in val) {
+              if (Array.isArray(val[subKey]) && val[subKey].length > bestArray.length) {
+                bestArray = val[subKey];
+              }
+            }
+          }
+        }
+        return bestArray;
+      };
+
+      const foundArray = findBestArray(parsed);
+      rows = foundArray.length > 0 ? foundArray : [parsed];
+
       rows = parsed;
       if (rows.length === 0) return;
       headers = Object.keys(rows[0]);
@@ -855,15 +876,25 @@ const IngestionHubPage = () => {
 function JobDetailDialog({ job, items, onClose }: { job: IngestionJob | null; items: any[]; onClose: () => void }) {
   const [page, setPage] = useState(1);
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
+  const [filter, setFilter] = useState<string>("all");
   const pageSize = 50;
   const runJob = useRunIngestionJob();
 
   if (!job) return null;
 
-  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const filteredItems = items.filter(item => {
+    if (filter === "all") return true;
+    if (filter === "new") return item.action === "insert";
+    if (filter === "update") return item.action === "merge" || item.action === "update";
+    if (filter === "skip") return item.action === "skip";
+    if (filter === "error") return item.status === "error";
+    return true;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
   const safePage = Math.min(page, totalPages);
   const startIndex = (safePage - 1) * pageSize;
-  const visibleItems = items.slice(startIndex, startIndex + pageSize);
+  const visibleItems = filteredItems.slice(startIndex, startIndex + pageSize);
   const st = statusLabels[job.status] || statusLabels.queued;
 
   const insertCount = items.filter(i => i.action === "insert").length;
@@ -910,8 +941,44 @@ function JobDetailDialog({ job, items, onClose }: { job: IngestionJob | null; it
               ))}
             </div>
 
+            {/* Filters */}
+            <div className="flex flex-wrap gap-2">
+              <Button 
+                variant={filter === "all" ? "default" : "outline"} 
+                size="sm" 
+                className="h-7 text-[10px]" 
+                onClick={() => { setFilter("all"); setPage(1); }}
+              >
+                Todos ({items.length})
+              </Button>
+              <Button 
+                variant={filter === "new" ? "default" : "outline"} 
+                size="sm" 
+                className="h-7 text-[10px]" 
+                onClick={() => { setFilter("new"); setPage(1); }}
+              >
+                Novos ({insertCount})
+              </Button>
+              <Button 
+                variant={filter === "update" ? "default" : "outline"} 
+                size="sm" 
+                className="h-7 text-[10px]" 
+                onClick={() => { setFilter("update"); setPage(1); }}
+              >
+                Atualizações ({updateCount})
+              </Button>
+              <Button 
+                variant={filter === "error" ? "default" : "outline"} 
+                size="sm" 
+                className="h-7 text-[10px]" 
+                onClick={() => { setFilter("error"); setPage(1); }}
+              >
+                Erros ({job.failed_rows || 0})
+              </Button>
+            </div>
+
             {/* Items table */}
-            {items.length > 0 && (
+            {filteredItems.length > 0 ? (
               <ScrollArea className="flex-1 min-h-0">
                 <Table>
                   <TableHeader>
@@ -959,13 +1026,18 @@ function JobDetailDialog({ job, items, onClose }: { job: IngestionJob | null; it
                   </TableBody>
                 </Table>
               </ScrollArea>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center py-12 text-muted-foreground bg-muted/20 rounded-lg">
+                <Search className="w-8 h-8 mb-2 opacity-20" />
+                <p className="text-sm">Nenhum item encontrado com este filtro.</p>
+              </div>
             )}
 
             {/* Pagination */}
-            {items.length > pageSize && (
+            {filteredItems.length > pageSize && (
               <div className="flex items-center justify-between border-t pt-3">
                 <p className="text-xs text-muted-foreground">
-                  {startIndex + 1}–{Math.min(startIndex + pageSize, items.length)} de {items.length}
+                  {startIndex + 1}–{Math.min(startIndex + pageSize, filteredItems.length)} de {filteredItems.length}
                 </p>
                 <div className="flex items-center gap-1">
                   <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => setPage(1)} disabled={safePage === 1}>
