@@ -129,16 +129,37 @@ const IngestionHubPage = () => {
       const text = await file.text();
       let parsed = JSON.parse(text);
       
-      // If the root is an object, look for common array keys
-      if (!Array.isArray(parsed) && typeof parsed === "object" && parsed !== null) {
-        const arrayKey = ["products", "items", "data", "rows"].find(k => Array.isArray(parsed[k]));
-        if (arrayKey) {
-          parsed = parsed[arrayKey];
-        } else {
-          parsed = [parsed];
+      // Helper to find the largest array in a nested object (likely the product list)
+      const findBestArray = (obj: any): any[] => {
+        if (Array.isArray(obj)) return obj;
+        if (typeof obj !== 'object' || obj === null) return [];
+        
+        let bestArray: any[] = [];
+        // Priority keys that we know usually contain product data
+        const priorityKeys = ["products", "items", "data", "rows", "results"];
+        for (const key of priorityKeys) {
+          if (Array.isArray(obj[key])) return obj[key];
         }
-      }
-      
+
+        for (const key in obj) {
+          const val = obj[key];
+          if (Array.isArray(val)) {
+            if (val.length > bestArray.length) bestArray = val;
+          } else if (typeof val === 'object' && val !== null) {
+            // Only go one level deep to avoid picking up metadata
+            for (const subKey in val) {
+              if (Array.isArray(val[subKey]) && val[subKey].length > bestArray.length) {
+                bestArray = val[subKey];
+              }
+            }
+          }
+        }
+        return bestArray;
+      };
+
+      const foundArray = findBestArray(parsed);
+      rows = foundArray.length > 0 ? foundArray : [parsed];
+
       rows = parsed;
       if (rows.length === 0) return;
       headers = Object.keys(rows[0]);
