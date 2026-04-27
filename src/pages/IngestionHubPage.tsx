@@ -68,6 +68,7 @@ const IngestionHubPage = () => {
 
   const [activeTab, setActiveTab] = useState("import");
   const [dragOver, setDragOver] = useState(false);
+  const [fileSearch, setFileSearch] = useState("");
 
   // Parsing state
   const [parsedData, setParsedData] = useState<any[] | null>(null);
