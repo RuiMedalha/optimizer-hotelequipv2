@@ -331,6 +331,7 @@ const IngestionHubPage = () => {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="import" className="gap-2"><Upload className="w-4 h-4" /> Importar</TabsTrigger>
+          <TabsTrigger value="files" className="gap-2"><FileText className="w-4 h-4" /> Ficheiros</TabsTrigger>
           <TabsTrigger value="jobs" className="gap-2"><Clock className="w-4 h-4" /> Histórico</TabsTrigger>
         </TabsList>
 
