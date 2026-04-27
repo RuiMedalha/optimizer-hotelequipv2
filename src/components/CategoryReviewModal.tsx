@@ -50,6 +50,15 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
   const [classifyingIds, setClassifyingIds] = useState<Set<string>>(new Set());
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState("");
+  const [localSearchQuery, setLocalSearchQuery] = useState("");
+
+  // Debounce search query to avoid re-calculating candidates on every keystroke
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchQuery(localSearchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [localSearchQuery]);
 
   // Fetch all categories for manual selection
   const { data: allCategories } = useQuery({
