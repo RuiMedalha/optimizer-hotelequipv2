@@ -308,9 +308,26 @@ Deno.serve(async (req) => {
           const productData = buildProductData(mapped);
           
           if (item.matched_existing_id) {
+            let finalUpdateData = productData;
+            
+            if (job.merge_strategy === 'merge') {
+              const { data: existing } = await supabase
+                .from("products")
+                .select("*")
+                .eq("id", item.matched_existing_id)
+                .single();
+              
+              if (existing) {
+                finalUpdateData = mergeProductData(existing, productData);
+                if (Array.isArray(existing.image_urls) && Array.isArray(productData.image_urls)) {
+                  finalUpdateData.image_urls = [...new Set([...productData.image_urls, ...existing.image_urls])];
+                }
+              }
+            }
+
             const { error: updateErr } = await supabase
               .from("products")
-              .update({ ...productData, updated_at: new Date().toISOString() })
+              .update({ ...finalUpdateData, updated_at: new Date().toISOString() })
               .eq("id", item.matched_existing_id);
             if (updateErr) throw updateErr;
             updated++;
