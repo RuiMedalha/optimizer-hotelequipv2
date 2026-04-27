@@ -510,7 +510,7 @@ serve(async (req) => {
         "frigorifico", "frigorífico", "vitrine", "exaustor",
         "grelhador", "chapa", "basculante", "marmita", "batedeira", "cortador", "ralador",
         "microondas", "tostadeira", "torradeira", "salamandra", "abatedor", "ultracongelador",
-        "dispensador", "doseador", "cesto", "tabuleiro", "prateleira", "escorredor",
+        "dispensador", "doseador", "cesto", "tabuleiro", "prateleira", "estante", "escorredor",
         "cuba", "torneira", "pia", "suporte", "carro",
       ];
       let type: string | null = null;
