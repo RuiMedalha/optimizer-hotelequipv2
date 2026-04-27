@@ -72,6 +72,7 @@ const IngestionHubPage = () => {
   const [fieldMappings, setFieldMappings] = useState<Record<string, string>>({});
   const [mergeStrategy, setMergeStrategy] = useState("merge");
   const [dupFields, setDupFields] = useState("sku");
+  const [skuPrefix, setSkuPrefix] = useState("");
 
   // Auto-detection state
   const [currentDetection, setCurrentDetection] = useState<any>(null);
@@ -203,6 +204,7 @@ const IngestionHubPage = () => {
         mergeStrategy,
         duplicateDetectionFields: dupFields.split(",").map(s => s.trim()).filter(Boolean),
         mode: "dry_run",
+        skuPrefix: skuPrefix.trim() || undefined,
       });
       setPreviewResult(result);
       setPreviewJobId(result.jobId);
@@ -225,6 +227,7 @@ const IngestionHubPage = () => {
         mergeStrategy,
         duplicateDetectionFields: dupFields.split(",").map(s => s.trim()).filter(Boolean),
         mode: "live",
+        skuPrefix: skuPrefix.trim() || undefined,
       });
       await runJob.mutateAsync(result.jobId);
 
@@ -294,6 +297,7 @@ const IngestionHubPage = () => {
     setCurrentInference(null);
     setShowReview(false);
     setShowCorrections(false);
+    setSkuPrefix("");
   };
 
   const mappedCount = Object.keys(fieldMappings).length;
@@ -369,9 +373,9 @@ const IngestionHubPage = () => {
               ) : (
                 <>
                   {/* Settings row */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="space-y-1">
-                      <Label className="text-xs">Estratégia de Merge</Label>
+                      <Label className="text-xs font-semibold">Estratégia de Merge</Label>
                       <Select value={mergeStrategy} onValueChange={setMergeStrategy}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -383,12 +387,22 @@ const IngestionHubPage = () => {
                       </Select>
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Campos de detecção de duplicados</Label>
+                      <Label className="text-xs font-semibold">Prefixo SKU (opcional)</Label>
+                      <Input 
+                        value={skuPrefix} 
+                        onChange={e => setSkuPrefix(e.target.value.toUpperCase())} 
+                        placeholder="Ex: UD-" 
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Detecção de duplicados</Label>
                       <Input value={dupFields} onChange={e => setDupFields(e.target.value)} placeholder="sku, original_title" />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Mapeamento</Label>
-                      <p className="text-sm text-muted-foreground">{mappedCount} de {parsedHeaders.length} colunas mapeadas</p>
+                      <Label className="text-xs font-semibold">Estado do Mapeamento</Label>
+                      <div className="h-10 flex items-center px-3 rounded-md border border-input bg-background">
+                        <p className="text-sm text-muted-foreground">{mappedCount} de {parsedHeaders.length} colunas</p>
+                      </div>
                     </div>
                   </div>
 

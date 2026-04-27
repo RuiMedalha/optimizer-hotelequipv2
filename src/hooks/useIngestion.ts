@@ -175,6 +175,7 @@ export function useParseIngestion() {
       groupingConfig?: any;
       mode?: string;
       sourceId?: string;
+      skuPrefix?: string;
     }) => {
       const { data, error } = await supabase.functions.invoke("parse-ingestion", {
         body: {

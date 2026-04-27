@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
     if (authError || !user) throw new Error("Unauthorized");
 
     const body = await req.json();
-    const { workspaceId, sourceId, data, fileName, sourceType, fieldMappings, mergeStrategy, duplicateDetectionFields, groupingConfig, mode } = body;
+    const { workspaceId, sourceId, data, fileName, sourceType, fieldMappings, mergeStrategy, duplicateDetectionFields, groupingConfig, mode, skuPrefix } = body;
 
     if (!workspaceId) throw new Error("workspaceId required");
     if (!data && !fileName) throw new Error("data or fileName required");
@@ -68,19 +68,39 @@ Deno.serve(async (req) => {
     if (jobError) throw jobError;
     const jobId = job.id;
 
-    // Apply field mappings
+    // Apply field mappings & SKU Prefix
     const mapRow = (row: Record<string, any>): Record<string, any> => {
-      if (!mappings || Object.keys(mappings).length === 0) return row;
+      const mappings = fieldMappings || {};
       const mapped: Record<string, any> = {};
-      for (const [sourceKey, targetKey] of Object.entries(mappings)) {
-        if (row[sourceKey] !== undefined && typeof targetKey === "string") {
-          mapped[targetKey] = row[sourceKey];
+      
+      if (mappings && Object.keys(mappings).length > 0) {
+        for (const [sourceKey, targetKey] of Object.entries(mappings)) {
+          if (row[sourceKey] !== undefined && typeof targetKey === "string") {
+            mapped[targetKey] = row[sourceKey];
+          }
+        }
+        // Keep unmapped fields
+        for (const [key, val] of Object.entries(row)) {
+          if (!mappings[key]) mapped[key] = val;
+        }
+      } else {
+        Object.assign(mapped, row);
+      }
+
+      // ─── Apply SKU Prefix ───
+      // If we have a target SKU field (either 'sku' or the mapping results in 'sku')
+      const targetSkuKey = Object.entries(mappings).find(([_, v]) => v === "sku")?.[1] || "sku";
+      let sku = mapped[targetSkuKey];
+      
+      if (skuPrefix && sku) {
+        const prefixStr = String(skuPrefix).toUpperCase();
+        const skuStr = String(sku).trim();
+        // Only apply if it doesn't already have the prefix
+        if (!skuStr.toUpperCase().startsWith(prefixStr)) {
+          mapped[targetSkuKey] = `${prefixStr}${skuStr}`;
         }
       }
-      // Keep unmapped fields
-      for (const [key, val] of Object.entries(row)) {
-        if (!mappings[key]) mapped[key] = val;
-      }
+
       return mapped;
     };
 

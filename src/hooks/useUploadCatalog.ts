@@ -27,6 +27,7 @@ export interface UploadedFile {
   previewRows?: Record<string, unknown>[];
   columnMapping?: ColumnMapping;
   updateFields?: string[];
+  skuPrefix?: string;
 }
 
 export interface ProductField {
@@ -266,7 +267,8 @@ async function sendParsedRowsInBatches(
   maxRetries = 3,
   updateMode?: boolean,
   updateFields?: string[],
-  workflowRunId?: string
+  workflowRunId?: string,
+  skuPrefix?: string
 ): Promise<{ count: number; updated: number; total: number; skipped: number; errors: string[] }> {
   const BATCH_SIZE = 500; // rows per request
   let totalCount = 0;
@@ -289,6 +291,7 @@ async function sendParsedRowsInBatches(
             updateMode: updateMode || undefined,
             updateFields: updateFields || undefined,
             workflowRunId: workflowRunId || undefined,
+            skuPrefix: skuPrefix || undefined,
           },
         });
 
@@ -442,6 +445,10 @@ export function useUploadCatalog() {
 
   const setUpdateFields = (id: string, fields: string[]) => {
     updateFile(id, { updateFields: fields });
+  };
+
+  const setSkuPrefix = (id: string, prefix: string) => {
+    updateFile(id, { skuPrefix: prefix });
   };
 
   const confirmMapping = (id: string) => {
@@ -604,7 +611,8 @@ export function useUploadCatalog() {
           3,
           isUpdateMode,
           isUpdateMode ? uploadedFile.updateFields : undefined,
-          workflowRunId
+          workflowRunId,
+          uploadedFile.skuPrefix
         );
 
         const totalProcessed = (result.count || 0) + (result.updated || 0);
@@ -713,6 +721,7 @@ export function useUploadCatalog() {
     processAllFiles,
     setColumnMapping,
     setUpdateFields,
+    setSkuPrefix,
     confirmMapping,
     reopenMapping,
     selectSheet,
