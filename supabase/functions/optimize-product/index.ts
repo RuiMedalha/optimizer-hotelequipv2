@@ -1428,8 +1428,21 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           requiredFields.push("image_alt_texts");
         }
         if (fields.includes("category")) {
-          toolProperties.suggested_category = { type: "string", description: "Categoria sugerida no formato 'Categoria > Subcategoria'. DEVE ser uma das categorias existentes fornecidas na lista. Se a melhor correspondência for uma subcategoria, usa o caminho completo (ex: 'Equipamento > Fornos'). Se o produto não tiver categoria, analisa o título e descrição para sugerir a mais adequada." };
-          requiredFields.push("suggested_category");
+          toolProperties.suggested_category = { type: "string", description: "Categoria principal sugerida no formato 'Categoria > Subcategoria'. DEVE ser uma das categorias existentes fornecidas na lista." };
+          toolProperties.suggested_categories = {
+            type: "array",
+            description: "Até 3 sugestões de categorias alternativas caso a principal não seja a ideal.",
+            items: {
+              type: "object",
+              properties: {
+                category_name: { type: "string", description: "Nome da categoria (formato 'Pai > Filho')" },
+                confidence_score: { type: "number", description: "Nível de confiança de 0 a 1" },
+                reasoning: { type: "string", description: "Breve explicação da escolha" }
+              },
+              required: ["category_name", "confidence_score"]
+            }
+          };
+          requiredFields.push("suggested_category", "suggested_categories");
         }
         // Only generate focus keywords in phase 1 (or when no phase is set)
         if (!phase || phase === 1) {
