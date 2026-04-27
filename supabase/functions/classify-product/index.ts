@@ -38,19 +38,40 @@ Deno.serve(async (req) => {
     const getFullPath = (catId: string): string => {
       const cat = catMap.get(catId);
       if (!cat) return "";
+      
+      // If the name already contains hierarchy separators, treat it as a path
+      // but only if it doesn't have a parent_id that would double it up
+      const currentName = cat.name.replace(/&gt;/g, " > ");
+      
       if (cat.parent_id) {
         const parentPath = getFullPath(cat.parent_id);
-        return parentPath ? `${parentPath} > ${cat.name}` : cat.name;
+        if (parentPath) {
+          // Check if parentPath is already contained in currentName to avoid duplication
+          if (currentName.startsWith(parentPath)) return currentName;
+          return `${parentPath} > ${currentName}`;
+        }
       }
-      return cat.name;
+      return currentName;
     };
 
-    const categoryList = cats.map((c: any) => ({
-      id: c.id,
-      name: c.name,
-      full_path: getFullPath(c.id),
-      description: c.description,
-    }));
+    // Build the category list and deduplicate by full_path
+    // This handles the case where multiple workspace categories have the same name/path
+    const uniqueCategoryMap = new Map<string, any>();
+    
+    cats.forEach((c: any) => {
+      const fullPath = getFullPath(c.id);
+      // Keep the most "global" one or just the first one we find
+      if (!uniqueCategoryMap.has(fullPath) || !c.workspace_id) {
+        uniqueCategoryMap.set(fullPath, {
+          id: c.id,
+          name: c.name,
+          full_path: fullPath,
+          description: c.description,
+        });
+      }
+    });
+
+    const categoryList = Array.from(uniqueCategoryMap.values());
 
     // Build the prompt
     const systemPrompt = `You are a Product Classification Agent for an e-commerce catalog management system focused on the HORECA sector.
