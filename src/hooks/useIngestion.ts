@@ -200,12 +200,32 @@ export function useRunIngestionJob() {
 
   return useMutation({
     mutationFn: async (jobId: string) => {
-      const { data, error } = await supabase.functions.invoke("run-ingestion-job", {
-        body: { jobId },
-      });
-      if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || "Run failed");
-      return data;
+      let finished = false;
+      let totalImported = 0;
+      let iterations = 0;
+      const MAX_ITERATIONS = 100; // Safety break
+
+      while (!finished && iterations < MAX_ITERATIONS) {
+        const { data, error } = await supabase.functions.invoke("run-ingestion-job", {
+          body: { jobId },
+        });
+        
+        if (error) throw error;
+        if (!data?.success) throw new Error(data?.error || "Run failed");
+        
+        finished = data.finished;
+        totalImported += (data.lastBatch?.imported || 0);
+        iterations++;
+        
+        // Invalidate after each batch to show progress in UI if needed
+        qc.invalidateQueries({ queryKey: ["ingestion-jobs"] });
+        
+        if (!finished) {
+          console.log(`Processed batch ${iterations}. Remaining items...`);
+        }
+      }
+      
+      return { success: true, jobId };
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["ingestion-jobs"] });
