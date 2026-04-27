@@ -29,6 +29,7 @@ const PRODUCT_FIELDS = [
   { key: "original_description", label: "Descrição" },
   { key: "original_price", label: "Preço" },
   { key: "sale_price", label: "Preço Promocional" },
+  { key: "stock", label: "Stock / Inventário" },
   { key: "category", label: "Categoria" },
   { key: "short_description", label: "Descrição Curta" },
   { key: "image_urls", label: "Imagens (URLs)" },
