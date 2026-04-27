@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -50,6 +50,15 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
   const [classifyingIds, setClassifyingIds] = useState<Set<string>>(new Set());
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState("");
+  const [localSearchQuery, setLocalSearchQuery] = useState("");
+
+  // Debounce search query to avoid re-calculating candidates on every keystroke
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchQuery(localSearchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [localSearchQuery]);
 
   // Fetch all categories for manual selection
   const { data: allCategories } = useQuery({
@@ -102,8 +111,11 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
     [candidates]
   );
 
-  const filtered = useMemo(() =>
-    candidates.filter(p => {
+  const filtered = useMemo(() => {
+    // Limit processing to first 500 candidates if no search query to keep UI snappy
+    const itemsToFilter = searchQuery ? candidates : candidates.slice(0, 500);
+    
+    return itemsToFilter.filter(p => {
       if (filterCategory !== "all" && (p.category || "—") !== filterCategory) return false;
       if (!showAllProducts) {
         if (filterSuggestedCategory !== "all" && (p.suggested_category || "—") !== filterSuggestedCategory) return false;
@@ -121,9 +133,8 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
       }
       
       return true;
-    }),
-    [candidates, filterCategory, filterSuggestedCategory, filterSource, searchQuery, showAllProducts]
-  );
+    });
+  }, [candidates, filterCategory, filterSuggestedCategory, filterSource, searchQuery, showAllProducts]);
 
   const allSelected = filtered.length > 0 && filtered.every(p => selected.has(p.id));
 
@@ -315,15 +326,15 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
         <div className="flex-1 flex flex-col p-6 pt-2 overflow-hidden">
           {/* Filters */}
           <div className="flex items-center gap-2 flex-wrap mb-4">
-            <div className="relative flex-1 min-w-[300px]">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Pesquisar por SKU, Título ou Categoria..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-10 text-sm bg-background"
-              />
-            </div>
+          <div className="relative flex-1 min-w-[300px]">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Pesquisar por SKU, Título ou Categoria..."
+              value={localSearchQuery}
+              onChange={(e) => setLocalSearchQuery(e.target.value)}
+              className="pl-9 h-10 text-sm bg-background"
+            />
+          </div>
             <Select value={filterCategory} onValueChange={setFilterCategory}>
               <SelectTrigger className="h-10 text-sm w-[200px] bg-background">
                 <SelectValue placeholder="Categoria atual" />
@@ -407,7 +418,7 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                     
                     return (
                       <TableRow key={p.id} className={cn(
-                        "transition-colors group",
+                        "transition-colors group h-16",
                         selected.has(p.id) && "bg-primary/5",
                         !p.suggested_category && showAllProducts && "opacity-80"
                       )}>
@@ -481,26 +492,6 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                                         </div>
                                       </SelectItem>
                                     ))}
-                                  
-                                  {/* Manual Selection Section */}
-                                  <div className="px-2 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-muted/30 border-t mt-1">
-                                    Todas as Categorias
-                                  </div>
-                                  <div className="p-2 border-b sticky top-0 bg-background z-20">
-                                    <Input 
-                                      placeholder="Filtrar categorias..." 
-                                      className="h-8 text-[10px]"
-                                      onClick={(e) => e.stopPropagation()}
-                                      onKeyDown={(e) => e.stopPropagation()}
-                                    />
-                                  </div>
-                                  <div className="max-h-[200px] overflow-y-auto">
-                                    {allCategories?.map(cat => (
-                                      <SelectItem key={cat.id} value={cat.fullPath} className="text-[11px]">
-                                        {cat.fullPath}
-                                      </SelectItem>
-                                    ))}
-                                  </div>
                                 </SelectContent>
                               </Select>
                             ) : (
@@ -515,17 +506,6 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                                   {isClassifying ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
                                   Obter Sugestão IA
                                 </Button>
-                                {isClassifying && <span className="text-[10px] text-muted-foreground animate-pulse">A classificar...</span>}
-                              </div>
-                            )}
-                            
-                            {/* Reasoning */}
-                            {p.suggested_categories?.find(c => c.category_name === effectiveSuggestion)?.reasoning && (
-                              <div className="flex items-start gap-1.5 px-2 py-1 bg-muted/30 rounded border border-border/50">
-                                <AlertCircle className="w-3 h-3 text-muted-foreground mt-0.5 shrink-0" />
-                                <span className="text-[10px] text-muted-foreground leading-tight italic">
-                                  {p.suggested_categories.find(c => c.category_name === effectiveSuggestion)?.reasoning}
-                                </span>
                               </div>
                             )}
                           </div>
