@@ -39,6 +39,7 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
   const qc = useQueryClient();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [filterCategory, setFilterCategory] = useState("all");
+  const [filterSuggestedCategory, setFilterSuggestedCategory] = useState("all");
   const [filterSource, setFilterSource] = useState("all");
   const [isApproving, setIsApproving] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
