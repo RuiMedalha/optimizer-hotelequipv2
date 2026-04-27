@@ -20,6 +20,31 @@ export function useActiveWorkflowRun(workspaceId?: string) {
 
   // Reset on real workspace change — never on first render
   const prevWorkspaceId = useRef<string | undefined>(undefined);
+  const setActiveRun = useCallback(
+    (runId: string) => {
+      if (!lsKey || !workspaceId) return;
+      localStorage.setItem(lsKey, runId);
+      setActiveRunIdState(runId);
+      window.dispatchEvent(
+        new CustomEvent<ActiveRunEvent>(EVENT_NAME, {
+          detail: { workspaceId, key: lsKey, runId },
+        })
+      );
+    },
+    [lsKey, workspaceId]
+  );
+
+  const clearActiveRun = useCallback(() => {
+    if (!lsKey || !workspaceId) return;
+    localStorage.removeItem(lsKey);
+    setActiveRunIdState(null);
+    window.dispatchEvent(
+      new CustomEvent<ActiveRunEvent>(EVENT_NAME, {
+        detail: { workspaceId, key: lsKey, runId: null },
+      })
+    );
+  }, [lsKey, workspaceId]);
+
   // Load active session from DB if not in localStorage
   useEffect(() => {
     if (!workspaceId || activeRunId) return;
@@ -56,8 +81,6 @@ export function useActiveWorkflowRun(workspaceId?: string) {
   }, [workspaceId]);
 
   // Listen for changes dispatched by other hook instances.
-  // STRICT workspace isolation: only update if the event's workspaceId matches
-  // this instance's workspaceId. Events from other workspaces are always ignored.
   useEffect(() => {
     if (!lsKey || !workspaceId) return;
     const handler = (e: Event) => {
@@ -68,31 +91,6 @@ export function useActiveWorkflowRun(workspaceId?: string) {
     };
     window.addEventListener(EVENT_NAME, handler);
     return () => window.removeEventListener(EVENT_NAME, handler);
-  }, [lsKey, workspaceId]);
-
-  const setActiveRun = useCallback(
-    (runId: string) => {
-      if (!lsKey || !workspaceId) return;
-      localStorage.setItem(lsKey, runId);
-      setActiveRunIdState(runId);
-      window.dispatchEvent(
-        new CustomEvent<ActiveRunEvent>(EVENT_NAME, {
-          detail: { workspaceId, key: lsKey, runId },
-        })
-      );
-    },
-    [lsKey, workspaceId]
-  );
-
-  const clearActiveRun = useCallback(() => {
-    if (!lsKey || !workspaceId) return;
-    localStorage.removeItem(lsKey);
-    setActiveRunIdState(null);
-    window.dispatchEvent(
-      new CustomEvent<ActiveRunEvent>(EVENT_NAME, {
-        detail: { workspaceId, key: lsKey, runId: null },
-      })
-    );
   }, [lsKey, workspaceId]);
 
   const createNewSession = useCallback(
