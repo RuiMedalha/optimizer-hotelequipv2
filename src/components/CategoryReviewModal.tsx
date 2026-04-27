@@ -39,6 +39,7 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
   const qc = useQueryClient();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [filterCategory, setFilterCategory] = useState("all");
+  const [filterSuggestedCategory, setFilterSuggestedCategory] = useState("all");
   const [filterSource, setFilterSource] = useState("all");
   const [isApproving, setIsApproving] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
@@ -62,22 +63,30 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
     [candidates]
   );
 
+  const uniqueSuggestedCategories = useMemo(() =>
+    [...new Set(candidates.map(p => p.suggested_category || "—").filter(Boolean))].sort(),
+    [candidates]
+  );
+
   const filtered = useMemo(() =>
     candidates.filter(p => {
       if (filterCategory !== "all" && (p.category || "—") !== filterCategory) return false;
+      if (filterSuggestedCategory !== "all" && (p.suggested_category || "—") !== filterSuggestedCategory) return false;
       if (filterSource !== "all" && (p.source_file || "") !== filterSource) return false;
       
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         return (
-          p.original_title.toLowerCase().includes(query) ||
-          p.sku.toLowerCase().includes(query)
+          (p.original_title || "").toLowerCase().includes(query) ||
+          (p.sku || "").toLowerCase().includes(query) ||
+          (p.suggested_category || "").toLowerCase().includes(query) ||
+          (p.category || "").toLowerCase().includes(query)
         );
       }
       
       return true;
     }),
-    [candidates, filterCategory, filterSource]
+    [candidates, filterCategory, filterSuggestedCategory, filterSource, searchQuery]
   );
 
   const allSelected = filtered.length > 0 && filtered.every(p => selected.has(p.id));
@@ -211,30 +220,41 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
         </DialogHeader>
 
         {/* Filters */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="relative w-[240px]">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+        <div className="flex items-center gap-2 flex-wrap mb-4 bg-muted/30 p-3 rounded-lg border border-border/50">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Pesquisar produto ou SKU..."
+              placeholder="Pesquisar produto, SKU ou categoria..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 h-8 text-xs"
+              className="pl-9 h-9 text-xs bg-background"
             />
           </div>
           <Select value={filterCategory} onValueChange={setFilterCategory}>
-            <SelectTrigger className="h-8 text-xs w-[200px]">
+            <SelectTrigger className="h-9 text-xs w-[180px] bg-background">
               <SelectValue placeholder="Categoria atual" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todas as categorias</SelectItem>
+              <SelectItem value="all">Todas as atuais</SelectItem>
               {uniqueCurrentCategories.map(c => (
+                <SelectItem key={c} value={c}>{c}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filterSuggestedCategory} onValueChange={setFilterSuggestedCategory}>
+            <SelectTrigger className="h-9 text-xs w-[180px] bg-background">
+              <SelectValue placeholder="Categoria sugerida" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as sugeridas</SelectItem>
+              {uniqueSuggestedCategories.map(c => (
                 <SelectItem key={c} value={c}>{c}</SelectItem>
               ))}
             </SelectContent>
           </Select>
           {uniqueSources.length > 1 && (
             <Select value={filterSource} onValueChange={setFilterSource}>
-              <SelectTrigger className="h-8 text-xs w-[180px]">
+              <SelectTrigger className="h-9 text-xs w-[160px] bg-background">
                 <SelectValue placeholder="Ficheiro fonte" />
               </SelectTrigger>
               <SelectContent>
@@ -245,9 +265,14 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
               </SelectContent>
             </Select>
           )}
-          <span className="text-xs text-muted-foreground ml-auto">
-            {filtered.length} produto(s) filtrado(s) · {selected.size} selecionado(s)
-          </span>
+          <div className="w-full sm:w-auto text-[10px] text-muted-foreground flex items-center gap-2 mt-1 sm:mt-0 px-1">
+            <span className="bg-background px-2 py-0.5 rounded border border-border/50">
+              {filtered.length} filtrados
+            </span>
+            <span className="bg-primary/5 text-primary px-2 py-0.5 rounded border border-primary/10">
+              {selected.size} selecionados
+            </span>
+          </div>
         </div>
 
         {/* Table */}
