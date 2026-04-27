@@ -338,8 +338,6 @@ serve(async (req) => {
         const catPaths = new Set<string>();
         for (const cat of catTableData) {
           catPaths.add(buildPath(cat));
-          // Also add individual names for fuzzy matching
-          catPaths.add(cat.name);
         }
         existingCategories = Array.from(catPaths).sort();
       }
@@ -1330,7 +1328,8 @@ REGRAS OBRIGATÓRIAS:
           const noCatHint = !product.category 
             ? "\nATENÇÃO: Este produto NÃO tem categoria atribuída. Analisa o título, descrição e especificações técnicas para sugerir a categoria mais adequada da lista."
             : "";
-          fieldInstructions.push(`CATEGORIA SUGERIDA:\n${getFieldPrompt("category", "Analisa o produto e sugere a melhor categoria EXISTENTE.")}${catList}${semanticHint}${noCatHint}`);
+          const accessoryRule = "\nREGRA DE ACESSÓRIOS: Se o produto for uma peça, extra ou acessório (ex: estante, prateleira, cesto, kit, shelf), deves SEMPRE procurar uma subcategoria 'Acessorios' dentro da categoria principal (ex: 'FRIO COMERCIAL > Acessorios').";
+          fieldInstructions.push(`CATEGORIA SUGERIDA:\n${getFieldPrompt("category", "Analisa o produto e escolhe a categoria mais específica da lista.")}${catList}${semanticHint}${accessoryRule}${noCatHint}`);
         }
 
         const defaultPrompt = `Optimiza o seguinte produto de e-commerce para SEO e conversão em português europeu.
