@@ -309,6 +309,8 @@ const IngestionHubPage = () => {
         skuPrefix: skuPrefix.trim() || undefined,
         sourceLanguage: sourceLang,
       });
+      
+      toast.info(`A iniciar importação de ${parsedData.length} produtos...`);
       await runJob.mutateAsync(result.jobId);
 
       // Trigger auto-draft creation after successful live import
