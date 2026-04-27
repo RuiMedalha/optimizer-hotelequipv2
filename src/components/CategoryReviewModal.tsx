@@ -40,6 +40,9 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
   const [filterSource, setFilterSource] = useState("all");
   const [isApproving, setIsApproving] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
+  const [overrides, setOverrides] = useState<Record<string, string>>({});
+
+  const getEffectiveSuggestion = (p: CategoryProduct) => overrides[p.id] || p.suggested_category;
 
   // Only products with a suggested_category different from current
   const candidates = useMemo(() =>
