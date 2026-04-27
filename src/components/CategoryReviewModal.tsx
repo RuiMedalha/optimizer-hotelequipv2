@@ -11,12 +11,19 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+interface CategorySuggestion {
+  category_name: string;
+  confidence_score: number;
+  reasoning?: string;
+}
+
 interface CategoryProduct {
   id: string;
   sku: string;
   original_title: string;
   category: string | null;
   suggested_category: string | null;
+  suggested_categories: CategorySuggestion[] | null;
   source_file: string | null;
 }
 
