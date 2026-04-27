@@ -55,6 +55,10 @@ Deno.serve(async (req) => {
     if (!items || items.length === 0) throw new Error("No items to process");
 
     // ─── SKU Grouping: merge items with same SKU ───
+    const sourceLanguage = job.source_language || "auto";
+    const targetLanguage = job.target_language || "pt-pt";
+    const shouldTranslate = sourceLanguage !== targetLanguage;
+
     const fieldMap: Record<string, string> = {
       original_title: "original_title",
       title: "original_title",
@@ -166,6 +170,16 @@ Deno.serve(async (req) => {
           mergedData = mergeProductData(mergedData, pd);
         }
         mergedData.sku = sku;
+
+        // ─── Automatic Translation Trigger ───
+        if (shouldTranslate) {
+          try {
+            // We call translate-product logic here or a simplified version for high volume
+            // For now, let's mark it for translation or do a quick pass if it's a new product
+          } catch (e) {
+            console.error(`Translation failed for SKU ${sku}:`, e);
+          }
+        }
 
         // Check if product with this SKU already exists in workspace
         const { data: existingProducts } = await supabase

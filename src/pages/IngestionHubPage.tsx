@@ -73,6 +73,7 @@ const IngestionHubPage = () => {
   const [mergeStrategy, setMergeStrategy] = useState("merge");
   const [dupFields, setDupFields] = useState("sku");
   const [skuPrefix, setSkuPrefix] = useState("");
+  const [sourceLang, setSourceLang] = useState("auto");
 
   // Auto-detection state
   const [currentDetection, setCurrentDetection] = useState<any>(null);
@@ -205,6 +206,7 @@ const IngestionHubPage = () => {
         duplicateDetectionFields: dupFields.split(",").map(s => s.trim()).filter(Boolean),
         mode: "dry_run",
         skuPrefix: skuPrefix.trim() || undefined,
+        sourceLanguage: sourceLang,
       });
       setPreviewResult(result);
       setPreviewJobId(result.jobId);
@@ -228,6 +230,7 @@ const IngestionHubPage = () => {
         duplicateDetectionFields: dupFields.split(",").map(s => s.trim()).filter(Boolean),
         mode: "live",
         skuPrefix: skuPrefix.trim() || undefined,
+        sourceLanguage: sourceLang,
       });
       await runJob.mutateAsync(result.jobId);
 
@@ -393,6 +396,19 @@ const IngestionHubPage = () => {
                         onChange={e => setSkuPrefix(e.target.value.toUpperCase())} 
                         placeholder="Ex: UD-" 
                       />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Idioma de Origem</Label>
+                      <Select value={sourceLang} onValueChange={setSourceLang}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="auto">Auto-detetar</SelectItem>
+                          <SelectItem value="es">Espanhol</SelectItem>
+                          <SelectItem value="en">Inglês</SelectItem>
+                          <SelectItem value="pt">Português (Brasil)</SelectItem>
+                          <SelectItem value="pt-pt">Português (Portugal)</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs font-semibold">Detecção de duplicados</Label>
