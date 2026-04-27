@@ -111,8 +111,11 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
     [candidates]
   );
 
-  const filtered = useMemo(() =>
-    candidates.filter(p => {
+  const filtered = useMemo(() => {
+    // Limit processing to first 500 candidates if no search query to keep UI snappy
+    const itemsToFilter = searchQuery ? candidates : candidates.slice(0, 500);
+    
+    return itemsToFilter.filter(p => {
       if (filterCategory !== "all" && (p.category || "—") !== filterCategory) return false;
       if (!showAllProducts) {
         if (filterSuggestedCategory !== "all" && (p.suggested_category || "—") !== filterSuggestedCategory) return false;
@@ -130,9 +133,8 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
       }
       
       return true;
-    }),
-    [candidates, filterCategory, filterSuggestedCategory, filterSource, searchQuery, showAllProducts]
-  );
+    });
+  }, [candidates, filterCategory, filterSuggestedCategory, filterSource, searchQuery, showAllProducts]);
 
   const allSelected = filtered.length > 0 && filtered.every(p => selected.has(p.id));
 
