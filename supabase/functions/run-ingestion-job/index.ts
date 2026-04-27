@@ -230,29 +230,42 @@ Deno.serve(async (req) => {
           mergedData.sku = sku;
 
           const normalizedSku = sku.toUpperCase();
-          let existingId = existingProductsMap.get(normalizedSku);
+          let existingProduct = existingProductsMap.get(normalizedSku);
           
           // Fallback check for case-insensitivity if not found in the initial IN query
-          if (!existingId) {
+          if (!existingProduct) {
             const { data: fallback } = await supabase
               .from("products")
-              .select("id")
+              .select("*")
               .eq("workspace_id", workspaceId)
               .ilike("sku", sku)
               .limit(1)
               .maybeSingle();
             if (fallback) {
-              existingId = fallback.id;
-              existingProductsMap.set(normalizedSku, existingId);
+              existingProduct = fallback;
+              existingProductsMap.set(normalizedSku, existingProduct);
             }
           }
 
+          const existingId = existingProduct?.id;
           let productId: string | null = null;
 
           if (existingId) {
+            let finalUpdateData = mergedData;
+            
+            // If merge strategy is 'merge', we combine with existing data
+            if (job.merge_strategy === 'merge') {
+              finalUpdateData = mergeProductData(existingProduct, mergedData);
+              
+              // For images, if merging, we want new ones to be primary (first in array)
+              if (Array.isArray(existingProduct.image_urls) && Array.isArray(mergedData.image_urls)) {
+                finalUpdateData.image_urls = [...new Set([...mergedData.image_urls, ...existingProduct.image_urls])];
+              }
+            }
+
             const { error: updateErr } = await supabase
               .from("products")
-              .update({ ...mergedData, updated_at: new Date().toISOString() })
+              .update({ ...finalUpdateData, updated_at: new Date().toISOString() })
               .eq("id", existingId);
             if (updateErr) throw updateErr;
             productId = existingId;
