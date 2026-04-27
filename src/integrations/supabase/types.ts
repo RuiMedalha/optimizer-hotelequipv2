@@ -9687,6 +9687,7 @@ export type Database = {
           source_confidence_profile: Json | null
           source_file: string | null
           status: Database["public"]["Enums"]["product_status"]
+          stock: number | null
           suggested_category: string | null
           supplier_id: string | null
           supplier_ref: string | null
@@ -9739,6 +9740,7 @@ export type Database = {
           source_confidence_profile?: Json | null
           source_file?: string | null
           status?: Database["public"]["Enums"]["product_status"]
+          stock?: number | null
           suggested_category?: string | null
           supplier_id?: string | null
           supplier_ref?: string | null
@@ -9793,6 +9795,7 @@ export type Database = {
           source_confidence_profile?: Json | null
           source_file?: string | null
           status?: Database["public"]["Enums"]["product_status"]
+          stock?: number | null
           suggested_category?: string | null
           supplier_id?: string | null
           supplier_ref?: string | null
