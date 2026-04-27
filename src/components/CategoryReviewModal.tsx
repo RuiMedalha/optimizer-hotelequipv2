@@ -25,6 +25,7 @@ interface CategoryProduct {
   suggested_category: string | null;
   suggested_categories: CategorySuggestion[] | null;
   source_file: string | null;
+  workspace_id: string | null;
 }
 
 interface CategoryReviewModalProps {
