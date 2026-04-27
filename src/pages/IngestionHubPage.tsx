@@ -368,29 +368,67 @@ const IngestionHubPage = () => {
 
         <TabsContent value="import" className="space-y-6 mt-4">
           {!parsedData ? (
-            <Card
-              className={cn("border-2 border-dashed transition-colors cursor-pointer",
-                dragOver ? "border-primary bg-accent" : "border-border hover:border-primary/50"
-              )}
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={onDrop}
-            >
-              <CardContent className="flex flex-col items-center justify-center py-16">
-                <FileSpreadsheet className="w-12 h-12 text-muted-foreground mb-4" />
-                <p className="text-lg font-medium mb-1">Arraste um ficheiro para importar</p>
-                <p className="text-sm text-muted-foreground mb-2">CSV, XLSX, XLS ou JSON</p>
-                <p className="text-xs text-muted-foreground mb-4 flex items-center gap-1">
-                  <Zap className="w-3 h-3" /> Deteção automática de fornecedor e mapeamento inteligente
-                </p>
-                <Button variant="outline" asChild>
-                  <label className="cursor-pointer">
-                    Selecionar Ficheiro
-                    <input type="file" accept=".csv,.xlsx,.xls,.json,.xml" className="hidden" onChange={onFileSelect} />
-                  </label>
-                </Button>
-              </CardContent>
-            </Card>
+            <div className="space-y-6">
+              <Card
+                className={cn("border-2 border-dashed transition-colors cursor-pointer",
+                  dragOver ? "border-primary bg-accent" : "border-border hover:border-primary/50"
+                )}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={onDrop}
+              >
+                <CardContent className="flex flex-col items-center justify-center py-16">
+                  <FileSpreadsheet className="w-12 h-12 text-muted-foreground mb-4" />
+                  <p className="text-lg font-medium mb-1">Arraste um ficheiro para importar</p>
+                  <p className="text-sm text-muted-foreground mb-2">CSV, XLSX, XLS ou JSON</p>
+                  <p className="text-xs text-muted-foreground mb-4 flex items-center gap-1">
+                    <Zap className="w-3 h-3" /> Deteção automática de fornecedor e mapeamento inteligente
+                  </p>
+                  <Button variant="outline" asChild>
+                    <label className="cursor-pointer">
+                      Selecionar Ficheiro
+                      <input type="file" accept=".csv,.xlsx,.xls,.json,.xml" className="hidden" onChange={onFileSelect} />
+                    </label>
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Tips for the user */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card className="bg-primary/5 border-primary/20">
+                  <CardContent className="pt-6">
+                    <div className="flex gap-3">
+                      <div className="p-2 bg-primary/10 rounded-full h-fit">
+                        <CheckCircle className="w-4 h-4 text-primary" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-semibold mb-1">Combine Ficheiros</h4>
+                        <p className="text-xs text-muted-foreground">
+                          Pode importar primeiro um JSON com preços e depois um Excel com imagens. 
+                          Use o mesmo <strong>Prefixo SKU</strong> em ambos para que o sistema faça o merge automático.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-amber-500/5 border-amber-500/20">
+                  <CardContent className="pt-6">
+                    <div className="flex gap-3">
+                      <div className="p-2 bg-amber-500/10 rounded-full h-fit">
+                        <AlertCircle className="w-4 h-4 text-amber-600" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-semibold mb-1">Atenção ao Prefixo</h4>
+                        <p className="text-xs text-muted-foreground">
+                          Se os produtos no site já têm um prefixo (ex: <strong>CH-</strong>), deve usá-lo aqui 
+                          para que a ferramenta reconheça que o produto já existe em vez de criar um novo.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
