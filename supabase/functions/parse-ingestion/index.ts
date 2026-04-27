@@ -154,11 +154,27 @@ Deno.serve(async (req) => {
       for (const field of dupFields) {
         const val = mapped[field] || mapped[`original_${field}`];
         if (val) {
-          const key = `${field}:${String(val).trim().toLowerCase()}`;
+          const valStr = String(val).trim().toLowerCase();
+          const key = `${field}:${valStr}`;
+          
           if (existingProducts[key]) {
             matchedId = existingProducts[key];
             matchConf = field === "sku" ? 100 : 70;
             break;
+          }
+
+          // Smart matching: if SKU didn't match, try without the prefix we just added
+          if (field === "sku" && skuPrefix) {
+            const prefixLower = String(skuPrefix).trim().toLowerCase();
+            if (valStr.startsWith(prefixLower)) {
+              const withoutPrefix = valStr.substring(prefixLower.length);
+              const altKey = `${field}:${withoutPrefix}`;
+              if (existingProducts[altKey]) {
+                matchedId = existingProducts[altKey];
+                matchConf = 95; // High confidence match without the prefix
+                break;
+              }
+            }
           }
         }
       }
