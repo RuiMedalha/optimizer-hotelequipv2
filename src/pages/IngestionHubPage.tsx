@@ -134,27 +134,67 @@ const IngestionHubPage = () => {
         if (Array.isArray(obj)) return obj;
         if (typeof obj !== 'object' || obj === null) return [];
         
-        let bestArray: any[] = [];
-        // Priority keys that we know usually contain product data
-        const priorityKeys = ["products", "items", "data", "rows", "results"];
-        for (const key of priorityKeys) {
-          if (Array.isArray(obj[key])) return obj[key];
-        }
+        const allProductArrays: any[][] = [];
+        const seenArrays = new Set<any[]>();
+        
+        const scoreArray = (arr: any[]): number => {
+          if (!Array.isArray(arr) || arr.length === 0) return 0;
+          const firstItem = arr[0];
+          if (typeof firstItem !== 'object' || firstItem === null) return 0;
+          
+          let score = 0;
+          const productKeys = ['sku', 'ref', 'reference', 'name', 'title', 'price', 'id', 'codigo', 'cod', 'imagen'];
+          const keys = Object.keys(firstItem).map(k => k.toLowerCase().replace(/[^a-z0-9]/g, ''));
+          
+          productKeys.forEach(pk => {
+            if (keys.some(k => k.includes(pk))) score++;
+          });
+          return score;
+        };
 
-        for (const key in obj) {
-          const val = obj[key];
-          if (Array.isArray(val)) {
-            if (val.length > bestArray.length) bestArray = val;
-          } else if (typeof val === 'object' && val !== null) {
-            // Only go one level deep to avoid picking up metadata
-            for (const subKey in val) {
-              if (Array.isArray(val[subKey]) && val[subKey].length > bestArray.length) {
-                bestArray = val[subKey];
-              }
-            }
+        // Priority keys check first (standard formats)
+        const priorityKeys = ["products", "items", "data", "rows", "results", "catalogo", "catalog"];
+        for (const key of priorityKeys) {
+          if (Array.isArray(obj[key])) {
+             seenArrays.add(obj[key]);
+             allProductArrays.push(obj[key]);
           }
         }
-        return bestArray;
+
+        // Recursive search for more arrays
+        const searchForArrays = (current: any, depth = 0) => {
+          if (depth > 3) return;
+          if (typeof current !== 'object' || current === null) return;
+          
+          for (const key in current) {
+            const val = current[key];
+            if (Array.isArray(val) && !seenArrays.has(val)) {
+              if (scoreArray(val) >= 2) { 
+                allProductArrays.push(val);
+                seenArrays.add(val);
+              }
+            } else if (typeof val === 'object' && val !== null) {
+              searchForArrays(val, depth + 1);
+            }
+          }
+        };
+
+        searchForArrays(obj);
+
+        if (allProductArrays.length > 0) {
+          // Flatten all found product arrays into one
+          return allProductArrays.flat();
+        }
+
+        // Fallback: Largest array if no product-like array found
+        let largest: any[] = [];
+        for (const key in obj) {
+          if (Array.isArray(obj[key]) && obj[key].length > largest.length) {
+            largest = obj[key];
+          }
+        }
+        
+        return largest.length > 0 ? largest : [obj];
       };
 
       const foundArray = findBestArray(parsed);
