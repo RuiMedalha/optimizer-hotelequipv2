@@ -98,6 +98,13 @@ export function usePublishJob() {
 
       if (data && data.length > 0) {
         const job = data[0] as any;
+        
+        // Final safeguard: if DB says it's 100% but status is still processing/queued, 
+        // it might be a stale job from a crash. Don't show it as active.
+        if (job.processed_products >= job.total_products && job.total_products > 0 && job.status !== "scheduled") {
+          return;
+        }
+
         setActivePublishJob(job);
 
         // Auto-trigger queued jobs that haven't started (e.g. from scheduled)
