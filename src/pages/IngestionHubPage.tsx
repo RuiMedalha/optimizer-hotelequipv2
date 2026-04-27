@@ -941,8 +941,44 @@ function JobDetailDialog({ job, items, onClose }: { job: IngestionJob | null; it
               ))}
             </div>
 
+            {/* Filters */}
+            <div className="flex flex-wrap gap-2">
+              <Button 
+                variant={filter === "all" ? "default" : "outline"} 
+                size="sm" 
+                className="h-7 text-[10px]" 
+                onClick={() => { setFilter("all"); setPage(1); }}
+              >
+                Todos ({items.length})
+              </Button>
+              <Button 
+                variant={filter === "new" ? "default" : "outline"} 
+                size="sm" 
+                className="h-7 text-[10px]" 
+                onClick={() => { setFilter("new"); setPage(1); }}
+              >
+                Novos ({insertCount})
+              </Button>
+              <Button 
+                variant={filter === "update" ? "default" : "outline"} 
+                size="sm" 
+                className="h-7 text-[10px]" 
+                onClick={() => { setFilter("update"); setPage(1); }}
+              >
+                Atualizações ({updateCount})
+              </Button>
+              <Button 
+                variant={filter === "error" ? "default" : "outline"} 
+                size="sm" 
+                className="h-7 text-[10px]" 
+                onClick={() => { setFilter("error"); setPage(1); }}
+              >
+                Erros ({job.failed_rows || 0})
+              </Button>
+            </div>
+
             {/* Items table */}
-            {items.length > 0 && (
+            {filteredItems.length > 0 ? (
               <ScrollArea className="flex-1 min-h-0">
                 <Table>
                   <TableHeader>
@@ -998,10 +1034,10 @@ function JobDetailDialog({ job, items, onClose }: { job: IngestionJob | null; it
             )}
 
             {/* Pagination */}
-            {items.length > pageSize && (
+            {filteredItems.length > pageSize && (
               <div className="flex items-center justify-between border-t pt-3">
                 <p className="text-xs text-muted-foreground">
-                  {startIndex + 1}–{Math.min(startIndex + pageSize, items.length)} de {items.length}
+                  {startIndex + 1}–{Math.min(startIndex + pageSize, filteredItems.length)} de {filteredItems.length}
                 </p>
                 <div className="flex items-center gap-1">
                   <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => setPage(1)} disabled={safePage === 1}>
