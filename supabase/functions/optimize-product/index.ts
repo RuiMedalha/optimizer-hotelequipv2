@@ -1273,9 +1273,10 @@ REGRAS OBRIGATÓRIAS:
           category: `Analisa o produto e sugere a melhor categoria e subcategoria.
 REGRAS OBRIGATÓRIAS:
 - Usa o formato "Categoria > Subcategoria" (ex: "Cozinha > Fritadeiras")
-- Se a categoria atual parecer incorreta, sugere uma melhor
-- Prioriza categorias que já existam no catálogo
-- NÃO cries categorias novas`,
+- Se o produto for um acessório, extra ou peça de substituição (ex: estante, prateleira, grelha, cesto), procura OBRIGATORIAMENTE uma subcategoria chamada "Acessorios" dentro do setor correto.
+- Se a categoria atual parecer incorreta, sugere uma melhor baseada nas CATEGORIAS DISPONÍVEIS listadas abaixo.
+- Prioriza categorias que já existam no catálogo.
+- NUNCA inventes ou cries categorias novas. Se não houver uma correspondência exata, escolhe a categoria existente mais próxima.`,
         };
 
         const getFieldPrompt = (key: string, fallback: string) => {
