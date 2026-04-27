@@ -134,11 +134,11 @@ export function SmartColumnInferencePreview({ inference, headers, sampleData, fi
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-xs w-10">#</TableHead>
-                    {headers.slice(0, 8).map(h => (
+                    {headers.filter(h => fieldMappings[h] || headers.indexOf(h) < 6).slice(0, 10).map(h => (
                       <TableHead key={h} className="text-xs">
                         {h}
                         {fieldMappings[h] && (
-                          <Badge variant="outline" className="ml-1 text-[9px]">{fieldMappings[h]}</Badge>
+                          <Badge variant="outline" className="ml-1 text-[9px] bg-primary/10">{fieldMappings[h]}</Badge>
                         )}
                       </TableHead>
                     ))}
