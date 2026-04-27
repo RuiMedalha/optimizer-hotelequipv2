@@ -855,15 +855,25 @@ const IngestionHubPage = () => {
 function JobDetailDialog({ job, items, onClose }: { job: IngestionJob | null; items: any[]; onClose: () => void }) {
   const [page, setPage] = useState(1);
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
+  const [filter, setFilter] = useState<string>("all");
   const pageSize = 50;
   const runJob = useRunIngestionJob();
 
   if (!job) return null;
 
-  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+  const filteredItems = items.filter(item => {
+    if (filter === "all") return true;
+    if (filter === "new") return item.action === "insert";
+    if (filter === "update") return item.action === "merge" || item.action === "update";
+    if (filter === "skip") return item.action === "skip";
+    if (filter === "error") return item.status === "error";
+    return true;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
   const safePage = Math.min(page, totalPages);
   const startIndex = (safePage - 1) * pageSize;
-  const visibleItems = items.slice(startIndex, startIndex + pageSize);
+  const visibleItems = filteredItems.slice(startIndex, startIndex + pageSize);
   const st = statusLabels[job.status] || statusLabels.queued;
 
   const insertCount = items.filter(i => i.action === "insert").length;
@@ -959,6 +969,11 @@ function JobDetailDialog({ job, items, onClose }: { job: IngestionJob | null; it
                   </TableBody>
                 </Table>
               </ScrollArea>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center py-12 text-muted-foreground bg-muted/20 rounded-lg">
+                <Search className="w-8 h-8 mb-2 opacity-20" />
+                <p className="text-sm">Nenhum item encontrado com este filtro.</p>
+              </div>
             )}
 
             {/* Pagination */}
