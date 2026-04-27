@@ -91,18 +91,56 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
       const prods = candidates.filter(p => batch.includes(p.id));
       if (approve) {
         // Update each product: category = suggested_category, clear suggested_category
+        const learningEvents: any[] = [];
         for (const p of prods) {
+          const finalCategory = getEffectiveSuggestion(p);
           const { error } = await supabase
             .from("products")
-            .update({ category: p.suggested_category, suggested_category: null })
+            .update({ 
+              category: finalCategory, 
+              suggested_category: null,
+              suggested_categories: null 
+            })
             .eq("id", p.id);
+          
           if (error) throw error;
+
+          // Record learning event
+          learningEvents.push({
+            product_id: p.id,
+            field_key: "category",
+            raw_value: p.category,
+            corrected_value: finalCategory,
+            correction_type: "category_fix",
+            review_context: { 
+              sku: p.sku, 
+              original_title: p.original_title,
+              was_top_suggestion: finalCategory === p.suggested_category
+            }
+          });
+        }
+
+        // Call learning function
+        if (learningEvents.length > 0) {
+          try {
+            const { data: userData } = await supabase.auth.getUser();
+            await supabase.functions.invoke("learn-from-review", {
+              body: {
+                workspaceId: candidates[0].workspace_id || "", // We need workspace_id
+                reviewedBy: userData.user?.id,
+                corrections: learningEvents,
+                saveAsPatterns: true
+              }
+            });
+          } catch (err) {
+            console.warn("Learning function failed, but products were updated:", err);
+          }
         }
       } else {
-        // Just clear suggested_category
+        // Just clear suggestions
         const { error } = await supabase
           .from("products")
-          .update({ suggested_category: null })
+          .update({ suggested_category: null, suggested_categories: null })
           .in("id", batch);
         if (error) throw error;
       }
