@@ -1547,6 +1547,12 @@ async function buildBasePayload(
     wooProduct.sku = product.sku || undefined;
   }
 
+  if (has("stock") && product.stock !== undefined && product.stock !== null) {
+    wooProduct.manage_stock = true;
+    wooProduct.stock_quantity = parseInt(String(product.stock), 10);
+    wooProduct.stock_status = wooProduct.stock_quantity > 0 ? "instock" : "outofstock";
+  }
+
   // IMPORTANT: Never overwrite the WooCommerce slug/permalink.
   // The seo_slug is metadata only (for Yoast/RankMath); the product URL must remain stable.
   // If you need to set slug on first publish, use the original WooCommerce slug or SKU-based fallback.
