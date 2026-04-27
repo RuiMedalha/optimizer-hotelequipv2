@@ -616,6 +616,11 @@ serve(async (req) => {
           "maquina": ["cesto", "doseador", "mesa", "prateleira", "depurador", "descalcificador", "abrilhantador", "detergente", "bomba", "escorredor"],
           "máquina": ["cesto", "doseador", "mesa", "prateleira", "depurador", "descalcificador", "abrilhantador", "detergente", "bomba", "escorredor"],
           "lava": ["cesto", "doseador", "mesa", "escorredor", "depurador", "descalcificador", "abrilhantador", "detergente", "bomba", "suporte", "prateleira"],
+          "armario": ["prateleira", "estante", "cesto", "tabuleiro", "bancada"],
+          "armário": ["prateleira", "estante", "cesto", "tabuleiro", "bancada"],
+          "vitrine": ["prateleira", "estante", "suporte", "bancada"],
+          "frigorifico": ["prateleira", "estante", "suporte", "bancada"],
+          "frigorífico": ["prateleira", "estante", "suporte", "bancada"],
           "grelhador": ["bancada", "exaustor", "chapa"],
           "chapa": ["bancada", "exaustor", "grelhador"],
           // Accessories should cross-sell with the machines AND with other accessories
@@ -626,7 +631,9 @@ serve(async (req) => {
           "bomba": ["lava", "maquina", "máquina", "depurador", "abrilhantador", "detergente", "doseador"],
           "cesto": ["lava", "maquina", "máquina", "escorredor", "suporte", "prateleira"],
           "doseador": ["lava", "maquina", "máquina", "depurador", "abrilhantador", "detergente"],
-          "tabuleiro": ["forno", "carro", "prateleira"],
+          "tabuleiro": ["forno", "carro", "prateleira", "armario", "armário"],
+          "estante": ["armario", "armário", "vitrine", "frigorifico", "frigorífico"],
+          "prateleira": ["armario", "armário", "vitrine", "frigorifico", "frigorífico", "forno", "maquina", "máquina", "lava"],
           "escorredor": ["lava", "maquina", "máquina", "cesto"],
           "carro": ["forno", "tabuleiro"],
         };
