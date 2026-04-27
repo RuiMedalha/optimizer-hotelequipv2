@@ -1816,7 +1816,8 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
                   // Update the parent product category
                   await supabase.from("products").update({ 
                     category: mostCommonCat,
-                    suggested_category: parentCategory !== mostCommonCat ? parentCategory : null
+                    suggested_category: parentCategory !== mostCommonCat ? parentCategory : null,
+                    suggested_categories: updateData.suggested_categories || null
                   }).eq("id", product.id);
                 }
               }
