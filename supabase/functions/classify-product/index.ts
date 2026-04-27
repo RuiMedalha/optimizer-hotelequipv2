@@ -34,9 +34,10 @@ Your task: classify a raw product into the most specific correct category from t
 RULES:
 1. Choose the MOST SPECIFIC category possible. Never pick a generic parent if a child matches.
 2. Prioritize categories that ALREADY EXIST in the catalog taxonomy provided below.
-3. Consider typical HORECA sector patterns (commercial kitchen equipment, tableware, food service, cleaning, etc.).
-4. If confidence is below 0.7, set requires_review = true.
-5. Always provide reasoning for your choice.
+3. ACCESSORY DETECTION: If the product is an accessory, part, or extra (e.g., "Estante", "Prateleira", "Grelha", "Cesto", "Shelf", "Kit"), you MUST look for a sub-category named "Acessorios" or similar within the relevant top-level category.
+4. Consider typical HORECA sector patterns (commercial kitchen equipment, tableware, food service, cleaning, etc.).
+5. If confidence is below 0.7, set requires_review = true.
+6. Always provide reasoning for your choice.
 6. Suggest up to 3 alternative categories if relevant.
 
 EXISTING CATEGORIES:
