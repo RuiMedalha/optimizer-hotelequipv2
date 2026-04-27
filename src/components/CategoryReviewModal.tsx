@@ -63,22 +63,30 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
     [candidates]
   );
 
+  const uniqueSuggestedCategories = useMemo(() =>
+    [...new Set(candidates.map(p => p.suggested_category || "—").filter(Boolean))].sort(),
+    [candidates]
+  );
+
   const filtered = useMemo(() =>
     candidates.filter(p => {
       if (filterCategory !== "all" && (p.category || "—") !== filterCategory) return false;
+      if (filterSuggestedCategory !== "all" && (p.suggested_category || "—") !== filterSuggestedCategory) return false;
       if (filterSource !== "all" && (p.source_file || "") !== filterSource) return false;
       
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         return (
-          p.original_title.toLowerCase().includes(query) ||
-          p.sku.toLowerCase().includes(query)
+          (p.original_title || "").toLowerCase().includes(query) ||
+          (p.sku || "").toLowerCase().includes(query) ||
+          (p.suggested_category || "").toLowerCase().includes(query) ||
+          (p.category || "").toLowerCase().includes(query)
         );
       }
       
       return true;
     }),
-    [candidates, filterCategory, filterSource]
+    [candidates, filterCategory, filterSuggestedCategory, filterSource, searchQuery]
   );
 
   const allSelected = filtered.length > 0 && filtered.every(p => selected.has(p.id));
