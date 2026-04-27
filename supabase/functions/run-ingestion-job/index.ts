@@ -92,6 +92,10 @@ Deno.serve(async (req) => {
             val = parseFloat(String(val).replace(",", "."));
             if (isNaN(val)) continue;
           }
+          if (dst === "stock") {
+            val = parseInt(String(val).replace(/\D/g, ""), 10);
+            if (isNaN(val)) continue;
+          }
           productData[dst] = val;
         }
       }
