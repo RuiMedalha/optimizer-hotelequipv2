@@ -325,7 +325,9 @@ const IngestionHubPage = () => {
       ingestion_job_id: jobId,
       file_name: fileName,
       headers: parsedHeaders,
-      sample_data: parsedData.slice(0, 50),
+      sample_data: parsedData.length > 100 
+        ? [...parsedData.slice(0, 50), ...parsedData.slice(-50)] 
+        : parsedData,
       source_type: ext,
     });
   };
