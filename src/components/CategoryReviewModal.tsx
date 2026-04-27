@@ -418,7 +418,7 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                     
                     return (
                       <TableRow key={p.id} className={cn(
-                        "transition-colors group",
+                        "transition-colors group h-16",
                         selected.has(p.id) && "bg-primary/5",
                         !p.suggested_category && showAllProducts && "opacity-80"
                       )}>
@@ -492,26 +492,6 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                                         </div>
                                       </SelectItem>
                                     ))}
-                                  
-                                  {/* Manual Selection Section */}
-                                  <div className="px-2 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-muted/30 border-t mt-1">
-                                    Todas as Categorias
-                                  </div>
-                                  <div className="p-2 border-b sticky top-0 bg-background z-20">
-                                    <Input 
-                                      placeholder="Filtrar categorias..." 
-                                      className="h-8 text-[10px]"
-                                      onClick={(e) => e.stopPropagation()}
-                                      onKeyDown={(e) => e.stopPropagation()}
-                                    />
-                                  </div>
-                                  <div className="max-h-[200px] overflow-y-auto">
-                                    {allCategories?.map(cat => (
-                                      <SelectItem key={cat.id} value={cat.fullPath} className="text-[11px]">
-                                        {cat.fullPath}
-                                      </SelectItem>
-                                    ))}
-                                  </div>
                                 </SelectContent>
                               </Select>
                             ) : (
@@ -526,17 +506,6 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                                   {isClassifying ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
                                   Obter Sugestão IA
                                 </Button>
-                                {isClassifying && <span className="text-[10px] text-muted-foreground animate-pulse">A classificar...</span>}
-                              </div>
-                            )}
-                            
-                            {/* Reasoning */}
-                            {p.suggested_categories?.find(c => c.category_name === effectiveSuggestion)?.reasoning && (
-                              <div className="flex items-start gap-1.5 px-2 py-1 bg-muted/30 rounded border border-border/50">
-                                <AlertCircle className="w-3 h-3 text-muted-foreground mt-0.5 shrink-0" />
-                                <span className="text-[10px] text-muted-foreground leading-tight italic">
-                                  {p.suggested_categories.find(c => c.category_name === effectiveSuggestion)?.reasoning}
-                                </span>
                               </div>
                             )}
                           </div>
