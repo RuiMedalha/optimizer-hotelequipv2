@@ -15,7 +15,7 @@ export interface UploadedFile {
   file: File;
   name: string;
   size: number;
-  type: "PDF" | "Excel";
+  type: "PDF" | "Excel" | "JSON";
   uploadType: FileUploadType;
   status: "aguardando" | "a_mapear" | "a_enviar" | "a_processar" | "concluido" | "erro";
   progress: number;
@@ -74,6 +74,15 @@ function readSheetData(workbook: XLSX.WorkBook, sheetName: string): { headers: s
   const rows: Record<string, unknown>[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
   if (rows.length === 0) return { headers: [], previewRows: [] };
   return { headers: Object.keys(rows[0]), previewRows: rows.slice(0, 3) };
+}
+
+async function readJsonFile(file: File): Promise<{ headers: string[]; allRows: Record<string, unknown>[]; previewRows: Record<string, unknown>[] }> {
+  const text = await file.text();
+  const data = JSON.parse(text);
+  const rows = Array.isArray(data) ? data : [data];
+  if (rows.length === 0) return { headers: [], allRows: [], previewRows: [] };
+  const headers = Object.keys(rows[0]);
+  return { headers, allRows: rows, previewRows: rows.slice(0, 3) };
 }
 
 /** Read ALL rows from an Excel sheet, applying columnMapping */
@@ -347,10 +356,11 @@ export function useUploadCatalog() {
       (f) =>
         f.name.endsWith(".pdf") ||
         f.name.endsWith(".xlsx") ||
-        f.name.endsWith(".xls")
+        f.name.endsWith(".xls") ||
+        f.name.endsWith(".json")
     );
     if (accepted.length === 0) {
-      toast.error("Apenas ficheiros PDF, XLSX e XLS são aceites.");
+      toast.error("Apenas ficheiros PDF, XLSX, XLS e JSON são aceites.");
       return;
     }
 
@@ -358,6 +368,7 @@ export function useUploadCatalog() {
 
     for (const f of accepted) {
       const isPdf = f.name.endsWith(".pdf");
+      const isJson = f.name.endsWith(".json");
 
       // Split large PDFs into parts
       const filesToProcess: File[] = isPdf && f.size > MAX_PDF_PART_SIZE
@@ -387,7 +398,7 @@ export function useUploadCatalog() {
           file: partFile,
           name: partFile.name,
           size: partFile.size,
-          type: isPdf ? "PDF" : "Excel",
+          type: isPdf ? "PDF" : (isJson ? "JSON" : "Excel"),
           uploadType,
           status: isPdf ? "aguardando" : (uploadType === "knowledge" ? "aguardando" : "a_mapear"),
           progress: 0,
@@ -395,19 +406,26 @@ export function useUploadCatalog() {
 
       if (!isPdf && (uploadType === "products" || uploadType === "update")) {
         try {
-          const workbook = await readExcelFile(partFile);
-          base.sheetNames = workbook.SheetNames;
-          const firstSheet = workbook.SheetNames[0];
-          if (firstSheet) {
-            base.selectedSheet = firstSheet;
-            const { headers, previewRows } = readSheetData(workbook, firstSheet);
+          if (isJson) {
+            const { headers, previewRows } = await readJsonFile(partFile);
             base.excelHeaders = headers;
             base.previewRows = previewRows;
             base.columnMapping = autoMapColumns(headers);
+          } else {
+            const workbook = await readExcelFile(partFile);
+            base.sheetNames = workbook.SheetNames;
+            const firstSheet = workbook.SheetNames[0];
+            if (firstSheet) {
+              base.selectedSheet = firstSheet;
+              const { headers, previewRows } = readSheetData(workbook, firstSheet);
+              base.excelHeaders = headers;
+              base.previewRows = previewRows;
+              base.columnMapping = autoMapColumns(headers);
+            }
           }
         } catch {
           base.status = "erro";
-          base.error = "Não foi possível ler o ficheiro Excel";
+          base.error = isJson ? "Não foi possível ler o ficheiro JSON" : "Não foi possível ler o ficheiro Excel";
         }
       }
 
@@ -541,14 +559,30 @@ export function useUploadCatalog() {
         return;
       }
 
-      // ─── Excel products: parse on frontend, send rows to backend ───
-      if (uploadedFile.type === "Excel") {
+      // ─── Local parsing (Excel/JSON) ───
+      if (uploadedFile.type === "Excel" || uploadedFile.type === "JSON") {
         updateFile(uploadedFile.id, { status: "a_processar", progress: 60 });
         toast.info(`A processar "${uploadedFile.name}" localmente...`);
 
-        const workbook = await readExcelFile(uploadedFile.file);
-        const sheetName = uploadedFile.selectedSheet || workbook.SheetNames[0];
-        const parsedRows = readAllSheetRows(workbook, sheetName, uploadedFile.columnMapping);
+        let parsedRows: Record<string, unknown>[] = [];
+        if (uploadedFile.type === "JSON") {
+          const { allRows } = await readJsonFile(uploadedFile.file);
+          if (uploadedFile.columnMapping) {
+            parsedRows = allRows.map(row => {
+              const mapped: Record<string, unknown> = {};
+              for (const [productField, jsonKey] of Object.entries(uploadedFile.columnMapping!)) {
+                if (jsonKey && row[jsonKey] !== undefined) mapped[productField] = row[jsonKey];
+              }
+              return mapped;
+            });
+          } else {
+            parsedRows = allRows;
+          }
+        } else {
+          const workbook = await readExcelFile(uploadedFile.file);
+          const sheetName = uploadedFile.selectedSheet || workbook.SheetNames[0];
+          parsedRows = readAllSheetRows(workbook, sheetName, uploadedFile.columnMapping);
+        }
 
         if (parsedRows.length === 0) {
           await registerUpload(uploadedFile, user.id, filePath, 0, workspaceId);
