@@ -186,7 +186,14 @@ async function insertProducts(
     const toUpdate: Array<{ id: string; data: Record<string, unknown>; product: Record<string, unknown> }> = [];
 
     for (const p of batchProducts) {
-      const sku = toStr(p.sku, 100);
+      let sku = toStr(p.sku, 100);
+      if (skuPrefix && sku) {
+        const prefix = String(skuPrefix).trim();
+        if (!sku.toUpperCase().startsWith(prefix.toUpperCase())) {
+          sku = `${prefix}${sku}`;
+          p.sku = sku;
+        }
+      }
       const existingId = sku ? existingSkuMap.get(sku) : null;
 
       if (existingId) {
