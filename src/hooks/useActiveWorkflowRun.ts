@@ -20,31 +20,6 @@ export function useActiveWorkflowRun(workspaceId?: string) {
 
   // Reset on real workspace change — never on first render
   const prevWorkspaceId = useRef<string | undefined>(undefined);
-  useEffect(() => {
-    if (
-      prevWorkspaceId.current !== undefined &&
-      prevWorkspaceId.current !== workspaceId
-    ) {
-      setActiveRunIdState(null);
-    }
-    prevWorkspaceId.current = workspaceId;
-  }, [workspaceId]);
-
-  // Listen for changes dispatched by other hook instances.
-  // STRICT workspace isolation: only update if the event's workspaceId matches
-  // this instance's workspaceId. Events from other workspaces are always ignored.
-  useEffect(() => {
-    if (!lsKey || !workspaceId) return;
-    const handler = (e: Event) => {
-      const detail = (e as CustomEvent<ActiveRunEvent>).detail;
-      if (detail.workspaceId === workspaceId && detail.key === lsKey) {
-        setActiveRunIdState(detail.runId);
-      }
-    };
-    window.addEventListener(EVENT_NAME, handler);
-    return () => window.removeEventListener(EVENT_NAME, handler);
-  }, [lsKey, workspaceId]);
-
   const setActiveRun = useCallback(
     (runId: string) => {
       if (!lsKey || !workspaceId) return;
@@ -68,6 +43,54 @@ export function useActiveWorkflowRun(workspaceId?: string) {
         detail: { workspaceId, key: lsKey, runId: null },
       })
     );
+  }, [lsKey, workspaceId]);
+
+  // Load active session from DB if not in localStorage
+  useEffect(() => {
+    if (!workspaceId || activeRunId) return;
+
+    const findActiveSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data: runs, error } = await supabase
+        .from("catalog_workflow_runs")
+        .select("id")
+        .eq("workspace_id", workspaceId)
+        .eq("status", "running")
+        .order("started_at", { ascending: false })
+        .limit(1);
+
+      if (!error && runs && runs.length > 0) {
+        setActiveRun(runs[0].id);
+      }
+    };
+
+    findActiveSession();
+  }, [workspaceId, activeRunId, setActiveRun]);
+
+  // Reset on real workspace change
+  useEffect(() => {
+    if (
+      prevWorkspaceId.current !== undefined &&
+      prevWorkspaceId.current !== workspaceId
+    ) {
+      setActiveRunIdState(null);
+    }
+    prevWorkspaceId.current = workspaceId;
+  }, [workspaceId]);
+
+  // Listen for changes dispatched by other hook instances.
+  useEffect(() => {
+    if (!lsKey || !workspaceId) return;
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<ActiveRunEvent>).detail;
+      if (detail.workspaceId === workspaceId && detail.key === lsKey) {
+        setActiveRunIdState(detail.runId);
+      }
+    };
+    window.addEventListener(EVENT_NAME, handler);
+    return () => window.removeEventListener(EVENT_NAME, handler);
   }, [lsKey, workspaceId]);
 
   const createNewSession = useCallback(
