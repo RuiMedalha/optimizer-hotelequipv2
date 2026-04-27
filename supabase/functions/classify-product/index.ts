@@ -22,6 +22,14 @@ Deno.serve(async (req) => {
       .select("id, name, slug, parent_id, description")
       .eq("workspace_id", workspace_id);
 
+    // Fetch some successfully categorized products to use as examples (Few-Shot Prompting)
+    const { data: examples } = await supabase
+      .from("products")
+      .select("original_title, category")
+      .not("category", "is", null)
+      .eq("workspace_id", workspace_id)
+      .limit(15);
+
     const cats = categories || [];
     
     // Create a map for quick lookup and building full paths
@@ -31,7 +39,8 @@ Deno.serve(async (req) => {
       const cat = catMap.get(catId);
       if (!cat) return "";
       if (cat.parent_id) {
-        return `${getFullPath(cat.parent_id)} > ${cat.name}`;
+        const parentPath = getFullPath(cat.parent_id);
+        return parentPath ? `${parentPath} > ${cat.name}` : cat.name;
       }
       return cat.name;
     };
