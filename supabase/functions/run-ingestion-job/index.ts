@@ -79,6 +79,7 @@ Deno.serve(async (req) => {
       technical_specs: "technical_specs",
       product_type: "product_type",
       attributes: "attributes",
+      stock: "stock",
     };
 
     function buildProductData(mapped: Record<string, any>): Record<string, any> {
@@ -93,6 +94,10 @@ Deno.serve(async (req) => {
           }
           if (dst === "original_price" || dst === "sale_price") {
             val = parseFloat(String(val).replace(",", "."));
+            if (isNaN(val)) continue;
+          }
+          if (dst === "stock") {
+            val = parseInt(String(val).replace(/\D/g, ""), 10);
             if (isNaN(val)) continue;
           }
           productData[dst] = val;
