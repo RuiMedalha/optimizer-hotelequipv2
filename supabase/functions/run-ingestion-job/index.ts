@@ -277,24 +277,44 @@ Deno.serve(async (req) => {
       await Promise.all(promises);
     }
 
-    // Update job status
+    // Check if there are more items to process for this job
+    const { count: remainingCount } = await supabase
+      .from("ingestion_job_items")
+      .select("*", { count: 'exact', head: true })
+      .eq("job_id", jobId)
+      .eq("status", "mapped");
+
+    const isFinished = (remainingCount || 0) === 0;
+
+    // Update job status and incremental counters
+    const { data: currentJob } = await supabase
+      .from("ingestion_jobs")
+      .select("imported_rows, updated_rows, skipped_rows, failed_rows")
+      .eq("id", jobId)
+      .single();
+
     await supabase.from("ingestion_jobs").update({
-      status: "done",
-      imported_rows: imported,
-      updated_rows: updated,
-      skipped_rows: skipped,
-      failed_rows: failed,
-      completed_at: new Date().toISOString(),
-      results: { imported, updated, skipped, failed, totalProcessed: allItems.length },
+      status: isFinished ? "done" : "importing",
+      imported_rows: (currentJob?.imported_rows || 0) + imported,
+      updated_rows: (currentJob?.updated_rows || 0) + updated,
+      skipped_rows: (currentJob?.skipped_rows || 0) + skipped,
+      failed_rows: (currentJob?.failed_rows || 0) + failed,
+      completed_at: isFinished ? new Date().toISOString() : null,
+      results: { 
+        imported: (currentJob?.imported_rows || 0) + imported, 
+        updated: (currentJob?.updated_rows || 0) + updated, 
+        skipped: (currentJob?.skipped_rows || 0) + skipped, 
+        failed: (currentJob?.failed_rows || 0) + failed,
+        lastBatch: { imported, updated, skipped, failed }
+      },
     }).eq("id", jobId);
 
     return new Response(JSON.stringify({
       success: true,
       jobId,
-      imported,
-      updated,
-      skipped,
-      failed
+      finished: isFinished,
+      remaining: remainingCount || 0,
+      lastBatch: { imported, updated, skipped, failed }
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     return new Response(JSON.stringify({ success: false, error: e.message }), {
