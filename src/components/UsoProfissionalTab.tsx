@@ -120,13 +120,24 @@ export function UsoProfissionalTab({ product, workspaceId }: Props) {
   const saveAndPublish = useCallback(async () => {
     if (!usoContent) return;
     try {
+      // Sanitização rigorosa de todos os campos antes de guardar
+      const sanitizedContent = {
+        intro: DOMPurify.sanitize(usoContent.intro),
+        useCases: usoContent.useCases.map(uc => ({
+          context: DOMPurify.sanitize(uc.context),
+          description: DOMPurify.sanitize(uc.description)
+        })),
+        professionalTips: usoContent.professionalTips.map(tip => DOMPurify.sanitize(tip)),
+        targetProfiles: usoContent.targetProfiles.map(p => DOMPurify.sanitize(p))
+      };
+
       const payload = {
         product_id: product.id,
         workspace_id: workspaceId,
-        intro: usoContent.intro,
-        use_cases: usoContent.useCases,
-        professional_tips: usoContent.professionalTips,
-        target_profiles: usoContent.targetProfiles,
+        intro: sanitizedContent.intro,
+        use_cases: sanitizedContent.useCases,
+        professional_tips: sanitizedContent.professionalTips,
+        target_profiles: sanitizedContent.targetProfiles,
         publish_enabled: publishEnabled,
         placement,
         routing_in_description: publishEnabled,
@@ -146,11 +157,14 @@ export function UsoProfissionalTab({ product, workspaceId }: Props) {
       if (savedRow) {
         setSavedId((savedRow as any).id);
       }
+      
+      // Atualizar estado local com conteúdo sanitizado
+      setUsoContent(sanitizedContent);
       await loadUsoContent();
 
       if (publishEnabled) {
-        // Build HTML and publish via existing publish-woocommerce
-        const usoHtml = buildUsoHtml(usoContent);
+        // Build HTML sanitizado para o WooCommerce
+        const usoHtml = buildUsoHtml(sanitizedContent);
         const currentDesc = product.optimized_description || product.original_description || "";
         const newDesc = buildDescriptionWithUso(currentDesc, usoHtml, placement);
 
