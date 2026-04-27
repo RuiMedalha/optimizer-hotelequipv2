@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/lib/utils";
 import { useIngestionJobs, useIngestionJobItems, useParseIngestion, useRunIngestionJob, type IngestionJob } from "@/hooks/useIngestion";
 import { usePlaybookEngine } from "@/hooks/usePlaybookEngine";
+import { useUploadedFiles } from "@/hooks/useUploadedFiles";
 import { useDeleteUploadedFile } from "@/hooks/useDeleteUploadedFile";
 import { SupplierAutoDetectionPanel } from "@/components/playbook-engine/SupplierAutoDetectionPanel";
 import { SmartColumnInferencePreview } from "@/components/playbook-engine/SmartColumnInferencePreview";
