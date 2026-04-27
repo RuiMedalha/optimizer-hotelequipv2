@@ -582,8 +582,9 @@ serve(async (req) => {
           "bomba": ["lava", "maquina", "máquina"],
           "cesto": ["lava", "maquina", "máquina", "fritadeira"],
           "doseador": ["lava", "maquina", "máquina"],
-          "tabuleiro": ["forno"],
-          "prateleira": ["forno", "frigorifico", "frigorífico", "armario", "armário"],
+          "tabuleiro": ["forno", "armario", "armário"],
+          "prateleira": ["forno", "frigorifico", "frigorífico", "armario", "armário", "vitrine"],
+          "estante": ["frigorifico", "frigorífico", "armario", "armário", "vitrine"],
           "escorredor": ["lava", "fritadeira"],
         };
         if (current.type && candidate.type) {
