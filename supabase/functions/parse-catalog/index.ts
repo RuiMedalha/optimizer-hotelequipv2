@@ -40,7 +40,7 @@ serve(async (req) => {
     const userId = user.id;
 
     const body = await req.json();
-    const { filePath, fileName, columnMapping, sheetName, parseKnowledge, workspaceId, fileId, parsedRows, _batch, updateMode, updateFields, workflowRunId } = body;
+    const { filePath, fileName, columnMapping, sheetName, parseKnowledge, workspaceId, fileId, parsedRows, _batch, updateMode, updateFields, workflowRunId, skuPrefix } = body;
 
     // ─── Batch continuation mode (for large inserts) ───
     if (_batch) {
@@ -76,7 +76,7 @@ serve(async (req) => {
     // ─── Product parsing with pre-parsed rows from frontend ───
     if (parsedRows && Array.isArray(parsedRows)) {
       // Frontend already parsed the Excel — just insert into DB
-      const result = await insertProducts(parsedRows, columnMapping, userId, workspaceId, fileName, updateMode, updateFields, workflowRunId);
+      const result = await insertProducts(parsedRows, columnMapping, userId, workspaceId, fileName, updateMode, updateFields, workflowRunId, skuPrefix);
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -118,7 +118,8 @@ async function insertProducts(
   fileName: string,
   updateMode?: boolean,
   updateFields?: string[],
-  workflowRunId?: string
+  workflowRunId?: string,
+  skuPrefix?: string
 ) {
   const adminDb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
@@ -130,7 +131,16 @@ async function insertProducts(
   const hasMapping = mappedFieldKeys.size > 0;
 
   // SKU lookup
-  const productSkus = products.map((p) => toStr(p.sku, 100)).filter((s): s is string => !!s);
+  const productSkus = products.map((p) => {
+    let sku = toStr(p.sku, 100);
+    if (skuPrefix && sku) {
+      const prefix = String(skuPrefix).trim();
+      if (!sku.toUpperCase().startsWith(prefix.toUpperCase())) {
+        sku = `${prefix}${sku}`;
+      }
+    }
+    return sku;
+  }).filter((s): s is string => !!s);
   const existingSkuMap = new Map<string, string>();
   if (productSkus.length > 0) {
     for (let i = 0; i < productSkus.length; i += 200) {
@@ -176,7 +186,14 @@ async function insertProducts(
     const toUpdate: Array<{ id: string; data: Record<string, unknown>; product: Record<string, unknown> }> = [];
 
     for (const p of batchProducts) {
-      const sku = toStr(p.sku, 100);
+      let sku = toStr(p.sku, 100);
+      if (skuPrefix && sku) {
+        const prefix = String(skuPrefix).trim();
+        if (!sku.toUpperCase().startsWith(prefix.toUpperCase())) {
+          sku = `${prefix}${sku}`;
+          p.sku = sku;
+        }
+      }
       const existingId = sku ? existingSkuMap.get(sku) : null;
 
       if (existingId) {

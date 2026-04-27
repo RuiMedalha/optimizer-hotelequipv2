@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
-import { Upload, FileSpreadsheet, Play, Eye, Loader2, CheckCircle, AlertCircle, Clock, ArrowRight, X, Database, Webhook, Zap, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RefreshCw, Plus, Check } from "lucide-react";
+import { Upload, FileSpreadsheet, Play, Eye, Loader2, CheckCircle, AlertCircle, Clock, ArrowRight, X, Database, Webhook, Zap, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RefreshCw, Plus, Check, FileText, Search, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/lib/utils";
 import { useIngestionJobs, useIngestionJobItems, useParseIngestion, useRunIngestionJob, type IngestionJob } from "@/hooks/useIngestion";
 import { usePlaybookEngine } from "@/hooks/usePlaybookEngine";
+import { useUploadedFiles } from "@/hooks/useUploadedFiles";
 import { useDeleteUploadedFile } from "@/hooks/useDeleteUploadedFile";
 import { SupplierAutoDetectionPanel } from "@/components/playbook-engine/SupplierAutoDetectionPanel";
 import { SmartColumnInferencePreview } from "@/components/playbook-engine/SmartColumnInferencePreview";
@@ -22,6 +23,7 @@ import { IngestionJobActionsDropdown } from "@/components/playbook-engine/Ingest
 import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const PRODUCT_FIELDS = [
   { key: "sku", label: "SKU" },
@@ -55,6 +57,7 @@ const statusLabels: Record<string, { label: string; color: string }> = {
 
 const IngestionHubPage = () => {
   const { data: jobs, isLoading } = useIngestionJobs();
+  const { data: uploadedFiles, isLoading: isLoadingFiles } = useUploadedFiles();
   const parseIngestion = useParseIngestion();
   const runJob = useRunIngestionJob();
   const {
@@ -65,6 +68,7 @@ const IngestionHubPage = () => {
 
   const [activeTab, setActiveTab] = useState("import");
   const [dragOver, setDragOver] = useState(false);
+  const [fileSearch, setFileSearch] = useState("");
 
   // Parsing state
   const [parsedData, setParsedData] = useState<any[] | null>(null);
@@ -317,6 +321,36 @@ const IngestionHubPage = () => {
     setSkuPrefix("");
   };
 
+  const handleFileFromLibrary = async (fileRecord: any) => {
+    try {
+      toast.info(`A carregar "${fileRecord.file_name}"...`);
+      // Determine bucket from storage_path or metadata
+      const bucket = fileRecord.storage_path?.startsWith("knowledge/") ? "knowledge" : "catalogs";
+      const path = fileRecord.storage_path?.replace(`${bucket}/`, "") || fileRecord.storage_path;
+      
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .download(path);
+      
+      if (error) {
+        // Try fallback to standard catalogs bucket if path is just the name
+        const { data: fallbackData, error: fallbackError } = await supabase.storage
+          .from("catalogs")
+          .download(fileRecord.storage_path);
+        
+        if (fallbackError) throw error;
+        const file = new File([fallbackData], fileRecord.file_name, { type: "application/octet-stream" });
+        handleFile(file);
+      } else {
+        const file = new File([data], fileRecord.file_name, { type: "application/octet-stream" });
+        handleFile(file);
+      }
+      setActiveTab("import");
+    } catch (e: any) {
+      toast.error(`Erro ao carregar ficheiro: ${e.message}`);
+    }
+  };
+
   const mappedCount = Object.keys(fieldMappings).length;
 
   return (
@@ -329,34 +363,73 @@ const IngestionHubPage = () => {
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="import" className="gap-2"><Upload className="w-4 h-4" /> Importar</TabsTrigger>
+          <TabsTrigger value="files" className="gap-2"><FileText className="w-4 h-4" /> Ficheiros</TabsTrigger>
           <TabsTrigger value="jobs" className="gap-2"><Clock className="w-4 h-4" /> Histórico</TabsTrigger>
         </TabsList>
 
         <TabsContent value="import" className="space-y-6 mt-4">
           {!parsedData ? (
-            <Card
-              className={cn("border-2 border-dashed transition-colors cursor-pointer",
-                dragOver ? "border-primary bg-accent" : "border-border hover:border-primary/50"
-              )}
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={onDrop}
-            >
-              <CardContent className="flex flex-col items-center justify-center py-16">
-                <FileSpreadsheet className="w-12 h-12 text-muted-foreground mb-4" />
-                <p className="text-lg font-medium mb-1">Arraste um ficheiro para importar</p>
-                <p className="text-sm text-muted-foreground mb-2">CSV, XLSX, XLS ou JSON</p>
-                <p className="text-xs text-muted-foreground mb-4 flex items-center gap-1">
-                  <Zap className="w-3 h-3" /> Deteção automática de fornecedor e mapeamento inteligente
-                </p>
-                <Button variant="outline" asChild>
-                  <label className="cursor-pointer">
-                    Selecionar Ficheiro
-                    <input type="file" accept=".csv,.xlsx,.xls,.json,.xml" className="hidden" onChange={onFileSelect} />
-                  </label>
-                </Button>
-              </CardContent>
-            </Card>
+            <div className="space-y-6">
+              <Card
+                className={cn("border-2 border-dashed transition-colors cursor-pointer",
+                  dragOver ? "border-primary bg-accent" : "border-border hover:border-primary/50"
+                )}
+                onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={onDrop}
+              >
+                <CardContent className="flex flex-col items-center justify-center py-16">
+                  <FileSpreadsheet className="w-12 h-12 text-muted-foreground mb-4" />
+                  <p className="text-lg font-medium mb-1">Arraste um ficheiro para importar</p>
+                  <p className="text-sm text-muted-foreground mb-2">CSV, XLSX, XLS ou JSON</p>
+                  <p className="text-xs text-muted-foreground mb-4 flex items-center gap-1">
+                    <Zap className="w-3 h-3" /> Deteção automática de fornecedor e mapeamento inteligente
+                  </p>
+                  <Button variant="outline" asChild>
+                    <label className="cursor-pointer">
+                      Selecionar Ficheiro
+                      <input type="file" accept=".csv,.xlsx,.xls,.json,.xml" className="hidden" onChange={onFileSelect} />
+                    </label>
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Tips for the user */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card className="bg-primary/5 border-primary/20">
+                  <CardContent className="pt-6">
+                    <div className="flex gap-3">
+                      <div className="p-2 bg-primary/10 rounded-full h-fit">
+                        <CheckCircle className="w-4 h-4 text-primary" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-semibold mb-1">Combine Ficheiros</h4>
+                        <p className="text-xs text-muted-foreground">
+                          Pode importar primeiro um JSON com preços e depois um Excel com imagens. 
+                          Use o mesmo <strong>Prefixo SKU</strong> em ambos para que o sistema faça o merge automático.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-amber-500/5 border-amber-500/20">
+                  <CardContent className="pt-6">
+                    <div className="flex gap-3">
+                      <div className="p-2 bg-amber-500/10 rounded-full h-fit">
+                        <AlertCircle className="w-4 h-4 text-amber-600" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-semibold mb-1">Atenção ao Prefixo</h4>
+                        <p className="text-xs text-muted-foreground">
+                          Se os produtos no site já têm um prefixo (ex: <strong>CH-</strong>), deve usá-lo aqui 
+                          para que a ferramenta reconheça que o produto já existe em vez de criar um novo.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           ) : (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -578,6 +651,93 @@ const IngestionHubPage = () => {
               )}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="files" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-primary" />
+                  Biblioteca de Ficheiros do Workspace
+                </div>
+                <div className="relative w-64">
+                  <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Procurar ficheiros..."
+                    className="pl-8 h-8 text-xs"
+                    value={fileSearch}
+                    onChange={(e) => setFileSearch(e.target.value)}
+                  />
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoadingFiles ? (
+                <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+              ) : !uploadedFiles || uploadedFiles.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Database className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                  <p>Nenhum ficheiro carregado neste workspace.</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Ficheiro</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead>Data</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {uploadedFiles
+                      .filter(f => f.file_name.toLowerCase().includes(fileSearch.toLowerCase()))
+                      .map((file) => (
+                        <TableRow key={file.id}>
+                          <TableCell className="font-medium">
+                            <div className="flex flex-col">
+                              <span className="text-sm">{file.file_name}</span>
+                              <span className="text-[10px] text-muted-foreground">{(file.file_size / 1024).toFixed(1)} KB</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-[10px] uppercase">{file.file_type || "—"}</Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {format(new Date(file.created_at), "dd/MM/yyyy HH:mm")}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className="text-[10px]">{file.status}</Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs gap-1"
+                                onClick={() => handleFileFromLibrary(file)}
+                              >
+                                <Play className="w-3 h-3" /> Usar p/ Ingestão
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                onClick={() => deleteFile.mutate(file.id)}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="jobs" className="mt-4">
