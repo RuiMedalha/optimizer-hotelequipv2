@@ -144,7 +144,8 @@ Deno.serve(async (req) => {
       const discountPercent = pricing?.discountPercent ?? 0;
 
       const productIds = job.product_ids as string[];
-      const BATCH_SIZE = 3;
+      // Increased BATCH_SIZE from 3 to 10 for faster classic publishing (parallel requests)
+      const BATCH_SIZE = 10;
       const endIndex = Math.min(startIndex + BATCH_SIZE, productIds.length);
       const batchIds = productIds.slice(startIndex, endIndex);
 
