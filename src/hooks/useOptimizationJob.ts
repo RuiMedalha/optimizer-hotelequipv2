@@ -31,7 +31,15 @@ export function useOptimizationJob() {
       .maybeSingle();
 
     if (!error && data) {
-      setActiveJob(data as unknown as OptimizationJob);
+      const job = data as unknown as OptimizationJob;
+      setActiveJob(job);
+      
+      // If the job is terminal, clear it from the active state after a short delay
+      if (["completed", "cancelled", "failed"].includes(job.status) || job.processed_products >= job.total_products) {
+        setTimeout(() => {
+          setActiveJob(prev => (prev?.id === job.id ? null : prev));
+        }, 5000);
+      }
     }
   }, []);
 
@@ -53,7 +61,7 @@ export function useOptimizationJob() {
           const updated = payload.new as OptimizationJob;
           setActiveJob(updated);
 
-          if (updated.status === "completed") {
+          if (updated.status === "completed" || updated.processed_products >= updated.total_products) {
             const failed = updated.failed_products || 0;
             const ok = updated.processed_products - failed;
             if (failed > 0) {
@@ -61,10 +69,13 @@ export function useOptimizationJob() {
             } else {
               toast.success(`${ok} produto(s) otimizado(s) com sucesso! 🚀`);
             }
+            setTimeout(() => setActiveJob(null), 5000);
           } else if (updated.status === "cancelled") {
             toast.info(`Job cancelado. ${updated.processed_products} de ${updated.total_products} processados.`);
+            setTimeout(() => setActiveJob(null), 3000);
           } else if (updated.status === "failed") {
             toast.error("O job de otimização falhou.");
+            setTimeout(() => setActiveJob(null), 5000);
           }
         }
       )

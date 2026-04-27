@@ -1310,7 +1310,7 @@ const ProductsPage = () => {
         </Card>
       )}
 
-      {activeJob && activeJob.status !== "completed" && activeJob.status !== "cancelled" && (
+      {activeJob && (activeJob.status === "processing" || activeJob.status === "queued") && (
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
@@ -1419,7 +1419,7 @@ const ProductsPage = () => {
       )}
 
       {/* WooCommerce Publish Job Progress */}
-      {activePublishJob && activePublishJob.status !== "completed" && activePublishJob.status !== "cancelled" && activePublishJob.status !== "failed" && (
+      {activePublishJob && (activePublishJob.status === "processing" || activePublishJob.status === "queued" || activePublishJob.status === "scheduled") && (
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
