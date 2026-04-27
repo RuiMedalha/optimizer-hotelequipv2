@@ -202,7 +202,7 @@ Deno.serve(async (req) => {
     // and also do a secondary check if needed, but usually SKUs should be normalized.
     const { data: existingProductsList } = await supabase
       .from("products")
-      .select("id, sku")
+      .select("*")
       .eq("workspace_id", workspaceId)
       .in("sku", allSkus);
 
