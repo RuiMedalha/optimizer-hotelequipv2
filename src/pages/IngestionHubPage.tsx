@@ -159,8 +159,6 @@ const IngestionHubPage = () => {
 
       const foundArray = findBestArray(parsed);
       rows = foundArray.length > 0 ? foundArray : [parsed];
-
-      rows = parsed;
       if (rows.length === 0) return;
       headers = Object.keys(rows[0]);
     } else {
