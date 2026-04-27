@@ -309,7 +309,7 @@ const UploadPage = () => {
               <input
                 type="file"
                 multiple
-                accept={activeTab === "update" ? ".xlsx,.xls" : ".pdf,.xlsx,.xls"}
+                accept={activeTab === "update" ? ".xlsx,.xls,.json" : ".pdf,.xlsx,.xls,.json"}
                 className="hidden"
                 onChange={onFileSelect}
               />
@@ -317,8 +317,8 @@ const UploadPage = () => {
           </Button>
           <p className="text-xs text-muted-foreground mt-3">
             {activeTab === "update"
-              ? "Apenas Excel (XLSX/XLS) — os produtos serão identificados pelo SKU"
-              : `Formatos aceites: PDF, XLSX, XLS${activeTab === "products" ? " — Excel permite mapeamento de colunas" : ""}`}
+              ? "Excel (XLSX/XLS) ou JSON — os produtos serão identificados pelo SKU"
+              : `Formatos aceites: PDF, XLSX, XLS, JSON${activeTab === "products" ? " — Ficheiros de dados permitem mapeamento de colunas" : ""}`}
           </p>
         </CardContent>
       </Card>
