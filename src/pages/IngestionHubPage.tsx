@@ -56,6 +56,7 @@ const statusLabels: Record<string, { label: string; color: string }> = {
 
 const IngestionHubPage = () => {
   const { data: jobs, isLoading } = useIngestionJobs();
+  const { data: uploadedFiles, isLoading: isLoadingFiles } = useUploadedFiles();
   const parseIngestion = useParseIngestion();
   const runJob = useRunIngestionJob();
   const {
