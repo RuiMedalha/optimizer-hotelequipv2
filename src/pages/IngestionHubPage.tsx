@@ -915,17 +915,32 @@ function JobDetailDialog({ job, items, onClose }: { job: IngestionJob | null; it
   const [page, setPage] = useState(1);
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [filter, setFilter] = useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState("");
   const pageSize = 50;
   const runJob = useRunIngestionJob();
 
   if (!job) return null;
 
   const filteredItems = items.filter(item => {
-    if (filter === "all") return true;
-    if (filter === "new") return item.action === "insert";
-    if (filter === "update") return item.action === "merge" || item.action === "update";
-    if (filter === "skip") return item.action === "skip";
-    if (filter === "error") return item.status === "error";
+    // 1. Filter by status
+    let matchesStatus = true;
+    if (filter === "new") matchesStatus = item.action === "insert";
+    else if (filter === "update") matchesStatus = item.action === "merge" || item.action === "update";
+    else if (filter === "skip") matchesStatus = item.action === "skip";
+    else if (filter === "error") matchesStatus = item.status === "error";
+
+    if (!matchesStatus) return false;
+
+    // 2. Filter by search term
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      const sku = String(item.mapped_data?.sku || item.source_data?.sku || "").toLowerCase();
+      const title = String(item.mapped_data?.original_title || item.source_data?.original_title || "").toLowerCase();
+      const sourceStr = JSON.stringify(item.source_data).toLowerCase();
+      
+      return sku.includes(term) || title.includes(term) || sourceStr.includes(term);
+    }
+
     return true;
   });
 
