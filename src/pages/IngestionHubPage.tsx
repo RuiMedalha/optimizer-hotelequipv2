@@ -43,6 +43,8 @@ const PRODUCT_FIELDS = [
   { key: "technical_specs", label: "Especificações" },
   { key: "attributes", label: "Atributos" },
   { key: "product_type", label: "Tipo de Produto" },
+  { key: "upsell_skus", label: "Upsell SKUs (IDs/Lista)" },
+  { key: "crosssell_skus", label: "Cross-sell SKUs (IDs/Lista)" },
 ];
 
 const statusLabels: Record<string, { label: string; color: string }> = {
