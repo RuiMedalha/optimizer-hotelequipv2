@@ -324,15 +324,15 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
         <div className="flex-1 flex flex-col p-6 pt-2 overflow-hidden">
           {/* Filters */}
           <div className="flex items-center gap-2 flex-wrap mb-4">
-            <div className="relative flex-1 min-w-[300px]">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Pesquisar por SKU, Título ou Categoria..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-10 text-sm bg-background"
-              />
-            </div>
+          <div className="relative flex-1 min-w-[300px]">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Pesquisar por SKU, Título ou Categoria..."
+              value={localSearchQuery}
+              onChange={(e) => setLocalSearchQuery(e.target.value)}
+              className="pl-9 h-10 text-sm bg-background"
+            />
+          </div>
             <Select value={filterCategory} onValueChange={setFilterCategory}>
               <SelectTrigger className="h-10 text-sm w-[200px] bg-background">
                 <SelectValue placeholder="Categoria atual" />
