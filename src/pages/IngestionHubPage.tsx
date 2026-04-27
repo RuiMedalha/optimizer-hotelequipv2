@@ -319,6 +319,36 @@ const IngestionHubPage = () => {
     setSkuPrefix("");
   };
 
+  const handleFileFromLibrary = async (fileRecord: any) => {
+    try {
+      toast.info(`A carregar "${fileRecord.file_name}"...`);
+      // Determine bucket from storage_path or metadata
+      const bucket = fileRecord.storage_path?.startsWith("knowledge/") ? "knowledge" : "catalogs";
+      const path = fileRecord.storage_path?.replace(`${bucket}/`, "") || fileRecord.storage_path;
+      
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .download(path);
+      
+      if (error) {
+        // Try fallback to standard catalogs bucket if path is just the name
+        const { data: fallbackData, error: fallbackError } = await supabase.storage
+          .from("catalogs")
+          .download(fileRecord.storage_path);
+        
+        if (fallbackError) throw error;
+        const file = new File([fallbackData], fileRecord.file_name, { type: "application/octet-stream" });
+        handleFile(file);
+      } else {
+        const file = new File([data], fileRecord.file_name, { type: "application/octet-stream" });
+        handleFile(file);
+      }
+      setActiveTab("import");
+    } catch (e: any) {
+      toast.error(`Erro ao carregar ficheiro: ${e.message}`);
+    }
+  };
+
   const mappedCount = Object.keys(fieldMappings).length;
 
   return (
