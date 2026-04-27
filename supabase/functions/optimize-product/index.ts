@@ -486,6 +486,7 @@ serve(async (req) => {
       const modelPatterns = [
         /\b(ht)\b/gi, /\b(lp)\b/gi, /\b(hp)\b/gi, /\b(hr)\b/gi,
         /\b(gn\s*\d+\/\d+)\b/gi, /\b(gn\d+\/\d+)\b/gi,
+        /\b([A-Z]{1,4}-?\d+[A-Z0-9\-]*)\b/gi, // Broader SKU-like pattern (e.g., XC-440C, XCLD-440)
         /\bp\/?\s*mod(?:elo)?s?\s*\.?\s*([a-z0-9\-]+(?:\s*[-\/,]\s*[a-z0-9\-]+)*)/gi,
         /\bmod(?:elo)?s?\s*\.?\s*([a-z0-9\-]+(?:\s*[-\/,]\s*[a-z0-9\-]+)*)/gi,
       ];
