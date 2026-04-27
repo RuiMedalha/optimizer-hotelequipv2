@@ -38,19 +38,37 @@ Deno.serve(async (req) => {
     const getFullPath = (catId: string): string => {
       const cat = catMap.get(catId);
       if (!cat) return "";
+      
+      // If the name already contains hierarchy separators, treat it as a path
+      const currentName = cat.name.replace(/&gt;/g, " > ");
+      
       if (cat.parent_id) {
         const parentPath = getFullPath(cat.parent_id);
-        return parentPath ? `${parentPath} > ${cat.name}` : cat.name;
+        if (parentPath) {
+          // Check if parentPath is already contained in currentName to avoid duplication
+          if (currentName.startsWith(parentPath)) return currentName;
+          return `${parentPath} > ${currentName}`;
+        }
       }
-      return cat.name;
+      return currentName;
     };
 
-    const categoryList = cats.map((c: any) => ({
-      id: c.id,
-      name: c.name,
-      full_path: getFullPath(c.id),
-      description: c.description,
-    }));
+    // Build the category list and deduplicate by full_path
+    const uniqueCategoryMap = new Map<string, any>();
+    
+    cats.forEach((c: any) => {
+      const fullPath = getFullPath(c.id);
+      if (!uniqueCategoryMap.has(fullPath) || !c.workspace_id) {
+        uniqueCategoryMap.set(fullPath, {
+          id: c.id,
+          name: c.name,
+          full_path: fullPath,
+          description: c.description,
+        });
+      }
+    });
+
+    const categoryList = Array.from(uniqueCategoryMap.values());
 
     // Build the prompt
     const systemPrompt = `You are a Product Classification Agent for an e-commerce catalog management system focused on the HORECA sector.
@@ -61,17 +79,17 @@ CRITICAL RULES:
 1. You MUST ONLY use categories that ALREADY EXIST in the catalog taxonomy provided below.
 2. DO NOT invent new category names, do not fix typos, and do not truncate the hierarchy.
 3. ALWAYS provide the FULL path starting from the root (e.g., "FRIO COMERCIAL > Armarios > Expositores > Bebidas/Cerveja").
-4. If you suggest "Armarios > Expositores > Bebidas/Cerveja" without "FRIO COMERCIAL", it is WRONG.
-5. TEMPERATURE DETECTION: If description mentions cooling, refrigerated, "frio", "frigorífico", "chiller", "refrigeração" or positive temperatures (0°C to 15°C), prioritize "FRIO COMERCIAL".
-6. If description mentions freezing, "congelação", "congelador", "freezer" or negative temperatures (-18°C, etc), prioritize "CONGELAÇÃO".
-7. ACCESSORY DETECTION: If the product is an accessory (e.g., "Estante", "Prateleira", "Grelha", "Cesto", "Shelf", "Kit", "Suporte", "Acessório"), you MUST look for the "Acessorios" sub-category within the correct top-level category.
-8. Choose the MOST SPECIFIC category possible (the leaf node).
-9. Suggest up to 3 alternative categories from the list if relevant.
+4. TEMPERATURE DETECTION: 
+   - If description or title mentions cooling, refrigerated, "frio", "frigorífico", "chiller", "refrigeração", "refrigerado", "positivo", or positive temperatures (e.g., "0°C", "+2°C"), the category MUST start with "FRIO COMERCIAL".
+   - If description or title mentions freezing, "congelação", "congelador", "congelado", "freezer", "negativo", or negative temperatures (e.g., "-18°C", "-20°C"), prioritize "CONGELAÇÃO" or the relevant sub-path within "FRIO COMERCIAL" if it contains freezing units.
+5. ACCESSORY DETECTION: If the product is an accessory (e.g., "Estante", "Prateleira", "Grelha", "Cesto", "Shelf", "Kit", "Suporte", "Acessório"), you MUST look for the "Acessorios" sub-category within the correct top-level category.
+6. Choose the MOST SPECIFIC category possible (the leaf node).
+7. Suggest up to 3 alternative categories from the list if relevant.
 
 LEARNING EXAMPLES (How existing products are classified):
 ${examples?.map(e => `- Product: "${e.original_title}" -> Category: "${e.category}"`).join('\n') || "No examples available yet."}
 
-EXISTING CATEGORIES (Use these EXACT strings for "category_name"):
+EXISTING CATEGORIES (Use EXACT "full_path" strings):
 ${categoryList.map(c => `- [${c.id}] ${c.full_path}`).join('\n')}
 
 You MUST respond with valid JSON only. Use this exact schema:

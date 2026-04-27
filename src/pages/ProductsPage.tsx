@@ -826,7 +826,7 @@ const ProductsPage = () => {
           </span>
         )}
       </td>
-      <td className="p-3 max-w-[140px]" onClick={(e) => e.stopPropagation()}>
+      <td className="p-3 max-w-[200px]" onClick={(e) => e.stopPropagation()}>
         {editingCell?.id === product.id && editingCell.field === "category" ? (
           <div className="flex gap-1">
             <Input
@@ -1897,7 +1897,7 @@ const ProductsPage = () => {
                             </td>
                             <td className="p-3 max-w-[180px] truncate font-medium" title={item.product.original_title ?? undefined}>{item.product.original_title ?? "—"}</td>
                             <td className="p-3 max-w-[180px] truncate text-primary font-medium" title={item.product.optimized_title ?? undefined}>{item.product.optimized_title ?? "—"}</td>
-                            <td className="p-3 max-w-[140px] truncate text-xs" title={item.product.category ?? undefined}>{item.product.category ?? "—"}</td>
+                            <td className="p-3 max-w-[200px] truncate text-xs" title={item.product.category ?? undefined}>{item.product.category ?? "—"}</td>
                             <td className="p-3 max-w-[140px] truncate text-xs" title={item.product.optimized_short_description ?? undefined}>{item.product.optimized_short_description ?? "—"}</td>
                             <td className="p-3 max-w-[120px] truncate text-xs font-mono text-muted-foreground" title={item.product.seo_slug ?? undefined}>{item.product.seo_slug ?? "—"}</td>
                             <td className="p-3">
