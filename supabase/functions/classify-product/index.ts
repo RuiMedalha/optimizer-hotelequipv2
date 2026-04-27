@@ -71,7 +71,7 @@ LEARNING EXAMPLES (How existing products are classified):
 ${examples?.map(e => `- Product: "${e.original_title}" -> Category: "${e.category}"`).join('\n') || "No examples available yet."}
 
 EXISTING CATEGORIES (Full Path):
-${categoryList.map(c => `- [${c.id}] ${c.full_path}`).join('\n')}`;
+${categoryList.map(c => `- [${c.id}] ${c.full_path}`).join('\n')}
 
 You MUST respond with valid JSON only. Use this exact schema:
 {
