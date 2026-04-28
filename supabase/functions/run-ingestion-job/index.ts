@@ -366,18 +366,23 @@ Deno.serve(async (req) => {
 
           if (isSupplierDelta) {
             // Write to sync_staging instead of updating products
-            // We populate proposed_changes with the data to be applied
+            // Ensure CATEGORY and BRAND are in the proposed_changes
             const { error: stagingErr } = await supabase
               .from("sync_staging")
               .insert({
                 ingestion_job_id: jobId,
                 supplier_id: job.supplier_id,
                 sku_supplier: rawSku,
-                sku_site_target: existingProduct?.sku || null, // Link to existing SKU for alias creation
+                sku_site_target: existingProduct?.sku || null,
                 confidence_score: confidence,
                 match_method: matchMethod,
                 supplier_data: mergedData,
-                proposed_changes: mergedData, // Crucial: mapping data must be here for approval
+                proposed_changes: {
+                   ...mergedData,
+                   category: mergedData.category || mergedData.Categoria,
+                   brand: mergedData.brand || mergedData.Marca,
+                   original_description: mergedData.original_description || mergedData.Descrição
+                },
                 site_data: existingProduct || null,
                 existing_product_id: existingProduct?.id || null,
                 status: status,
