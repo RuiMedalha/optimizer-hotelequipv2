@@ -9717,6 +9717,7 @@ export type Database = {
       products: {
         Row: {
           attributes: Json | null
+          brand: string | null
           canonical_product_id: string | null
           canonical_supplier_family: string | null
           canonical_supplier_model: string | null
@@ -9771,6 +9772,7 @@ export type Database = {
         }
         Insert: {
           attributes?: Json | null
+          brand?: string | null
           canonical_product_id?: string | null
           canonical_supplier_family?: string | null
           canonical_supplier_model?: string | null
@@ -9827,6 +9829,7 @@ export type Database = {
         }
         Update: {
           attributes?: Json | null
+          brand?: string | null
           canonical_product_id?: string | null
           canonical_supplier_family?: string | null
           canonical_supplier_model?: string | null
