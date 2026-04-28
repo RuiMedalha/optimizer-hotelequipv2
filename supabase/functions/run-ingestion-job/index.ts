@@ -85,8 +85,8 @@ Deno.serve(async (req) => {
     }
 
     // Fetch items with status 'mapped' (not yet processed)
-    // We process in batches of 50 per invocation to stay within memory/time limits
-    const INVOCATION_BATCH_SIZE = 50;
+    // We process in batches of 100 per invocation to improve throughput
+    const INVOCATION_BATCH_SIZE = 100;
     
     const { data: pendingItems, error: itemsErr } = await supabase
       .from("ingestion_job_items")
@@ -217,13 +217,19 @@ Deno.serve(async (req) => {
       const result = { ...base };
       for (const [key, val] of Object.entries(overlay)) {
         if (val === undefined || val === null || val === "") continue;
+        
+        // Se o valor existe na proposta, ele deve SOBREPOR o valor atual
+        // para garantir que re-mapeamentos manuais funcionem.
+        // Anteriormente, só preenchia se estivesse vazio.
         const existing = result[key];
-        if (existing === undefined || existing === null || existing === "") {
-          result[key] = val;
-        } else if (Array.isArray(existing) && Array.isArray(val)) {
+        
+        if (Array.isArray(existing) && Array.isArray(val)) {
           result[key] = [...new Set([...existing, ...val])];
         } else if (typeof existing === "object" && typeof val === "object" && !Array.isArray(existing)) {
           result[key] = { ...existing, ...val };
+        } else {
+          // Tipos primitivos (string, number): o novo valor substitui o antigo
+          result[key] = val;
         }
       }
       return result;

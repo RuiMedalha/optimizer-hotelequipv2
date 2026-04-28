@@ -147,7 +147,7 @@ export function SmartColumnInferencePreview({ inference, headers, sampleData, fi
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sampleData.slice(0, 10).map((row, i) => (
+                  {sampleData.slice(0, 50).map((row, i) => (
                     <TableRow key={i}>
                       <TableCell className="text-[10px] text-muted-foreground sticky left-0 bg-background z-20 border-r text-center shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">{i + 1}</TableCell>
                       {headers.map(h => {
