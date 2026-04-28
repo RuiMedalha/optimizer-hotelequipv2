@@ -303,7 +303,7 @@ const IngestionHubPage = () => {
         mode: "dry_run",
         skuPrefix: skuPrefix.trim() || undefined,
         sourceLanguage: sourceLang,
-        role: jobRole || (currentDetection?.matched_supplier_id ? "supplier_delta" : undefined),
+        role: jobRole, // Use explicitly selected role (undefined means Direct Catalog)
         supplierId: currentDetection?.matched_supplier_id,
       });
       setPreviewResult(result);
@@ -329,7 +329,7 @@ const IngestionHubPage = () => {
         mode: "live",
         skuPrefix: skuPrefix.trim() || undefined,
         sourceLanguage: sourceLang,
-        role: jobRole || (currentDetection?.matched_supplier_id ? "supplier_delta" : undefined),
+        role: jobRole, // Use explicitly selected role (undefined means Direct Catalog)
         supplierId: currentDetection?.matched_supplier_id,
       });
       
@@ -341,7 +341,7 @@ const IngestionHubPage = () => {
           sourceLanguage: sourceLang,
           mergeStrategy,
           duplicateDetectionFields: dupFields.split(",").map(s => s.trim()).filter(Boolean),
-          role: jobRole || (currentDetection?.matched_supplier_id ? "supplier_delta" : undefined)
+          role: jobRole
         }
       }).eq("id", result.jobId);
 
@@ -683,12 +683,22 @@ const IngestionHubPage = () => {
                     <div className="space-y-1">
                       <Label className="text-xs font-semibold">Modo de Importação</Label>
                       <Select value={jobRole || "direct"} onValueChange={(v) => setJobRole(v === "direct" ? undefined : v)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectTrigger className={cn(
+                          "h-10",
+                          (jobRole === "supplier_delta" || (!jobRole && currentDetection?.matched_supplier_id)) ? "border-amber-500 bg-amber-50" : "border-blue-500 bg-blue-50"
+                        )}>
+                          <SelectValue />
+                        </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="direct">Catálogo Direto</SelectItem>
-                          <SelectItem value="supplier_delta">Delta de Fornecedor (Reconciliação)</SelectItem>
+                          <SelectItem value="direct">🚀 Atualização Direta de Produtos</SelectItem>
+                          <SelectItem value="supplier_delta">⚖️ Reconciliação (Staging / Fornecedor)</SelectItem>
                         </SelectContent>
                       </Select>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        {jobRole === "supplier_delta" ? 
+                          "⚠️ Os produtos não serão atualizados agora. Terá de aprovar as alterações na aba Reconciliação." : 
+                          "✅ Os produtos existentes serão atualizados e os novos serão criados imediatamente."}
+                      </p>
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs font-semibold">Estado do Mapeamento</Label>
