@@ -1250,26 +1250,39 @@ function JobDetailDialog({ job, items, onClose }: { job: IngestionJob | null; it
             {/* Re-run / Inject button */}
             {(job.status === "dry_run" || job.status === "done" || job.status === "error") && (
               <div className="border-t pt-3 mt-2 space-y-2">
-                <p className="text-xs text-muted-foreground text-center">
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      onClose();
+                      handleRemapJob(job.id);
+                    }}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Re-mapear Lote
+                  </Button>
+                  <Button
+                    className="flex-[2]"
+                    disabled={runJob.isPending}
+                    onClick={() => {
+                      runJob.mutate(job.id, {
+                        onSuccess: () => toast.success("Ingestão concluída — SKUs duplicados foram fundidos"),
+                      });
+                    }}
+                  >
+                    {runJob.isPending ? (
+                      <><Loader2 className="h-4 w-4 animate-spin mr-2" /> A injetar...</>
+                    ) : (
+                      <><Play className="h-4 w-4 mr-2" /> {job.status === "dry_run" ? "Injetar nos Produtos" : "Re-executar Ingestão"}</>
+                    )}
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground text-center">
                   {job.status === "dry_run"
-                    ? "Pronto para injetar. SKUs duplicados serão fundidos automaticamente num único produto."
-                    : "Pode re-executar este job. SKUs duplicados serão fundidos num único produto."}
+                    ? "Pronto para injetar. SKUs duplicados serão fundidos automaticamente."
+                    : "Pode re-executar este job. SKUs duplicados serão fundidos."}
                 </p>
-                <Button
-                  className="w-full"
-                  disabled={runJob.isPending}
-                  onClick={() => {
-                    runJob.mutate(job.id, {
-                      onSuccess: () => toast.success("Ingestão concluída — SKUs duplicados foram fundidos"),
-                    });
-                  }}
-                >
-                  {runJob.isPending ? (
-                    <><Loader2 className="h-4 w-4 animate-spin mr-2" /> A injetar...</>
-                  ) : (
-                    <><Play className="h-4 w-4 mr-2" /> {job.status === "dry_run" ? "Injetar nos Produtos" : "Re-executar Ingestão"}</>
-                  )}
-                </Button>
               </div>
             )}
           </div>
