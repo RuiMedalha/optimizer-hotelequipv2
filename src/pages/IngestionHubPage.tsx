@@ -366,12 +366,12 @@ const IngestionHubPage = () => {
     if (!job) return;
 
     try {
-      toast.info("A analisar dados para re-mapeamento...");
+      toast.info("A carregar dados para re-mapeamento...");
       
-      // 1. Fetch all items for this job to get original source data
+      // 1. Fetch source data from items
       const { data: items, error: itemsErr } = await supabase
         .from("ingestion_job_items")
-        .select("source_data, source_row_index")
+        .select("source_data")
         .eq("job_id", jobId)
         .order("source_row_index", { ascending: true });
 
@@ -379,33 +379,35 @@ const IngestionHubPage = () => {
       if (!items || items.length === 0) throw new Error("Job sem dados fonte");
 
       const sourceRows = items.map(i => i.source_data);
+      const headers = Object.keys(sourceRows[0] || {});
       
-      // 2. Determine current field mappings
-      // We'll try to get it from the job config or meta if available, 
-      // otherwise we use what's currently in the state (if it was recently edited)
-      const currentMappings = fieldMappings;
+      // 2. Populate state with job configuration
+      setParsedData(sourceRows);
+      setParsedHeaders(headers);
+      setFileName(job.file_name || "Re-mapeamento");
+      
+      const config = (job as any).config || {};
+      setFieldMappings(config.fieldMappings || {});
+      setSkuPrefix(config.skuPrefix || "");
+      setSourceLang(config.sourceLanguage || "auto");
+      setMergeStrategy(config.mergeStrategy || job.merge_strategy || "merge");
+      setDupFields((config.duplicateDetectionFields || ["sku"]).join(", "));
+      setJobRole(config.role || job.role || undefined);
+      
+      // If there was a supplier, set it for auto-detection panel
+      if (job.supplier_id) {
+        setCurrentDetection({ matched_supplier_id: job.supplier_id });
+      }
 
-      // 3. Delete old items
-      await supabase.from("ingestion_job_items").delete().eq("job_id", jobId);
-
-      // 4. Trigger parse again (this will create new items and update the job)
-      const result = await parseIngestion.mutateAsync({
-        data: sourceRows,
-        fileName: job.file_name || undefined,
-        sourceType: job.source_type || undefined,
-        fieldMappings: currentMappings,
-        mergeStrategy: job.merge_strategy || undefined,
-        mode: "dry_run", // Always back to dry_run for safety
-        role: job.role || undefined,
-        supplierId: job.supplier_id || undefined,
-      });
-
-      toast.success("Job re-mapeado com sucesso");
-      // Open the detail dialog for the new job (which has the same ID if we were clever, 
-      // but parse-ingestion creates a NEW job. To reuse the same JOB ID we'd need a different tool.)
-      // For now, let the user see the new job in the list.
+      // 3. Switch to import tab and show mapping UI
+      setActiveTab("import");
+      setShowReview(false);
+      setPreviewResult(null);
+      setPreviewJobId(null);
+      
+      toast.success("Dados carregados. Pode agora ajustar o mapeamento.");
     } catch (err: any) {
-      toast.error(`Erro ao re-mapear: ${err.message}`);
+      toast.error(`Erro ao carregar job: ${err.message}`);
     }
   };
 
