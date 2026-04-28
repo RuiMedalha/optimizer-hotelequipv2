@@ -397,6 +397,7 @@ const IngestionHubPage = () => {
     setShowReview(false);
     setShowCorrections(false);
     setSkuPrefix("");
+    setJobRole(undefined);
   };
 
   const handleFileFromLibrary = async (fileRecord: any) => {
