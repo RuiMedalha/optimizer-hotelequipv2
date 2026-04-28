@@ -6979,6 +6979,7 @@ export type Database = {
         Row: {
           archived_at: string | null
           completed_at: string | null
+          config: Json | null
           created_at: string
           duplicate_rows: number
           error_message: string | null
@@ -7008,6 +7009,7 @@ export type Database = {
         Insert: {
           archived_at?: string | null
           completed_at?: string | null
+          config?: Json | null
           created_at?: string
           duplicate_rows?: number
           error_message?: string | null
@@ -7037,6 +7039,7 @@ export type Database = {
         Update: {
           archived_at?: string | null
           completed_at?: string | null
+          config?: Json | null
           created_at?: string
           duplicate_rows?: number
           error_message?: string | null
