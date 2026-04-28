@@ -224,6 +224,22 @@ Deno.serve(async (req) => {
 
     const itemsToUpdateStatus: { id: string, status: string, product_id?: string, error_message?: string }[] = [];
 
+    // ─── Supplier Delta Mode ───
+    const isSupplierDelta = job.role === 'supplier_delta';
+    let aliasMap = new Map<string, string>();
+    
+    if (isSupplierDelta && job.supplier_id) {
+      const { data: aliases } = await supabase
+        .from("sku_aliases")
+        .select("sku_supplier, sku_site")
+        .eq("workspace_id", workspaceId)
+        .eq("supplier_id", job.supplier_id);
+      
+      if (aliases) {
+        aliases.forEach(a => aliasMap.set(normalizeSKU(a.sku_supplier), a.sku_site));
+      }
+    }
+
     // Process SKU Groups in batches
     for (let i = 0; i < skuEntries.length; i += BATCH_SIZE) {
       const batch = skuEntries.slice(i, i + BATCH_SIZE);
