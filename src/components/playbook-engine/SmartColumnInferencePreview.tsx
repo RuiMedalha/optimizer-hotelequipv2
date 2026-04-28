@@ -74,101 +74,106 @@ export function SmartColumnInferencePreview({ inference, headers, sampleData, fi
         </Card>
       )}
 
-      {/* Mapping grid */}
+      {/* Integrated Mapping & Preview Table */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Zap className="w-4 h-4 text-primary" />
-            Mapeamento Inteligente
-            {inference && (
-              <Badge variant="outline" className="text-[10px]">
-                {Math.round((inference.confidence || 0) * 100)}% confiança média
-              </Badge>
-            )}
-            <span className="text-[10px] text-muted-foreground font-normal ml-auto">
-              Colunas não mapeadas serão guardadas como atributos adicionais.
+          <CardTitle className="text-sm flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-primary" />
+              Mapeamento de Colunas e Preview
+              {inference && (
+                <Badge variant="outline" className="text-[10px]">
+                  {Math.round((inference.confidence || 0) * 100)}% confiança média
+                </Badge>
+              )}
+            </div>
+            <span className="text-[10px] text-muted-foreground font-normal">
+              Deslize para o lado para ver todas as colunas ({headers.length}).
             </span>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {headers.map(header => {
-              const conf = getConfidence(header);
-              const mapped = fieldMappings[header];
-              return (
-                <div key={header} className="flex items-center gap-2">
-                  <div className="flex items-center gap-1 min-w-0 flex-shrink">
-                    <span className="text-xs font-mono bg-muted px-2 py-1 rounded truncate" title={header}>
-                      {header}
-                    </span>
-                    {conf && (
-                      <span title={`${conf.method} · ${Math.round(conf.confidence * 100)}%`}>
-                        {conf.confidence >= 0.8 ? (
-                          <CheckCircle className="w-3 h-3 text-green-500" />
-                        ) : conf.confidence >= 0.6 ? (
-                          <AlertTriangle className="w-3 h-3 text-amber-500" />
-                        ) : (
-                          <AlertTriangle className="w-3 h-3 text-destructive" />
-                        )}
-                      </span>
-                    )}
-                  </div>
-                  <ArrowRight className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                  <Select value={mapped || "__skip__"} onValueChange={v => handleChange(header, v)}>
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="Ignorar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__skip__">— Ignorar —</SelectItem>
-                      {PRODUCT_FIELDS.map(f => (
-                        <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Sample preview */}
-      {sampleData.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Preview (primeiras 5 linhas)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="w-full">
+        <CardContent className="p-0">
+          <ScrollArea className="w-full">
+            <div className="min-w-max pb-4">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-xs w-10">#</TableHead>
-                    {headers.filter(h => fieldMappings[h] || headers.indexOf(h) < 6).slice(0, 10).map(h => (
-                      <TableHead key={h} className="text-xs">
-                        {h}
-                        {fieldMappings[h] && (
-                          <Badge variant="outline" className="ml-1 text-[9px] bg-primary/10">{fieldMappings[h]}</Badge>
-                        )}
-                      </TableHead>
-                    ))}
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="text-[10px] font-bold sticky left-0 bg-muted/50 z-20 w-12 border-r">#</TableHead>
+                    {headers.map(header => {
+                      const conf = getConfidence(header);
+                      const mapped = fieldMappings[header];
+                      return (
+                        <TableHead key={header} className="min-w-[200px] border-r py-3 px-4">
+                          <div className="space-y-3">
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Campo de Destino</span>
+                              <Select value={mapped || "__skip__"} onValueChange={v => handleChange(header, v)}>
+                                <SelectTrigger className={cn(
+                                  "h-8 text-xs font-semibold",
+                                  mapped ? "border-primary bg-primary/5 text-primary" : "border-muted-foreground/20"
+                                )}>
+                                  <SelectValue placeholder="Ignorar" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="__skip__">— Ignorar —</SelectItem>
+                                  {PRODUCT_FIELDS.map(f => (
+                                    <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="flex items-center gap-2 pt-2 border-t border-muted-foreground/10">
+                              <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded truncate flex-1" title={header}>
+                                {header}
+                              </span>
+                              {conf && (
+                                <span title={`${conf.method} · ${Math.round(conf.confidence * 100)}%`}>
+                                  {conf.confidence >= 0.8 ? (
+                                    <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                                  ) : conf.confidence >= 0.6 ? (
+                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                                  ) : (
+                                    <AlertTriangle className="w-3.5 h-3.5 text-destructive" />
+                                  )}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </TableHead>
+                      );
+                    })}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sampleData.slice(0, 5).map((row, i) => (
+                  {sampleData.slice(0, 10).map((row, i) => (
                     <TableRow key={i}>
-                      <TableCell className="text-xs text-muted-foreground">{i + 1}</TableCell>
-                      {headers.filter(h => fieldMappings[h] || headers.indexOf(h) < 6).slice(0, 10).map(h => {
+                      <TableCell className="text-[10px] text-muted-foreground sticky left-0 bg-background z-20 border-r text-center">{i + 1}</TableCell>
+                      {headers.map(h => {
                         const val = String(row[h] ?? "");
                         const isImage = fieldMappings[h] === "image_urls";
+                        const isPrice = fieldMappings[h]?.includes('price');
+                        const isEan = fieldMappings[h] === "ean";
+                        
                         return (
-                          <TableCell key={h} className="text-xs max-w-[200px] truncate">
+                          <TableCell key={h} className={cn(
+                            "text-xs max-w-[250px] border-r px-4",
+                            fieldMappings[h] ? "bg-primary/5" : ""
+                          )}>
                             {isImage && val.startsWith('http') ? (
-                              <div className="flex items-center gap-2">
-                                <img src={val.split(',')[0]} className="w-6 h-6 object-cover rounded border" alt="preview" />
-                                <span className="truncate">{val}</span>
+                              <div className="flex items-center gap-2 overflow-hidden">
+                                <img src={val.split(',')[0]} className="w-8 h-8 object-cover rounded border bg-white shrink-0" alt="preview" />
+                                <span className="truncate text-[10px] text-muted-foreground">{val}</span>
                               </div>
-                            ) : val}
+                            ) : (
+                              <div className={cn(
+                                "truncate",
+                                isPrice ? "font-mono font-bold text-green-700" : "",
+                                isEan ? "font-mono" : ""
+                              )}>
+                                {val || <span className="text-muted-foreground/30 italic">vazio</span>}
+                              </div>
+                            )}
                           </TableCell>
                         );
                       })}
@@ -176,10 +181,10 @@ export function SmartColumnInferencePreview({ inference, headers, sampleData, fi
                   ))}
                 </TableBody>
               </Table>
-            </ScrollArea>
-          </CardContent>
-        </Card>
-      )}
+            </div>
+          </ScrollArea>
+        </CardContent>
+      </Card>
     </div>
   );
 }
