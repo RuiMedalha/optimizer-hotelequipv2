@@ -162,6 +162,7 @@ export function useIngestionJobItems(jobId: string | null) {
         .from("ingestion_job_items" as any)
         .select("*")
         .eq("job_id", jobId)
+        .limit(10000) // Increase limit to handle larger jobs (up to 10k rows)
         .order("source_row_index", { ascending: true });
       if (error) throw error;
       return (data || []) as unknown as IngestionJobItem[];
