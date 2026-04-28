@@ -360,7 +360,7 @@ const ProductsPage = () => {
 
   // Build grouped view structure
   const groupedView = useMemo(() => {
-    if (viewMode !== "grouped") return null;
+    if (viewMode !== "grouped" || !Array.isArray(products)) return null;
 
     type GroupedItem = 
       | { type: "parent"; product: Product; children: Product[] }
@@ -370,18 +370,19 @@ const ProductsPage = () => {
     const variationIds = new Set<string>();
 
     // Find all variable products and their children
-    const variableProducts = filtered.filter(p => p.product_type === "variable");
-    const allProds = products;
+    const variableProducts = filtered.filter(p => p && p.product_type === "variable");
+    const allProds = products || [];
 
     for (const parent of variableProducts) {
-      const children = allProds.filter(p => p.parent_product_id === parent.id);
-      children.forEach(c => variationIds.add(c.id));
+      if (!parent) continue;
+      const children = allProds.filter(p => p && p.parent_product_id === parent.id);
+      children.forEach(c => c && variationIds.add(c.id));
       items.push({ type: "parent", product: parent, children });
     }
 
     // Add standalone products (simple or orphan variations not already shown)
     for (const p of filtered) {
-      if (p.product_type !== "variable" && !variationIds.has(p.id)) {
+      if (p && p.product_type !== "variable" && !variationIds.has(p.id)) {
         items.push({ type: "standalone", product: p });
       }
     }
