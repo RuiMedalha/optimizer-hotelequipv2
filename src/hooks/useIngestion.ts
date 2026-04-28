@@ -4,6 +4,26 @@ import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { toast } from "sonner";
 import { useEffect } from "react";
 
+export interface SyncStagingItem {
+  id: string;
+  workspace_id: string;
+  supplier_id: string | null;
+  ingestion_job_id: string | null;
+  sku_supplier: string | null;
+  sku_site_target: string | null;
+  existing_product_id: string | null;
+  proposed_changes: any;
+  supplier_data: any;
+  site_data: any;
+  confidence_score: number;
+  match_method: 'exact' | 'normalized' | 'fuzzy' | 'ean' | 'manual';
+  status: 'pending' | 'approved' | 'rejected' | 'processed';
+  created_at: string;
+  updated_at: string;
+}
+
+
+
 // ─── Types ───
 export interface IngestionSource {
   id: string;
@@ -237,3 +257,44 @@ export function useRunIngestionJob() {
     onError: (e) => toast.error(e.message),
   });
 }
+
+export function usePendingStagingItems() {
+  const { activeWorkspace } = useWorkspaceContext();
+  return useQuery({
+    queryKey: ["pending-staging-items", activeWorkspace?.id],
+    enabled: !!activeWorkspace?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sync_staging")
+        .select(`
+          *,
+          supplier:suppliers(name)
+        `)
+        .eq("workspace_id", activeWorkspace!.id)
+        .eq("status", "pending")
+        .order("confidence_score", { ascending: false });
+      if (error) throw error;
+      return data as unknown as (SyncStagingItem & { supplier: { name: string } | null })[];
+    },
+  });
+}
+
+export function useProcessStagingItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, action, data }: { id: string; action: 'approve' | 'reject'; data?: any }) => {
+      const { data: result, error } = await supabase.functions.invoke("process-staging-item", {
+        body: { id, action, data },
+      });
+      if (error) throw error;
+      return result;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["pending-staging-items"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      toast.success("Ação processada com sucesso");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+}
+

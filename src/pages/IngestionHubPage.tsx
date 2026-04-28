@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
-import { Upload, FileSpreadsheet, Play, Eye, Loader2, CheckCircle, AlertCircle, Clock, ArrowRight, X, Database, Webhook, Zap, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RefreshCw, Plus, Check, FileText, Search, Trash2 } from "lucide-react";
+import { Upload, FileSpreadsheet, Play, Eye, Loader2, CheckCircle, AlertCircle, Clock, ArrowRight, X, Database, Webhook, Zap, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RefreshCw, Plus, Check, FileText, Search, Trash2, History } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { useIngestionJobs, useIngestionJobItems, useParseIngestion, useRunIngestionJob, type IngestionJob } from "@/hooks/useIngestion";
+import { useIngestionJobs, useIngestionJobItems, useParseIngestion, useRunIngestionJob, usePendingStagingItems, type IngestionJob } from "@/hooks/useIngestion";
+import { ReconciliationTab } from "@/components/supplier/ReconciliationTab";
+
 import { usePlaybookEngine } from "@/hooks/usePlaybookEngine";
 import { useUploadedFiles } from "@/hooks/useUploadedFiles";
 import { useDeleteUploadedFile } from "@/hooks/useDeleteUploadedFile";
@@ -59,6 +61,9 @@ const statusLabels: Record<string, { label: string; color: string }> = {
 
 const IngestionHubPage = () => {
   const { data: jobs, isLoading } = useIngestionJobs();
+  const { data: pendingStagingItems } = usePendingStagingItems();
+  const hasPendingStaging = (pendingStagingItems?.length || 0) > 0;
+
   const { data: uploadedFiles, isLoading: isLoadingFiles } = useUploadedFiles();
   const parseIngestion = useParseIngestion();
   const runJob = useRunIngestionJob();
@@ -430,7 +435,17 @@ const IngestionHubPage = () => {
           <TabsTrigger value="import" className="gap-2"><Upload className="w-4 h-4" /> Importar</TabsTrigger>
           <TabsTrigger value="files" className="gap-2"><FileText className="w-4 h-4" /> Ficheiros</TabsTrigger>
           <TabsTrigger value="jobs" className="gap-2"><Clock className="w-4 h-4" /> Histórico</TabsTrigger>
+          {hasPendingStaging && (
+            <TabsTrigger value="reconciliation" className="gap-2">
+              <History className="w-4 h-4" /> 
+              Reconciliação 
+              <Badge variant="secondary" className="ml-1 h-5 px-1 bg-primary/20 text-primary border-none">
+                {pendingStagingItems?.length}
+              </Badge>
+            </TabsTrigger>
+          )}
         </TabsList>
+
 
         <TabsContent value="import" className="space-y-6 mt-4">
           {!parsedData ? (
@@ -926,7 +941,14 @@ const IngestionHubPage = () => {
             );
           })()}
         </TabsContent>
+        
+        {hasPendingStaging && (
+          <TabsContent value="reconciliation">
+            <ReconciliationTab />
+          </TabsContent>
+        )}
       </Tabs>
+
 
       {/* Job Detail Dialog */}
       <JobDetailDialog job={detailJob} items={detailItems || []} onClose={() => setDetailJob(null)} />
