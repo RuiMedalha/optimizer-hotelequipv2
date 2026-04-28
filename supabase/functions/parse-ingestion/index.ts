@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
     if (authError || !user) throw new Error("Unauthorized");
 
     const body = await req.json();
-    const { workspaceId, sourceId, data, fileName, sourceType, fieldMappings, mergeStrategy, duplicateDetectionFields, groupingConfig, mode, skuPrefix, sourceLanguage, role, supplierId } = body;
+    const { workspaceId, sourceId, data, masterData, fileName, sourceType, fieldMappings, mergeStrategy, duplicateDetectionFields, groupingConfig, mode, skuPrefix, sourceLanguage, role, supplierId } = body;
 
     if (!workspaceId) throw new Error("workspaceId required");
     if (!data && !fileName) throw new Error("data or fileName required");
@@ -184,33 +184,45 @@ Deno.serve(async (req) => {
     // Create job items
     const items = rows.map((row, idx) => {
       const mapped = mapRow(row);
+      
+      // Clean numeric values (price, stock)
+      ["original_price", "sale_price", "stock", "weight"].forEach(field => {
+        if (mapped[field]) {
+          const val = String(mapped[field]).replace(/[^\d.,-]/g, '').replace(',', '.');
+          mapped[field] = parseFloat(val) || 0;
+        }
+      });
 
-      // Check duplicates
+      // Match logic
       let matchedId: string | null = null;
+      let matchedMasterRow: any = null;
       let matchConf = 0;
-      for (const field of dupFields) {
-        const val = mapped[field] || mapped[`original_${field}`];
-        if (val) {
-          const valStr = String(val).trim().toLowerCase();
-          const key = `${field}:${valStr}`;
+
+      // If we have masterData (Delta Mode), try to find the product in the master file first
+      if (masterData && Array.isArray(masterData)) {
+        for (const masterRow of masterData) {
+          const masterSku = String(masterRow.sku || masterRow.SKU || masterRow.reference || "").trim().toLowerCase();
+          const targetSku = String(mapped.sku || "").trim().toLowerCase();
           
-          if (existingProducts[key]) {
-            matchedId = existingProducts[key];
-            matchConf = field === "sku" ? 100 : 70;
+          if (masterSku && targetSku && masterSku === targetSku) {
+            matchedMasterRow = masterRow;
+            matchConf = 100;
             break;
           }
+        }
+      }
 
-          // Smart matching: if SKU didn't match, try without the prefix we just added
-          if (field === "sku" && skuPrefix) {
-            const prefixLower = String(skuPrefix).trim().toLowerCase();
-            if (valStr.startsWith(prefixLower)) {
-              const withoutPrefix = valStr.substring(prefixLower.length);
-              const altKey = `${field}:${withoutPrefix}`;
-              if (existingProducts[altKey]) {
-                matchedId = existingProducts[altKey];
-                matchConf = 95; // High confidence match without the prefix
-                break;
-              }
+      // Fallback to database lookup for duplicates
+      if (!matchedMasterRow) {
+        for (const field of dupFields) {
+          const val = mapped[field] || mapped[`original_${field}`];
+          if (val) {
+            const valStr = String(val).trim().toLowerCase();
+            const key = `${field}:${valStr}`;
+            if (existingProducts[key]) {
+              matchedId = existingProducts[key];
+              matchConf = field === "sku" ? 100 : 70;
+              break;
             }
           }
         }
@@ -218,7 +230,9 @@ Deno.serve(async (req) => {
 
       // Determine action
       let action: string;
-      if (matchedId) {
+      if (role === "supplier_delta") {
+        action = "staging"; // Force staging for reconciliation mode
+      } else if (matchedId || matchedMasterRow) {
         if (strategy === "insert_only") action = "skip";
         else if (strategy === "update_only") action = "update";
         else action = "merge";

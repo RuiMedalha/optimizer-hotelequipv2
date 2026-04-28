@@ -89,12 +89,17 @@ const IngestionHubPage = () => {
   const [parsedData, setParsedData] = useState<any[] | null>(null);
   const [parsedHeaders, setParsedHeaders] = useState<string[]>([]);
   const [fileName, setFileName] = useState("");
+  
+  // Master File state (for Delta mode)
+  const [masterFileData, setMasterFileData] = useState<any[] | null>(null);
+  const [masterFileName, setMasterFileName] = useState("");
+
   const [fieldMappings, setFieldMappings] = useState<Record<string, string>>({});
   const [mergeStrategy, setMergeStrategy] = useState("merge");
   const [dupFields, setDupFields] = useState("sku");
   const [skuPrefix, setSkuPrefix] = useState("");
   const [sourceLang, setSourceLang] = useState("auto");
-  const [jobRole, setJobRole] = useState<string | undefined>(undefined);
+  const [jobRole, setJobRole] = useState<string | undefined>("supplier_delta");
 
   // Auto-detection state
   const [currentDetection, setCurrentDetection] = useState<any>(null);
@@ -279,6 +284,33 @@ const IngestionHubPage = () => {
     }
   }, [autoDetect, inferMapping, generateDraft]);
 
+  const handleMasterFile = useCallback(async (file: File) => {
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    let rows: any[] = [];
+    
+    if (ext === "csv") {
+      const text = await file.text();
+      const lines = text.split("\n").filter(l => l.trim());
+      const sep = lines[0].includes(";") ? ";" : ",";
+      const headers = lines[0].split(sep).map(h => h.trim().replace(/^"|"$/g, ""));
+      rows = lines.slice(1).map(line => {
+        const vals = line.split(sep).map(v => v.trim().replace(/^"|"$/g, ""));
+        const obj: Record<string, string> = {};
+        headers.forEach((h, i) => { obj[h] = vals[i] || ""; });
+        return obj;
+      });
+    } else if (ext === "xlsx" || ext === "xls") {
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer);
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      rows = XLSX.utils.sheet_to_json<Record<string, any>>(ws);
+    }
+    
+    setMasterFileData(rows);
+    setMasterFileName(file.name);
+    toast.success(`Ficheiro Mestre carregado: ${rows.length} produtos`);
+  }, []);
+
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
@@ -292,9 +324,16 @@ const IngestionHubPage = () => {
 
   const handleDryRun = async () => {
     if (!parsedData) return;
+    
+    if (jobRole === "supplier_delta" && !masterFileData) {
+      toast.error("O Ficheiro Mestre é obrigatório para o modo Delta.");
+      return;
+    }
+
     try {
       const result = await parseIngestion.mutateAsync({
         data: parsedData,
+        masterData: masterFileData || undefined,
         fileName,
         sourceType: fileName.endsWith(".csv") ? "csv" : fileName.endsWith(".json") ? "json" : "xlsx",
         fieldMappings,
@@ -303,24 +342,29 @@ const IngestionHubPage = () => {
         mode: "dry_run",
         skuPrefix: skuPrefix.trim() || undefined,
         sourceLanguage: sourceLang,
-        role: jobRole, // Use explicitly selected role (undefined means Direct Catalog)
+        role: jobRole,
         supplierId: currentDetection?.matched_supplier_id,
       });
       setPreviewResult(result);
       setPreviewJobId(result.jobId);
 
-      // Trigger auto-draft creation after successful dry-run
       triggerAutoDraftAfterIngestion(result.jobId);
-
       toast.success("Preview gerado com sucesso");
     } catch {}
   };
 
   const handleLiveRun = async () => {
     if (!parsedData) return;
+
+    if (jobRole === "supplier_delta" && !masterFileData) {
+      toast.error("O Ficheiro Mestre é obrigatório para o modo Delta.");
+      return;
+    }
+
     try {
       const result = await parseIngestion.mutateAsync({
         data: parsedData,
+        masterData: masterFileData || undefined,
         fileName,
         sourceType: fileName.endsWith(".csv") ? "csv" : fileName.endsWith(".json") ? "json" : "xlsx",
         fieldMappings,
@@ -329,7 +373,7 @@ const IngestionHubPage = () => {
         mode: "live",
         skuPrefix: skuPrefix.trim() || undefined,
         sourceLanguage: sourceLang,
-        role: jobRole, // Use explicitly selected role (undefined means Direct Catalog)
+        role: jobRole,
         supplierId: currentDetection?.matched_supplier_id,
       });
       
@@ -341,11 +385,12 @@ const IngestionHubPage = () => {
           sourceLanguage: sourceLang,
           mergeStrategy,
           duplicateDetectionFields: dupFields.split(",").map(s => s.trim()).filter(Boolean),
-          role: jobRole
+          role: jobRole,
+          masterFileName: masterFileName || undefined
         }
       }).eq("id", result.jobId);
 
-      toast.info(`A iniciar importação de ${parsedData.length} produtos...`);
+      toast.info(`A iniciar processamento de ${parsedData.length} produtos...`);
       await runJob.mutateAsync(result.jobId);
 
       triggerAutoDraftAfterIngestion(result.jobId);
@@ -680,8 +725,8 @@ const IngestionHubPage = () => {
                       <Label className="text-xs font-semibold">Detecção de duplicados</Label>
                       <Input value={dupFields} onChange={e => setDupFields(e.target.value)} placeholder="sku, original_title" />
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold">Modo de Importação</Label>
+                    <div className="space-y-1 col-span-1 md:col-span-2">
+                      <Label className="text-xs font-semibold">Modo de Operação</Label>
                       <Select value={jobRole || "direct"} onValueChange={(v) => setJobRole(v === "direct" ? undefined : v)}>
                         <SelectTrigger className={cn(
                           "h-10",
@@ -691,15 +736,38 @@ const IngestionHubPage = () => {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="direct">🚀 Atualização Direta de Produtos</SelectItem>
-                          <SelectItem value="supplier_delta">⚖️ Reconciliação (Staging / Fornecedor)</SelectItem>
+                          <SelectItem value="supplier_delta">⚖️ Delta de Fornecedor (Reconciliação)</SelectItem>
                         </SelectContent>
                       </Select>
-                      <p className="text-[10px] text-muted-foreground mt-1">
+                      <p className="text-[10px] text-muted-foreground mt-1 italic">
                         {jobRole === "supplier_delta" ? 
-                          "⚠️ Os produtos não serão atualizados agora. Terá de aprovar as alterações na aba Reconciliação." : 
-                          "✅ Os produtos existentes serão atualizados e os novos serão criados imediatamente."}
+                          "Compare o ficheiro do fornecedor com o seu ficheiro mestre. Nada será alterado sem revisão." : 
+                          "Os produtos serão atualizados ou criados no site assim que clicar em Importar."}
                       </p>
                     </div>
+
+                    {jobRole === "supplier_delta" && (
+                      <div className="space-y-1 col-span-1 md:col-span-2">
+                        <Label className="text-xs font-semibold text-amber-700">Ficheiro Mestre (Site Atual)</Label>
+                        <div className="flex gap-2">
+                          <Input 
+                            type="file" 
+                            accept=".csv,.xlsx,.xls" 
+                            className="h-10 text-xs" 
+                            onChange={(e) => e.target.files?.[0] && handleMasterFile(e.target.files[0])}
+                          />
+                          {masterFileData && (
+                            <Badge variant="outline" className="h-10 bg-green-50 text-green-700 border-green-200">
+                              <Check className="w-3 h-3 mr-1" /> {masterFileData.length} Prod.
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-amber-600 mt-1">
+                          ⚠️ Obrigatório para cruzar dados e detetar descontinuados.
+                        </p>
+                      </div>
+                    )}
+
                     <div className="space-y-1">
                       <Label className="text-xs font-semibold">Estado do Mapeamento</Label>
                       <div className="h-10 flex items-center px-3 rounded-md border border-input bg-background">

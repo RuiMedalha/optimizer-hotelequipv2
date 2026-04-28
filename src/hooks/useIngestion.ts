@@ -199,6 +199,7 @@ export function useParseIngestion() {
   return useMutation({
     mutationFn: async (params: {
       data: any[];
+      masterData?: any[];
       fileName?: string;
       sourceType?: string;
       fieldMappings?: Record<string, string>;
