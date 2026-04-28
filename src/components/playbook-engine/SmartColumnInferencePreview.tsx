@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowRight, AlertTriangle, CheckCircle, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -94,28 +94,28 @@ export function SmartColumnInferencePreview({ inference, headers, sampleData, fi
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <ScrollArea className="w-full">
+          <ScrollArea className="w-full whitespace-nowrap">
             <div className="min-w-max pb-4">
-              <Table>
+              <Table className="table-auto">
                 <TableHeader>
                   <TableRow className="bg-muted/50">
-                    <TableHead className="text-[10px] font-bold sticky left-0 bg-muted/50 z-20 w-12 border-r">#</TableHead>
+                    <TableHead className="text-[10px] font-bold sticky left-0 bg-muted/50 z-30 w-12 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">#</TableHead>
                     {headers.map(header => {
                       const conf = getConfidence(header);
                       const mapped = fieldMappings[header];
                       return (
-                        <TableHead key={header} className="min-w-[200px] border-r py-3 px-4">
+                        <TableHead key={header} className="min-w-[220px] max-w-[350px] border-r py-3 px-4 align-top">
                           <div className="space-y-3">
                             <div className="flex flex-col gap-1">
                               <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Campo de Destino</span>
                               <Select value={mapped || "__skip__"} onValueChange={v => handleChange(header, v)}>
                                 <SelectTrigger className={cn(
-                                  "h-8 text-xs font-semibold",
+                                  "h-8 text-xs font-semibold w-full",
                                   mapped ? "border-primary bg-primary/5 text-primary" : "border-muted-foreground/20"
                                 )}>
                                   <SelectValue placeholder="Ignorar" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="z-50">
                                   <SelectItem value="__skip__">— Ignorar —</SelectItem>
                                   {PRODUCT_FIELDS.map(f => (
                                     <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>
@@ -125,7 +125,7 @@ export function SmartColumnInferencePreview({ inference, headers, sampleData, fi
                             </div>
 
                             <div className="flex items-center gap-2 pt-2 border-t border-muted-foreground/10">
-                              <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded truncate flex-1" title={header}>
+                              <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded truncate flex-1 block" title={header}>
                                 {header}
                               </span>
                               {conf && (
@@ -149,7 +149,7 @@ export function SmartColumnInferencePreview({ inference, headers, sampleData, fi
                 <TableBody>
                   {sampleData.slice(0, 10).map((row, i) => (
                     <TableRow key={i}>
-                      <TableCell className="text-[10px] text-muted-foreground sticky left-0 bg-background z-20 border-r text-center">{i + 1}</TableCell>
+                      <TableCell className="text-[10px] text-muted-foreground sticky left-0 bg-background z-20 border-r text-center shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">{i + 1}</TableCell>
                       {headers.map(h => {
                         const val = String(row[h] ?? "");
                         const isImage = fieldMappings[h] === "image_urls";
@@ -158,7 +158,7 @@ export function SmartColumnInferencePreview({ inference, headers, sampleData, fi
                         
                         return (
                           <TableCell key={h} className={cn(
-                            "text-xs max-w-[250px] border-r px-4",
+                            "text-xs max-w-[350px] border-r px-4",
                             fieldMappings[h] ? "bg-primary/5" : ""
                           )}>
                             {isImage && val.startsWith('http') ? (
@@ -183,6 +183,7 @@ export function SmartColumnInferencePreview({ inference, headers, sampleData, fi
                 </TableBody>
               </Table>
             </div>
+            <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </CardContent>
       </Card>
