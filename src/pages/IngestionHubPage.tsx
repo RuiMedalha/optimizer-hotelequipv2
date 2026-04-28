@@ -321,7 +321,7 @@ const IngestionHubPage = () => {
         mode: "live",
         skuPrefix: skuPrefix.trim() || undefined,
         sourceLanguage: sourceLang,
-        role: currentDetection?.matched_supplier_id ? "supplier_delta" : undefined,
+        role: jobRole || (currentDetection?.matched_supplier_id ? "supplier_delta" : undefined),
         supplierId: currentDetection?.matched_supplier_id,
       });
       
