@@ -41,8 +41,8 @@ export function ReconciliationTab() {
   const handleOpenDetail = (item: SyncStagingItem & { supplier: { name: string } | null }) => {
     setSelectedItem(item);
     const initialChanges: Record<string, boolean> = {};
-    if (item.field_diffs) {
-      Object.keys(item.field_diffs).forEach(key => {
+    if (item.proposed_changes) {
+      Object.keys(item.proposed_changes).forEach(key => {
         initialChanges[key] = true;
       });
     }
@@ -52,11 +52,10 @@ export function ReconciliationTab() {
   const handleApprove = async () => {
     if (!selectedItem) return;
     
-    // Filter approved data based on checkboxes
     const approvedData: any = {};
     Object.keys(pendingChanges).forEach(key => {
-      if (pendingChanges[key] && selectedItem.field_diffs[key]) {
-        approvedData[key] = selectedItem.field_diffs[key].new;
+      if (pendingChanges[key] && selectedItem.proposed_changes[key] !== undefined) {
+        approvedData[key] = selectedItem.proposed_changes[key];
       }
     });
 
@@ -121,7 +120,7 @@ export function ReconciliationTab() {
             {items.map((item) => (
               <TableRow key={item.id}>
                 <TableCell>
-                  <div className="font-medium">{item.sku_site}</div>
+                  <div className="font-medium">{item.sku_site_target}</div>
                   <div className="text-xs text-muted-foreground">ID Interno: {item.existing_product_id || 'Novo'}</div>
                 </TableCell>
                 <TableCell>
@@ -135,7 +134,7 @@ export function ReconciliationTab() {
                 </TableCell>
                 <TableCell>
                   <div className="flex gap-1 flex-wrap">
-                    {Object.keys(item.field_diffs || {}).map(field => (
+                    {Object.keys(item.proposed_changes || {}).map(field => (
                       <Badge key={field} variant="secondary" className="text-[10px]">
                         {field}
                       </Badge>
@@ -153,13 +152,12 @@ export function ReconciliationTab() {
         </Table>
       </Card>
 
-      {/* Detail Dialog */}
       <Dialog open={!!selectedItem} onOpenChange={(open) => !open && setSelectedItem(null)}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0">
           <DialogHeader className="p-6 border-b pb-4">
             <div className="flex items-center justify-between">
               <DialogTitle className="flex items-center gap-2">
-                Reconciliação: {selectedItem?.sku_site}
+                Reconciliação: {selectedItem?.sku_site_target}
                 <Badge variant="outline" className="text-xs">
                   {selectedItem && matchMethodLabels[selectedItem.match_method]} Match ({selectedItem?.confidence_score}%)
                 </Badge>
@@ -177,8 +175,8 @@ export function ReconciliationTab() {
 
           <ScrollArea className="flex-1 p-6 overflow-y-auto">
             <div className="space-y-6">
-              {/* Image comparison if images changed */}
-              {selectedItem?.field_diffs?.image_urls && (
+              {/* Image comparison */}
+              {selectedItem?.proposed_changes?.image_urls && (
                 <div className="space-y-3">
                   <h4 className="text-sm font-semibold flex items-center gap-2">
                     <ImageIcon className="h-4 w-4" /> Revisão Visual de Imagens
@@ -187,8 +185,8 @@ export function ReconciliationTab() {
                     <div className="space-y-2 border rounded-lg p-3 bg-muted/20">
                       <Label className="text-xs text-muted-foreground uppercase">Imagem Atual</Label>
                       <div className="aspect-square rounded-md border bg-white flex items-center justify-center overflow-hidden">
-                        {selectedItem.current_data?.image_urls?.[0] ? (
-                          <img src={selectedItem.current_data.image_urls[0]} alt="Atual" className="object-contain w-full h-full" />
+                        {selectedItem.site_data?.image_urls?.[0] ? (
+                          <img src={selectedItem.site_data.image_urls[0]} alt="Atual" className="object-contain w-full h-full" />
                         ) : (
                           <span className="text-xs text-muted-foreground">Sem imagem</span>
                         )}
@@ -206,8 +204,8 @@ export function ReconciliationTab() {
                         />
                       </div>
                       <div className="aspect-square rounded-md border bg-white flex items-center justify-center overflow-hidden">
-                        {selectedItem.field_diffs.image_urls.new?.[0] ? (
-                          <img src={selectedItem.field_diffs.image_urls.new[0]} alt="Proposta" className="object-contain w-full h-full" />
+                        {selectedItem.proposed_changes.image_urls?.[0] ? (
+                          <img src={selectedItem.proposed_changes.image_urls[0]} alt="Proposta" className="object-contain w-full h-full" />
                         ) : (
                           <span className="text-xs text-muted-foreground">Sem imagem</span>
                         )}
@@ -217,15 +215,16 @@ export function ReconciliationTab() {
                 </div>
               )}
 
-              {/* Field comparison */}
+              {/* Attributes comparison */}
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold flex items-center gap-2">
                   <Search className="h-4 w-4" /> Atributos Alterados
                 </h4>
                 <div className="border rounded-lg divide-y bg-background">
-                  {Object.entries(selectedItem?.field_diffs || {}).map(([key, diff]: [string, any]) => {
-                    if (key === 'image_urls') return null; // Already handled
-                    const isNewField = diff.old === null || diff.old === undefined || diff.old === '';
+                  {Object.entries(selectedItem?.proposed_changes || {}).map(([key, newVal]: [string, any]) => {
+                    if (key === 'image_urls') return null;
+                    const oldVal = selectedItem.site_data?.[key];
+                    const isNewField = oldVal === null || oldVal === undefined || oldVal === '';
                     
                     return (
                       <div key={key} className={cn(
@@ -253,13 +252,13 @@ export function ReconciliationTab() {
                           <div className="space-y-1">
                             <Label className="text-[10px] text-muted-foreground uppercase">Valor Atual</Label>
                             <div className="text-sm line-through opacity-50 truncate">
-                              {String(diff.old || '—')}
+                              {String(oldVal || '—')}
                             </div>
                           </div>
                           <div className="space-y-1">
                             <Label className="text-[10px] text-primary uppercase font-bold">Novo Valor Proposto</Label>
                             <div className="text-sm font-medium text-primary bg-primary/10 px-2 py-1 rounded inline-block">
-                              {String(diff.new || '—')}
+                              {String(newVal || '—')}
                             </div>
                           </div>
                         </div>
@@ -269,7 +268,6 @@ export function ReconciliationTab() {
                 </div>
               </div>
 
-              {/* Legend/Info */}
               <div className="p-4 bg-muted/30 rounded-lg flex gap-3 text-xs text-muted-foreground border">
                 <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                 <p>
