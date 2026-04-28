@@ -941,7 +941,14 @@ const IngestionHubPage = () => {
             );
           })()}
         </TabsContent>
+        
+        {hasPendingStaging && (
+          <TabsContent value="reconciliation">
+            <ReconciliationTab />
+          </TabsContent>
+        )}
       </Tabs>
+
 
       {/* Job Detail Dialog */}
       <JobDetailDialog job={detailJob} items={detailItems || []} onClose={() => setDetailJob(null)} />
