@@ -268,7 +268,8 @@ Deno.serve(async (req) => {
           let mergedData: Record<string, any> = {};
           for (const item of groupItems) {
             const mapped = item.mapped_data || item.source_data || {};
-            const pd = buildProductData(mapped);
+            const isRawData = !item.mapped_data;
+            const pd = buildProductData(mapped, isRawData);
             mergedData = mergeProductData(mergedData, pd);
           }
           mergedData.sku = sku;
