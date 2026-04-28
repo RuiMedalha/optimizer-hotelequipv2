@@ -14,6 +14,7 @@ interface Props {
   onSaveDraft: () => void;
   onReprocess: () => void;
   isImporting: boolean;
+  jobRole?: string;
 }
 
 export function ImportPreviewBeforeRun({
