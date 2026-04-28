@@ -565,6 +565,7 @@ const IngestionHubPage = () => {
                   onSaveDraft={() => { toast.success("Draft guardado"); }}
                   onReprocess={() => handleFile(new File([], fileName))}
                   isImporting={parseIngestion.isPending || runJob.isPending}
+                  jobRole={jobRole || (currentDetection?.matched_supplier_id ? "supplier_delta" : undefined)}
                 />
               ) : (
                 <>
