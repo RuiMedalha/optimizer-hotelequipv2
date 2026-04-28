@@ -85,6 +85,9 @@ export function SmartColumnInferencePreview({ inference, headers, sampleData, fi
                 {Math.round((inference.confidence || 0) * 100)}% confiança média
               </Badge>
             )}
+            <span className="text-[10px] text-muted-foreground font-normal ml-auto">
+              Colunas não mapeadas serão guardadas como atributos adicionais.
+            </span>
           </CardTitle>
         </CardHeader>
         <CardContent>
