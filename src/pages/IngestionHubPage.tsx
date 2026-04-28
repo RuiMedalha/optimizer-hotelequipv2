@@ -1029,7 +1029,12 @@ const IngestionHubPage = () => {
 
 
       {/* Job Detail Dialog */}
-      <JobDetailDialog job={detailJob} items={detailItems || []} onClose={() => setDetailJob(null)} />
+      <JobDetailDialog 
+        job={detailJob} 
+        items={detailItems || []} 
+        onClose={() => setDetailJob(null)} 
+        handleRemapJob={handleRemapJob}
+      />
     </div>
   );
 };
