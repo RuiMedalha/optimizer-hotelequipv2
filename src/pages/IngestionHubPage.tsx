@@ -1106,9 +1106,27 @@ const IngestionHubPage = () => {
                 {/* Completed History */}
                 {historyJobs.length > 0 && (
                   <div className="space-y-2">
-                    <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-primary" /> Histórico Concluído ({historyJobs.length})
-                    </h3>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-primary" /> Histórico Concluído ({historyJobs.length})
+                      </h3>
+                      
+                      {reconcileMasterId && reconcileDeltaId && (
+                        <Button 
+                          size="sm" 
+                          className="bg-primary hover:bg-primary/90 animate-in fade-in zoom-in duration-200"
+                          onClick={handleHistoryReconciliation}
+                          disabled={isProcessingReconciliation}
+                        >
+                          {isProcessingReconciliation ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          ) : (
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                          )}
+                          Iniciar Reconciliação (Mestre + Delta)
+                        </Button>
+                      )}
+                    </div>
                     {historyJobs.map(job => {
                       const st = statusLabels[job.status] || statusLabels.queued;
                       const isMaster = reconcileMasterId === job.id;
