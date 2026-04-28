@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'approve') {
-      const finalData = approvedData || staging.proposed_data;
+      const finalData = approvedData || staging.proposed_changes;
       
       if (staging.existing_product_id) {
         // Update existing product
@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
           .insert({
             ...finalData,
             workspace_id: staging.workspace_id,
-            status: 'pending' // As per user requirement, never published without approval
+            status: 'pending' // As per user requirement
           });
         
         if (insertErr) throw insertErr;
@@ -68,23 +68,27 @@ Deno.serve(async (req) => {
         .eq("id", id);
 
       // Handle SKU aliases if applicable
-      if (staging.sku_supplier && staging.sku_site && staging.supplier_id) {
+      if (staging.sku_supplier && staging.sku_site_target && staging.supplier_id) {
         const { data: existingAlias } = await supabase
           .from("sku_aliases")
           .select("*")
-          .eq("sku_site", staging.sku_site)
+          .eq("sku_site", staging.sku_site_target)
           .eq("sku_supplier", staging.sku_supplier)
           .eq("supplier_id", staging.supplier_id)
           .maybeSingle();
 
         if (!existingAlias) {
           await supabase.from("sku_aliases").insert({
-            sku_site: staging.sku_site,
+            workspace_id: staging.workspace_id,
+            sku_site: staging.sku_site_target,
             sku_supplier: staging.sku_supplier,
             supplier_id: staging.supplier_id,
-            confirmado_por: 'manual_reconciliation',
-            vezes_usado: 1
+            times_used: 1
           });
+        } else {
+          await supabase.from("sku_aliases")
+            .update({ times_used: (existingAlias.times_used || 0) + 1 })
+            .eq("id", existingAlias.id);
         }
       }
 
