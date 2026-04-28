@@ -47,11 +47,31 @@ Deno.serve(async (req) => {
     const workspaceId = job.workspace_id;
     
     // Update status to importing if it's the first run
+    // Update status to importing and reset items if it's a new run or re-run
     if (job.status !== "importing") {
+      console.log(`[run-ingestion-job] Resetting job ${jobId} for fresh run...`);
+      
+      // Reset items to 'mapped' so they can be re-processed
+      // We only reset items that were already processed, skipped or had errors
+      const { error: resetErr } = await supabase.from("ingestion_job_items")
+        .update({ 
+          status: "mapped", 
+          error_message: null 
+        })
+        .eq("job_id", jobId)
+        .in("status", ["processed", "error", "skipped"]);
+      
+      if (resetErr) console.error("Error resetting job items:", resetErr);
+
       await supabase.from("ingestion_jobs").update({
         status: "importing",
         mode: "live",
         started_at: new Date().toISOString(),
+        // Reset counters for a fresh start
+        imported_rows: 0,
+        updated_rows: 0,
+        skipped_rows: 0,
+        failed_rows: 0,
       }).eq("id", jobId);
     }
 
