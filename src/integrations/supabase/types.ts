@@ -6510,6 +6510,54 @@ export type Database = {
           },
         ]
       }
+      field_rules: {
+        Row: {
+          created_at: string | null
+          field_name: string
+          id: string
+          is_active: boolean | null
+          rule: Database["public"]["Enums"]["field_sync_rule"]
+          supplier_id: string | null
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          field_name: string
+          id?: string
+          is_active?: boolean | null
+          rule?: Database["public"]["Enums"]["field_sync_rule"]
+          supplier_id?: string | null
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          field_name?: string
+          id?: string
+          is_active?: boolean | null
+          rule?: Database["public"]["Enums"]["field_sync_rule"]
+          supplier_id?: string | null
+          updated_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "field_rules_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "field_rules_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       human_review_tasks: {
         Row: {
           assigned_to: string | null
@@ -11116,6 +11164,57 @@ export type Database = {
         }
         Relationships: []
       }
+      sku_aliases: {
+        Row: {
+          confirmed_by: string | null
+          created_at: string | null
+          id: string
+          sku_site: string
+          sku_supplier: string
+          supplier_id: string | null
+          times_used: number | null
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          confirmed_by?: string | null
+          created_at?: string | null
+          id?: string
+          sku_site: string
+          sku_supplier: string
+          supplier_id?: string | null
+          times_used?: number | null
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          confirmed_by?: string | null
+          created_at?: string | null
+          id?: string
+          sku_site?: string
+          sku_supplier?: string
+          supplier_id?: string | null
+          times_used?: number | null
+          updated_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sku_aliases_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sku_aliases_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       source_confidence_logs: {
         Row: {
           confidence_score: number | null
@@ -12948,6 +13047,91 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sync_staging: {
+        Row: {
+          confidence_score: number | null
+          created_at: string | null
+          existing_product_id: string | null
+          id: string
+          ingestion_job_id: string | null
+          match_method: Database["public"]["Enums"]["match_method_type"] | null
+          proposed_changes: Json | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          site_data: Json | null
+          sku_site_target: string | null
+          sku_supplier: string | null
+          status: string
+          supplier_data: Json
+          supplier_id: string | null
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string | null
+          existing_product_id?: string | null
+          id?: string
+          ingestion_job_id?: string | null
+          match_method?: Database["public"]["Enums"]["match_method_type"] | null
+          proposed_changes?: Json | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          site_data?: Json | null
+          sku_site_target?: string | null
+          sku_supplier?: string | null
+          status?: string
+          supplier_data: Json
+          supplier_id?: string | null
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string | null
+          existing_product_id?: string | null
+          id?: string
+          ingestion_job_id?: string | null
+          match_method?: Database["public"]["Enums"]["match_method_type"] | null
+          proposed_changes?: Json | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          site_data?: Json | null
+          sku_site_target?: string | null
+          sku_supplier?: string | null
+          status?: string
+          supplier_data?: Json
+          supplier_id?: string | null
+          updated_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_staging_existing_product_id_fkey"
+            columns: ["existing_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sync_staging_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sync_staging_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -15227,6 +15411,11 @@ export type Database = {
         | "publish_fail"
         | "cost_too_high"
         | "latency_too_high"
+      field_sync_rule:
+        | "supplier_wins"
+        | "site_wins"
+        | "lowest_value"
+        | "manual_review"
       field_validation_status: "valid" | "invalid" | "unvalidated"
       forecast_type_enum:
         | "job_forecast"
@@ -15379,6 +15568,7 @@ export type Database = {
         | "supplier_feed"
         | "public_catalog"
         | "price_comparison"
+      match_method_type: "exact" | "normalized" | "fuzzy" | "ean" | "manual"
       normalization_type:
         | "unit"
         | "material"
@@ -16466,6 +16656,12 @@ export const Constants = {
         "cost_too_high",
         "latency_too_high",
       ],
+      field_sync_rule: [
+        "supplier_wins",
+        "site_wins",
+        "lowest_value",
+        "manual_review",
+      ],
       field_validation_status: ["valid", "invalid", "unvalidated"],
       forecast_type_enum: [
         "job_forecast",
@@ -16631,6 +16827,7 @@ export const Constants = {
         "public_catalog",
         "price_comparison",
       ],
+      match_method_type: ["exact", "normalized", "fuzzy", "ean", "manual"],
       normalization_type: [
         "unit",
         "material",
