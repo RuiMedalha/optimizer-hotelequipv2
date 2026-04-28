@@ -597,15 +597,15 @@ const IngestionHubPage = () => {
           <TabsTrigger value="import" className="gap-2"><Upload className="w-4 h-4" /> Importar</TabsTrigger>
           <TabsTrigger value="files" className="gap-2"><FileText className="w-4 h-4" /> Ficheiros</TabsTrigger>
           <TabsTrigger value="jobs" className="gap-2"><Clock className="w-4 h-4" /> Histórico</TabsTrigger>
-          {hasPendingStaging && (
-            <TabsTrigger value="reconciliation" className="gap-2">
-              <History className="w-4 h-4" /> 
-              Reconciliação 
+          <TabsTrigger value="reconciliation" className="gap-2">
+            <History className="w-4 h-4" /> 
+            Reconciliação 
+            {pendingStagingItems && pendingStagingItems.length > 0 && (
               <Badge variant="secondary" className="ml-1 h-5 px-1 bg-primary/20 text-primary border-none">
-                {pendingStagingItems?.length}
+                {pendingStagingItems.length}
               </Badge>
-            </TabsTrigger>
-          )}
+            )}
+          </TabsTrigger>
         </TabsList>
 
 
