@@ -89,12 +89,17 @@ const IngestionHubPage = () => {
   const [parsedData, setParsedData] = useState<any[] | null>(null);
   const [parsedHeaders, setParsedHeaders] = useState<string[]>([]);
   const [fileName, setFileName] = useState("");
+  
+  // Master File state (for Delta mode)
+  const [masterFileData, setMasterFileData] = useState<any[] | null>(null);
+  const [masterFileName, setMasterFileName] = useState("");
+
   const [fieldMappings, setFieldMappings] = useState<Record<string, string>>({});
   const [mergeStrategy, setMergeStrategy] = useState("merge");
   const [dupFields, setDupFields] = useState("sku");
   const [skuPrefix, setSkuPrefix] = useState("");
   const [sourceLang, setSourceLang] = useState("auto");
-  const [jobRole, setJobRole] = useState<string | undefined>(undefined);
+  const [jobRole, setJobRole] = useState<string | undefined>("supplier_delta");
 
   // Auto-detection state
   const [currentDetection, setCurrentDetection] = useState<any>(null);
