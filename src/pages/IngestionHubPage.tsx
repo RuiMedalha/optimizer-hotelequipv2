@@ -571,7 +571,7 @@ const IngestionHubPage = () => {
                       <Select value={mergeStrategy} onValueChange={setMergeStrategy}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="merge">Merge (insert + update)</SelectItem>
+                          <SelectItem value="merge">Merge (inserir + atualizar)</SelectItem>
                           <SelectItem value="insert_only">Apenas inserir novos</SelectItem>
                           <SelectItem value="update_only">Apenas atualizar existentes</SelectItem>
                           <SelectItem value="replace">Substituir completamente</SelectItem>
