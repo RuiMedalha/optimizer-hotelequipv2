@@ -389,9 +389,24 @@ Deno.serve(async (req) => {
           const mapped = item.mapped_data || item.source_data || {};
           const productData = buildProductData(mapped);
           
-          if (item.matched_existing_id) {
+          if (isSupplierDelta) {
+            const { error: stagingErr } = await supabase
+              .from("sync_staging")
+              .insert({
+                job_id: jobId,
+                supplier_id: job.supplier_id,
+                sku: null,
+                confidence_score: 0,
+                match_method: "none",
+                supplier_data: productData,
+                site_data: null,
+                status: "flagged",
+                workspace_id: workspaceId
+              });
+            if (stagingErr) throw stagingErr;
+            imported++;
+          } else if (item.matched_existing_id) {
             let finalUpdateData = productData;
-            
             if (job.merge_strategy === 'merge') {
               const { data: existing } = await supabase
                 .from("products")
