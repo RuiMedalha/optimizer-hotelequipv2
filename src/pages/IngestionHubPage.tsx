@@ -1035,7 +1035,7 @@ const IngestionHubPage = () => {
 };
 
 // ─── Job Detail Dialog with pagination ───
-function JobDetailDialog({ job, items, onClose }: { job: IngestionJob | null; items: any[]; onClose: () => void }) {
+function JobDetailDialog({ job, items, onClose, handleRemapJob }: { job: IngestionJob | null; items: any[]; onClose: () => void; handleRemapJob: (jobId: string) => void }) {
   const [page, setPage] = useState(1);
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [filter, setFilter] = useState<string>("all");
