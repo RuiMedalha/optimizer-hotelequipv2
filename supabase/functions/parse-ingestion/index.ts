@@ -139,23 +139,37 @@ Deno.serve(async (req) => {
       return mapped;
     };
 
-    // Duplicate detection
+    // Duplicate detection - Fetch ALL existing products to avoid 1000 limit
     const existingProducts: Record<string, string> = {};
     if (dupFields.length > 0) {
-      // Load existing products for workspace
-      const { data: existing } = await supabase
-        .from("products")
-        .select("id, sku, original_title")
-        .eq("workspace_id", workspaceId);
+      console.log(`Checking duplicates for fields: ${dupFields.join(", ")}`);
+      let hasMore = true;
+      let offset = 0;
+      const pageSize = 1000;
 
-      if (existing) {
-        for (const p of existing) {
-          for (const field of dupFields) {
-            const val = (p as any)[field];
-            if (val) existingProducts[`${field}:${String(val).trim().toLowerCase()}`] = p.id;
+      while (hasMore) {
+        const { data: existing, error: fetchError } = await supabase
+          .from("products")
+          .select("id, sku, original_title")
+          .eq("workspace_id", workspaceId)
+          .range(offset, offset + pageSize - 1);
+
+        if (fetchError) throw fetchError;
+
+        if (existing && existing.length > 0) {
+          for (const p of existing) {
+            for (const field of dupFields) {
+              const val = (p as any)[field];
+              if (val) existingProducts[`${field}:${String(val).trim().toLowerCase()}`] = p.id;
+            }
           }
+          offset += pageSize;
+          if (existing.length < pageSize) hasMore = false;
+        } else {
+          hasMore = false;
         }
       }
+      console.log(`Loaded ${Object.keys(existingProducts).length} duplicate keys for comparison`);
     }
 
     // Grouping
