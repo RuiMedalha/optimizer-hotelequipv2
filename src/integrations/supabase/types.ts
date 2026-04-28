@@ -6979,6 +6979,7 @@ export type Database = {
         Row: {
           archived_at: string | null
           completed_at: string | null
+          config: Json | null
           created_at: string
           duplicate_rows: number
           error_message: string | null
@@ -7008,6 +7009,7 @@ export type Database = {
         Insert: {
           archived_at?: string | null
           completed_at?: string | null
+          config?: Json | null
           created_at?: string
           duplicate_rows?: number
           error_message?: string | null
@@ -7037,6 +7039,7 @@ export type Database = {
         Update: {
           archived_at?: string | null
           completed_at?: string | null
+          config?: Json | null
           created_at?: string
           duplicate_rows?: number
           error_message?: string | null
@@ -9714,6 +9717,7 @@ export type Database = {
       products: {
         Row: {
           attributes: Json | null
+          brand: string | null
           canonical_product_id: string | null
           canonical_supplier_family: string | null
           canonical_supplier_model: string | null
@@ -9768,6 +9772,7 @@ export type Database = {
         }
         Insert: {
           attributes?: Json | null
+          brand?: string | null
           canonical_product_id?: string | null
           canonical_supplier_family?: string | null
           canonical_supplier_model?: string | null
@@ -9824,6 +9829,7 @@ export type Database = {
         }
         Update: {
           attributes?: Json | null
+          brand?: string | null
           canonical_product_id?: string | null
           canonical_supplier_family?: string | null
           canonical_supplier_model?: string | null

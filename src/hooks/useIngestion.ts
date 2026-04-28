@@ -66,6 +66,15 @@ export interface IngestionJob {
   created_at: string;
   role: string | null;
   supplier_id: string | null;
+  config?: {
+    fieldMappings?: Record<string, string>;
+    skuPrefix?: string;
+    sourceLanguage?: string;
+    mergeStrategy?: string;
+    duplicateDetectionFields?: string[];
+    role?: string;
+    groupingConfig?: any;
+  } | null;
 }
 
 export interface IngestionJobItem {

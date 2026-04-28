@@ -94,6 +94,7 @@ Deno.serve(async (req) => {
       short_description: "short_description",
       sku: "sku",
       category: "category",
+      brand: "brand",
       original_price: "original_price",
       price: "original_price",
       sale_price: "sale_price",
@@ -112,7 +113,7 @@ Deno.serve(async (req) => {
     const schemaKeys = new Set([
       "sku", "original_title", "optimized_title", "original_description", "optimized_description",
       "original_price", "optimized_price", "sale_price", "optimized_sale_price",
-      "category", "tags", "meta_title", "meta_description", "seo_slug",
+      "category", "brand", "tags", "meta_title", "meta_description", "seo_slug",
       "short_description", "optimized_short_description", "technical_specs",
       "image_urls", "product_type", "stock", "supplier_ref", "ean"
     ]);
