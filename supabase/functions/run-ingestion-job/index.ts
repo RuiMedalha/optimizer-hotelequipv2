@@ -407,7 +407,8 @@ Deno.serve(async (req) => {
       await Promise.all(batch.map(async (item) => {
         try {
           const mapped = item.mapped_data || item.source_data || {};
-          const productData = buildProductData(mapped);
+          const isRawData = !item.mapped_data;
+          const productData = buildProductData(mapped, isRawData);
           
           if (isSupplierDelta) {
             const { error: stagingErr } = await supabase
