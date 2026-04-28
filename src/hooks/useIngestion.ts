@@ -289,7 +289,7 @@ export function usePendingStagingItems() {
         .in("status", ["pending", "flagged"])
         .order("confidence_score", { ascending: false });
       if (error) throw error;
-      return data as unknown as (SyncStagingItem & { supplier: { name: string } | null })[];
+      return data as unknown as (SyncStagingItem & { supplier: { supplier_name: string } | null })[];
     },
   });
 }
