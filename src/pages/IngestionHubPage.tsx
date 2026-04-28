@@ -712,8 +712,8 @@ const IngestionHubPage = () => {
                       <Label className="text-xs font-semibold">Detecção de duplicados</Label>
                       <Input value={dupFields} onChange={e => setDupFields(e.target.value)} placeholder="sku, original_title" />
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold">Modo de Importação</Label>
+                    <div className="space-y-1 col-span-1 md:col-span-2">
+                      <Label className="text-xs font-semibold">Modo de Operação</Label>
                       <Select value={jobRole || "direct"} onValueChange={(v) => setJobRole(v === "direct" ? undefined : v)}>
                         <SelectTrigger className={cn(
                           "h-10",
@@ -723,15 +723,38 @@ const IngestionHubPage = () => {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="direct">🚀 Atualização Direta de Produtos</SelectItem>
-                          <SelectItem value="supplier_delta">⚖️ Reconciliação (Staging / Fornecedor)</SelectItem>
+                          <SelectItem value="supplier_delta">⚖️ Delta de Fornecedor (Reconciliação)</SelectItem>
                         </SelectContent>
                       </Select>
-                      <p className="text-[10px] text-muted-foreground mt-1">
+                      <p className="text-[10px] text-muted-foreground mt-1 italic">
                         {jobRole === "supplier_delta" ? 
-                          "⚠️ Os produtos não serão atualizados agora. Terá de aprovar as alterações na aba Reconciliação." : 
-                          "✅ Os produtos existentes serão atualizados e os novos serão criados imediatamente."}
+                          "Compare o ficheiro do fornecedor com o seu ficheiro mestre. Nada será alterado sem revisão." : 
+                          "Os produtos serão atualizados ou criados no site assim que clicar em Importar."}
                       </p>
                     </div>
+
+                    {jobRole === "supplier_delta" && (
+                      <div className="space-y-1 col-span-1 md:col-span-2">
+                        <Label className="text-xs font-semibold text-amber-700">Ficheiro Mestre (Site Atual)</Label>
+                        <div className="flex gap-2">
+                          <Input 
+                            type="file" 
+                            accept=".csv,.xlsx,.xls" 
+                            className="h-10 text-xs" 
+                            onChange={(e) => e.target.files?.[0] && handleMasterFile(e.target.files[0])}
+                          />
+                          {masterFileData && (
+                            <Badge variant="outline" className="h-10 bg-green-50 text-green-700 border-green-200">
+                              <Check className="w-3 h-3 mr-1" /> {masterFileData.length} Prod.
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-amber-600 mt-1">
+                          ⚠️ Obrigatório para cruzar dados e detetar descontinuados.
+                        </p>
+                      </div>
+                    )}
+
                     <div className="space-y-1">
                       <Label className="text-xs font-semibold">Estado do Mapeamento</Label>
                       <div className="h-10 flex items-center px-3 rounded-md border border-input bg-background">
