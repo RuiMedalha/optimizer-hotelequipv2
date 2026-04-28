@@ -5,6 +5,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const normalizeSKU = (sku: string): string => {
+  if (!sku) return "";
+  let normalized = sku.trim().toUpperCase();
+  normalized = normalized.replace(/[/\\]/g, "-");
+  normalized = normalized.replace(/^0+/, "");
+  return normalized || "0";
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
