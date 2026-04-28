@@ -8,7 +8,9 @@ const corsHeaders = {
 const normalizeSKU = (sku: string): string => {
   if (!sku) return "";
   let normalized = sku.trim().toUpperCase();
+  // Tratar / e \ como equivalentes ao hífen
   normalized = normalized.replace(/[/\\]/g, "-");
+  // Tratar zeros à esquerda (001 -> 1)
   normalized = normalized.replace(/^0+/, "");
   return normalized || "0";
 };
@@ -253,65 +255,121 @@ Deno.serve(async (req) => {
           }
           mergedData.sku = sku;
 
-          const normalizedSku = sku.toUpperCase();
-          let existingProduct = existingProductsMap.get(normalizedSku);
+          const rawSku = sku;
+          const normalizedSkuHoreca = normalizeSKU(rawSku);
           
-          // Fallback check for case-insensitivity if not found in the initial IN query
-          if (!existingProduct) {
-            const { data: fallback } = await supabase
-              .from("products")
-              .select("*")
-              .eq("workspace_id", workspaceId)
-              .ilike("sku", sku)
-              .limit(1)
-              .maybeSingle();
-            if (fallback) {
-              existingProduct = fallback;
-              existingProductsMap.set(normalizedSku, existingProduct);
-            }
-          }
+          let existingProduct = null;
+          let matchMethod = "none";
+          let confidence = 0;
+          let matchedAlias = null;
 
-          const existingId = existingProduct?.id;
-          let productId: string | null = null;
-
-          if (existingId) {
-            let finalUpdateData = mergedData;
-            
-            // If merge strategy is 'merge', we combine with existing data
-            if (job.merge_strategy === 'merge') {
-              finalUpdateData = mergeProductData(existingProduct, mergedData);
-              
-              // For images, if merging, we want new ones to be primary (first in array)
-              if (Array.isArray(existingProduct.image_urls) && Array.isArray(mergedData.image_urls)) {
-                finalUpdateData.image_urls = [...new Set([...mergedData.image_urls, ...existingProduct.image_urls])];
+          // 1. Exact match (Case insensitive)
+          const exactMatch = existingProductsMap.get(rawSku.toUpperCase());
+          if (exactMatch) {
+            existingProduct = exactMatch;
+            matchMethod = "exact";
+            confidence = 100;
+          } else {
+            // 2. Alias match
+            const aliasSkuSite = aliasMap.get(normalizedSkuHoreca);
+            if (aliasSkuSite) {
+              const siteProduct = existingProductsMap.get(aliasSkuSite.toUpperCase());
+              if (siteProduct) {
+                existingProduct = siteProduct;
+                matchMethod = "exact"; // User requested 'exact' for direct site match via alias
+                confidence = 95;
+                matchedAlias = rawSku;
               }
             }
 
-            const { error: updateErr } = await supabase
-              .from("products")
-              .update({ ...finalUpdateData, updated_at: new Date().toISOString() })
-              .eq("id", existingId);
-            if (updateErr) throw updateErr;
-            productId = existingId;
-            updated++;
-          } else {
-            const { data: newProd, error: insertErr } = await supabase
-              .from("products")
+            if (!existingProduct) {
+              // 3. Normalized match
+              // Check if any existing product matches normalized SKU
+              const { data: normMatch } = await supabase
+                .from("products")
+                .select("*")
+                .eq("workspace_id", workspaceId)
+                .eq("sku", normalizedSkuHoreca)
+                .limit(1)
+                .maybeSingle();
+
+              if (normMatch) {
+                existingProduct = normMatch;
+                matchMethod = "normalized";
+                confidence = 90;
+              }
+            }
+          }
+
+          const status = confidence >= 80 ? "pending" : "flagged";
+
+          if (isSupplierDelta) {
+            // Write to sync_staging instead of updating products
+            const { error: stagingErr } = await supabase
+              .from("sync_staging")
               .insert({
-                ...mergedData,
-                workspace_id: workspaceId,
-                user_id: user.id,
-                status: 'pending'
-              })
-              .select("id")
-              .single();
-            if (insertErr) throw insertErr;
-            productId = newProd.id;
-            imported++;
+                job_id: jobId,
+                supplier_id: job.supplier_id,
+                sku: rawSku,
+                confidence_score: confidence,
+                match_method: matchMethod,
+                supplier_data: mergedData,
+                site_data: existingProduct || null,
+                status: status,
+                workspace_id: workspaceId
+              });
+
+            if (stagingErr) throw stagingErr;
+
+            if (matchedAlias) {
+              await supabase.rpc('increment_sku_alias_usage', {
+                p_sku_supp: matchedAlias,
+                p_supplier_id: job.supplier_id,
+                p_workspace_id: workspaceId
+              });
+            }
+            
+            imported++; // Counting as "imported" to staging
+          } else {
+            // Normal behavior for other roles
+            const existingId = existingProduct?.id;
+            let productId: string | null = null;
+
+            if (existingId) {
+              let finalUpdateData = mergedData;
+              if (job.merge_strategy === 'merge') {
+                finalUpdateData = mergeProductData(existingProduct, mergedData);
+                if (Array.isArray(existingProduct.image_urls) && Array.isArray(mergedData.image_urls)) {
+                  finalUpdateData.image_urls = [...new Set([...mergedData.image_urls, ...existingProduct.image_urls])];
+                }
+              }
+
+              const { error: updateErr } = await supabase
+                .from("products")
+                .update({ ...finalUpdateData, updated_at: new Date().toISOString() })
+                .eq("id", existingId);
+              if (updateErr) throw updateErr;
+              productId = existingId;
+              updated++;
+            } else {
+              const { data: newProd, error: insertErr } = await supabase
+                .from("products")
+                .insert({
+                  ...mergedData,
+                  workspace_id: workspaceId,
+                  user_id: user.id,
+                  status: 'pending'
+                })
+                .select("id")
+                .single();
+              if (insertErr) throw insertErr;
+              productId = newProd.id;
+              imported++;
+            }
           }
 
           groupItems.forEach(gi => {
-            itemsToUpdateStatus.push({ id: gi.id, status: "processed", product_id: productId! });
+            itemsToUpdateStatus.push({ id: gi.id, status: "processed" });
           });
         } catch (err) {
           console.error(`Error processing SKU ${sku}:`, err);
