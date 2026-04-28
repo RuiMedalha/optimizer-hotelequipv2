@@ -472,6 +472,35 @@ const IngestionHubPage = () => {
     }
   };
 
+  const handleHistoryReconciliation = async () => {
+    if (!reconcileMasterId || !reconcileDeltaId) return;
+    
+    setIsProcessingReconciliation(true);
+    toast.info("A iniciar reconciliação de histórico... Isto pode demorar alguns segundos.");
+
+    try {
+      const { data, error } = await supabase.functions.invoke("reconcile-history-jobs", {
+        body: {
+          masterJobId: reconcileMasterId,
+          deltaJobId: reconcileDeltaId,
+          workspaceId: (jobs?.[0] as any)?.workspace_id
+        }
+      });
+
+      if (error) throw error;
+      
+      toast.success("Reconciliação concluída! Verifique o separador Reconciliação.");
+      setActiveTab("reconciliation");
+      setReconcileMasterId(null);
+      setReconcileDeltaId(null);
+    } catch (e: any) {
+      console.error(e);
+      toast.error(`Erro na reconciliação: ${e.message}`);
+    } finally {
+      setIsProcessingReconciliation(false);
+    }
+  };
+
   const handleJobAction = (action: string, jobId: string) => {
     const job = jobs?.find(j => j.id === jobId);
     switch (action) {
