@@ -51,15 +51,23 @@ Deno.serve(async (req) => {
     if (job.status !== "importing") {
       console.log(`[run-ingestion-job] Resetting job ${jobId} for fresh run...`);
       
+      // If it was a supplier delta job, clean up previous staging records to avoid duplicates
+      if (job.role === 'supplier_delta') {
+        const { error: deleteStagingErr } = await supabase
+          .from("sync_staging")
+          .delete()
+          .eq("ingestion_job_id", jobId);
+        
+        if (deleteStagingErr) console.error("Error cleaning up old staging records:", deleteStagingErr);
+      }
+
       // Reset items to 'mapped' so they can be re-processed
-      // We only reset items that were already processed, skipped or had errors
       const { error: resetErr } = await supabase.from("ingestion_job_items")
         .update({ 
           status: "mapped", 
           error_message: null 
         })
-        .eq("job_id", jobId)
-        .in("status", ["processed", "error", "skipped"]);
+        .eq("job_id", jobId);
       
       if (resetErr) console.error("Error resetting job items:", resetErr);
 
@@ -72,6 +80,7 @@ Deno.serve(async (req) => {
         updated_rows: 0,
         skipped_rows: 0,
         failed_rows: 0,
+        results: { imported: 0, updated: 0, skipped: 0, failed: 0 }
       }).eq("id", jobId);
     }
 
