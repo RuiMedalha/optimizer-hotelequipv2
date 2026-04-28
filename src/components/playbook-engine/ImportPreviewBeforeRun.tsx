@@ -99,6 +99,10 @@ export function ImportPreviewBeforeRun({
             {hasTitle ? <CheckCircle className="w-3 h-3 text-green-500" /> : <AlertTriangle className="w-3 h-3 text-amber-500" />}
             <span>Coluna Nome: {hasTitle ? "Mapeada" : "Em falta"}</span>
           </div>
+          <div className="flex items-center gap-2 text-xs">
+            <CheckCircle className="w-3 h-3 text-blue-500" />
+            <span>Modo: {jobRole === "supplier_delta" ? "Delta de Fornecedor (Reconciliação)" : "Importação Direta para Catálogo"}</span>
+          </div>
         </div>
 
         {/* Action buttons */}
