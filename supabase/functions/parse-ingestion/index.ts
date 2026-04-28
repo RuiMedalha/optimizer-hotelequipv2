@@ -84,22 +84,26 @@ Deno.serve(async (req) => {
       const mappings = fieldMappings || {};
       const mapped: Record<string, any> = {};
       
-      // Create a normalized version of row keys for safer lookup
+      // Create a normalized version of row keys for safer lookup (case-insensitive and trimmed)
       const normalizedRow: Record<string, any> = {};
       for (const [k, v] of Object.entries(row)) {
-        normalizedRow[k.trim()] = v;
+        normalizedRow[k.trim().toLowerCase()] = v;
       }
       
       if (mappings && Object.keys(mappings).length > 0) {
+        // Map based on target keys
         for (const [sourceKey, targetKey] of Object.entries(mappings)) {
-          const trimmedSourceKey = sourceKey.trim();
-          if (normalizedRow[trimmedSourceKey] !== undefined && typeof targetKey === "string") {
-            mapped[targetKey] = normalizedRow[trimmedSourceKey];
+          const lowerSourceKey = sourceKey.trim().toLowerCase();
+          if (normalizedRow[lowerSourceKey] !== undefined && typeof targetKey === "string") {
+            mapped[targetKey] = normalizedRow[lowerSourceKey];
           }
         }
+        
         // Keep unmapped fields (original names)
         for (const [key, val] of Object.entries(row)) {
-          if (!mappings[key]) mapped[key] = val;
+          const trimmedKey = key.trim();
+          const alreadyMapped = Object.keys(mappings).some(mk => mk.trim().toLowerCase() === trimmedKey.toLowerCase());
+          if (!alreadyMapped) mapped[trimmedKey] = val;
         }
       } else {
         Object.assign(mapped, row);
@@ -146,8 +150,9 @@ Deno.serve(async (req) => {
       let hasMore = true;
       let offset = 0;
       const pageSize = 1000;
+      const MAX_SEARCH_LIMIT = 50000; // Increase limit to 50k products to avoid 1000 limit
 
-      while (hasMore) {
+      while (hasMore && offset < MAX_SEARCH_LIMIT) {
         const { data: existing, error: fetchError } = await supabase
           .from("products")
           .select("id, sku, original_title")
