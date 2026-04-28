@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
     // Load job
     const { data: job, error: jobErr } = await supabase
       .from("ingestion_jobs")
-      .select("*, workspace_id, merge_strategy")
+      .select("*, workspace_id, merge_strategy, role, supplier_id")
       .eq("id", jobId)
       .single();
     if (jobErr || !job) throw new Error("Job not found");
