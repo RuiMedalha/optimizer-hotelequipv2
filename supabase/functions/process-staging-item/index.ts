@@ -83,11 +83,11 @@ Deno.serve(async (req) => {
             sku_site: staging.sku_site_target,
             sku_supplier: staging.sku_supplier,
             supplier_id: staging.supplier_id,
-            times_used: 1
+            vezes_usado: 1
           });
         } else {
           await supabase.from("sku_aliases")
-            .update({ times_used: (existingAlias.times_used || 0) + 1 })
+            .update({ vezes_usado: (existingAlias.vezes_usado || 0) + 1 })
             .eq("id", existingAlias.id);
         }
       }
