@@ -14589,47 +14589,7 @@ export type Database = {
           _woo_filter?: string
           _workspace_id: string
         }
-        Returns: {
-          attributes: Json
-          category: string
-          category_id: string
-          created_at: string
-          crosssell_skus: Json
-          faq: Json
-          focus_keyword: string[]
-          id: string
-          image_alt_texts: Json
-          image_urls: string[]
-          meta_description: string
-          meta_title: string
-          optimized_description: string
-          optimized_price: number
-          optimized_sale_price: number
-          optimized_short_description: string
-          optimized_title: string
-          original_description: string
-          original_price: number
-          original_title: string
-          parent_product_id: string
-          product_type: string
-          sale_price: number
-          seo_score: number
-          seo_slug: string
-          short_description: string
-          sku: string
-          source_file: string
-          status: Database["public"]["Enums"]["product_status"]
-          suggested_category: string
-          supplier_ref: string
-          tags: string[]
-          technical_specs: string
-          total_count: number
-          updated_at: string
-          upsell_skus: Json
-          user_id: string
-          woocommerce_id: number
-          workspace_id: string
-        }[]
+        Returns: Json[]
       }
       get_simulation_run_workspace_id: {
         Args: { _run_id: string }
