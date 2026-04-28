@@ -276,42 +276,44 @@ const ProductsPage = () => {
     return { p1, p2, p3 };
   }, []);
 
-  // Client-side filters applied to already server-filtered data (for filters not in SQL)
-  const filtered = products.filter((p) => {
-    // SEO score filter (use persisted value with fallback to computed)
-    let matchesSeoScore = true;
-    if (seoScoreFilter !== "all") {
-      const score = p.seo_score ?? calculateSeoScore(p).score;
-      if (seoScoreFilter === "good") matchesSeoScore = score >= 80;
-      else if (seoScoreFilter === "medium") matchesSeoScore = score >= 50 && score < 80;
-      else if (seoScoreFilter === "weak") matchesSeoScore = score < 50;
-    }
+  // Client-side filters applied to already server-filtered data
+  // Optimized to avoid heavy computation on every render
+  const filtered = useMemo(() => {
+    return products.filter((p) => {
+      // SEO score filter
+      if (seoScoreFilter !== "all") {
+        const score = p.seo_score ?? (p ? calculateSeoScore(p).score : 0);
+        if (seoScoreFilter === "good" && score < 80) return false;
+        if (seoScoreFilter === "medium" && (score < 50 || score >= 80)) return false;
+        if (seoScoreFilter === "weak" && score >= 50) return false;
+      }
 
-    // Has keyword filter
-    let matchesKeyword = true;
-    if (hasKeywordFilter === "yes") matchesKeyword = Array.isArray(p.focus_keyword) && p.focus_keyword.length > 0;
-    else if (hasKeywordFilter === "no") matchesKeyword = !p.focus_keyword || (Array.isArray(p.focus_keyword) && p.focus_keyword.length === 0);
+      // Has keyword filter
+      if (hasKeywordFilter === "yes") {
+        if (!Array.isArray(p.focus_keyword) || p.focus_keyword.length === 0) return false;
+      } else if (hasKeywordFilter === "no") {
+        if (Array.isArray(p.focus_keyword) && p.focus_keyword.length > 0) return false;
+      }
 
-    // Phase filter
-    let matchesPhase = true;
-    if (phaseFilter !== "all") {
-      const phases = getProductPhases(p);
-      if (phaseFilter === "missing1") matchesPhase = !phases.p1;
-      else if (phaseFilter === "missing2") matchesPhase = !phases.p2;
-      else if (phaseFilter === "missing3") matchesPhase = !phases.p3;
-      else if (phaseFilter === "complete") matchesPhase = phases.p1 && phases.p2 && phases.p3;
-      else if (phaseFilter === "none") matchesPhase = !phases.p1 && !phases.p2 && !phases.p3;
-    }
+      // Phase filter
+      if (phaseFilter !== "all") {
+        const phases = getProductPhases(p);
+        if (phaseFilter === "missing1" && phases.p1) return false;
+        if (phaseFilter === "missing2" && phases.p2) return false;
+        if (phaseFilter === "missing3" && phases.p3) return false;
+        if (phaseFilter === "complete" && (!phases.p1 || !phases.p2 || !phases.p3)) return false;
+        if (phaseFilter === "none" && (phases.p1 || phases.p2 || phases.p3)) return false;
+      }
 
-    // Migration filter
-    let matchesMigration = true;
-    if (migrationFilter !== "all") {
-      if (p.status !== "published") matchesMigration = migrationFilter === "not_migrated";
-      else matchesMigration = getMigrationStatus(p) === migrationFilter;
-    }
+      // Migration filter
+      if (migrationFilter !== "all") {
+        if (p.status !== "published" && migrationFilter !== "not_migrated") return false;
+        if (p.status === "published" && getMigrationStatus(p) !== migrationFilter) return false;
+      }
 
-    return matchesSeoScore && matchesKeyword && matchesPhase && matchesMigration;
-  });
+      return true;
+    });
+  }, [products, seoScoreFilter, hasKeywordFilter, phaseFilter, migrationFilter, getProductPhases]);
 
   // Reset page when server filters change
   useEffect(() => { setCurrentPage(1); }, [debouncedSearch, statusFilter, categoryFilter, sourceFileFilter, productTypeFilter, wooFilter]);
@@ -1075,7 +1077,11 @@ const ProductsPage = () => {
             Duplicados{duplicateGroups.length > 0 ? ` (${duplicateGroups.length})` : ""}
           </Button>
           {(() => {
-            const catCount = (allProductsLight ?? []).filter((p: any) => p.suggested_category && p.suggested_category !== p.category).length;
+            // Optimization: avoid re-calculating suggested count on every render for large lists
+            const catCount = useMemo(() => 
+              (allProductsLight ?? []).filter((p: any) => p && p.suggested_category && p.suggested_category !== p.category).length,
+              [allProductsLight]
+            );
             return catCount > 0 ? (
               <Button
                 size="sm"
