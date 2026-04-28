@@ -11185,8 +11185,8 @@ export type Database = {
           sku_site: string
           sku_supplier: string
           supplier_id: string | null
-          times_used: number | null
           updated_at: string | null
+          vezes_usado: number | null
           workspace_id: string
         }
         Insert: {
@@ -11196,8 +11196,8 @@ export type Database = {
           sku_site: string
           sku_supplier: string
           supplier_id?: string | null
-          times_used?: number | null
           updated_at?: string | null
+          vezes_usado?: number | null
           workspace_id: string
         }
         Update: {
@@ -11207,8 +11207,8 @@ export type Database = {
           sku_site?: string
           sku_supplier?: string
           supplier_id?: string | null
-          times_used?: number | null
           updated_at?: string | null
+          vezes_usado?: number | null
           workspace_id?: string
         }
         Relationships: [
