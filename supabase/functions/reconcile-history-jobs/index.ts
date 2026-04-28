@@ -27,18 +27,7 @@ Deno.serve(async (req) => {
 
     if (!masterJobId || !deltaJobId) throw new Error("masterJobId and deltaJobId are required");
 
-    console.log(`Starting history reconciliation: Master=${masterJobId}, Delta=${deltaJobId}`);
-
-    // 1. Fetch Delta Items (the source of truth for updates/new products)
-    const { data: deltaItems, error: deltaErr } = await supabase
-      .from("ingestion_job_items")
-      .select("*")
-      .eq("job_id", deltaJobId)
-      .limit(10000); // Support up to 10k items
-
-    if (deltaErr) throw deltaErr;
-
-    // Fetch the delta job to get its original workspace_id and role
+    // Fetch workspace info from the delta job if not provided
     const { data: deltaJob } = await supabase
       .from("ingestion_jobs")
       .select("workspace_id, supplier_id")
@@ -46,9 +35,22 @@ Deno.serve(async (req) => {
       .single();
 
     const finalWorkspaceId = workspaceId || deltaJob?.workspace_id;
+    if (!finalWorkspaceId) throw new Error("Could not determine workspaceId");
+    
     const supplierId = deltaJob?.supplier_id;
 
-    // 2. Fetch Master Items (the source of truth for what currently exists)
+    console.log(`Starting history reconciliation: Master=${masterJobId}, Delta=${deltaJobId}, Workspace=${finalWorkspaceId}`);
+
+    // 1. Fetch Delta Items
+    const { data: deltaItems, error: deltaErr } = await supabase
+      .from("ingestion_job_items")
+      .select("*")
+      .eq("job_id", deltaJobId)
+      .limit(10000);
+
+    if (deltaErr) throw deltaErr;
+
+    // 2. Fetch Master Items
     const { data: masterItems, error: masterErr } = await supabase
       .from("ingestion_job_items")
       .select("*")
@@ -57,7 +59,7 @@ Deno.serve(async (req) => {
 
     if (masterErr) throw masterErr;
 
-    // 3. Map Master items by SKU for fast lookup
+    // 3. Map Master items by SKU
     const masterMap = new Map<string, any>();
     masterItems.forEach(item => {
       const sku = normalizeSKU(item.mapped_data?.sku || item.source_data?.sku || "");
@@ -88,9 +90,9 @@ Deno.serve(async (req) => {
       }
 
       stagingRecords.push({
-        workspace_id: workspaceId,
+        workspace_id: finalWorkspaceId,
         ingestion_job_id: deltaJobId,
-        supplier_id: null, // Could be fetched from job if needed
+        supplier_id: supplierId,
         sku_supplier: rawSku,
         sku_site_target: masterItem?.mapped_data?.sku || null,
         confidence_score: confidence,
@@ -103,7 +105,7 @@ Deno.serve(async (req) => {
           original_description: mappedData.original_description || mappedData.Descrição
         },
         site_data: masterItem?.mapped_data || masterItem?.source_data || null,
-        existing_product_id: null, // Would need database lookup to be 100% sure, but Master file is the focus here
+        existing_product_id: null,
         status: confidence >= 80 ? "pending" : "flagged",
       });
     }
@@ -112,13 +114,13 @@ Deno.serve(async (req) => {
     for (const [sku, masterItem] of masterMap.entries()) {
       if (!processedSkusInDelta.has(sku)) {
         stagingRecords.push({
-          workspace_id: workspaceId,
+          workspace_id: finalWorkspaceId,
           ingestion_job_id: deltaJobId,
           sku_supplier: sku,
           sku_site_target: sku,
           confidence_score: 100,
           match_method: "manual",
-          supplier_data: {}, // Fix: Column violates not-null constraint if null
+          supplier_data: {},
           proposed_changes: { is_discontinued: true },
           site_data: masterItem.mapped_data || masterItem.source_data,
           status: "flagged",
