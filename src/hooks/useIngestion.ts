@@ -236,7 +236,7 @@ export function useRunIngestionJob() {
       let finished = false;
       let totalImported = 0;
       let iterations = 0;
-      const MAX_ITERATIONS = 100; // Safety break
+      const MAX_ITERATIONS = 500; // Increased to 500 to support up to 25,000 products (50 per batch)
 
       while (!finished && iterations < MAX_ITERATIONS) {
         const { data, error } = await supabase.functions.invoke("run-ingestion-job", {
