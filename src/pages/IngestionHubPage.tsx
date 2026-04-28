@@ -86,6 +86,7 @@ const IngestionHubPage = () => {
   const [dupFields, setDupFields] = useState("sku");
   const [skuPrefix, setSkuPrefix] = useState("");
   const [sourceLang, setSourceLang] = useState("auto");
+  const [jobRole, setJobRole] = useState<string | undefined>(undefined);
 
   // Auto-detection state
   const [currentDetection, setCurrentDetection] = useState<any>(null);
@@ -225,6 +226,9 @@ const IngestionHubPage = () => {
         source_type: ext || "excel",
       });
       setCurrentDetection(detResult.detection);
+      if (detResult.matched_supplier_id) {
+        setJobRole("supplier_delta");
+      }
 
       // 2. Infer column mapping
       const infResult = await inferMapping.mutateAsync({
@@ -291,7 +295,7 @@ const IngestionHubPage = () => {
         mode: "dry_run",
         skuPrefix: skuPrefix.trim() || undefined,
         sourceLanguage: sourceLang,
-        role: currentDetection?.matched_supplier_id ? "supplier_delta" : undefined,
+        role: jobRole || (currentDetection?.matched_supplier_id ? "supplier_delta" : undefined),
         supplierId: currentDetection?.matched_supplier_id,
       });
       setPreviewResult(result);
@@ -317,7 +321,7 @@ const IngestionHubPage = () => {
         mode: "live",
         skuPrefix: skuPrefix.trim() || undefined,
         sourceLanguage: sourceLang,
-        role: currentDetection?.matched_supplier_id ? "supplier_delta" : undefined,
+        role: jobRole || (currentDetection?.matched_supplier_id ? "supplier_delta" : undefined),
         supplierId: currentDetection?.matched_supplier_id,
       });
       
@@ -393,6 +397,7 @@ const IngestionHubPage = () => {
     setShowReview(false);
     setShowCorrections(false);
     setSkuPrefix("");
+    setJobRole(undefined);
   };
 
   const handleFileFromLibrary = async (fileRecord: any) => {
@@ -561,6 +566,7 @@ const IngestionHubPage = () => {
                   onSaveDraft={() => { toast.success("Draft guardado"); }}
                   onReprocess={() => handleFile(new File([], fileName))}
                   isImporting={parseIngestion.isPending || runJob.isPending}
+                  jobRole={jobRole || (currentDetection?.matched_supplier_id ? "supplier_delta" : undefined)}
                 />
               ) : (
                 <>
@@ -602,6 +608,16 @@ const IngestionHubPage = () => {
                     <div className="space-y-1">
                       <Label className="text-xs font-semibold">Detecção de duplicados</Label>
                       <Input value={dupFields} onChange={e => setDupFields(e.target.value)} placeholder="sku, original_title" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Modo de Importação</Label>
+                      <Select value={jobRole || "direct"} onValueChange={(v) => setJobRole(v === "direct" ? undefined : v)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="direct">Catálogo Direto</SelectItem>
+                          <SelectItem value="supplier_delta">Delta de Fornecedor (Reconciliação)</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs font-semibold">Estado do Mapeamento</Label>

@@ -14,11 +14,12 @@ interface Props {
   onSaveDraft: () => void;
   onReprocess: () => void;
   isImporting: boolean;
+  jobRole?: string;
 }
 
 export function ImportPreviewBeforeRun({
   detection, inference, draft, parsedData, fieldMappings,
-  onConfirmImport, onCorrectMapping, onSaveDraft, onReprocess, isImporting,
+  onConfirmImport, onCorrectMapping, onSaveDraft, onReprocess, isImporting, jobRole,
 }: Props) {
   if (!parsedData) return null;
 
@@ -97,6 +98,10 @@ export function ImportPreviewBeforeRun({
           <div className="flex items-center gap-2 text-xs">
             {hasTitle ? <CheckCircle className="w-3 h-3 text-green-500" /> : <AlertTriangle className="w-3 h-3 text-amber-500" />}
             <span>Coluna Nome: {hasTitle ? "Mapeada" : "Em falta"}</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <CheckCircle className="w-3 h-3 text-blue-500" />
+            <span>Modo: {jobRole === "supplier_delta" ? "Delta de Fornecedor (Reconciliação)" : "Importação Direta para Catálogo"}</span>
           </div>
         </div>
 
