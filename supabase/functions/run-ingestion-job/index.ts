@@ -5,6 +5,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const normalizeSKU = (sku: string): string => {
+  if (!sku) return "";
+  let normalized = sku.trim().toUpperCase();
+  normalized = normalized.replace(/[/\\]/g, "-");
+  normalized = normalized.replace(/^0+/, "");
+  return normalized || "0";
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -29,7 +37,7 @@ Deno.serve(async (req) => {
     // Load job
     const { data: job, error: jobErr } = await supabase
       .from("ingestion_jobs")
-      .select("*, workspace_id, merge_strategy")
+      .select("*, workspace_id, merge_strategy, role, supplier_id")
       .eq("id", jobId)
       .single();
     if (jobErr || !job) throw new Error("Job not found");
@@ -215,6 +223,22 @@ Deno.serve(async (req) => {
     // If we have many missing, we could do more, but for now this is much better than before.
 
     const itemsToUpdateStatus: { id: string, status: string, product_id?: string, error_message?: string }[] = [];
+
+    // ─── Supplier Delta Mode ───
+    const isSupplierDelta = job.role === 'supplier_delta';
+    let aliasMap = new Map<string, string>();
+    
+    if (isSupplierDelta && job.supplier_id) {
+      const { data: aliases } = await supabase
+        .from("sku_aliases")
+        .select("sku_supplier, sku_site")
+        .eq("workspace_id", workspaceId)
+        .eq("supplier_id", job.supplier_id);
+      
+      if (aliases) {
+        aliases.forEach(a => aliasMap.set(normalizeSKU(a.sku_supplier), a.sku_site));
+      }
+    }
 
     // Process SKU Groups in batches
     for (let i = 0; i < skuEntries.length; i += BATCH_SIZE) {

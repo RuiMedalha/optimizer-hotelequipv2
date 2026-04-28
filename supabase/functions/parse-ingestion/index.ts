@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
     if (authError || !user) throw new Error("Unauthorized");
 
     const body = await req.json();
-    const { workspaceId, sourceId, data, fileName, sourceType, fieldMappings, mergeStrategy, duplicateDetectionFields, groupingConfig, mode, skuPrefix, sourceLanguage } = body;
+    const { workspaceId, sourceId, data, fileName, sourceType, fieldMappings, mergeStrategy, duplicateDetectionFields, groupingConfig, mode, skuPrefix, sourceLanguage, role, supplierId } = body;
 
     if (!workspaceId) throw new Error("workspaceId required");
     if (!data && !fileName) throw new Error("data or fileName required");
@@ -60,6 +60,8 @@ Deno.serve(async (req) => {
         mode: jobMode,
         merge_strategy: strategy,
         total_rows: rows.length,
+        role: role || null,
+        supplier_id: supplierId || null,
         started_at: new Date().toISOString(),
       })
       .select("id")
