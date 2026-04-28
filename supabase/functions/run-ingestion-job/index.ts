@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
 
     // Fetch items with status 'mapped' (not yet processed)
     // We process in batches of 100 per invocation to improve throughput
-    const INVOCATION_BATCH_SIZE = 100;
+    const INVOCATION_BATCH_SIZE = 50;
     
     const { data: pendingItems, error: itemsErr } = await supabase
       .from("ingestion_job_items")
