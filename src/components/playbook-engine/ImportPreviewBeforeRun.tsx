@@ -31,6 +31,10 @@ export function ImportPreviewBeforeRun({
   // Estimate valid/doubtful rows
   const hasSku = Object.values(fieldMappings).includes("sku") || Object.values(fieldMappings).includes("supplier_ref");
   const hasTitle = Object.values(fieldMappings).includes("original_title");
+  const hasCategory = Object.values(fieldMappings).includes("category");
+  const hasBrand = Object.values(fieldMappings).includes("brand");
+  const hasPrice = Object.values(fieldMappings).includes("original_price") || Object.values(fieldMappings).includes("sale_price");
+  const hasStock = Object.values(fieldMappings).includes("stock");
   const skuKey = Object.entries(fieldMappings).find(([_, v]) => v === "sku" || v === "supplier_ref")?.[0];
 
   let validRows = 0;
@@ -97,7 +101,19 @@ export function ImportPreviewBeforeRun({
           </div>
           <div className="flex items-center gap-2 text-xs">
             {hasTitle ? <CheckCircle className="w-3 h-3 text-green-500" /> : <AlertTriangle className="w-3 h-3 text-amber-500" />}
-            <span>Coluna Nome: {hasTitle ? "Mapeada" : "Em falta"}</span>
+            <span>Nome: {hasTitle ? "Mapeado" : "Não mapeado"}</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            {hasCategory ? <CheckCircle className="w-3 h-3 text-green-500" /> : <AlertTriangle className="w-3 h-3 text-amber-500" />}
+            <span>Categoria: {hasCategory ? "Mapeada" : "Não mapeada"}</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            {hasBrand ? <CheckCircle className="w-3 h-3 text-green-500" /> : <AlertTriangle className="w-3 h-3 text-amber-500" />}
+            <span>Marca: {hasBrand ? "Mapeada" : "Não mapeada"}</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            {hasPrice ? <CheckCircle className="w-3 h-3 text-green-500" /> : <AlertTriangle className="w-3 h-3 text-amber-500" />}
+            <span>Preço: {hasPrice ? "Mapeado" : "Não mapeado"}</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
             <CheckCircle className="w-3 h-3 text-blue-500" />
