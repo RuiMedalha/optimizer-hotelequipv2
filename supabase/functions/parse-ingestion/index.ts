@@ -75,13 +75,20 @@ Deno.serve(async (req) => {
       const mappings = fieldMappings || {};
       const mapped: Record<string, any> = {};
       
+      // Create a normalized version of row keys for safer lookup
+      const normalizedRow: Record<string, any> = {};
+      for (const [k, v] of Object.entries(row)) {
+        normalizedRow[k.trim()] = v;
+      }
+      
       if (mappings && Object.keys(mappings).length > 0) {
         for (const [sourceKey, targetKey] of Object.entries(mappings)) {
-          if (row[sourceKey] !== undefined && typeof targetKey === "string") {
-            mapped[targetKey] = row[sourceKey];
+          const trimmedSourceKey = sourceKey.trim();
+          if (normalizedRow[trimmedSourceKey] !== undefined && typeof targetKey === "string") {
+            mapped[targetKey] = normalizedRow[trimmedSourceKey];
           }
         }
-        // Keep unmapped fields
+        // Keep unmapped fields (original names)
         for (const [key, val] of Object.entries(row)) {
           if (!mappings[key]) mapped[key] = val;
         }

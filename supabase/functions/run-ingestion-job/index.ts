@@ -85,6 +85,7 @@ Deno.serve(async (req) => {
 
     const allItems = pendingItems;
 
+    // Field map is used ONLY when mapped_data is missing (fallback to source_data)
     const fieldMap: Record<string, string> = {
       original_title: "original_title",
       title: "original_title",
@@ -96,6 +97,7 @@ Deno.serve(async (req) => {
       original_price: "original_price",
       price: "original_price",
       sale_price: "sale_price",
+      stock: "stock",
       image_urls: "image_urls",
       tags: "tags",
       meta_title: "meta_title",
@@ -104,64 +106,80 @@ Deno.serve(async (req) => {
       supplier_ref: "supplier_ref",
       technical_specs: "technical_specs",
       product_type: "product_type",
-      attributes: "attributes",
-      stock: "stock",
     };
 
-    function buildProductData(mapped: Record<string, any>): Record<string, any> {
+    // Standard schema keys that should NOT go into attributes
+    const schemaKeys = new Set([
+      "sku", "original_title", "optimized_title", "original_description", "optimized_description",
+      "original_price", "optimized_price", "sale_price", "optimized_sale_price",
+      "category", "tags", "meta_title", "meta_description", "seo_slug",
+      "short_description", "optimized_short_description", "technical_specs",
+      "image_urls", "product_type", "stock", "supplier_ref", "ean"
+    ]);
+
+    function buildProductData(mapped: Record<string, any>, isRawData = false): Record<string, any> {
       const productData: Record<string, any> = {};
-      for (const [src, dst] of Object.entries(fieldMap)) {
-        if (mapped[src] !== undefined && mapped[src] !== null && mapped[src] !== "") {
-          let val = mapped[src];
-          if (dst === "image_urls" || dst === "tags") {
-            if (typeof val === "string") {
-              val = val.split(",").map((s: string) => s.trim()).filter(Boolean);
-            }
+      const extras: Record<string, any> = {};
+
+      if (isRawData) {
+        // Fallback mode: apply fieldMap to raw headers
+        for (const [src, dst] of Object.entries(fieldMap)) {
+          if (mapped[src] !== undefined && mapped[src] !== null && mapped[src] !== "") {
+            productData[dst] = mapped[src];
           }
-          if (dst === "original_price" || dst === "sale_price") {
-            // Enhanced price parsing: strip currency symbols, handle European format (1.234,56)
-            const cleanVal = String(val).replace(/[^\d,.-]/g, "").trim();
-            val = parseFloat(cleanVal.replace(",", "."));
-            if (isNaN(val)) {
-              // Fallback: search source_data for a better price if current is just a symbol
-              const sourceData = mapped.source_data || {};
-              const potentialPrice = sourceData.price || sourceData.price_venda || sourceData.pvp;
-              if (potentialPrice && !isNaN(parseFloat(String(potentialPrice).replace(",", ".")))) {
-                val = parseFloat(String(potentialPrice).replace(",", "."));
-              } else {
-                continue;
-              }
-            }
+        }
+        // Everything else to extras
+        for (const [k, v] of Object.entries(mapped)) {
+          if (!fieldMap[k] && v !== undefined && v !== null && v !== "") {
+            extras[k] = v;
           }
-          if (dst === "stock") {
-            val = parseInt(String(val).replace(/\D/g, ""), 10);
-            if (isNaN(val)) continue;
+        }
+      } else {
+        // Normal mode: mapped already has target keys
+        for (const [k, v] of Object.entries(mapped)) {
+          if (v === undefined || v === null || v === "") continue;
+          
+          if (schemaKeys.has(k)) {
+            productData[k] = v;
+          } else {
+            extras[k] = v;
           }
-          productData[dst] = val;
         }
       }
 
-      // Enhanced fallback for empty descriptions or titles
-      if (!productData.original_description || productData.original_description === "") {
-        const sourceData = mapped.source_data || mapped;
-        productData.original_description = sourceData.description || sourceData.body_html || sourceData.description_long || sourceData.desc_longa;
+      // Format special fields
+      if (productData.image_urls && typeof productData.image_urls === "string") {
+        productData.image_urls = productData.image_urls.split(",").map((s: string) => s.trim()).filter(Boolean);
       }
-      
-      if (!productData.original_title || productData.original_title === "") {
-        const sourceData = mapped.source_data || mapped;
-        productData.original_title = sourceData.name || sourceData.title || sourceData.label || sourceData.producto;
+      if (productData.tags && typeof productData.tags === "string") {
+        productData.tags = productData.tags.split(",").map((s: string) => s.trim()).filter(Boolean);
       }
-      
-      const knownKeys = new Set([...Object.keys(fieldMap), "id", "workspace_id", "user_id"]);
-      const extras: Record<string, any> = {};
-      for (const [k, v] of Object.entries(mapped)) {
-        if (!knownKeys.has(k) && v !== undefined && v !== null && v !== "") {
-          extras[k] = v;
-        }
+
+      // Price parsing
+      const parsePrice = (val: any) => {
+        if (typeof val === "number") return val;
+        const cleanVal = String(val).replace(/[^\d,.-]/g, "").trim();
+        const parsed = parseFloat(cleanVal.replace(",", "."));
+        return isNaN(parsed) ? null : parsed;
+      };
+
+      if (productData.original_price !== undefined) productData.original_price = parsePrice(productData.original_price);
+      if (productData.sale_price !== undefined) productData.sale_price = parsePrice(productData.sale_price);
+      if (productData.stock !== undefined) productData.stock = parseInt(String(productData.stock).replace(/\D/g, ""), 10) || 0;
+
+      // Fallbacks for title/description if missing
+      if (!productData.original_title) {
+        productData.original_title = mapped.name || mapped.label || mapped.titulo || mapped.titulo_original;
       }
+      if (!productData.original_description) {
+        productData.original_description = mapped.body_html || mapped.description_long || mapped.descricao || mapped.descricao_original;
+      }
+
+      // Merge extras into attributes
       if (Object.keys(extras).length > 0) {
         productData.attributes = { ...(productData.attributes || {}), ...extras };
       }
+
       return productData;
     }
 
@@ -250,7 +268,8 @@ Deno.serve(async (req) => {
           let mergedData: Record<string, any> = {};
           for (const item of groupItems) {
             const mapped = item.mapped_data || item.source_data || {};
-            const pd = buildProductData(mapped);
+            const isRawData = !item.mapped_data;
+            const pd = buildProductData(mapped, isRawData);
             mergedData = mergeProductData(mergedData, pd);
           }
           mergedData.sku = sku;
@@ -388,7 +407,8 @@ Deno.serve(async (req) => {
       await Promise.all(batch.map(async (item) => {
         try {
           const mapped = item.mapped_data || item.source_data || {};
-          const productData = buildProductData(mapped);
+          const isRawData = !item.mapped_data;
+          const productData = buildProductData(mapped, isRawData);
           
           if (isSupplierDelta) {
             const { error: stagingErr } = await supabase

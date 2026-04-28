@@ -8,6 +8,7 @@ import { ArrowRight, AlertTriangle, CheckCircle, Zap } from "lucide-react";
 
 const PRODUCT_FIELDS = [
   { key: "sku", label: "SKU" },
+  { key: "ean", label: "EAN / Código de Barras" },
   { key: "supplier_ref", label: "Ref. Fornecedor" },
   { key: "original_title", label: "Título" },
   { key: "original_description", label: "Descrição" },
@@ -15,11 +16,17 @@ const PRODUCT_FIELDS = [
   { key: "original_price", label: "Preço" },
   { key: "sale_price", label: "Preço Promo" },
   { key: "category", label: "Categoria" },
+  { key: "brand", label: "Marca" },
+  { key: "model", label: "Modelo" },
   { key: "image_urls", label: "Imagens" },
   { key: "tags", label: "Tags" },
   { key: "technical_specs", label: "Especificações" },
-  { key: "attributes", label: "Atributos" },
-  { key: "ean", label: "EAN" },
+  { key: "dimensions", label: "Dimensões" },
+  { key: "weight", label: "Peso" },
+  { key: "material", label: "Material" },
+  { key: "color", label: "Cor" },
+  { key: "unit", label: "Unidade" },
+  { key: "attributes", label: "Atributos (Geral)" },
   { key: "product_type", label: "Tipo Produto" },
   { key: "meta_title", label: "Meta Title" },
   { key: "meta_description", label: "Meta Desc" },
@@ -78,6 +85,9 @@ export function SmartColumnInferencePreview({ inference, headers, sampleData, fi
                 {Math.round((inference.confidence || 0) * 100)}% confiança média
               </Badge>
             )}
+            <span className="text-[10px] text-muted-foreground font-normal ml-auto">
+              Colunas não mapeadas serão guardadas como atributos adicionais.
+            </span>
           </CardTitle>
         </CardHeader>
         <CardContent>
