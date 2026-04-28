@@ -6,19 +6,22 @@ const corsHeaders = {
 };
 
 const FIELD_PATTERNS: Record<string, RegExp[]> = {
-  sku: [/^sku$/i, /^ref/i, /^code/i, /^codigo/i, /^référence/i, /^reference/i, /^art/i, /^item/i],
+  sku: [/^sku$/i, /^ref/i, /^code/i, /^codigo/i, /^référence/i, /^reference/i, /^art/i, /^item/i, /^referencia/i],
   supplier_ref: [/supplier.*ref/i, /ref.*forn/i, /ref.*supplier/i, /codart/i],
   original_title: [/^name$/i, /^title/i, /^nom/i, /^nome/i, /^titulo/i, /^designation/i, /^product.*name/i, /^libelle/i],
   original_description: [/^desc/i, /^description/i, /^descri/i],
   short_description: [/short.*desc/i, /desc.*curta/i, /desc.*court/i],
   original_price: [/^price/i, /^prix/i, /^preço/i, /^preco/i, /^pvp/i, /^precio/i, /price.*ht/i, /tarif/i],
   sale_price: [/sale.*price/i, /promo/i, /discount/i, /prix.*promo/i],
-  category: [/^categ/i, /^famille/i, /^familia/i, /^family/i, /^group/i, /^grupo/i],
-  image_urls: [/^image/i, /^img/i, /^foto/i, /^photo/i, /^picture/i, /^url.*img/i],
+  category: [/^categ/i, /^famille/i, /^familia/i, /^family/i, /^group/i, /^grupo/i, /^cat/i, /^seção/i, /^secc/i],
+  brand: [/^brand/i, /^marque/i, /^marca/i, /^fabric/i, /^maker/i, /^fornecedor/i, /^vendor/i],
+  model: [/^model/i, /^modèle/i, /^modelo/i],
+  image_urls: [/^image/i, /^img/i, /^foto/i, /^photo/i, /^picture/i, /^url.*img/i, /^url.*imagem/i],
   tags: [/^tag/i, /^keyword/i, /^mot.*cl/i],
   product_type: [/^type/i, /^tipo/i],
   technical_specs: [/^spec/i, /^technical/i, /^caract/i],
   attributes: [/^attr/i, /^propriet/i, /^feature/i],
+  ean: [/^ean/i, /^gtin/i, /^upc/i, /^barcode/i, /^código.*barras/i],
 };
 
 const EAN_REGEX = /^\d{8,14}$/;

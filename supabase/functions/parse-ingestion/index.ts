@@ -150,7 +150,7 @@ Deno.serve(async (req) => {
       let hasMore = true;
       let offset = 0;
       const pageSize = 1000;
-      const MAX_SEARCH_LIMIT = 50000; // Increase limit to 50k products to avoid 1000 limit
+      const MAX_SEARCH_LIMIT = 100000; // Increase to 100k to ensure we find all existing products
 
       while (hasMore && offset < MAX_SEARCH_LIMIT) {
         const { data: existing, error: fetchError } = await supabase
