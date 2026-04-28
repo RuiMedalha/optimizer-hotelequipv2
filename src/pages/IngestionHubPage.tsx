@@ -333,12 +333,22 @@ const IngestionHubPage = () => {
         supplierId: currentDetection?.matched_supplier_id,
       });
       
+      // Update job config immediately to ensure mappings are persisted
+      await supabase.from("ingestion_jobs").update({
+        config: {
+          fieldMappings,
+          skuPrefix,
+          sourceLanguage: sourceLang,
+          mergeStrategy,
+          duplicateDetectionFields: dupFields.split(",").map(s => s.trim()).filter(Boolean),
+          role: jobRole || (currentDetection?.matched_supplier_id ? "supplier_delta" : undefined)
+        }
+      }).eq("id", result.jobId);
+
       toast.info(`A iniciar importação de ${parsedData.length} produtos...`);
       await runJob.mutateAsync(result.jobId);
 
-      // Trigger auto-draft creation after successful live import
       triggerAutoDraftAfterIngestion(result.jobId);
-
       resetForm();
     } catch {}
   };

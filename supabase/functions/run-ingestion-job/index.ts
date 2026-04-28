@@ -264,11 +264,17 @@ Deno.serve(async (req) => {
     // Use an RPC or a sophisticated query to handle case-insensitive matching for the whole batch
     // For simplicity and safety with 50 items, we'll fetch products where SKU is in the list
     // and also do a secondary check if needed, but usually SKUs should be normalized.
-    const { data: existingProductsList } = await supabase
-      .from("products")
-      .select("*")
-      .eq("workspace_id", workspaceId)
-      .in("sku", allSkus);
+    // Batch fetch existing products to avoid 1000 limit and ensure matching works for all 1137+ products
+    const existingProductsList: any[] = [];
+    for (let i = 0; i < allSkus.length; i += 100) {
+      const skuBatch = allSkus.slice(i, i + 100);
+      const { data: batchData } = await supabase
+        .from("products")
+        .select("*")
+        .eq("workspace_id", workspaceId)
+        .in("sku", skuBatch);
+      if (batchData) existingProductsList.push(...batchData);
+    }
 
     const existingProductsMap = new Map<string, any>();
     existingProductsList?.forEach(p => {
