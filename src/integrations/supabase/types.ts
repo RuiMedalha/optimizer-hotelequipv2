@@ -14829,6 +14829,10 @@ export type Database = {
         Args: { _workspace_id: string }
         Returns: undefined
       }
+      increment_sku_alias_usage: {
+        Args: { sku_supp: string; supp_id: string; ws_id: string }
+        Returns: undefined
+      }
       is_approved: { Args: { _user_id: string }; Returns: boolean }
       is_workspace_owner: { Args: { _workspace_id: string }; Returns: boolean }
       search_knowledge:
