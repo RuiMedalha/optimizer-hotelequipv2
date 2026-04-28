@@ -116,6 +116,11 @@ const IngestionHubPage = () => {
   const [detailJob, setDetailJob] = useState<IngestionJob | null>(null);
   const { data: detailItems } = useIngestionJobItems(detailJob?.id || null);
 
+  // History Reconciliation State
+  const [reconcileMasterId, setReconcileMasterId] = useState<string | null>(null);
+  const [reconcileDeltaId, setReconcileDeltaId] = useState<string | null>(null);
+  const [isProcessingReconciliation, setIsProcessingReconciliation] = useState(false);
+
   const handleFile = useCallback(async (file: File) => {
     setFileName(file.name);
     setCurrentDetection(null);
@@ -464,6 +469,35 @@ const IngestionHubPage = () => {
       toast.success("Dados carregados. Pode agora ajustar o mapeamento.");
     } catch (err: any) {
       toast.error(`Erro ao carregar job: ${err.message}`);
+    }
+  };
+
+  const handleHistoryReconciliation = async () => {
+    if (!reconcileMasterId || !reconcileDeltaId) return;
+    
+    setIsProcessingReconciliation(true);
+    toast.info("A iniciar reconciliação de histórico... Isto pode demorar alguns segundos.");
+
+    try {
+      const { data, error } = await supabase.functions.invoke("reconcile-history-jobs", {
+        body: {
+          masterJobId: reconcileMasterId,
+          deltaJobId: reconcileDeltaId,
+          workspaceId: (jobs?.[0] as any)?.workspace_id
+        }
+      });
+
+      if (error) throw error;
+      
+      toast.success("Reconciliação concluída! Verifique o separador Reconciliação.");
+      setActiveTab("reconciliation");
+      setReconcileMasterId(null);
+      setReconcileDeltaId(null);
+    } catch (e: any) {
+      console.error(e);
+      toast.error(`Erro na reconciliação: ${e.message}`);
+    } finally {
+      setIsProcessingReconciliation(false);
     }
   };
 
@@ -1072,26 +1106,68 @@ const IngestionHubPage = () => {
                 {/* Completed History */}
                 {historyJobs.length > 0 && (
                   <div className="space-y-2">
-                    <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-primary" /> Histórico Concluído ({historyJobs.length})
-                    </h3>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-primary" /> Histórico Concluído ({historyJobs.length})
+                      </h3>
+                      
+                      {reconcileMasterId && reconcileDeltaId && (
+                        <Button 
+                          size="sm" 
+                          className="bg-primary hover:bg-primary/90 animate-in fade-in zoom-in duration-200"
+                          onClick={handleHistoryReconciliation}
+                          disabled={isProcessingReconciliation}
+                        >
+                          {isProcessingReconciliation ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          ) : (
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                          )}
+                          Iniciar Reconciliação (Mestre + Delta)
+                        </Button>
+                      )}
+                    </div>
                     {historyJobs.map(job => {
                       const st = statusLabels[job.status] || statusLabels.queued;
+                      const isMaster = reconcileMasterId === job.id;
+                      const isDelta = reconcileDeltaId === job.id;
+
                       return (
-                        <Card key={job.id} className="hover:border-primary/30 transition-colors">
+                        <Card key={job.id} className={cn(
+                          "hover:border-primary/30 transition-colors",
+                          isMaster && "border-blue-500 bg-blue-50/30",
+                          isDelta && "border-amber-500 bg-amber-50/30"
+                        )}>
                           <CardContent className="flex items-center gap-4 py-3">
                             <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setDetailJob(job)}>
                               <div className="flex items-center gap-2">
                                 <p className="text-sm font-medium truncate">{job.file_name || `Job ${job.id.slice(0, 8)}`}</p>
                                 <Badge className={cn("text-[10px]", st.color)}>{st.label}</Badge>
-                                <Badge variant="outline" className="text-[10px]">{job.mode === "dry_run" ? "Preview" : "Live"}</Badge>
+                                {isMaster && <Badge className="text-[10px] bg-blue-600">MESTRE</Badge>}
+                                {isDelta && <Badge className="text-[10px] bg-amber-600">DELTA</Badge>}
                               </div>
                               <p className="text-xs text-muted-foreground mt-0.5">
-                                {job.total_rows} linhas · {job.imported_rows} importados · {job.updated_rows} atualizados · {job.failed_rows} erros
+                                {job.total_rows} linhas · {job.imported_rows} processados
                                 {job.created_at && ` · ${format(new Date(job.created_at), "dd/MM HH:mm")}`}
                               </p>
                             </div>
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-2">
+                              <Button 
+                                size="sm" 
+                                variant={isMaster ? "default" : "outline"}
+                                className={cn("h-8 text-[10px]", isMaster && "bg-blue-600 hover:bg-blue-700")}
+                                onClick={() => setReconcileMasterId(isMaster ? null : job.id)}
+                              >
+                                {isMaster ? "Mestre Selecionado" : "Usar como Mestre"}
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant={isDelta ? "default" : "outline"}
+                                className={cn("h-8 text-[10px]", isDelta && "bg-amber-600 hover:bg-amber-700")}
+                                onClick={() => setReconcileDeltaId(isDelta ? null : job.id)}
+                              >
+                                {isDelta ? "Delta Selecionado" : "Usar como Delta"}
+                              </Button>
                               <IngestionJobActionsDropdown job={job} onAction={handleJobAction} />
                             </div>
                           </CardContent>
