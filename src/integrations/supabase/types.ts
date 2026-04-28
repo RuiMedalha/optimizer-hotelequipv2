@@ -6990,6 +6990,7 @@ export type Database = {
           mode: Database["public"]["Enums"]["ingestion_mode"]
           parsed_rows: number
           results: Json
+          role: string | null
           skipped_rows: number
           source_id: string | null
           source_type:
@@ -6997,6 +6998,7 @@ export type Database = {
             | null
           started_at: string | null
           status: Database["public"]["Enums"]["ingestion_job_status"]
+          supplier_id: string | null
           total_rows: number
           updated_at: string
           updated_rows: number
@@ -7017,6 +7019,7 @@ export type Database = {
           mode?: Database["public"]["Enums"]["ingestion_mode"]
           parsed_rows?: number
           results?: Json
+          role?: string | null
           skipped_rows?: number
           source_id?: string | null
           source_type?:
@@ -7024,6 +7027,7 @@ export type Database = {
             | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["ingestion_job_status"]
+          supplier_id?: string | null
           total_rows?: number
           updated_at?: string
           updated_rows?: number
@@ -7044,6 +7048,7 @@ export type Database = {
           mode?: Database["public"]["Enums"]["ingestion_mode"]
           parsed_rows?: number
           results?: Json
+          role?: string | null
           skipped_rows?: number
           source_id?: string | null
           source_type?:
@@ -7051,6 +7056,7 @@ export type Database = {
             | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["ingestion_job_status"]
+          supplier_id?: string | null
           total_rows?: number
           updated_at?: string
           updated_rows?: number
@@ -7063,6 +7069,13 @@ export type Database = {
             columns: ["source_id"]
             isOneToOne: false
             referencedRelation: "ingestion_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ingestion_jobs_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_profiles"
             referencedColumns: ["id"]
           },
           {
