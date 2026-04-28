@@ -284,6 +284,33 @@ const IngestionHubPage = () => {
     }
   }, [autoDetect, inferMapping, generateDraft]);
 
+  const handleMasterFile = useCallback(async (file: File) => {
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    let rows: any[] = [];
+    
+    if (ext === "csv") {
+      const text = await file.text();
+      const lines = text.split("\n").filter(l => l.trim());
+      const sep = lines[0].includes(";") ? ";" : ",";
+      const headers = lines[0].split(sep).map(h => h.trim().replace(/^"|"$/g, ""));
+      rows = lines.slice(1).map(line => {
+        const vals = line.split(sep).map(v => v.trim().replace(/^"|"$/g, ""));
+        const obj: Record<string, string> = {};
+        headers.forEach((h, i) => { obj[h] = vals[i] || ""; });
+        return obj;
+      });
+    } else if (ext === "xlsx" || ext === "xls") {
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer);
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      rows = XLSX.utils.sheet_to_json<Record<string, any>>(ws);
+    }
+    
+    setMasterFileData(rows);
+    setMasterFileName(file.name);
+    toast.success(`Ficheiro Mestre carregado: ${rows.length} produtos`);
+  }, []);
+
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
