@@ -608,6 +608,16 @@ const IngestionHubPage = () => {
                       <Input value={dupFields} onChange={e => setDupFields(e.target.value)} placeholder="sku, original_title" />
                     </div>
                     <div className="space-y-1">
+                      <Label className="text-xs font-semibold">Modo de Importação</Label>
+                      <Select value={jobRole || "direct"} onValueChange={(v) => setJobRole(v === "direct" ? undefined : v)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="direct">Catálogo Direto</SelectItem>
+                          <SelectItem value="supplier_delta">Delta de Fornecedor (Reconciliação)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
                       <Label className="text-xs font-semibold">Estado do Mapeamento</Label>
                       <div className="h-10 flex items-center px-3 rounded-md border border-input bg-background">
                         <p className="text-sm text-muted-foreground">{mappedCount} de {parsedHeaders.length} colunas</p>
