@@ -101,7 +101,19 @@ export function ImportPreviewBeforeRun({
           </div>
           <div className="flex items-center gap-2 text-xs">
             {hasTitle ? <CheckCircle className="w-3 h-3 text-green-500" /> : <AlertTriangle className="w-3 h-3 text-amber-500" />}
-            <span>Coluna Nome: {hasTitle ? "Mapeada" : "Em falta"}</span>
+            <span>Nome: {hasTitle ? "Mapeado" : "Não mapeado"}</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            {hasCategory ? <CheckCircle className="w-3 h-3 text-green-500" /> : <AlertTriangle className="w-3 h-3 text-amber-500" />}
+            <span>Categoria: {hasCategory ? "Mapeada" : "Não mapeada"}</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            {hasBrand ? <CheckCircle className="w-3 h-3 text-green-500" /> : <AlertTriangle className="w-3 h-3 text-amber-500" />}
+            <span>Marca: {hasBrand ? "Mapeada" : "Não mapeada"}</span>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            {hasPrice ? <CheckCircle className="w-3 h-3 text-green-500" /> : <AlertTriangle className="w-3 h-3 text-amber-500" />}
+            <span>Preço: {hasPrice ? "Mapeado" : "Não mapeado"}</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
             <CheckCircle className="w-3 h-3 text-blue-500" />
