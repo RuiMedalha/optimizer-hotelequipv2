@@ -324,9 +324,16 @@ const IngestionHubPage = () => {
 
   const handleDryRun = async () => {
     if (!parsedData) return;
+    
+    if (jobRole === "supplier_delta" && !masterFileData) {
+      toast.error("O Ficheiro Mestre é obrigatório para o modo Delta.");
+      return;
+    }
+
     try {
       const result = await parseIngestion.mutateAsync({
         data: parsedData,
+        masterData: masterFileData || undefined,
         fileName,
         sourceType: fileName.endsWith(".csv") ? "csv" : fileName.endsWith(".json") ? "json" : "xlsx",
         fieldMappings,
@@ -335,24 +342,29 @@ const IngestionHubPage = () => {
         mode: "dry_run",
         skuPrefix: skuPrefix.trim() || undefined,
         sourceLanguage: sourceLang,
-        role: jobRole, // Use explicitly selected role (undefined means Direct Catalog)
+        role: jobRole,
         supplierId: currentDetection?.matched_supplier_id,
       });
       setPreviewResult(result);
       setPreviewJobId(result.jobId);
 
-      // Trigger auto-draft creation after successful dry-run
       triggerAutoDraftAfterIngestion(result.jobId);
-
       toast.success("Preview gerado com sucesso");
     } catch {}
   };
 
   const handleLiveRun = async () => {
     if (!parsedData) return;
+
+    if (jobRole === "supplier_delta" && !masterFileData) {
+      toast.error("O Ficheiro Mestre é obrigatório para o modo Delta.");
+      return;
+    }
+
     try {
       const result = await parseIngestion.mutateAsync({
         data: parsedData,
+        masterData: masterFileData || undefined,
         fileName,
         sourceType: fileName.endsWith(".csv") ? "csv" : fileName.endsWith(".json") ? "json" : "xlsx",
         fieldMappings,
@@ -361,7 +373,7 @@ const IngestionHubPage = () => {
         mode: "live",
         skuPrefix: skuPrefix.trim() || undefined,
         sourceLanguage: sourceLang,
-        role: jobRole, // Use explicitly selected role (undefined means Direct Catalog)
+        role: jobRole,
         supplierId: currentDetection?.matched_supplier_id,
       });
       
@@ -373,11 +385,12 @@ const IngestionHubPage = () => {
           sourceLanguage: sourceLang,
           mergeStrategy,
           duplicateDetectionFields: dupFields.split(",").map(s => s.trim()).filter(Boolean),
-          role: jobRole
+          role: jobRole,
+          masterFileName: masterFileName || undefined
         }
       }).eq("id", result.jobId);
 
-      toast.info(`A iniciar importação de ${parsedData.length} produtos...`);
+      toast.info(`A iniciar processamento de ${parsedData.length} produtos...`);
       await runJob.mutateAsync(result.jobId);
 
       triggerAutoDraftAfterIngestion(result.jobId);
