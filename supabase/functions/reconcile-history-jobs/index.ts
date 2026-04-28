@@ -100,8 +100,8 @@ Deno.serve(async (req) => {
         supplier_data: mappedData,
         proposed_changes: {
           ...mappedData,
-          category: mappedData.category || mappedData.Categoria,
-          brand: mappedData.brand || mappedData.Marca,
+          category: masterItem?.mapped_data?.category || masterItem?.source_data?.category || masterItem?.mapped_data?.Categoria || mappedData.category || mappedData.Categoria,
+          brand: masterItem?.mapped_data?.brand || masterItem?.source_data?.brand || masterItem?.mapped_data?.Marca || mappedData.brand || mappedData.Marca,
           original_description: mappedData.original_description || mappedData.Descrição
         },
         site_data: masterItem?.mapped_data || masterItem?.source_data || null,

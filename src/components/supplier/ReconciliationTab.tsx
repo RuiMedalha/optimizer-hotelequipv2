@@ -16,7 +16,7 @@ import { toast } from "sonner";
 export function ReconciliationTab() {
   const { data: items, isLoading, refetch } = usePendingStagingItems();
   const processItem = useProcessStagingItem();
-  const [selectedItem, setSelectedItem] = useState<(SyncStagingItem & { supplier: { name: string } | null }) | null>(null);
+  const [selectedItem, setSelectedItem] = useState<(SyncStagingItem & { supplier: { supplier_name: string } | null }) | null>(null);
   const [pendingChanges, setPendingChanges] = useState<Record<string, boolean>>({});
 
   const sortedItems = useMemo(() => {
@@ -49,7 +49,7 @@ export function ReconciliationTab() {
     );
   }
 
-  const handleOpenDetail = (item: SyncStagingItem & { supplier: { name: string } | null }) => {
+  const handleOpenDetail = (item: SyncStagingItem & { supplier: { supplier_name: string } | null }) => {
     setSelectedItem(item);
     const initialChanges: Record<string, boolean> = {};
     if (item.proposed_changes) {
@@ -148,7 +148,7 @@ export function ReconciliationTab() {
                   <div className="font-medium">{item.sku_site_target || 'Novo Produto'}</div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline" className="text-[10px]">{item.supplier?.name || 'Desconhecido'}</Badge>
+                  <Badge variant="outline" className="text-[10px]">{item.supplier?.supplier_name || 'Desconhecido'}</Badge>
                 </TableCell>
                 <TableCell>
                   <span className="text-xs font-medium">{matchMethodLabels[item.match_method] || item.match_method}</span>
@@ -207,7 +207,7 @@ export function ReconciliationTab() {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[10px] uppercase text-muted-foreground font-bold">Fornecedor</Label>
-                  <div className="text-sm">{selectedItem?.supplier?.name || 'Desconhecido'}</div>
+                  <div className="text-sm">{selectedItem?.supplier?.supplier_name || 'Desconhecido'}</div>
                 </div>
               </div>
 

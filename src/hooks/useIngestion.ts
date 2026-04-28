@@ -283,13 +283,13 @@ export function usePendingStagingItems() {
         .from("sync_staging")
         .select(`
           *,
-          supplier:suppliers(name)
+          supplier:supplier_profiles(supplier_name)
         `)
         .eq("workspace_id", activeWorkspace!.id)
         .in("status", ["pending", "flagged"])
         .order("confidence_score", { ascending: false });
       if (error) throw error;
-      return data as unknown as (SyncStagingItem & { supplier: { name: string } | null })[];
+      return data as unknown as (SyncStagingItem & { supplier: { supplier_name: string } | null })[];
     },
   });
 }
