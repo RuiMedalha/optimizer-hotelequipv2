@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'approve') {
-      const finalData = approvedData || staging.proposed_changes;
+      const finalData = approvedData || staging.proposed_changes || staging.supplier_data;
       
       if (staging.existing_product_id) {
         // Update existing product

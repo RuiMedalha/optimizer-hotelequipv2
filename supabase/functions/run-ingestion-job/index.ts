@@ -47,11 +47,40 @@ Deno.serve(async (req) => {
     const workspaceId = job.workspace_id;
     
     // Update status to importing if it's the first run
+    // Update status to importing and reset items if it's a new run or re-run
     if (job.status !== "importing") {
+      console.log(`[run-ingestion-job] Resetting job ${jobId} for fresh run...`);
+      
+      // If it was a supplier delta job, clean up previous staging records to avoid duplicates
+      if (job.role === 'supplier_delta') {
+        const { error: deleteStagingErr } = await supabase
+          .from("sync_staging")
+          .delete()
+          .eq("ingestion_job_id", jobId);
+        
+        if (deleteStagingErr) console.error("Error cleaning up old staging records:", deleteStagingErr);
+      }
+
+      // Reset items to 'mapped' so they can be re-processed
+      const { error: resetErr } = await supabase.from("ingestion_job_items")
+        .update({ 
+          status: "mapped", 
+          error_message: null 
+        })
+        .eq("job_id", jobId);
+      
+      if (resetErr) console.error("Error resetting job items:", resetErr);
+
       await supabase.from("ingestion_jobs").update({
         status: "importing",
         mode: "live",
         started_at: new Date().toISOString(),
+        // Reset counters for a fresh start
+        imported_rows: 0,
+        updated_rows: 0,
+        skipped_rows: 0,
+        failed_rows: 0,
+        results: { imported: 0, updated: 0, skipped: 0, failed: 0 }
       }).eq("id", jobId);
     }
 
@@ -325,15 +354,18 @@ Deno.serve(async (req) => {
 
           if (isSupplierDelta) {
             // Write to sync_staging instead of updating products
+            // We populate proposed_changes with the data to be applied
             const { error: stagingErr } = await supabase
               .from("sync_staging")
               .insert({
                 ingestion_job_id: jobId,
                 supplier_id: job.supplier_id,
                 sku_supplier: rawSku,
+                sku_site_target: existingProduct?.sku || null, // Link to existing SKU for alias creation
                 confidence_score: confidence,
                 match_method: matchMethod,
                 supplier_data: mergedData,
+                proposed_changes: mergedData, // Crucial: mapping data must be here for approval
                 site_data: existingProduct || null,
                 existing_product_id: existingProduct?.id || null,
                 status: status,
@@ -421,6 +453,7 @@ Deno.serve(async (req) => {
                 confidence_score: 0,
                 match_method: "none",
                 supplier_data: productData,
+                proposed_changes: productData, // Populate this so approval works
                 site_data: null,
                 existing_product_id: null,
                 status: "flagged",
