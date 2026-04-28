@@ -453,6 +453,7 @@ Deno.serve(async (req) => {
                 confidence_score: 0,
                 match_method: "none",
                 supplier_data: productData,
+                proposed_changes: productData, // Populate this so approval works
                 site_data: null,
                 existing_product_id: null,
                 status: "flagged",
