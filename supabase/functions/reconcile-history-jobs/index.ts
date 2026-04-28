@@ -107,12 +107,11 @@ Deno.serve(async (req) => {
           sku_supplier: sku,
           sku_site_target: sku,
           confidence_score: 100,
-          match_method: "exact",
-          supplier_data: null, // Indicates it's missing from supplier
-          proposed_changes: null,
+          match_method: "manual",
+          supplier_data: {}, // Fix: Column violates not-null constraint if null
+          proposed_changes: { is_discontinued: true },
           site_data: masterItem.mapped_data || masterItem.source_data,
-          status: "flagged", // Mark for review as discontinued
-          match_method: "manual" // Using manual to flag special handling
+          status: "flagged",
         });
       }
     }
