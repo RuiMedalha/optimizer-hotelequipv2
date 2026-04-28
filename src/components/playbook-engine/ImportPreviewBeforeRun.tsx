@@ -19,7 +19,7 @@ interface Props {
 
 export function ImportPreviewBeforeRun({
   detection, inference, draft, parsedData, fieldMappings,
-  onConfirmImport, onCorrectMapping, onSaveDraft, onReprocess, isImporting,
+  onConfirmImport, onCorrectMapping, onSaveDraft, onReprocess, isImporting, jobRole,
 }: Props) {
   if (!parsedData) return null;
 
