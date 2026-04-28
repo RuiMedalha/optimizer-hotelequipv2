@@ -8,18 +8,20 @@ export interface SyncStagingItem {
   id: string;
   workspace_id: string;
   supplier_id: string | null;
-  existing_product_id: string | null;
-  sku_site: string;
+  ingestion_job_id: string | null;
   sku_supplier: string | null;
-  proposed_data: any;
-  current_data: any;
+  sku_site_target: string | null;
+  existing_product_id: string | null;
+  proposed_changes: any;
+  supplier_data: any;
+  site_data: any;
   confidence_score: number;
   match_method: 'exact' | 'normalized' | 'fuzzy' | 'ean' | 'manual';
   status: 'pending' | 'approved' | 'rejected' | 'processed';
-  field_diffs: any;
   created_at: string;
   updated_at: string;
 }
+
 
 
 // ─── Types ───
