@@ -1077,7 +1077,11 @@ const ProductsPage = () => {
             Duplicados{duplicateGroups.length > 0 ? ` (${duplicateGroups.length})` : ""}
           </Button>
           {(() => {
-            const catCount = (allProductsLight ?? []).filter((p: any) => p.suggested_category && p.suggested_category !== p.category).length;
+            // Optimization: avoid re-calculating suggested count on every render for large lists
+            const catCount = useMemo(() => 
+              (allProductsLight ?? []).filter((p: any) => p && p.suggested_category && p.suggested_category !== p.category).length,
+              [allProductsLight]
+            );
             return catCount > 0 ? (
               <Button
                 size="sm"
