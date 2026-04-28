@@ -308,13 +308,14 @@ Deno.serve(async (req) => {
             const { error: stagingErr } = await supabase
               .from("sync_staging")
               .insert({
-                job_id: jobId,
+                ingestion_job_id: jobId,
                 supplier_id: job.supplier_id,
-                sku: rawSku,
+                sku_supplier: rawSku,
                 confidence_score: confidence,
                 match_method: matchMethod,
                 supplier_data: mergedData,
                 site_data: existingProduct || null,
+                existing_product_id: existingProduct?.id || null,
                 status: status,
                 workspace_id: workspaceId
               });
@@ -393,13 +394,14 @@ Deno.serve(async (req) => {
             const { error: stagingErr } = await supabase
               .from("sync_staging")
               .insert({
-                job_id: jobId,
+                ingestion_job_id: jobId,
                 supplier_id: job.supplier_id,
-                sku: null,
+                sku_supplier: null,
                 confidence_score: 0,
                 match_method: "none",
                 supplier_data: productData,
                 site_data: null,
+                existing_product_id: null,
                 status: "flagged",
                 workspace_id: workspaceId
               });
