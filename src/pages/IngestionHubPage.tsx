@@ -373,7 +373,8 @@ const IngestionHubPage = () => {
         .from("ingestion_job_items")
         .select("source_data")
         .eq("job_id", jobId)
-        .order("source_row_index", { ascending: true });
+        .order("source_row_index", { ascending: true })
+        .limit(10000); // Increase limit to ensure all rows are loaded for re-mapping
 
       if (itemsErr) throw itemsErr;
       if (!items || items.length === 0) throw new Error("Job sem dados fonte");
