@@ -489,6 +489,9 @@ const IngestionHubPage = () => {
 
       if (error) throw error;
       
+      // Force refresh of data
+      await Promise.all([refetchJobs(), refetchStaging()]);
+      
       toast.success("Reconciliação concluída! Verifique o separador Reconciliação.");
       setActiveTab("reconciliation");
       setReconcileMasterId(null);
