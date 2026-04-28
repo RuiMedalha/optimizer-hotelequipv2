@@ -68,9 +68,9 @@ const statusLabels: Record<string, { label: string; color: string }> = {
 };
 
 const IngestionHubPage = () => {
-  const { data: jobs, isLoading } = useIngestionJobs();
-  const { data: pendingStagingItems } = usePendingStagingItems();
-  const hasPendingStaging = (pendingStagingItems?.length || 0) > 0;
+  const { data: jobs, isLoading, refetch: refetchJobs } = useIngestionJobs();
+  const { data: pendingStagingItems, refetch: refetchStaging } = usePendingStagingItems();
+  const hasPendingStaging = (pendingStagingItems?.length || 0) > 0 || (jobs?.some(j => j.role === 'supplier_delta'));
 
   const { data: uploadedFiles, isLoading: isLoadingFiles } = useUploadedFiles();
   const parseIngestion = useParseIngestion();
