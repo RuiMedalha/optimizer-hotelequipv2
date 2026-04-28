@@ -116,6 +116,11 @@ const IngestionHubPage = () => {
   const [detailJob, setDetailJob] = useState<IngestionJob | null>(null);
   const { data: detailItems } = useIngestionJobItems(detailJob?.id || null);
 
+  // History Reconciliation State
+  const [reconcileMasterId, setReconcileMasterId] = useState<string | null>(null);
+  const [reconcileDeltaId, setReconcileDeltaId] = useState<string | null>(null);
+  const [isProcessingReconciliation, setIsProcessingReconciliation] = useState(false);
+
   const handleFile = useCallback(async (file: File) => {
     setFileName(file.name);
     setCurrentDetection(null);
