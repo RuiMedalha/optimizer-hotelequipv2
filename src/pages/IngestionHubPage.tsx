@@ -1177,52 +1177,55 @@ function JobDetailDialog({ job, items, onClose, handleRemapJob }: { job: Ingesti
 
             {/* Items table */}
             {filteredItems.length > 0 ? (
-              <ScrollArea className="flex-1 min-h-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/30">
-                      <TableHead className="text-xs font-semibold w-10">#</TableHead>
-                      <TableHead className="text-xs font-semibold">Status</TableHead>
-                      <TableHead className="text-xs font-semibold">Ação</TableHead>
-                      <TableHead className="text-xs font-semibold">SKU</TableHead>
-                      <TableHead className="text-xs font-semibold">Título</TableHead>
-                      <TableHead className="text-xs font-semibold">Erro</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {visibleItems.map(item => (
-                      <TableRow
-                        key={item.id}
-                        className="cursor-pointer hover:bg-primary/5"
-                        onClick={() => setSelectedItem(item)}
-                      >
-                        <TableCell className="text-xs font-mono">{item.source_row_index + 1}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={cn("text-[10px]",
-                            item.status === "processed" ? "border-primary/50 text-primary" :
-                            item.status === "error" ? "border-destructive text-destructive" :
-                            item.status === "mapped" ? "border-primary/30 text-primary" :
-                            item.status === "skipped" ? "border-muted text-muted-foreground" : ""
-                          )}>{item.status}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary" className={cn("text-[10px]",
-                            item.action === "insert" ? "bg-primary/10 text-primary" :
-                            item.action === "merge" || item.action === "update" ? "bg-accent text-accent-foreground" :
-                            item.action === "skip" ? "bg-muted text-muted-foreground" : ""
-                          )}>
-                            {item.action === "insert" ? "➕ Novo" :
-                             item.action === "merge" || item.action === "update" ? "🔄 Atualizar" :
-                             item.action === "skip" ? "⏭ Ignorar" : item.action || "—"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-xs font-mono text-primary underline">{item.mapped_data?.sku || item.source_data?.sku || "—"}</TableCell>
-                        <TableCell className="text-xs max-w-[200px] truncate">{item.mapped_data?.original_title || "—"}</TableCell>
-                        <TableCell className="text-xs text-destructive max-w-[200px] truncate">{item.error_message || "—"}</TableCell>
+              <ScrollArea className="flex-1 min-h-0 w-full">
+                <div className="min-w-max">
+                  <Table className="table-auto">
+                    <TableHeader>
+                      <TableRow className="bg-muted/30">
+                        <TableHead className="text-xs font-semibold w-10">#</TableHead>
+                        <TableHead className="text-xs font-semibold">Status</TableHead>
+                        <TableHead className="text-xs font-semibold">Ação</TableHead>
+                        <TableHead className="text-xs font-semibold">SKU</TableHead>
+                        <TableHead className="text-xs font-semibold">Título</TableHead>
+                        <TableHead className="text-xs font-semibold">Erro</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {visibleItems.map(item => (
+                        <TableRow
+                          key={item.id}
+                          className="cursor-pointer hover:bg-primary/5"
+                          onClick={() => setSelectedItem(item)}
+                        >
+                          <TableCell className="text-xs font-mono">{item.source_row_index + 1}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={cn("text-[10px]",
+                              item.status === "processed" ? "border-primary/50 text-primary" :
+                              item.status === "error" ? "border-destructive text-destructive" :
+                              item.status === "mapped" ? "border-primary/30 text-primary" :
+                              item.status === "skipped" ? "border-muted text-muted-foreground" : ""
+                            )}>{item.status}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className={cn("text-[10px]",
+                              item.action === "insert" ? "bg-primary/10 text-primary" :
+                              item.action === "merge" || item.action === "update" ? "bg-accent text-accent-foreground" :
+                              item.action === "skip" ? "bg-muted text-muted-foreground" : ""
+                            )}>
+                              {item.action === "insert" ? "➕ Novo" :
+                               item.action === "merge" || item.action === "update" ? "🔄 Atualizar" :
+                               item.action === "skip" ? "⏭ Ignorar" : item.action || "—"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs font-mono text-primary underline">{item.mapped_data?.sku || item.source_data?.sku || "—"}</TableCell>
+                          <TableCell className="text-xs max-w-[200px] truncate">{item.mapped_data?.original_title || "—"}</TableCell>
+                          <TableCell className="text-xs text-destructive max-w-[200px] truncate">{item.error_message || "—"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                <ScrollBar orientation="horizontal" />
               </ScrollArea>
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center py-12 text-muted-foreground bg-muted/20 rounded-lg">
