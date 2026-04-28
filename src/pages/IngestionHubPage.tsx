@@ -68,9 +68,9 @@ const statusLabels: Record<string, { label: string; color: string }> = {
 };
 
 const IngestionHubPage = () => {
-  const { data: jobs, isLoading } = useIngestionJobs();
-  const { data: pendingStagingItems } = usePendingStagingItems();
-  const hasPendingStaging = (pendingStagingItems?.length || 0) > 0;
+  const { data: jobs, isLoading, refetch: refetchJobs } = useIngestionJobs();
+  const { data: pendingStagingItems, refetch: refetchStaging } = usePendingStagingItems();
+  const hasPendingStaging = (pendingStagingItems?.length || 0) > 0 || (jobs?.some(j => j.role === 'supplier_delta'));
 
   const { data: uploadedFiles, isLoading: isLoadingFiles } = useUploadedFiles();
   const parseIngestion = useParseIngestion();
@@ -489,6 +489,9 @@ const IngestionHubPage = () => {
 
       if (error) throw error;
       
+      // Force refresh of data
+      await Promise.all([refetchJobs(), refetchStaging()]);
+      
       toast.success("Reconciliação concluída! Verifique o separador Reconciliação.");
       setActiveTab("reconciliation");
       setReconcileMasterId(null);
@@ -594,15 +597,15 @@ const IngestionHubPage = () => {
           <TabsTrigger value="import" className="gap-2"><Upload className="w-4 h-4" /> Importar</TabsTrigger>
           <TabsTrigger value="files" className="gap-2"><FileText className="w-4 h-4" /> Ficheiros</TabsTrigger>
           <TabsTrigger value="jobs" className="gap-2"><Clock className="w-4 h-4" /> Histórico</TabsTrigger>
-          {hasPendingStaging && (
-            <TabsTrigger value="reconciliation" className="gap-2">
-              <History className="w-4 h-4" /> 
-              Reconciliação 
+          <TabsTrigger value="reconciliation" className="gap-2">
+            <History className="w-4 h-4" /> 
+            Reconciliação 
+            {pendingStagingItems && pendingStagingItems.length > 0 && (
               <Badge variant="secondary" className="ml-1 h-5 px-1 bg-primary/20 text-primary border-none">
-                {pendingStagingItems?.length}
+                {pendingStagingItems.length}
               </Badge>
-            </TabsTrigger>
-          )}
+            )}
+          </TabsTrigger>
         </TabsList>
 
 
