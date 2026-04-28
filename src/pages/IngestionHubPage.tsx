@@ -1082,21 +1082,45 @@ const IngestionHubPage = () => {
                     </h3>
                     {historyJobs.map(job => {
                       const st = statusLabels[job.status] || statusLabels.queued;
+                      const isMaster = reconcileMasterId === job.id;
+                      const isDelta = reconcileDeltaId === job.id;
+
                       return (
-                        <Card key={job.id} className="hover:border-primary/30 transition-colors">
+                        <Card key={job.id} className={cn(
+                          "hover:border-primary/30 transition-colors",
+                          isMaster && "border-blue-500 bg-blue-50/30",
+                          isDelta && "border-amber-500 bg-amber-50/30"
+                        )}>
                           <CardContent className="flex items-center gap-4 py-3">
                             <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setDetailJob(job)}>
                               <div className="flex items-center gap-2">
                                 <p className="text-sm font-medium truncate">{job.file_name || `Job ${job.id.slice(0, 8)}`}</p>
                                 <Badge className={cn("text-[10px]", st.color)}>{st.label}</Badge>
-                                <Badge variant="outline" className="text-[10px]">{job.mode === "dry_run" ? "Preview" : "Live"}</Badge>
+                                {isMaster && <Badge className="text-[10px] bg-blue-600">MESTRE</Badge>}
+                                {isDelta && <Badge className="text-[10px] bg-amber-600">DELTA</Badge>}
                               </div>
                               <p className="text-xs text-muted-foreground mt-0.5">
-                                {job.total_rows} linhas · {job.imported_rows} importados · {job.updated_rows} atualizados · {job.failed_rows} erros
+                                {job.total_rows} linhas · {job.imported_rows} processados
                                 {job.created_at && ` · ${format(new Date(job.created_at), "dd/MM HH:mm")}`}
                               </p>
                             </div>
-                            <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-2">
+                              <Button 
+                                size="sm" 
+                                variant={isMaster ? "default" : "outline"}
+                                className={cn("h-8 text-[10px]", isMaster && "bg-blue-600 hover:bg-blue-700")}
+                                onClick={() => setReconcileMasterId(isMaster ? null : job.id)}
+                              >
+                                {isMaster ? "Mestre Selecionado" : "Usar como Mestre"}
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant={isDelta ? "default" : "outline"}
+                                className={cn("h-8 text-[10px]", isDelta && "bg-amber-600 hover:bg-amber-700")}
+                                onClick={() => setReconcileDeltaId(isDelta ? null : job.id)}
+                              >
+                                {isDelta ? "Delta Selecionado" : "Usar como Delta"}
+                              </Button>
                               <IngestionJobActionsDropdown job={job} onAction={handleJobAction} />
                             </div>
                           </CardContent>
