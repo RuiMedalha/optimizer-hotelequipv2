@@ -226,6 +226,9 @@ const IngestionHubPage = () => {
         source_type: ext || "excel",
       });
       setCurrentDetection(detResult.detection);
+      if (detResult.matched_supplier_id) {
+        setJobRole("supplier_delta");
+      }
 
       // 2. Infer column mapping
       const infResult = await inferMapping.mutateAsync({
