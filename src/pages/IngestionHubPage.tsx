@@ -86,6 +86,7 @@ const IngestionHubPage = () => {
   const [dupFields, setDupFields] = useState("sku");
   const [skuPrefix, setSkuPrefix] = useState("");
   const [sourceLang, setSourceLang] = useState("auto");
+  const [jobRole, setJobRole] = useState<string | undefined>(undefined);
 
   // Auto-detection state
   const [currentDetection, setCurrentDetection] = useState<any>(null);
