@@ -61,6 +61,9 @@ const statusLabels: Record<string, { label: string; color: string }> = {
 
 const IngestionHubPage = () => {
   const { data: jobs, isLoading } = useIngestionJobs();
+  const { data: pendingStagingItems } = usePendingStagingItems();
+  const hasPendingStaging = (pendingStagingItems?.length || 0) > 0;
+
   const { data: uploadedFiles, isLoading: isLoadingFiles } = useUploadedFiles();
   const parseIngestion = useParseIngestion();
   const runJob = useRunIngestionJob();
