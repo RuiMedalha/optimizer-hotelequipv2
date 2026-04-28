@@ -1,0 +1,1 @@
+ALTER TABLE public.sku_aliases RENAME COLUMN times_used TO vezes_usado;

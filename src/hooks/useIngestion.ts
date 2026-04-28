@@ -17,7 +17,7 @@ export interface SyncStagingItem {
   site_data: any;
   confidence_score: number;
   match_method: 'exact' | 'normalized' | 'fuzzy' | 'ean' | 'manual';
-  status: 'pending' | 'approved' | 'rejected' | 'processed';
+  status: 'pending' | 'approved' | 'rejected' | 'processed' | 'flagged';
   created_at: string;
   updated_at: string;
 }
@@ -273,7 +273,7 @@ export function usePendingStagingItems() {
           supplier:suppliers(name)
         `)
         .eq("workspace_id", activeWorkspace!.id)
-        .eq("status", "pending")
+        .in("status", ["pending", "flagged"])
         .order("confidence_score", { ascending: false });
       if (error) throw error;
       return data as unknown as (SyncStagingItem & { supplier: { name: string } | null })[];

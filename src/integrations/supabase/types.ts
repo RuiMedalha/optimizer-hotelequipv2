@@ -11185,8 +11185,8 @@ export type Database = {
           sku_site: string
           sku_supplier: string
           supplier_id: string | null
-          times_used: number | null
           updated_at: string | null
+          vezes_usado: number | null
           workspace_id: string
         }
         Insert: {
@@ -11196,8 +11196,8 @@ export type Database = {
           sku_site: string
           sku_supplier: string
           supplier_id?: string | null
-          times_used?: number | null
           updated_at?: string | null
+          vezes_usado?: number | null
           workspace_id: string
         }
         Update: {
@@ -11207,8 +11207,8 @@ export type Database = {
           sku_site?: string
           sku_supplier?: string
           supplier_id?: string | null
-          times_used?: number | null
           updated_at?: string | null
+          vezes_usado?: number | null
           workspace_id?: string
         }
         Relationships: [
@@ -15585,7 +15585,13 @@ export type Database = {
         | "supplier_feed"
         | "public_catalog"
         | "price_comparison"
-      match_method_type: "exact" | "normalized" | "fuzzy" | "ean" | "manual"
+      match_method_type:
+        | "exact"
+        | "normalized"
+        | "fuzzy"
+        | "ean"
+        | "manual"
+        | "none"
       normalization_type:
         | "unit"
         | "material"
@@ -16844,7 +16850,14 @@ export const Constants = {
         "public_catalog",
         "price_comparison",
       ],
-      match_method_type: ["exact", "normalized", "fuzzy", "ean", "manual"],
+      match_method_type: [
+        "exact",
+        "normalized",
+        "fuzzy",
+        "ean",
+        "manual",
+        "none",
+      ],
       normalization_type: [
         "unit",
         "material",
