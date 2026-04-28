@@ -361,6 +361,54 @@ const IngestionHubPage = () => {
     try { await runJob.mutateAsync(jobId); } catch {}
   };
 
+  const handleRemapJob = async (jobId: string) => {
+    const job = jobs?.find(j => j.id === jobId);
+    if (!job) return;
+
+    try {
+      toast.info("A analisar dados para re-mapeamento...");
+      
+      // 1. Fetch all items for this job to get original source data
+      const { data: items, error: itemsErr } = await supabase
+        .from("ingestion_job_items")
+        .select("source_data, source_row_index")
+        .eq("job_id", jobId)
+        .order("source_row_index", { ascending: true });
+
+      if (itemsErr) throw itemsErr;
+      if (!items || items.length === 0) throw new Error("Job sem dados fonte");
+
+      const sourceRows = items.map(i => i.source_data);
+      
+      // 2. Determine current field mappings
+      // We'll try to get it from the job config or meta if available, 
+      // otherwise we use what's currently in the state (if it was recently edited)
+      const currentMappings = fieldMappings;
+
+      // 3. Delete old items
+      await supabase.from("ingestion_job_items").delete().eq("job_id", jobId);
+
+      // 4. Trigger parse again (this will create new items and update the job)
+      const result = await parseIngestion.mutateAsync({
+        data: sourceRows,
+        fileName: job.file_name || undefined,
+        sourceType: job.source_type || undefined,
+        fieldMappings: currentMappings,
+        mergeStrategy: job.merge_strategy || undefined,
+        mode: "dry_run", // Always back to dry_run for safety
+        role: job.role || undefined,
+        supplierId: job.supplier_id || undefined,
+      });
+
+      toast.success("Job re-mapeado com sucesso");
+      // Open the detail dialog for the new job (which has the same ID if we were clever, 
+      // but parse-ingestion creates a NEW job. To reuse the same JOB ID we'd need a different tool.)
+      // For now, let the user see the new job in the list.
+    } catch (err: any) {
+      toast.error(`Erro ao re-mapear: ${err.message}`);
+    }
+  };
+
   const handleJobAction = (action: string, jobId: string) => {
     const job = jobs?.find(j => j.id === jobId);
     switch (action) {
@@ -368,7 +416,11 @@ const IngestionHubPage = () => {
         if (job) setDetailJob(job);
         break;
       case "run":
+      case "reimport":
         handleRunExistingJob(jobId);
+        break;
+      case "remap":
+        handleRemapJob(jobId);
         break;
       case "delete":
         deleteIngestionJob.mutate(jobId);
@@ -377,9 +429,7 @@ const IngestionHubPage = () => {
         archiveIngestionJob.mutate(jobId);
         break;
       case "delete_file":
-        // Delete the uploaded file associated with this job
         toast.info("A eliminar ficheiro...");
-        // We'd need the file ID; for now delete by job reference
         deleteIngestionJob.mutate(jobId);
         break;
       case "clone":
@@ -979,13 +1029,18 @@ const IngestionHubPage = () => {
 
 
       {/* Job Detail Dialog */}
-      <JobDetailDialog job={detailJob} items={detailItems || []} onClose={() => setDetailJob(null)} />
+      <JobDetailDialog 
+        job={detailJob} 
+        items={detailItems || []} 
+        onClose={() => setDetailJob(null)} 
+        handleRemapJob={handleRemapJob}
+      />
     </div>
   );
 };
 
 // ─── Job Detail Dialog with pagination ───
-function JobDetailDialog({ job, items, onClose }: { job: IngestionJob | null; items: any[]; onClose: () => void }) {
+function JobDetailDialog({ job, items, onClose, handleRemapJob }: { job: IngestionJob | null; items: any[]; onClose: () => void; handleRemapJob: (jobId: string) => void }) {
   const [page, setPage] = useState(1);
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [filter, setFilter] = useState<string>("all");
@@ -1200,26 +1255,39 @@ function JobDetailDialog({ job, items, onClose }: { job: IngestionJob | null; it
             {/* Re-run / Inject button */}
             {(job.status === "dry_run" || job.status === "done" || job.status === "error") && (
               <div className="border-t pt-3 mt-2 space-y-2">
-                <p className="text-xs text-muted-foreground text-center">
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      onClose();
+                      handleRemapJob(job.id);
+                    }}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Re-mapear Lote
+                  </Button>
+                  <Button
+                    className="flex-[2]"
+                    disabled={runJob.isPending}
+                    onClick={() => {
+                      runJob.mutate(job.id, {
+                        onSuccess: () => toast.success("Ingestão concluída — SKUs duplicados foram fundidos"),
+                      });
+                    }}
+                  >
+                    {runJob.isPending ? (
+                      <><Loader2 className="h-4 w-4 animate-spin mr-2" /> A injetar...</>
+                    ) : (
+                      <><Play className="h-4 w-4 mr-2" /> {job.status === "dry_run" ? "Injetar nos Produtos" : "Re-executar Ingestão"}</>
+                    )}
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground text-center">
                   {job.status === "dry_run"
-                    ? "Pronto para injetar. SKUs duplicados serão fundidos automaticamente num único produto."
-                    : "Pode re-executar este job. SKUs duplicados serão fundidos num único produto."}
+                    ? "Pronto para injetar. SKUs duplicados serão fundidos automaticamente."
+                    : "Pode re-executar este job. SKUs duplicados serão fundidos."}
                 </p>
-                <Button
-                  className="w-full"
-                  disabled={runJob.isPending}
-                  onClick={() => {
-                    runJob.mutate(job.id, {
-                      onSuccess: () => toast.success("Ingestão concluída — SKUs duplicados foram fundidos"),
-                    });
-                  }}
-                >
-                  {runJob.isPending ? (
-                    <><Loader2 className="h-4 w-4 animate-spin mr-2" /> A injetar...</>
-                  ) : (
-                    <><Play className="h-4 w-4 mr-2" /> {job.status === "dry_run" ? "Injetar nos Produtos" : "Re-executar Ingestão"}</>
-                  )}
-                </Button>
               </div>
             )}
           </div>

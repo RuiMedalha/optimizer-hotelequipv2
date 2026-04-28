@@ -64,6 +64,8 @@ export interface IngestionJob {
   started_at: string | null;
   completed_at: string | null;
   created_at: string;
+  role: string | null;
+  supplier_id: string | null;
 }
 
 export interface IngestionJobItem {
