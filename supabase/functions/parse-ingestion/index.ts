@@ -63,6 +63,15 @@ Deno.serve(async (req) => {
         role: role || null,
         supplier_id: supplierId || null,
         started_at: new Date().toISOString(),
+        config: {
+          fieldMappings: mappings,
+          mergeStrategy: strategy,
+          duplicateDetectionFields: dupFields,
+          skuPrefix: skuPrefix || null,
+          sourceLanguage: sourceLanguage || "auto",
+          role: role || null,
+          groupingConfig: groupCfg
+        }
       })
       .select("id")
       .single();
