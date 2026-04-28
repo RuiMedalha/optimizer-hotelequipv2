@@ -764,43 +764,46 @@ const IngestionHubPage = () => {
                         {previewItems && previewItems.length > 0 && (
                           <div className="mt-4 border-t border-border pt-3">
                             <p className="text-xs font-medium mb-2">Detalhes por linha:</p>
-                            <ScrollArea className="max-h-64">
-                              <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead className="text-xs">#</TableHead>
-                                    <TableHead className="text-xs">Ação</TableHead>
-                                    <TableHead className="text-xs">SKU</TableHead>
-                                    <TableHead className="text-xs">Título</TableHead>
-                                    <TableHead className="text-xs">Match</TableHead>
-                                    <TableHead className="text-xs">Grupo</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {previewItems.slice(0, 20).map((item) => (
-                                    <TableRow key={item.id}>
-                                      <TableCell className="text-xs">{item.source_row_index + 1}</TableCell>
-                                      <TableCell>
-                                        <Badge variant="outline" className={cn("text-[10px]",
-                                          item.action === "insert" ? "border-green-500 text-green-600" :
-                                          item.action === "update" || item.action === "merge" ? "border-blue-500 text-blue-600" :
-                                          "border-muted text-muted-foreground"
-                                        )}>{item.action}</Badge>
-                                      </TableCell>
-                                      <TableCell className="text-xs font-mono">{item.mapped_data?.sku || "—"}</TableCell>
-                                      <TableCell className="text-xs max-w-[200px] truncate">{item.mapped_data?.original_title || "—"}</TableCell>
-                                      <TableCell className="text-xs">{item.match_confidence ? `${item.match_confidence}%` : "—"}</TableCell>
-                                      <TableCell className="text-xs">
-                                        {item.parent_group_key ? (
-                                          <Badge variant="secondary" className="text-[10px]">
-                                            {item.is_parent ? "Parent" : "Child"}: {item.parent_group_key}
-                                          </Badge>
-                                        ) : "—"}
-                                      </TableCell>
+                            <ScrollArea className="max-h-64 w-full">
+                              <div className="min-w-max">
+                                <Table className="table-auto">
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead className="text-xs">#</TableHead>
+                                      <TableHead className="text-xs">Ação</TableHead>
+                                      <TableHead className="text-xs">SKU</TableHead>
+                                      <TableHead className="text-xs">Título</TableHead>
+                                      <TableHead className="text-xs">Match</TableHead>
+                                      <TableHead className="text-xs">Grupo</TableHead>
                                     </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {previewItems.slice(0, 20).map((item) => (
+                                      <TableRow key={item.id}>
+                                        <TableCell className="text-xs">{item.source_row_index + 1}</TableCell>
+                                        <TableCell>
+                                          <Badge variant="outline" className={cn("text-[10px]",
+                                            item.action === "insert" ? "border-green-500 text-green-600" :
+                                            item.action === "update" || item.action === "merge" ? "border-blue-500 text-blue-600" :
+                                            "border-muted text-muted-foreground"
+                                          )}>{item.action}</Badge>
+                                        </TableCell>
+                                        <TableCell className="text-xs font-mono">{item.mapped_data?.sku || "—"}</TableCell>
+                                        <TableCell className="text-xs max-w-[200px] truncate">{item.mapped_data?.original_title || "—"}</TableCell>
+                                        <TableCell className="text-xs">{item.match_confidence ? `${item.match_confidence}%` : "—"}</TableCell>
+                                        <TableCell className="text-xs">
+                                          {item.parent_group_key ? (
+                                            <Badge variant="secondary" className="text-[10px]">
+                                              {item.is_parent ? "Parent" : "Child"}: {item.parent_group_key}
+                                            </Badge>
+                                          ) : "—"}
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                              <ScrollBar orientation="horizontal" />
                             </ScrollArea>
                           </div>
                         )}
