@@ -31,6 +31,10 @@ export function ImportPreviewBeforeRun({
   // Estimate valid/doubtful rows
   const hasSku = Object.values(fieldMappings).includes("sku") || Object.values(fieldMappings).includes("supplier_ref");
   const hasTitle = Object.values(fieldMappings).includes("original_title");
+  const hasCategory = Object.values(fieldMappings).includes("category");
+  const hasBrand = Object.values(fieldMappings).includes("brand");
+  const hasPrice = Object.values(fieldMappings).includes("original_price") || Object.values(fieldMappings).includes("sale_price");
+  const hasStock = Object.values(fieldMappings).includes("stock");
   const skuKey = Object.entries(fieldMappings).find(([_, v]) => v === "sku" || v === "supplier_ref")?.[0];
 
   let validRows = 0;
