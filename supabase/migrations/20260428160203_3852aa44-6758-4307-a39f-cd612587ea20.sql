@@ -1,0 +1,1 @@
+ALTER TYPE public.match_method_type ADD VALUE IF NOT EXISTS 'none';
