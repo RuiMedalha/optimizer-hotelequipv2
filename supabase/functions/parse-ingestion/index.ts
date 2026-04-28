@@ -60,6 +60,8 @@ Deno.serve(async (req) => {
         mode: jobMode,
         merge_strategy: strategy,
         total_rows: rows.length,
+        role: role || null,
+        supplier_id: supplierId || null,
         started_at: new Date().toISOString(),
       })
       .select("id")
