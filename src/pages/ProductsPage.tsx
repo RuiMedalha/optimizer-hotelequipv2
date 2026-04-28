@@ -289,38 +289,43 @@ const ProductsPage = () => {
   // Optimized to avoid heavy computation on every render
   const filtered = useMemo(() => {
     return products.filter((p) => {
-      // SEO score filter
-      if (seoScoreFilter !== "all") {
-        const score = p.seo_score ?? (p ? calculateSeoScore(p).score : 0);
-        if (seoScoreFilter === "good" && score < 80) return false;
-        if (seoScoreFilter === "medium" && (score < 50 || score >= 80)) return false;
-        if (seoScoreFilter === "weak" && score >= 50) return false;
-      }
+      try {
+        // SEO score filter
+        if (seoScoreFilter !== "all") {
+          const score = p.seo_score ?? (p ? calculateSeoScore(p).score : 0);
+          if (seoScoreFilter === "good" && score < 80) return false;
+          if (seoScoreFilter === "medium" && (score < 50 || score >= 80)) return false;
+          if (seoScoreFilter === "weak" && score >= 50) return false;
+        }
 
-      // Has keyword filter
-      if (hasKeywordFilter === "yes") {
-        if (!Array.isArray(p.focus_keyword) || p.focus_keyword.length === 0) return false;
-      } else if (hasKeywordFilter === "no") {
-        if (Array.isArray(p.focus_keyword) && p.focus_keyword.length > 0) return false;
-      }
+        // Has keyword filter
+        if (hasKeywordFilter === "yes") {
+          if (!Array.isArray(p.focus_keyword) || p.focus_keyword.length === 0) return false;
+        } else if (hasKeywordFilter === "no") {
+          if (Array.isArray(p.focus_keyword) && p.focus_keyword.length > 0) return false;
+        }
 
-      // Phase filter
-      if (phaseFilter !== "all") {
-        const phases = getProductPhases(p);
-        if (phaseFilter === "missing1" && phases.p1) return false;
-        if (phaseFilter === "missing2" && phases.p2) return false;
-        if (phaseFilter === "missing3" && phases.p3) return false;
-        if (phaseFilter === "complete" && (!phases.p1 || !phases.p2 || !phases.p3)) return false;
-        if (phaseFilter === "none" && (phases.p1 || phases.p2 || phases.p3)) return false;
-      }
+        // Phase filter
+        if (phaseFilter !== "all") {
+          const phases = getProductPhases(p);
+          if (phaseFilter === "missing1" && phases.p1) return false;
+          if (phaseFilter === "missing2" && phases.p2) return false;
+          if (phaseFilter === "missing3" && phases.p3) return false;
+          if (phaseFilter === "complete" && (!phases.p1 || !phases.p2 || !phases.p3)) return false;
+          if (phaseFilter === "none" && (phases.p1 || phases.p2 || phases.p3)) return false;
+        }
 
-      // Migration filter
-      if (migrationFilter !== "all") {
-        if (p.status !== "published" && migrationFilter !== "not_migrated") return false;
-        if (p.status === "published" && getMigrationStatus(p) !== migrationFilter) return false;
-      }
+        // Migration filter
+        if (migrationFilter !== "all") {
+          if (p.status !== "published" && migrationFilter !== "not_migrated") return false;
+          if (p.status === "published" && getMigrationStatus(p) !== migrationFilter) return false;
+        }
 
-      return true;
+        return true;
+      } catch (err) {
+        console.error("Error filtering product:", p.id, err);
+        return true; // Keep product in list if filtering fails
+      }
     });
   }, [products, seoScoreFilter, hasKeywordFilter, phaseFilter, migrationFilter, getProductPhases]);
 
