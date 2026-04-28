@@ -34,9 +34,19 @@ Deno.serve(async (req) => {
       .from("ingestion_job_items")
       .select("*")
       .eq("job_id", deltaJobId)
-      .limit(10000);
+      .limit(10000); // Support up to 10k items
 
     if (deltaErr) throw deltaErr;
+
+    // Fetch the delta job to get its original workspace_id and role
+    const { data: deltaJob } = await supabase
+      .from("ingestion_jobs")
+      .select("workspace_id, supplier_id")
+      .eq("id", deltaJobId)
+      .single();
+
+    const finalWorkspaceId = workspaceId || deltaJob?.workspace_id;
+    const supplierId = deltaJob?.supplier_id;
 
     // 2. Fetch Master Items (the source of truth for what currently exists)
     const { data: masterItems, error: masterErr } = await supabase
