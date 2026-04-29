@@ -41,7 +41,7 @@ export function ReconciliationTab() {
   const processItem = useProcessStagingItem();
   const batchProcess = useBatchProcessStaging();
   
-  const [selectedItem, setSelectedItem] = useState<(SyncStagingItem & { supplier: { supplier_name: string } | null }) | null>(null);
+  const [selectedItem, setSelectedItem] = useState<(SyncStagingItem & { job: { config: any } | null }) | null>(null);
   const [pendingChanges, setPendingChanges] = useState<Record<string, boolean>>({});
 
   // Append items when loading more
