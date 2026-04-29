@@ -62,7 +62,11 @@ Deno.serve(async (req) => {
     // 3. Map Master items by SKU
     const masterMap = new Map<string, any>();
     masterItems.forEach(item => {
-      const sku = normalizeSKU(item.mapped_data?.sku || item.source_data?.sku || "");
+      const mapped = item.mapped_data || {};
+      const source = item.source_data || {};
+      // Robust SKU extraction
+      const rawSku = mapped.sku || source.sku || mapped.Codigo || source.Codigo || mapped.Ref || source.Ref || "";
+      const sku = normalizeSKU(rawSku);
       if (sku) masterMap.set(sku, item);
     });
 
@@ -74,12 +78,18 @@ Deno.serve(async (req) => {
     const processedSkusInDelta = new Set<string>();
 
     for (const deltaItem of deltaItems) {
-      const rawSku = deltaItem.mapped_data?.sku || deltaItem.source_data?.sku || "";
+      const mappedData = deltaItem.mapped_data || {};
+      const sourceData = deltaItem.source_data || {};
+      
+      const rawSku = mappedData.sku || sourceData.sku || mappedData.Codigo || sourceData.Codigo || mappedData.Ref || sourceData.Ref || "";
       const normalizedSku = normalizeSKU(rawSku);
-      processedSkusInDelta.add(normalizedSku);
+      
+      if (normalizedSku) {
+        processedSkusInDelta.add(normalizedSku);
+      }
 
-      const mappedData = deltaItem.mapped_data || deltaItem.source_data || {};
-      const masterItem = masterMap.get(normalizedSku);
+      const masterItem = normalizedSku ? masterMap.get(normalizedSku) : null;
+      const masterMapped = masterItem?.mapped_data || masterItem?.source_data || {};
 
       let confidence = 0;
       let matchMethod = "none";
@@ -89,22 +99,27 @@ Deno.serve(async (req) => {
         matchMethod = "exact";
       }
 
+      // Prepare proposed changes with "Site Wins" for Category and Brand
+      const proposedChanges = {
+        ...mappedData,
+        is_discontinued: false,
+        // PRESERVATION RULE: Category and Brand from Master (Site) always win if they exist
+        category: masterMapped.category || masterMapped.Categoria || mappedData.category || mappedData.Categoria,
+        brand: masterMapped.brand || masterMapped.Marca || mappedData.brand || mappedData.Marca,
+        original_description: mappedData.original_description || mappedData.Descrição || sourceData.Descrição
+      };
+
       stagingRecords.push({
         workspace_id: finalWorkspaceId,
         ingestion_job_id: deltaJobId,
         supplier_id: supplierId,
-        sku_supplier: rawSku,
-        sku_site_target: masterItem?.mapped_data?.sku || null,
+        sku_supplier: rawSku || normalizedSku,
+        sku_site_target: masterMapped.sku || null,
         confidence_score: confidence,
         match_method: matchMethod,
         supplier_data: mappedData,
-        proposed_changes: {
-          ...mappedData,
-          category: masterItem?.mapped_data?.category || masterItem?.source_data?.category || masterItem?.mapped_data?.Categoria || mappedData.category || mappedData.Categoria,
-          brand: masterItem?.mapped_data?.brand || masterItem?.source_data?.brand || masterItem?.mapped_data?.Marca || mappedData.brand || mappedData.Marca,
-          original_description: mappedData.original_description || mappedData.Descrição
-        },
-        site_data: masterItem?.mapped_data || masterItem?.source_data || null,
+        proposed_changes: proposedChanges,
+        site_data: masterItem ? masterMapped : null,
         existing_product_id: null,
         status: confidence >= 80 ? "pending" : "flagged",
       });
@@ -113,16 +128,22 @@ Deno.serve(async (req) => {
     // 6. Identify Discontinued (In Master but NOT in Delta)
     for (const [sku, masterItem] of masterMap.entries()) {
       if (!processedSkusInDelta.has(sku)) {
+        const masterMapped = masterItem.mapped_data || masterItem.source_data || {};
         stagingRecords.push({
           workspace_id: finalWorkspaceId,
           ingestion_job_id: deltaJobId,
+          supplier_id: supplierId, // FIXED: Now passing supplier_id for discontinued items
           sku_supplier: sku,
-          sku_site_target: sku,
+          sku_site_target: masterMapped.sku || sku,
           confidence_score: 100,
           match_method: "manual",
           supplier_data: {},
-          proposed_changes: { is_discontinued: true },
-          site_data: masterItem.mapped_data || masterItem.source_data,
+          proposed_changes: { 
+            is_discontinued: true,
+            stock: 0,
+            status: 'needs_review'
+          },
+          site_data: masterMapped,
           status: "flagged",
         });
       }

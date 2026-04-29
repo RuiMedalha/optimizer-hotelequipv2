@@ -287,7 +287,8 @@ export function usePendingStagingItems() {
         `)
         .eq("workspace_id", activeWorkspace!.id)
         .in("status", ["pending", "flagged"])
-        .order("confidence_score", { ascending: false });
+        .order("confidence_score", { ascending: false })
+        .limit(10000); // FIXED: Removed implicit 1000 limit
       if (error) throw error;
       return data as unknown as (SyncStagingItem & { supplier: { supplier_name: string } | null })[];
     },
