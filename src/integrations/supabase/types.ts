@@ -13136,31 +13136,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "fk_sync_staging_job"
-            columns: ["ingestion_job_id"]
-            isOneToOne: false
-            referencedRelation: "ingestion_jobs"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_sync_staging_supplier"
-            columns: ["supplier_id"]
-            isOneToOne: false
-            referencedRelation: "supplier_profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_sync_staging_workspace"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "sync_staging_existing_product_id_fkey"
             columns: ["existing_product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sync_staging_ingestion_job_id_fkey"
+            columns: ["ingestion_job_id"]
+            isOneToOne: false
+            referencedRelation: "ingestion_jobs"
             referencedColumns: ["id"]
           },
           {
