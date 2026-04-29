@@ -323,9 +323,9 @@ export function useStagingCounts() {
       let hasMore = true;
 
       while (hasMore) {
-        const { data, error } = await supabase
+        const { data, error, count } = await supabase
           .from("sync_staging")
-          .select("change_type")
+          .select("change_type", { count: "exact", head: false })
           .eq("workspace_id", activeWorkspace!.id)
           .in("status", ["pending", "flagged"])
           .range(from, from + pageSize - 1);
@@ -335,7 +335,12 @@ export function useStagingCounts() {
         if (data && data.length > 0) {
           allData = [...allData, ...data];
           from += pageSize;
-          if (data.length < pageSize) hasMore = false;
+          // If we have the total count from the first request, we can use it to determine if there's more
+          if (count !== null) {
+            hasMore = allData.length < count;
+          } else {
+            if (data.length < pageSize) hasMore = false;
+          }
         } else {
           hasMore = false;
         }
