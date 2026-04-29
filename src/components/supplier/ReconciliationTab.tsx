@@ -497,7 +497,7 @@ export function ReconciliationTab() {
               ) : (
                 <div className="space-y-6">
                   {/* Image comparison */}
-                  {(selectedItem?.proposed_changes?.image_urls || selectedItem?.site_data?.image_urls) && (
+                  {(selectedItem?.proposed_changes?.image_urls || selectedItem?.site_data?.image_urls || (selectedItem as any).product?.image_urls) && (
                     <div className="space-y-3">
                       <h4 className="text-sm font-semibold flex items-center gap-2">
                         <ImageIcon className="h-4 w-4" /> Revisão de Imagens
@@ -507,7 +507,7 @@ export function ReconciliationTab() {
                           <Label className="text-[10px] text-muted-foreground uppercase font-bold">Imagem no Site</Label>
                           <div className="aspect-square rounded-md border bg-white flex items-center justify-center overflow-hidden">
                             {(() => {
-                              const siteImgs = selectedItem.site_data?.image_urls;
+                              const siteImgs = (selectedItem as any).product?.image_urls || selectedItem.site_data?.image_urls;
                               const imgUrl = Array.isArray(siteImgs) ? siteImgs[0] : siteImgs;
                               return imgUrl ? (
                                 <img src={imgUrl} alt="Atual" className="object-contain w-full h-full" />
