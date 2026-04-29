@@ -83,23 +83,54 @@ Deno.serve(async (req) => {
 
     console.log(`Starting history reconciliation: Master=${masterJobId}, Delta=${deltaJobId}, Workspace=${finalWorkspaceId}`);
 
-    // 1. Fetch Delta Items
-    const { data: deltaItems, error: deltaErr } = await supabase
-      .from("ingestion_job_items")
-      .select("*")
-      .eq("job_id", deltaJobId)
-      .limit(50000);
+    // 1. Fetch Delta Items (Paginated to handle large jobs)
+    console.log(`Fetching items for Delta job: ${deltaJobId}`);
+    let deltaItems: any[] = [];
+    let hasMoreDelta = true;
+    let deltaOffset = 0;
+    const BATCH_SIZE = 5000;
 
-    if (deltaErr) throw deltaErr;
+    while (hasMoreDelta) {
+      const { data, error } = await supabase
+        .from("ingestion_job_items")
+        .select("*")
+        .eq("job_id", deltaJobId)
+        .range(deltaOffset, deltaOffset + BATCH_SIZE - 1);
 
-    // 2. Fetch Master Items
-    const { data: masterItems, error: masterErr } = await supabase
-      .from("ingestion_job_items")
-      .select("*")
-      .eq("job_id", masterJobId)
-      .limit(50000);
+      if (error) throw error;
+      if (data && data.length > 0) {
+        deltaItems = [...deltaItems, ...data];
+        deltaOffset += BATCH_SIZE;
+        if (data.length < BATCH_SIZE) hasMoreDelta = false;
+      } else {
+        hasMoreDelta = false;
+      }
+    }
+    console.log(`Fetched ${deltaItems.length} items for Delta job`);
 
-    if (masterErr) throw masterErr;
+    // 2. Fetch Master Items (Paginated)
+    console.log(`Fetching items for Master job: ${masterJobId}`);
+    let masterItems: any[] = [];
+    let hasMoreMaster = true;
+    let masterOffset = 0;
+
+    while (hasMoreMaster) {
+      const { data, error } = await supabase
+        .from("ingestion_job_items")
+        .select("*")
+        .eq("job_id", masterJobId)
+        .range(masterOffset, masterOffset + BATCH_SIZE - 1);
+
+      if (error) throw error;
+      if (data && data.length > 0) {
+        masterItems = [...masterItems, ...data];
+        masterOffset += BATCH_SIZE;
+        if (data.length < BATCH_SIZE) hasMoreMaster = false;
+      } else {
+        hasMoreMaster = false;
+      }
+    }
+    console.log(`Fetched ${masterItems.length} items for Master job`);
 
     // 3. Map Master items by SKU
     const masterMap = new Map<string, any>();
