@@ -18,6 +18,7 @@ export interface SyncStagingItem {
   confidence_score: number;
   match_method: 'exact' | 'normalized' | 'fuzzy' | 'ean' | 'manual';
   status: 'pending' | 'approved' | 'rejected' | 'processed' | 'flagged';
+  change_type: 'discontinued' | 'new_product' | 'price_change' | 'field_update' | 'multiple_changes' | null;
   created_at: string;
   updated_at: string;
 }
