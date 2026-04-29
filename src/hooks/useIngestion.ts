@@ -21,6 +21,7 @@ export interface SyncStagingItem {
   change_type: 'discontinued' | 'new_product' | 'price_change' | 'field_update' | 'multiple_changes' | null;
   created_at: string;
   updated_at: string;
+  product?: any;
 }
 
 
@@ -286,7 +287,8 @@ export function usePendingStagingItems(options?: { changeType?: string; limit?: 
         .from("sync_staging")
         .select(`
           *,
-          job:ingestion_jobs(config)
+          job:ingestion_jobs(config),
+          product:products(*)
         `, { count: 'exact' })
         .eq("workspace_id", activeWorkspace!.id)
         .in("status", ["pending", "flagged"]);
@@ -317,7 +319,7 @@ export function useStagingCounts() {
     queryKey: ["staging-counts", activeWorkspace?.id],
     enabled: !!activeWorkspace?.id,
     queryFn: async () => {
-      let allData: { change_type: string | null }[] = [];
+      let allData: { change_type: string | null; supplier_data: any; site_data: any }[] = [];
       let from = 0;
       const pageSize = 1000;
       let hasMore = true;
@@ -325,7 +327,7 @@ export function useStagingCounts() {
       while (hasMore) {
         const { data, error, count } = await supabase
           .from("sync_staging")
-          .select("change_type", { count: "exact", head: false })
+          .select("change_type, supplier_data, site_data", { count: "exact", head: false })
           .eq("workspace_id", activeWorkspace!.id)
           .in("status", ["pending", "flagged"])
           .range(from, from + pageSize - 1);
@@ -352,12 +354,19 @@ export function useStagingCounts() {
         price_change: 0,
         field_update: 0,
         multiple_changes: 0,
+        price_alerts: 0,
         total: allData.length
       };
 
       allData.forEach(item => {
         if (item.change_type && counts[item.change_type] !== undefined) {
           counts[item.change_type]++;
+        }
+        
+        const sp = item.supplier_data?.price || item.supplier_data?.original_price;
+        const siteP = item.site_data?.price || item.site_data?.original_price;
+        if (sp && siteP && Number(sp) !== Number(siteP)) {
+          counts.price_alerts++;
         }
       });
 

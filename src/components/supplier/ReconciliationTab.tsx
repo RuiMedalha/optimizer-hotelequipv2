@@ -237,6 +237,7 @@ export function ReconciliationTab() {
                 isDisabled ? "opacity-40 grayscale" : ""
               )}
               onClick={() => !isDisabled && handleSetFilter(isActive ? undefined : type)}
+              style={isDisabled ? { pointerEvents: 'none' } : {}}
             >
               <CardContent className="p-4 flex flex-col items-center text-center gap-2">
                 <div className={cn("p-2 rounded-full", changeTypeColors[type].split(' ')[2])}>
@@ -323,11 +324,7 @@ export function ReconciliationTab() {
             <DollarSign className="w-4 h-4" />
             <span className="text-sm font-medium">Produtos com alteração de preço:</span>
             <Badge variant="secondary" className="bg-blue-200/50 text-blue-800 border-blue-300">
-              {stagingData?.items?.filter(i => {
-                const sp = i.supplier_data?.price || i.supplier_data?.original_price;
-                const siteP = i.site_data?.price || i.site_data?.original_price;
-                return sp && siteP && Number(sp) !== Number(siteP);
-              }).length || 0} (nesta vista)
+              {counts?.price_alerts || 0}
             </Badge>
           </div>
         </div>
@@ -411,7 +408,7 @@ export function ReconciliationTab() {
               <TableRow>
                 <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                   {filterType 
-                    ? `Nenhum produto do tipo "${changeTypeLabels[filterType]}" encontrado.`
+                    ? `Sem registos do tipo "${changeTypeLabels[filterType]}" encontrados.`
                     : "A carregar lista de produtos..."}
                 </TableCell>
               </TableRow>
@@ -501,7 +498,7 @@ export function ReconciliationTab() {
               ) : (
                 <div className="space-y-6">
                   {/* Image comparison */}
-                  {(selectedItem?.proposed_changes?.image_urls || selectedItem?.site_data?.image_urls) && (
+                  {(selectedItem?.proposed_changes?.image_urls || selectedItem?.site_data?.image_urls || (selectedItem as any).product?.image_urls) && (
                     <div className="space-y-3">
                       <h4 className="text-sm font-semibold flex items-center gap-2">
                         <ImageIcon className="h-4 w-4" /> Revisão de Imagens
@@ -511,7 +508,7 @@ export function ReconciliationTab() {
                           <Label className="text-[10px] text-muted-foreground uppercase font-bold">Imagem no Site</Label>
                           <div className="aspect-square rounded-md border bg-white flex items-center justify-center overflow-hidden">
                             {(() => {
-                              const siteImgs = selectedItem.site_data?.image_urls;
+                              const siteImgs = (selectedItem as any).product?.image_urls || selectedItem.site_data?.image_urls;
                               const imgUrl = Array.isArray(siteImgs) ? siteImgs[0] : siteImgs;
                               return imgUrl ? (
                                 <img src={imgUrl} alt="Atual" className="object-contain w-full h-full" />
@@ -592,9 +589,10 @@ export function ReconciliationTab() {
                         // Skip internal and image fields
                         if (['image_urls', 'sku', 'is_discontinued', 'supplier_title', 'supplier_description', 'supplier_short_description'].includes(key)) return null;
                         
-                        const oldVal = selectedItem.site_data?.[key];
-                        // If values are the same, don't show in the list to reduce clutter
-                        if (oldVal === newVal && oldVal !== undefined) return null;
+                        const oldVal = (selectedItem as any).product?.[key] !== undefined ? (selectedItem as any).product[key] : selectedItem.site_data?.[key];
+                        // If values are the same, still show descriptions and categories for context as requested
+                        const isContextField = ['original_description', 'short_description', 'category', 'brand', 'original_title'].includes(key);
+                        if (oldVal === newVal && oldVal !== undefined && !isContextField) return null;
 
                         const isNewField = oldVal === null || oldVal === undefined || oldVal === '';
                         

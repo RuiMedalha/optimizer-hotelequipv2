@@ -62,16 +62,19 @@ Deno.serve(async (req) => {
           await supabase.from("sync_staging").update({ status: 'approved' }).eq("id", staging.id);
           processedCount++;
         }
-        else if (action === 'approve_prices' && existing_product_id) {
+        else if ((action === 'approve_prices' || action === 'approve_prices_only') && existing_product_id) {
           const newPrice = proposed_changes.price || proposed_changes.original_price || proposed_changes.Preço || proposed_changes.Publico;
           if (newPrice !== undefined) {
              await supabase.from("products").update({
-              price: newPrice,
               original_price: newPrice,
               updated_at: new Date().toISOString()
             }).eq("id", existing_product_id);
           }
           
+          // Se for "aprovar só preços" de múltiplos, podemos marcar como processado se não houver mais nada crítico,
+          // ou manter pendente mas com preço já tratado? 
+          // O pedido do utilizador sugere que quer "aceitar as alterações de preço sem aprovar os outros campos".
+          // Para isso, atualizamos o produto e marcamos o staging como processado.
           await supabase.from("sync_staging").update({ status: 'approved' }).eq("id", staging.id);
           processedCount++;
         }
