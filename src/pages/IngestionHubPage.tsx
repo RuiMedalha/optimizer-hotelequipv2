@@ -98,6 +98,8 @@ const IngestionHubPage = () => {
   const [mergeStrategy, setMergeStrategy] = useState("merge");
   const [dupFields, setDupFields] = useState("sku");
   const [skuPrefix, setSkuPrefix] = useState("");
+  const [defaultBrand, setDefaultBrand] = useState("");
+  const [autoModelFromSku, setAutoModelFromSku] = useState(false);
   const [sourceLang, setSourceLang] = useState("auto");
   const [jobRole, setJobRole] = useState<string | undefined>("supplier_delta");
 
