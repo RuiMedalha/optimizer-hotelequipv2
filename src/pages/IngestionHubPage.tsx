@@ -385,6 +385,8 @@ const IngestionHubPage = () => {
         duplicateDetectionFields: dupFields.split(",").map(s => s.trim()).filter(Boolean),
         mode: "live",
         skuPrefix: skuPrefix.trim() || undefined,
+        defaultBrand: defaultBrand.trim() || undefined,
+        autoModelFromSku,
         sourceLanguage: sourceLang,
         role: jobRole,
         supplierId: currentDetection?.matched_supplier_id,
