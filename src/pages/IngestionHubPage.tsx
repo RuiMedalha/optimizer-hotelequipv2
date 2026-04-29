@@ -248,6 +248,10 @@ const IngestionHubPage = () => {
       setCurrentDetection(detResult.detection);
       if (detResult.matched_supplier_id) {
         setJobRole("supplier_delta");
+        // Auto-fill default brand if it's empty and we have a detected supplier name
+        if (!defaultBrand && detResult.detection?.supplier_name) {
+          setDefaultBrand(detResult.detection.supplier_name);
+        }
       }
 
       // 2. Infer column mapping
