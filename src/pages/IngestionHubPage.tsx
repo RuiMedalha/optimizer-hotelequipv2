@@ -397,6 +397,8 @@ const IngestionHubPage = () => {
         config: {
           fieldMappings,
           skuPrefix,
+          defaultBrand,
+          autoModelFromSku,
           sourceLanguage: sourceLang,
           mergeStrategy,
           duplicateDetectionFields: dupFields.split(",").map(s => s.trim()).filter(Boolean),
