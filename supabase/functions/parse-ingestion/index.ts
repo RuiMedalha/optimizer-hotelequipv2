@@ -274,13 +274,33 @@ Deno.serve(async (req) => {
       };
     });
 
-    // Batch insert items (chunks of 500)
-    for (let i = 0; i < items.length; i += 500) {
-      const chunk = items.slice(i, i + 500);
-      const { error: itemError } = await supabase
-        .from("ingestion_job_items")
-        .insert(chunk);
-      if (itemError) throw itemError;
+    // Batch insert items (chunks of 500) with improved logging and persistence
+    const batchSize = 500;
+    let successfullyInserted = 0;
+    
+    for (let i = 0; i < items.length; i += batchSize) {
+      const chunk = items.slice(i, i + batchSize);
+      try {
+        const { error: itemError } = await supabase
+          .from("ingestion_job_items")
+          .insert(chunk);
+          
+        if (itemError) {
+          console.error(`Error inserting batch starting at index ${i}:`, itemError.message);
+          // We continue to next batch instead of aborting
+        } else {
+          successfullyInserted += chunk.length;
+          console.log(`Lote ${Math.floor(i / batchSize) + 1} de ${Math.ceil(items.length / batchSize)} inserido (${successfullyInserted} registos total)`);
+        }
+      } catch (err) {
+        console.error(`Unexpected error in batch ${i}:`, err);
+      }
+    }
+
+    // Verify if all rows were saved
+    const isComplete = successfullyInserted === items.length;
+    if (!isComplete) {
+      console.warn(`Job ${jobId} incomplete: ${successfullyInserted}/${items.length} rows saved.`);
     }
 
     // Compute stats
@@ -295,16 +315,28 @@ Deno.serve(async (req) => {
       .map(([key, idxs]) => ({ key, count: idxs.length }));
 
     // Update job status
-    const finalStatus = jobMode === "dry_run" ? "dry_run" : "mapping";
+    const finalStatus = isComplete 
+      ? (jobMode === "dry_run" ? "dry_run" : "mapping")
+      : "incomplete";
+
     await supabase
       .from("ingestion_jobs")
       .update({
         status: finalStatus,
-        parsed_rows: rows.length,
+        parsed_rows: successfullyInserted,
         duplicate_rows: duplicates,
         merge_strategy: strategy,
-        results: { inserts, updates, skips, duplicates, groups, sourceLanguage: sourceLanguage || "auto" },
-        ...(jobMode === "dry_run" ? { completed_at: new Date().toISOString() } : {}),
+        results: { 
+          inserts, 
+          updates, 
+          skips, 
+          duplicates, 
+          groups, 
+          sourceLanguage: sourceLanguage || "auto",
+          total_attempted: items.length,
+          total_saved: successfullyInserted
+        },
+        ...(jobMode === "dry_run" && isComplete ? { completed_at: new Date().toISOString() } : {}),
       })
       .eq("id", jobId);
 
