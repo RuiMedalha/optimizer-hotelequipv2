@@ -247,7 +247,7 @@ async function insertProducts(
           skipped++;
           continue;
         }
-        const productData = buildProductData(p, false, mappedFieldKeys, hasMapping);
+        const productData = buildProductData(p, false, mappedFieldKeys, hasMapping, skuPrefix, defaultBrand, autoModelFromSku);
         productData.user_id = userId;
         productData.workspace_id = workspaceId || null;
         productData.source_file = fileName;
