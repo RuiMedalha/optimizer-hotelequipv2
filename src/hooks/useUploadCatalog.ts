@@ -28,6 +28,8 @@ export interface UploadedFile {
   columnMapping?: ColumnMapping;
   updateFields?: string[];
   skuPrefix?: string;
+  defaultBrand?: string;
+  autoModelFromSku?: boolean;
 }
 
 export interface ProductField {
