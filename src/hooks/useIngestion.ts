@@ -304,7 +304,7 @@ export function usePendingStagingItems(options?: { changeType?: string; limit?: 
 
       if (error) throw error;
       return {
-        items: data as unknown as (SyncStagingItem & { supplier: { supplier_name: string } | null })[],
+        items: data as unknown as (SyncStagingItem & { job: { config: any } | null })[],
         totalCount: count || 0
       };
     },
