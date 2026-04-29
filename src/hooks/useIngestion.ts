@@ -311,6 +311,40 @@ export function usePendingStagingItems(options?: { changeType?: string; limit?: 
   });
 }
 
+export function useStagingCounts() {
+  const { activeWorkspace } = useWorkspaceContext();
+  return useQuery({
+    queryKey: ["staging-counts", activeWorkspace?.id],
+    enabled: !!activeWorkspace?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sync_staging")
+        .select("change_type")
+        .eq("workspace_id", activeWorkspace!.id)
+        .in("status", ["pending", "flagged"]);
+
+      if (error) throw error;
+      
+      const counts: Record<string, number> = {
+        discontinued: 0,
+        new_product: 0,
+        price_change: 0,
+        field_update: 0,
+        multiple_changes: 0,
+        total: data.length
+      };
+
+      data.forEach(item => {
+        if (item.change_type && counts[item.change_type] !== undefined) {
+          counts[item.change_type]++;
+        }
+      });
+
+      return counts;
+    },
+  });
+}
+
 export function useProcessStagingItem() {
   const qc = useQueryClient();
   return useMutation({
