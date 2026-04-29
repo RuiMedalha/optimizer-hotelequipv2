@@ -506,6 +506,9 @@ export function useUploadCatalog() {
         type: uploadedFile.type,
         columnMapping: uploadedFile.columnMapping,
         selectedSheet: uploadedFile.selectedSheet,
+        skuPrefix: uploadedFile.skuPrefix,
+        defaultBrand: uploadedFile.defaultBrand,
+        autoModelFromSku: uploadedFile.autoModelFromSku,
       },
     } as any);
   };
