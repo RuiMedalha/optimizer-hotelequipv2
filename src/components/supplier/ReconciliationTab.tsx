@@ -390,7 +390,7 @@ export function ReconciliationTab() {
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-[10px]">
-                        {item.supplier?.supplier_name || (item as any).job?.config?.defaultBrand || 'Desconhecido'}
+                        {(item as any).supplier?.supplier_name || (item as any).job?.config?.defaultBrand || 'Desconhecido'}
                       </Badge>
                     </TableCell>
                     <TableCell>
