@@ -319,7 +319,7 @@ export function useStagingCounts() {
     queryKey: ["staging-counts", activeWorkspace?.id],
     enabled: !!activeWorkspace?.id,
     queryFn: async () => {
-      let allData: { change_type: string | null }[] = [];
+      let allData: { change_type: string | null; supplier_data: any; site_data: any }[] = [];
       let from = 0;
       const pageSize = 1000;
       let hasMore = true;
@@ -327,7 +327,7 @@ export function useStagingCounts() {
       while (hasMore) {
         const { data, error, count } = await supabase
           .from("sync_staging")
-          .select("change_type", { count: "exact", head: false })
+          .select("change_type, supplier_data, site_data", { count: "exact", head: false })
           .eq("workspace_id", activeWorkspace!.id)
           .in("status", ["pending", "flagged"])
           .range(from, from + pageSize - 1);
