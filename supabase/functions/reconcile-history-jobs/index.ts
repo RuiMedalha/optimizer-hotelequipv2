@@ -185,8 +185,6 @@ Deno.serve(async (req) => {
         
         let fieldsDiff = false;
         for (const field of fieldsToCompare) {
-          // Special rule: if it's a text field we protect, we check if supplier value is different from site value
-          // even if we won't overwrite it in proposed_changes
           if (areValuesDifferent(mappedData[field], masterMapped[field])) {
             if ((field === 'category' || field === 'brand') && !mappedData[field]) {
               continue;
@@ -209,28 +207,35 @@ Deno.serve(async (req) => {
         is_discontinued: false
       };
 
-      // Only include mapped fields in proposed_changes
+      // 1. Include standard fields from Master for context display
+      const contextFields = ['original_title', 'original_description', 'short_description', 'category', 'brand', 'image_urls', 'model', 'ean'];
+      contextFields.forEach(field => {
+        if (masterMapped[field] !== undefined) {
+          proposedChanges[field] = masterMapped[field];
+        }
+      });
+
+      // 2. Include all mapped fields from Delta (these are the proposed changes)
       targetFields.forEach((field: any) => {
-        if (mappedData[field] !== undefined) {
+        if (mappedData[field] !== undefined && mappedData[field] !== null && String(mappedData[field]).trim() !== '') {
           proposedChanges[field] = mappedData[field];
         }
       });
 
-      // PRESERVATION RULE: Workable text fields from Master always win
-      // We move supplier data to specific fields for reference
+      // 3. PRESERVATION RULE: Workable text fields from Master always win
       const textFields = ['original_title', 'original_description', 'short_description'];
       textFields.forEach(field => {
         if (masterItem && masterMapped[field]) {
           // Keep master value
           proposedChanges[field] = masterMapped[field];
-          // Move supplier value to a reference field
+          // Move supplier value from Delta to a reference field
           const refField = field === 'original_title' ? 'supplier_title' : 
                           field === 'original_description' ? 'supplier_description' : 'supplier_short_description';
           proposedChanges[refField] = mappedData[field];
         }
       });
 
-      // Special rule for Category and Brand preservation
+      // Special rule for Category and Brand preservation if master has them
       if (masterItem) {
         if (masterMapped.category) proposedChanges.category = masterMapped.category;
         if (masterMapped.brand) proposedChanges.brand = masterMapped.brand;
@@ -254,7 +259,7 @@ Deno.serve(async (req) => {
         match_method: matchMethod,
         supplier_data: { 
           ...mappedData,
-          supplier_name: supplierName // Injecting for UI display
+          supplier_name: supplierName 
         },
         proposed_changes: {
           ...proposedChanges,
@@ -300,7 +305,6 @@ Deno.serve(async (req) => {
         .from("sync_staging")
         .insert(chunk);
       if (insertErr) throw insertErr;
-      console.log(`Inserido lote ${Math.floor(i / 500) + 1} de ${Math.ceil(stagingRecords.length / 500)} em sync_staging`);
     }
 
     return new Response(JSON.stringify({ 
@@ -317,7 +321,7 @@ Deno.serve(async (req) => {
 
   } catch (e) {
     console.error(e);
-    return new Response(JSON.stringify({ success: false, error: e.message }), {
+    return new Response(JSON.stringify({ success: false, error: (e as Error).message }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
