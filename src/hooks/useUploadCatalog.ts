@@ -457,6 +457,14 @@ export function useUploadCatalog() {
     updateFile(id, { skuPrefix: prefix });
   };
 
+  const setDefaultBrand = (id: string, brand: string) => {
+    updateFile(id, { defaultBrand: brand });
+  };
+
+  const setAutoModelFromSku = (id: string, enabled: boolean) => {
+    updateFile(id, { autoModelFromSku: enabled });
+  };
+
   const confirmMapping = (id: string) => {
     updateFile(id, { status: "aguardando" });
   };
