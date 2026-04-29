@@ -18,6 +18,7 @@ export interface SyncStagingItem {
   confidence_score: number;
   match_method: 'exact' | 'normalized' | 'fuzzy' | 'ean' | 'manual';
   status: 'pending' | 'approved' | 'rejected' | 'processed' | 'flagged';
+  change_type: 'discontinued' | 'new_product' | 'price_change' | 'field_update' | 'multiple_changes' | null;
   created_at: string;
   updated_at: string;
 }
@@ -275,25 +276,92 @@ export function useRunIngestionJob() {
   });
 }
 
-export function usePendingStagingItems() {
+export function usePendingStagingItems(options?: { changeType?: string; limit?: number; offset?: number }) {
   const { activeWorkspace } = useWorkspaceContext();
   return useQuery({
-    queryKey: ["pending-staging-items", activeWorkspace?.id],
+    queryKey: ["pending-staging-items", activeWorkspace?.id, options?.changeType, options?.limit, options?.offset],
     enabled: !!activeWorkspace?.id,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("sync_staging")
         .select(`
           *,
           supplier:supplier_profiles(supplier_name)
-        `)
+        `, { count: 'exact' })
         .eq("workspace_id", activeWorkspace!.id)
-        .in("status", ["pending", "flagged"])
+        .in("status", ["pending", "flagged"]);
+
+      if (options?.changeType) {
+        query = query.eq("change_type", options.changeType);
+      }
+
+      const limit = options?.limit || 50;
+      const offset = options?.offset || 0;
+
+      const { data, error, count } = await query
         .order("confidence_score", { ascending: false })
-        .limit(10000); // FIXED: Removed implicit 1000 limit
+        .range(offset, offset + limit - 1);
+
       if (error) throw error;
-      return data as unknown as (SyncStagingItem & { supplier: { supplier_name: string } | null })[];
+      return {
+        items: data as unknown as (SyncStagingItem & { supplier: { supplier_name: string } | null })[],
+        totalCount: count || 0
+      };
     },
+  });
+}
+
+export function useStagingCounts() {
+  const { activeWorkspace } = useWorkspaceContext();
+  return useQuery({
+    queryKey: ["staging-counts", activeWorkspace?.id],
+    enabled: !!activeWorkspace?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sync_staging")
+        .select("change_type")
+        .eq("workspace_id", activeWorkspace!.id)
+        .in("status", ["pending", "flagged"]);
+
+      if (error) throw error;
+      
+      const counts: Record<string, number> = {
+        discontinued: 0,
+        new_product: 0,
+        price_change: 0,
+        field_update: 0,
+        multiple_changes: 0,
+        total: data?.length || 0
+      };
+
+      data?.forEach(item => {
+        if (item.change_type && counts[item.change_type] !== undefined) {
+          counts[item.change_type]++;
+        }
+      });
+
+      return counts;
+    },
+  });
+}
+
+export function useBatchProcessStaging() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ changeType, action, workspaceId }: { changeType: string; action: string; workspaceId: string }) => {
+      const { data, error } = await supabase.functions.invoke("batch-process-staging", {
+        body: { changeType, action, workspaceId },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["pending-staging-items"] });
+      qc.invalidateQueries({ queryKey: ["staging-counts"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      toast.success("Processamento em lote concluído");
+    },
+    onError: (e) => toast.error(e.message),
   });
 }
 

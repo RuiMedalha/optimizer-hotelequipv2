@@ -1,53 +1,70 @@
-import { useState, useMemo } from "react";
-import { usePendingStagingItems, useProcessStagingItem, type SyncStagingItem } from "@/hooks/useIngestion";
+import { useState, useMemo, useEffect } from "react";
+import { 
+  usePendingStagingItems, 
+  useProcessStagingItem, 
+  useStagingCounts, 
+  useBatchProcessStaging,
+  type SyncStagingItem 
+} from "@/hooks/useIngestion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ConfidenceIndicator } from "@/components/ConfidenceIndicator";
-import { AlertCircle, Check, X, Eye, Image as ImageIcon, ArrowRight, Save, History, Search, AlertTriangle } from "lucide-react";
+import { 
+  AlertCircle, Check, X, Eye, Image as ImageIcon, Search, AlertTriangle, 
+  Tag, ArrowUpCircle, RefreshCw, Layers, Trash2, LayoutDashboard, ChevronDown
+} from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useWorkspaceContext } from "@/hooks/useWorkspaces";
+
+const ITEMS_PER_PAGE = 50;
 
 export function ReconciliationTab() {
-  const { data: items, isLoading, refetch } = usePendingStagingItems();
+  const { activeWorkspace } = useWorkspaceContext();
+  const [filterType, setFilterType] = useState<string | undefined>(undefined);
+  const [offset, setOffset] = useState(0);
+  const [allItems, setAllItems] = useState<(SyncStagingItem & { supplier: { supplier_name: string } | null })[]>([]);
+
+  const { data: stagingData, isLoading, isFetching } = usePendingStagingItems({ 
+    changeType: filterType, 
+    limit: ITEMS_PER_PAGE, 
+    offset 
+  });
+  
+  const { data: counts, isLoading: isLoadingCounts } = useStagingCounts();
   const processItem = useProcessStagingItem();
+  const batchProcess = useBatchProcessStaging();
+  
   const [selectedItem, setSelectedItem] = useState<(SyncStagingItem & { supplier: { supplier_name: string } | null }) | null>(null);
   const [pendingChanges, setPendingChanges] = useState<Record<string, boolean>>({});
 
-  const sortedItems = useMemo(() => {
-    if (!items) return [];
-    return [...items].sort((a, b) => {
-      // Flagged items first
-      if (a.status === 'flagged' && b.status !== 'flagged') return -1;
-      if (a.status !== 'flagged' && b.status === 'flagged') return 1;
-      // Then by confidence score ascending (lowest first as they need more attention)
-      return a.confidence_score - b.confidence_score;
-    });
-  }, [items]);
+  // Append items when loading more
+  useEffect(() => {
+    if (stagingData?.items) {
+      if (offset === 0) {
+        setAllItems(stagingData.items);
+      } else {
+        setAllItems(prev => [...prev, ...stagingData.items]);
+      }
+    }
+  }, [stagingData?.items, offset]);
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center p-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
+  // Reset offset when filter changes
+  const handleSetFilter = (type: string | undefined) => {
+    setFilterType(type);
+    setOffset(0);
+    setAllItems([]);
+  };
 
-  if (!items || items.length === 0) {
-    return (
-      <Card className="mt-4">
-        <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-          <Check className="h-12 w-12 mb-4 opacity-20" />
-          <p>Não existem registos pendentes de reconciliação.</p>
-        </CardContent>
-      </Card>
-    );
-  }
+  const handleLoadMore = () => {
+    setOffset(prev => prev + ITEMS_PER_PAGE);
+  };
 
   const handleOpenDetail = (item: SyncStagingItem & { supplier: { supplier_name: string } | null }) => {
     setSelectedItem(item);
@@ -77,7 +94,6 @@ export function ReconciliationTab() {
         data: approvedData
       });
       setSelectedItem(null);
-      refetch();
     } catch (e) {}
   };
 
@@ -89,8 +105,47 @@ export function ReconciliationTab() {
         action: 'reject'
       });
       setSelectedItem(null);
-      refetch();
     } catch (e) {}
+  };
+
+  const handleBatchAction = async (type: string, action: string, label: string) => {
+    if (!activeWorkspace?.id) return;
+    
+    if (!confirm(`Tem a certeza que deseja ${label} para todos os produtos do tipo "${changeTypeLabels[type]}"?`)) {
+      return;
+    }
+
+    try {
+      await batchProcess.mutateAsync({
+        changeType: type,
+        action,
+        workspaceId: activeWorkspace.id
+      });
+    } catch (e) {}
+  };
+
+  const changeTypeLabels: Record<string, string> = {
+    discontinued: "Descontinuados",
+    new_product: "Novos",
+    price_change: "Preços",
+    field_update: "Atualizações",
+    multiple_changes: "Múltiplos"
+  };
+
+  const changeTypeColors: Record<string, string> = {
+    discontinued: "border-red-500 text-red-600 bg-red-50",
+    new_product: "border-green-500 text-green-600 bg-green-50",
+    price_change: "border-amber-500 text-amber-600 bg-amber-50",
+    field_update: "border-blue-500 text-blue-600 bg-blue-50",
+    multiple_changes: "border-purple-500 text-purple-600 bg-purple-50"
+  };
+
+  const changeTypeIcons: Record<string, any> = {
+    discontinued: Trash2,
+    new_product: Tag,
+    price_change: ArrowUpCircle,
+    field_update: RefreshCw,
+    multiple_changes: Layers
   };
 
   const matchMethodLabels: Record<string, string> = {
@@ -102,25 +157,131 @@ export function ReconciliationTab() {
     none: "Sem Match"
   };
 
+  if (isLoading && offset === 0) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  const noRecords = !isLoading && (!stagingData || stagingData.totalCount === 0);
+
+  if (noRecords && !filterType) {
+    return (
+      <Card className="mt-4">
+        <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+          <Check className="h-12 w-12 mb-4 opacity-20" />
+          <p>Não existem registos pendentes de reconciliação.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <div className="space-y-4 mt-4 animate-fade-in">
+    <div className="space-y-4 mt-4 animate-fade-in pb-20">
+      {/* Summary Panel */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {Object.entries(changeTypeLabels).map(([type, label]) => {
+          const count = counts?.[type] || 0;
+          const Icon = changeTypeIcons[type];
+          const isActive = filterType === type;
+          
+          return (
+            <Card 
+              key={type} 
+              className={cn(
+                "cursor-pointer transition-all hover:shadow-md border-2",
+                isActive ? "border-primary" : "border-transparent",
+                count === 0 ? "opacity-60 grayscale" : ""
+              )}
+              onClick={() => handleSetFilter(isActive ? undefined : type)}
+            >
+              <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                <div className={cn("p-2 rounded-full", changeTypeColors[type].split(' ')[2])}>
+                  <Icon className={cn("w-4 h-4", changeTypeColors[type].split(' ')[1])} />
+                </div>
+                <div>
+                  <div className="text-xl font-bold">{count}</div>
+                  <div className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wider">{label}</div>
+                </div>
+                
+                {count > 0 && (
+                  <div className="mt-1 pt-2 border-t w-full flex justify-center">
+                    {type === 'discontinued' && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 text-[9px] px-2 hover:bg-red-100 text-red-600"
+                        onClick={(e) => { e.stopPropagation(); handleBatchAction(type, 'draft_discontinued', 'marcar como rascunho'); }}
+                      >
+                        Descontinuar Tudo
+                      </Button>
+                    )}
+                    {type === 'new_product' && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 text-[9px] px-2 hover:bg-green-100 text-green-600"
+                        onClick={(e) => { e.stopPropagation(); handleBatchAction(type, 'create_drafts', 'criar como rascunho'); }}
+                      >
+                        Criar Tudo
+                      </Button>
+                    )}
+                    {type === 'price_change' && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 text-[9px] px-2 hover:bg-amber-100 text-amber-600"
+                        onClick={(e) => { e.stopPropagation(); handleBatchAction(type, 'approve_prices', 'aprovar preços'); }}
+                      >
+                        Aprovar Tudo
+                      </Button>
+                    )}
+                    {(type === 'field_update' || type === 'multiple_changes') && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-6 text-[9px] px-2 hover:bg-blue-100 text-blue-600"
+                        onClick={(e) => { e.stopPropagation(); handleBatchAction(type, 'review_visual', 'enviar para revisão'); }}
+                      >
+                        Revisão Visual
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
       <div className="flex items-center justify-between mb-2">
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
-            Reconciliação de Dados
+            Lista de Reconciliação
+            {filterType && (
+              <Badge variant="outline" className={cn(changeTypeColors[filterType])}>
+                Filtrado: {changeTypeLabels[filterType]}
+              </Badge>
+            )}
             <Badge variant="secondary" className="bg-primary/10 text-primary">
-              {items.length} Pendentes
+              {stagingData?.totalCount || 0} Total
             </Badge>
           </h3>
-          <p className="text-sm text-muted-foreground">Analise e aprove as alterações propostas pelos fornecedores.</p>
         </div>
+        {filterType && (
+          <Button variant="ghost" size="sm" onClick={() => handleSetFilter(undefined)}>
+            Limpar Filtros
+          </Button>
+        )}
       </div>
 
       <Card>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Estado</TableHead>
+              <TableHead>Tipo / Estado</TableHead>
               <TableHead>SKU Fornecedor</TableHead>
               <TableHead>SKU Site</TableHead>
               <TableHead>Fornecedor</TableHead>
@@ -130,43 +291,63 @@ export function ReconciliationTab() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedItems.map((item) => (
-              <TableRow key={item.id} className={cn(item.status === 'flagged' ? "bg-amber-500/5" : "")}>
-                <TableCell>
-                  {item.status === 'flagged' ? (
-                    <Badge variant="outline" className="border-amber-500 text-amber-600 bg-amber-50 gap-1">
-                      <AlertTriangle className="w-3 h-3" /> Prioritário
+            {allItems.map((item) => {
+              const Icon = item.change_type ? changeTypeIcons[item.change_type] : LayoutDashboard;
+              return (
+                <TableRow key={item.id} className={cn(item.status === 'flagged' ? "bg-amber-500/5" : "")}>
+                  <TableCell>
+                    <Badge variant="outline" className={cn("gap-1 px-2 py-0.5", item.change_type ? changeTypeColors[item.change_type] : "")}>
+                      <Icon className="w-3 h-3" />
+                      {item.change_type ? changeTypeLabels[item.change_type] : "Normal"}
                     </Badge>
-                  ) : (
-                    <Badge variant="outline" className="border-primary/30 text-primary">Normal</Badge>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <div className="font-mono text-xs">{item.sku_supplier || '—'}</div>
-                </TableCell>
-                <TableCell>
-                  <div className="font-medium">{item.sku_site_target || 'Novo Produto'}</div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline" className="text-[10px]">{item.supplier?.supplier_name || 'Desconhecido'}</Badge>
-                </TableCell>
-                <TableCell>
-                  <span className="text-xs font-medium">{matchMethodLabels[item.match_method] || item.match_method}</span>
-                </TableCell>
-                <TableCell>
-                  <ConfidenceIndicator score={item.confidence_score} />
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button variant="ghost" size="sm" onClick={() => handleOpenDetail(item)}>
-                    <Eye className="h-4 w-4 mr-1" /> Analisar
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-mono text-xs">{item.sku_supplier || '—'}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium">{item.sku_site_target || 'Novo Produto'}</div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-[10px]">{item.supplier?.supplier_name || 'Desconhecido'}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-xs font-medium">{matchMethodLabels[item.match_method] || item.match_method}</span>
+                  </TableCell>
+                  <TableCell>
+                    <ConfidenceIndicator score={item.confidence_score} />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="sm" onClick={() => handleOpenDetail(item)}>
+                      <Eye className="h-4 w-4 mr-1" /> Analisar
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
+        
+        {allItems.length < (stagingData?.totalCount || 0) && (
+          <div className="p-4 flex justify-center border-t">
+            <Button variant="outline" onClick={handleLoadMore} disabled={isFetching}>
+              {isFetching ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <ChevronDown className="w-4 h-4 mr-2" />
+              )}
+              Carregar mais (Exibindo {allItems.length} de {stagingData?.totalCount})
+            </Button>
+          </div>
+        )}
+
+        {noRecords && (
+          <div className="p-8 text-center text-muted-foreground italic">
+            Nenhum produto encontrado com este filtro.
+          </div>
+        )}
       </Card>
 
+      {/* Detail Dialog - Keep existing structure but improve content */}
       <Dialog open={!!selectedItem} onOpenChange={(open) => !open && setSelectedItem(null)}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0">
           <DialogHeader className="p-6 border-b pb-4">
@@ -175,8 +356,10 @@ export function ReconciliationTab() {
                 <span className="text-xs text-muted-foreground uppercase tracking-wider">Reconciliação de Produto</span>
                 <span className="flex items-center gap-2">
                   {selectedItem?.sku_site_target || "Novo Produto"}
-                  {selectedItem?.status === 'flagged' && (
-                    <Badge variant="outline" className="border-amber-500 text-amber-600 bg-amber-50">Atenção Prioritária</Badge>
+                  {selectedItem?.change_type && (
+                    <Badge variant="outline" className={cn(changeTypeColors[selectedItem.change_type])}>
+                      {changeTypeLabels[selectedItem.change_type]}
+                    </Badge>
                   )}
                 </span>
               </DialogTitle>
@@ -211,104 +394,123 @@ export function ReconciliationTab() {
                 </div>
               </div>
 
-              {/* Image comparison */}
-              {selectedItem?.proposed_changes?.image_urls && (
-                <div className="space-y-3">
-                  <h4 className="text-sm font-semibold flex items-center gap-2">
-                    <ImageIcon className="h-4 w-4" /> Revisão de Imagens
-                  </h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2 border rounded-lg p-3 bg-muted/10">
-                      <Label className="text-[10px] text-muted-foreground uppercase font-bold">Imagem no Site</Label>
-                      <div className="aspect-square rounded-md border bg-white flex items-center justify-center overflow-hidden">
-                        {selectedItem.site_data?.image_urls?.[0] ? (
-                          <img src={selectedItem.site_data.image_urls[0]} alt="Atual" className="object-contain w-full h-full" />
-                        ) : (
-                          <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                            <ImageIcon className="w-8 h-8 opacity-20" />
-                            <span className="text-[10px]">Sem imagem atual</span>
+              {/* Attributes comparison - same as before but better labels */}
+              {selectedItem?.change_type === 'discontinued' ? (
+                <div className="p-8 border-2 border-dashed border-red-200 bg-red-50/30 rounded-xl text-center flex flex-col items-center gap-4">
+                  <Trash2 className="w-12 h-12 text-red-400" />
+                  <div>
+                    <h4 className="text-lg font-bold text-red-700">Produto Descontinuado</h4>
+                    <p className="text-sm text-red-600 max-w-md mx-auto">
+                      Este produto existe no site mas não foi encontrado no novo ficheiro do fornecedor. 
+                      Ao aprovar, o stock será marcado como 0 e o estado passará para "Revisão".
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Image comparison */}
+                  {selectedItem?.proposed_changes?.image_urls && (
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-semibold flex items-center gap-2">
+                        <ImageIcon className="h-4 w-4" /> Revisão de Imagens
+                      </h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2 border rounded-lg p-3 bg-muted/10">
+                          <Label className="text-[10px] text-muted-foreground uppercase font-bold">Imagem no Site</Label>
+                          <div className="aspect-square rounded-md border bg-white flex items-center justify-center overflow-hidden">
+                            {selectedItem.site_data?.image_urls?.[0] ? (
+                              <img src={selectedItem.site_data.image_urls[0]} alt="Atual" className="object-contain w-full h-full" />
+                            ) : (
+                              <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                <ImageIcon className="w-8 h-8 opacity-20" />
+                                <span className="text-[10px]">Sem imagem atual</span>
+                              </div>
+                            )}
                           </div>
-                        )}
+                        </div>
+                        <div className={cn(
+                          "space-y-2 border rounded-lg p-3 relative",
+                          pendingChanges['image_urls'] ? "border-primary bg-primary/5" : "border-muted"
+                        )}>
+                          <div className="flex items-center justify-between mb-1">
+                            <Label className="text-[10px] text-primary font-bold uppercase">Proposta Fornecedor</Label>
+                            <Checkbox 
+                              checked={pendingChanges['image_urls']} 
+                              onCheckedChange={(val) => setPendingChanges(prev => ({ ...prev, image_urls: !!val }))} 
+                            />
+                          </div>
+                          <div className="aspect-square rounded-md border bg-white flex items-center justify-center overflow-hidden">
+                            {selectedItem.proposed_changes.image_urls?.[0] ? (
+                              <img src={selectedItem.proposed_changes.image_urls[0]} alt="Proposta" className="object-contain w-full h-full" />
+                            ) : (
+                              <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                <ImageIcon className="w-8 h-8 opacity-20" />
+                                <span className="text-[10px]">Sem imagem na proposta</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    <div className={cn(
-                      "space-y-2 border rounded-lg p-3 relative",
-                      pendingChanges['image_urls'] ? "border-primary bg-primary/5" : "border-muted"
-                    )}>
-                      <div className="flex items-center justify-between mb-1">
-                        <Label className="text-[10px] text-primary font-bold uppercase">Proposta Fornecedor</Label>
-                        <Checkbox 
-                          checked={pendingChanges['image_urls']} 
-                          onCheckedChange={(val) => setPendingChanges(prev => ({ ...prev, image_urls: !!val }))} 
-                        />
-                      </div>
-                      <div className="aspect-square rounded-md border bg-white flex items-center justify-center overflow-hidden">
-                        {selectedItem.proposed_changes.image_urls?.[0] ? (
-                          <img src={selectedItem.proposed_changes.image_urls[0]} alt="Proposta" className="object-contain w-full h-full" />
-                        ) : (
-                          <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                            <ImageIcon className="w-8 h-8 opacity-20" />
-                            <span className="text-[10px]">Sem imagem na proposta</span>
+                  )}
+
+                  {/* Attributes comparison */}
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-semibold flex items-center gap-2">
+                      <Search className="h-4 w-4" /> Atributos e Metadados
+                    </h4>
+                    <div className="border rounded-lg divide-y bg-background">
+                      {Object.entries(selectedItem?.proposed_changes || {}).map(([key, newVal]: [string, any]) => {
+                        if (key === 'image_urls' || key === 'sku' || key === 'is_discontinued') return null;
+                        const oldVal = selectedItem.site_data?.[key];
+                        const isNewField = oldVal === null || oldVal === undefined || oldVal === '';
+                        
+                        return (
+                          <div key={key} className={cn(
+                            "p-4 flex gap-6 items-start transition-colors",
+                            pendingChanges[key] ? "bg-primary/5" : ""
+                          )}>
+                            <div className="w-6 pt-1">
+                              <Checkbox 
+                                checked={pendingChanges[key]} 
+                                onCheckedChange={(val) => setPendingChanges(prev => ({ ...prev, [key]: !!val }))} 
+                              />
+                            </div>
+                            <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div className="space-y-1">
+                                <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Campo</Label>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-sm capitalize">{key.replace(/_/g, ' ')}</span>
+                                  {isNewField && (
+                                    <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600 bg-amber-50 px-1 py-0 h-4">
+                                      Novo
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Valor no Site</Label>
+                                <div className="text-sm line-through opacity-50 truncate italic">
+                                  {String(oldVal || '—')}
+                                </div>
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px] text-primary uppercase font-bold tracking-wider">Novo Valor</Label>
+                                <div className={cn(
+                                  "text-sm font-medium px-2 py-1 rounded inline-block",
+                                  key === 'price' || key === 'original_price' ? "bg-amber-100 text-amber-700" : "bg-primary/10 text-primary"
+                                )}>
+                                  {String(newVal || '—')}
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                        )}
-                      </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
               )}
-
-              {/* Attributes comparison */}
-              <div className="space-y-3">
-                <h4 className="text-sm font-semibold flex items-center gap-2">
-                  <Search className="h-4 w-4" /> Atributos e Metadados
-                </h4>
-                <div className="border rounded-lg divide-y bg-background">
-                  {Object.entries(selectedItem?.proposed_changes || {}).map(([key, newVal]: [string, any]) => {
-                    if (key === 'image_urls' || key === 'sku') return null;
-                    const oldVal = selectedItem.site_data?.[key];
-                    const isNewField = oldVal === null || oldVal === undefined || oldVal === '';
-                    
-                    return (
-                      <div key={key} className={cn(
-                        "p-4 flex gap-6 items-start transition-colors",
-                        pendingChanges[key] ? "bg-primary/5" : ""
-                      )}>
-                        <div className="w-6 pt-1">
-                          <Checkbox 
-                            checked={pendingChanges[key]} 
-                            onCheckedChange={(val) => setPendingChanges(prev => ({ ...prev, [key]: !!val }))} 
-                          />
-                        </div>
-                        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div className="space-y-1">
-                            <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Campo</Label>
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-sm capitalize">{key.replace(/_/g, ' ')}</span>
-                              {isNewField && (
-                                <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600 bg-amber-50 px-1 py-0 h-4">
-                                  Novo
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Valor no Site</Label>
-                            <div className="text-sm line-through opacity-50 truncate italic">
-                              {String(oldVal || '—')}
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-[10px] text-primary uppercase font-bold tracking-wider">Novo Valor</Label>
-                            <div className="text-sm font-medium text-primary bg-primary/10 px-2 py-1 rounded inline-block">
-                              {String(newVal || '—')}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
 
               <div className="p-4 bg-primary/5 rounded-lg flex gap-3 text-[11px] text-muted-foreground border border-primary/10">
                 <AlertCircle className="h-4 w-4 shrink-0 text-primary mt-0.5" />
@@ -334,5 +536,24 @@ export function ReconciliationTab() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function Loader2(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+    </svg>
   );
 }
