@@ -149,14 +149,14 @@ Deno.serve(async (req) => {
       return mapped;
     };
 
-    // Duplicate detection - Fetch ALL existing products to avoid 1000 limit
+    // Duplicate detection - Fetch ALL existing products to avoid truncation
     const existingProducts: Record<string, string> = {};
     if (dupFields.length > 0) {
       console.log(`Checking duplicates for fields: ${dupFields.join(", ")}`);
       let hasMore = true;
       let offset = 0;
       const pageSize = 5000;
-      const MAX_SEARCH_LIMIT = 200000; // Increase to 200k to ensure we find all existing products
+      const MAX_SEARCH_LIMIT = 500000; // Increased to 500k to ensure we find all existing products
 
       while (hasMore && offset < MAX_SEARCH_LIMIT) {
         const { data: existing, error: fetchError } = await supabase
