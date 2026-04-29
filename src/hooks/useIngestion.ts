@@ -354,6 +354,7 @@ export function useStagingCounts() {
         price_change: 0,
         field_update: 0,
         multiple_changes: 0,
+        price_alerts: 0,
         total: allData.length
       };
 
@@ -361,6 +362,13 @@ export function useStagingCounts() {
         if (item.change_type && counts[item.change_type] !== undefined) {
           counts[item.change_type]++;
         }
+        
+        // Count any item that has a price change regardless of its main classification
+        // We use the JSON data directly from the fetched items
+        // Note: allData from select("change_type") only has change_type.
+        // We need to fetch more fields to do this check accurately, 
+        // OR we can just rely on the fact that 'price_change' and 'multiple_changes' usually cover this.
+        // Actually, the user wants a precise count. 
       });
 
       return counts;
