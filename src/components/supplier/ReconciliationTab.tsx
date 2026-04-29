@@ -31,13 +31,13 @@ export function ReconciliationTab() {
   const [offset, setOffset] = useState(0);
   const [allItems, setAllItems] = useState<(SyncStagingItem & { supplier: { supplier_name: string } | null })[]>([]);
 
-  const { data: stagingData, isLoading, isFetching } = usePendingStagingItems({ 
+  const { data: stagingData, isLoading, isFetching, error: fetchError } = usePendingStagingItems({ 
     changeType: filterType, 
     limit: ITEMS_PER_PAGE, 
     offset 
   });
   
-  const { data: counts, isLoading: isLoadingCounts } = useStagingCounts();
+  const { data: counts, isLoading: isLoadingCounts, refetch: refetchCounts } = useStagingCounts();
   const processItem = useProcessStagingItem();
   const batchProcess = useBatchProcessStaging();
   
@@ -179,6 +179,12 @@ export function ReconciliationTab() {
   }
 
   const noRecords = !isLoading && (!allItems || allItems.length === 0) && (!counts || counts.total === 0);
+  const filteredButEmpty = !isLoading && allItems.length === 0 && counts && counts.total > 0;
+
+  const handleRefresh = () => {
+    handleSetFilter(undefined);
+    refetchCounts();
+  };
 
   if (noRecords && !filterType && !isLoading) {
     return (
@@ -186,8 +192,25 @@ export function ReconciliationTab() {
         <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
           <Check className="h-12 w-12 mb-4 opacity-20" />
           <p>Não existem registos pendentes de reconciliação.</p>
-          <Button variant="outline" size="sm" className="mt-4" onClick={() => handleSetFilter(undefined)}>
+          <Button variant="outline" size="sm" className="mt-4" onClick={handleRefresh}>
             <RefreshCw className="h-4 w-4 mr-2" /> Atualizar Dados
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <Card className="mt-4 border-destructive/50">
+        <CardContent className="flex flex-col items-center justify-center py-12 text-destructive">
+          <AlertCircle className="h-12 w-12 mb-4 opacity-50" />
+          <p>Erro ao carregar dados de reconciliação.</p>
+          <pre className="mt-2 text-[10px] bg-muted p-2 rounded max-w-full overflow-auto">
+            {(fetchError as any)?.message || "Erro desconhecido"}
+          </pre>
+          <Button variant="outline" size="sm" className="mt-4" onClick={handleRefresh}>
+            <RefreshCw className="h-4 w-4 mr-2" /> Tentar Novamente
           </Button>
         </CardContent>
       </Card>
@@ -328,7 +351,7 @@ export function ReconciliationTab() {
           </h3>
         </div>
         {filterType && (
-          <Button variant="ghost" size="sm" onClick={() => handleSetFilter(undefined)}>
+          <Button variant="ghost" size="sm" onClick={handleRefresh}>
             Limpar Filtros
           </Button>
         )}
@@ -348,41 +371,51 @@ export function ReconciliationTab() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {allItems.map((item) => {
-              const Icon = item.change_type ? changeTypeIcons[item.change_type] : LayoutDashboard;
-              return (
-                <TableRow key={item.id} className={cn(item.status === 'flagged' ? "bg-amber-500/5" : "")}>
-                  <TableCell>
-                    <Badge variant="outline" className={cn("gap-1 px-2 py-0.5", item.change_type ? changeTypeColors[item.change_type] : "")}>
-                      <Icon className="w-3 h-3" />
-                      {item.change_type ? changeTypeLabels[item.change_type] : "Normal"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-mono text-xs">{item.sku_supplier || '—'}</div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium">{item.sku_site_target || 'Novo Produto'}</div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="text-[10px]">
-                      {item.supplier?.supplier_name || (item as any).job?.config?.defaultBrand || 'Desconhecido'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-xs font-medium">{matchMethodLabels[item.match_method] || item.match_method}</span>
-                  </TableCell>
-                  <TableCell>
-                    <ConfidenceIndicator score={item.confidence_score} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" onClick={() => handleOpenDetail(item)}>
-                      <Eye className="h-4 w-4 mr-1" /> Analisar
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+            {allItems.length > 0 ? (
+              allItems.map((item) => {
+                const Icon = item.change_type ? changeTypeIcons[item.change_type] : LayoutDashboard;
+                return (
+                  <TableRow key={item.id} className={cn(item.status === 'flagged' ? "bg-amber-500/5" : "")}>
+                    <TableCell>
+                      <Badge variant="outline" className={cn("gap-1 px-2 py-0.5", item.change_type ? changeTypeColors[item.change_type] : "")}>
+                        <Icon className="w-3 h-3" />
+                        {item.change_type ? changeTypeLabels[item.change_type] : "Normal"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-mono text-xs">{item.sku_supplier || '—'}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium">{item.sku_site_target || 'Novo Produto'}</div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-[10px]">
+                        {item.supplier?.supplier_name || (item as any).job?.config?.defaultBrand || 'Desconhecido'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-xs font-medium">{matchMethodLabels[item.match_method] || item.match_method}</span>
+                    </TableCell>
+                    <TableCell>
+                      <ConfidenceIndicator score={item.confidence_score} />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" onClick={() => handleOpenDetail(item)}>
+                        <Eye className="h-4 w-4 mr-1" /> Analisar
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            ) : !isLoading && (
+              <TableRow>
+                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                  {filterType 
+                    ? `Nenhum produto do tipo "${changeTypeLabels[filterType]}" encontrado.`
+                    : "A carregar lista de produtos..."}
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
         
