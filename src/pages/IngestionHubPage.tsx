@@ -91,9 +91,8 @@ const IngestionHubPage = () => {
   const [parsedHeaders, setParsedHeaders] = useState<string[]>([]);
   const [fileName, setFileName] = useState("");
   
-  // Master File state (for Delta mode)
-  const [masterFileData, setMasterFileData] = useState<any[] | null>(null);
-  const [masterFileName, setMasterFileName] = useState("");
+  // Job mode role
+  const [jobRole, setJobRole] = useState<string | undefined>("supplier_delta");
 
   const [fieldMappings, setFieldMappings] = useState<Record<string, string>>({});
   const [mergeStrategy, setMergeStrategy] = useState("merge");
