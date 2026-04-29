@@ -480,9 +480,12 @@ function buildMergedProductData(
   existing: Record<string, any>,
   mappedFieldKeys: Set<string>,
   hasMapping: boolean,
-  sourceFile: string
+  sourceFile: string,
+  skuPrefix?: string,
+  defaultBrand?: string,
+  autoModelFromSku?: boolean
 ): Record<string, unknown> {
-  const newData = buildProductData(newProduct, false, mappedFieldKeys, hasMapping);
+  const newData = buildProductData(newProduct, false, mappedFieldKeys, hasMapping, skuPrefix, defaultBrand, autoModelFromSku);
   const merged: Record<string, unknown> = {};
 
   // Text fields: use new value if existing is empty, or if new is longer/more complete
