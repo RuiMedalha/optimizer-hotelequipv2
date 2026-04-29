@@ -101,7 +101,6 @@ const IngestionHubPage = () => {
   const [defaultBrand, setDefaultBrand] = useState("");
   const [autoModelFromSku, setAutoModelFromSku] = useState(false);
   const [sourceLang, setSourceLang] = useState("auto");
-  const [jobRole, setJobRole] = useState<string | undefined>("supplier_delta");
 
   // Auto-detection state
   const [currentDetection, setCurrentDetection] = useState<any>(null);
