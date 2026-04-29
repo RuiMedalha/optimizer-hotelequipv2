@@ -276,24 +276,37 @@ export function useRunIngestionJob() {
   });
 }
 
-export function usePendingStagingItems() {
+export function usePendingStagingItems(options?: { changeType?: string; limit?: number; offset?: number }) {
   const { activeWorkspace } = useWorkspaceContext();
   return useQuery({
-    queryKey: ["pending-staging-items", activeWorkspace?.id],
+    queryKey: ["pending-staging-items", activeWorkspace?.id, options?.changeType, options?.limit, options?.offset],
     enabled: !!activeWorkspace?.id,
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("sync_staging")
         .select(`
           *,
           supplier:supplier_profiles(supplier_name)
-        `)
+        `, { count: 'exact' })
         .eq("workspace_id", activeWorkspace!.id)
-        .in("status", ["pending", "flagged"])
+        .in("status", ["pending", "flagged"]);
+
+      if (options?.changeType) {
+        query = query.eq("change_type", options.changeType);
+      }
+
+      const limit = options?.limit || 50;
+      const offset = options?.offset || 0;
+
+      const { data, error, count } = await query
         .order("confidence_score", { ascending: false })
-        .limit(10000); // FIXED: Removed implicit 1000 limit
+        .range(offset, offset + limit - 1);
+
       if (error) throw error;
-      return data as unknown as (SyncStagingItem & { supplier: { supplier_name: string } | null })[];
+      return {
+        items: data as unknown as (SyncStagingItem & { supplier: { supplier_name: string } | null })[],
+        totalCount: count || 0
+      };
     },
   });
 }
