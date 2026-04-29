@@ -40,10 +40,36 @@ Deno.serve(async (req) => {
     if (action === 'approve') {
       const rawData = approvedData || staging.proposed_changes || staging.supplier_data || {};
 
-      // Sanitize: extract control flags that don't map to real columns
-      const { is_discontinued, ...cleanData } = rawData as Record<string, any>;
+      // Get valid column names from DB to filter out any "proposed_changes" that don't exist
+      const productColumns = [
+        'sku', 'original_title', 'optimized_title', 'original_description', 'optimized_description',
+        'original_price', 'optimized_price', 'category', 'tags', 'meta_title', 'meta_description',
+        'seo_slug', 'status', 'woocommerce_id', 'supplier_ref', 'source_file', 'short_description',
+        'optimized_short_description', 'technical_specs', 'image_urls', 'faq', 'upsell_skus',
+        'crosssell_skus', 'workspace_id', 'product_type', 'parent_product_id', 'attributes',
+        'image_alt_texts', 'focus_keyword', 'seo_score', 'category_id', 'sale_price',
+        'optimized_sale_price', 'suggested_category', 'workflow_state', 'quality_score',
+        'locked_for_publish', 'validation_status', 'validation_errors', 'supplier_id',
+        'canonical_supplier_family', 'canonical_supplier_model', 'stock', 'brand', 'origin',
+        'supplier_title', 'supplier_description', 'supplier_short_description'
+      ];
 
-      // Map control flags to real columns
+      const { is_discontinued, model, family, ...rest } = rawData as Record<string, any>;
+      
+      // Build sanitized data: only keep keys that exist in products table
+      const cleanData: Record<string, any> = {};
+      
+      // Mapeamento especial para campos que vêm do fornecedor mas têm nomes diferentes na DB
+      if (model && !cleanData.canonical_supplier_model) cleanData.canonical_supplier_model = model;
+      if (family && !cleanData.canonical_supplier_family) cleanData.canonical_supplier_family = family;
+
+      Object.keys(rest).forEach(key => {
+        if (productColumns.includes(key)) {
+          cleanData[key] = rest[key];
+        }
+      });
+
+      // Map control flags
       if (is_discontinued === true) {
         cleanData.stock = 0;
         cleanData.workflow_state = 'draft';
@@ -58,13 +84,13 @@ Deno.serve(async (req) => {
         
         if (updateErr) throw updateErr;
       } else {
-        // Create new product (from supplier reconciliation)
+        // Create new product
         const { error: insertErr } = await supabase
           .from("products")
           .insert({
             ...cleanData,
             workspace_id: staging.workspace_id,
-            status: 'pending', // WooCommerce status: never auto-publish
+            status: 'pending',
             workflow_state: cleanData.workflow_state || 'draft',
             origin: cleanData.origin || 'supplier'
           });
