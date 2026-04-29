@@ -323,11 +323,7 @@ export function ReconciliationTab() {
             <DollarSign className="w-4 h-4" />
             <span className="text-sm font-medium">Produtos com alteração de preço:</span>
             <Badge variant="secondary" className="bg-blue-200/50 text-blue-800 border-blue-300">
-              {stagingData?.items?.filter(i => {
-                const sp = i.supplier_data?.price || i.supplier_data?.original_price;
-                const siteP = i.site_data?.price || i.site_data?.original_price;
-                return sp && siteP && Number(sp) !== Number(siteP);
-              }).length || 0} (nesta vista)
+              {counts?.price_alerts || 0}
             </Badge>
           </div>
         </div>
