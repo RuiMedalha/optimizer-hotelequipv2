@@ -237,6 +237,7 @@ export function ReconciliationTab() {
                 isDisabled ? "opacity-40 grayscale" : ""
               )}
               onClick={() => !isDisabled && handleSetFilter(isActive ? undefined : type)}
+              style={isDisabled ? { pointerEvents: 'none' } : {}}
             >
               <CardContent className="p-4 flex flex-col items-center text-center gap-2">
                 <div className={cn("p-2 rounded-full", changeTypeColors[type].split(' ')[2])}>
