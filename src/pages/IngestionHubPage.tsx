@@ -777,27 +777,6 @@ const IngestionHubPage = () => {
                       </p>
                     </div>
 
-                    {jobRole === "supplier_delta" && (
-                      <div className="space-y-1 col-span-1 md:col-span-2">
-                        <Label className="text-xs font-semibold text-amber-700">Ficheiro Mestre (Site Atual)</Label>
-                        <div className="flex gap-2">
-                          <Input 
-                            type="file" 
-                            accept=".csv,.xlsx,.xls" 
-                            className="h-10 text-xs" 
-                            onChange={(e) => e.target.files?.[0] && handleMasterFile(e.target.files[0])}
-                          />
-                          {masterFileData && (
-                            <Badge variant="outline" className="h-10 bg-green-50 text-green-700 border-green-200">
-                              <Check className="w-3 h-3 mr-1" /> {masterFileData.length} Prod.
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-[10px] text-amber-600 mt-1">
-                          ⚠️ Obrigatório para cruzar dados e detetar descontinuados.
-                        </p>
-                      </div>
-                    )}
 
                     <div className="space-y-1">
                       <Label className="text-xs font-semibold">Estado do Mapeamento</Label>
