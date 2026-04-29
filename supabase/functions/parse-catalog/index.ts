@@ -119,7 +119,9 @@ async function insertProducts(
   updateMode?: boolean,
   updateFields?: string[],
   workflowRunId?: string,
-  skuPrefix?: string
+  skuPrefix?: string,
+  defaultBrand?: string,
+  autoModelFromSku?: boolean
 ) {
   const adminDb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
