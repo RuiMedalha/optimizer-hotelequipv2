@@ -508,7 +508,7 @@ export function ReconciliationTab() {
                           <Label className="text-[10px] text-muted-foreground uppercase font-bold">Imagem no Site</Label>
                           <div className="aspect-square rounded-md border bg-white flex items-center justify-center overflow-hidden">
                             {(() => {
-                              const siteImgs = (selectedItem as any).product?.image_urls || selectedItem.site_data?.image_urls;
+                              const siteImgs = (selectedItem as any)?.product?.image_urls || selectedItem?.site_data?.image_urls;
                               const imgUrl = Array.isArray(siteImgs) ? siteImgs[0] : siteImgs;
                               return imgUrl ? (
                                 <img src={imgUrl} alt="Atual" className="object-contain w-full h-full" />
