@@ -287,8 +287,9 @@ export function usePendingStagingItems(options?: { changeType?: string; limit?: 
         .from("sync_staging")
         .select(`
           *,
-          job:ingestion_jobs(config),
-          product:products(*)
+          job:ingestion_jobs!sync_staging_ingestion_job_id_fkey(config),
+          product:products!sync_staging_existing_product_id_fkey(*),
+          supplier:supplier_profiles!sync_staging_supplier_id_fkey(supplier_name)
         `, { count: 'exact' })
         .eq("workspace_id", activeWorkspace!.id)
         .in("status", ["pending", "flagged"]);
