@@ -395,9 +395,30 @@ function buildProductData(p: Record<string, unknown>, onlyMapped: boolean, mappe
   }
 
   // Collect extra technical attributes (Marca, EAN, Modelo) into the attributes array
-  const brandVal = toStr(p.brand, 200);
+  let brandVal = toStr(p.brand, 200);
   const eanVal = toStr(p.ean, 100);
-  const modeloVal = toStr(p.modelo, 200);
+  let modeloVal = toStr(p.modelo, 200);
+
+  // Apply default brand if none found
+  if (!brandVal && defaultBrand) {
+    brandVal = defaultBrand;
+  }
+
+  // Apply auto model from SKU if enabled
+  if (autoModelFromSku && !modeloVal && p.sku) {
+    const sku = String(p.sku).trim();
+    if (skuPrefix) {
+      const prefix = String(skuPrefix).trim();
+      if (sku.toUpperCase().startsWith(prefix.toUpperCase())) {
+        modeloVal = sku.substring(prefix.length);
+      } else {
+        modeloVal = sku;
+      }
+    } else {
+      modeloVal = sku;
+    }
+  }
+
   if (brandVal) attributes.push({ name: "Marca", value: brandVal, variation: false });
   if (eanVal) attributes.push({ name: "EAN", value: eanVal, variation: false });
   if (modeloVal) attributes.push({ name: "Modelo", value: modeloVal, variation: false });
