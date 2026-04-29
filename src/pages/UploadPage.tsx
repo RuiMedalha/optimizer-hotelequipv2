@@ -127,6 +127,7 @@ const UploadPage = () => {
   const {
     files, addFiles, processAllFiles: processAll, processFile, removeFile,
     setColumnMapping, confirmMapping, reopenMapping, selectSheet, setUpdateFields, setSkuPrefix,
+    setDefaultBrand, setAutoModelFromSku,
     allFields, customFields, addCustomField, removeCustomField,
   } = useUploadCatalog();
   const { data: uploadHistory } = useUploadedFiles();
