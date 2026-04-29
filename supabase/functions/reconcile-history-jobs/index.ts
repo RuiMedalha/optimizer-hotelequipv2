@@ -143,7 +143,9 @@ Deno.serve(async (req) => {
         // Determine Change Type based ONLY on mapped fields
         let priceDiff = false;
         if (hasPriceMapping) {
-          priceDiff = areValuesDifferent(mappedData.original_price, masterMapped.original_price);
+          const sPrice = mappedData.original_price;
+          const mPrice = masterMapped.original_price;
+          priceDiff = areValuesDifferent(sPrice, mPrice);
         }
         
         // Fields to compare (only if mapped)
@@ -152,8 +154,9 @@ Deno.serve(async (req) => {
         
         let fieldsDiff = false;
         for (const field of fieldsToCompare) {
+          // Special rule: if it's a text field we protect, we check if supplier value is different from site value
+          // even if we won't overwrite it in proposed_changes
           if (areValuesDifferent(mappedData[field], masterMapped[field])) {
-            // Special rule: Category and Brand from site_wins don't count as "field_update" if they match the site
             if ((field === 'category' || field === 'brand') && !mappedData[field]) {
               continue;
             }
@@ -207,8 +210,8 @@ Deno.serve(async (req) => {
         proposedChanges.image_urls = ensureArray(proposedChanges.image_urls);
       }
 
-      // Use defaultBrand from config if supplier_id is missing or as a fallback label
-      const displaySupplierName = config.defaultBrand || "Desconhecido";
+      // Fallback supplier name from config if supplier_id is missing
+      const supplierName = config.defaultBrand || "Desconhecido";
 
       stagingRecords.push({
         workspace_id: finalWorkspaceId,
@@ -218,14 +221,18 @@ Deno.serve(async (req) => {
         sku_site_target: masterMapped.sku || null,
         confidence_score: confidence,
         match_method: matchMethod,
-        supplier_data: mappedData,
-        proposed_changes: proposedChanges,
+        supplier_data: { 
+          ...mappedData,
+          supplier_name: supplierName // Injecting for UI display
+        },
+        proposed_changes: {
+          ...proposedChanges,
+          supplier_name: supplierName
+        },
         site_data: masterItem ? masterMapped : null,
         existing_product_id: masterItem?.product_id || null,
         status: confidence >= 80 ? "pending" : "flagged",
         change_type: changeType,
-        // We can store the fallback name in a metadata field if needed, 
-        // but for now, we ensure the ingestion_job link is correct.
       });
     }
 
