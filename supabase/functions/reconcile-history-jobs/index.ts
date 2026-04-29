@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
     let deltaItems: any[] = [];
     let hasMoreDelta = true;
     let deltaOffset = 0;
-    const BATCH_SIZE = 5000;
+    const BATCH_SIZE = 1000; // Reduced batch size to stay under PostgREST limits
 
     while (hasMoreDelta) {
       const { data, error } = await supabase
