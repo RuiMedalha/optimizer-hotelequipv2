@@ -201,7 +201,7 @@ async function insertProducts(
       if (existingId) {
         if (updateMode && updateFields && updateFields.length > 0) {
           // ── Update Mode: only overwrite specified fields ──
-          const newData = buildProductData(p, false, mappedFieldKeys, hasMapping);
+          const newData = buildProductData(p, false, mappedFieldKeys, hasMapping, skuPrefix, defaultBrand, autoModelFromSku);
           const updateData: Record<string, unknown> = {};
           
           // Map updateFields to DB column names
