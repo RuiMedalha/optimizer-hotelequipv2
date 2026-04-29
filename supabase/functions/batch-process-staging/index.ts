@@ -25,7 +25,8 @@ Deno.serve(async (req) => {
       .select("*")
       .eq("workspace_id", workspaceId)
       .eq("change_type", changeType)
-      .in("status", ["pending", "flagged"]);
+      .in("status", ["pending", "flagged"])
+      .limit(10000);
 
     if (fetchErr) throw fetchErr;
     if (!stagingRecords || stagingRecords.length === 0) {

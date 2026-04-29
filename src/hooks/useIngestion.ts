@@ -317,13 +317,29 @@ export function useStagingCounts() {
     queryKey: ["staging-counts", activeWorkspace?.id],
     enabled: !!activeWorkspace?.id,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("sync_staging")
-        .select("change_type")
-        .eq("workspace_id", activeWorkspace!.id)
-        .in("status", ["pending", "flagged"]);
+      let allData: { change_type: string | null }[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (error) throw error;
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("sync_staging")
+          .select("change_type")
+          .eq("workspace_id", activeWorkspace!.id)
+          .in("status", ["pending", "flagged"])
+          .range(from, from + pageSize - 1);
+
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+          allData = [...allData, ...data];
+          from += pageSize;
+          if (data.length < pageSize) hasMore = false;
+        } else {
+          hasMore = false;
+        }
+      }
       
       const counts: Record<string, number> = {
         discontinued: 0,
@@ -331,10 +347,10 @@ export function useStagingCounts() {
         price_change: 0,
         field_update: 0,
         multiple_changes: 0,
-        total: data?.length || 0
+        total: allData.length
       };
 
-      data?.forEach(item => {
+      allData.forEach(item => {
         if (item.change_type && counts[item.change_type] !== undefined) {
           counts[item.change_type]++;
         }

@@ -155,8 +155,8 @@ Deno.serve(async (req) => {
       console.log(`Checking duplicates for fields: ${dupFields.join(", ")}`);
       let hasMore = true;
       let offset = 0;
-      const pageSize = 1000;
-      const MAX_SEARCH_LIMIT = 100000; // Increase to 100k to ensure we find all existing products
+      const pageSize = 5000;
+      const MAX_SEARCH_LIMIT = 200000; // Increase to 200k to ensure we find all existing products
 
       while (hasMore && offset < MAX_SEARCH_LIMIT) {
         const { data: existing, error: fetchError } = await supabase
