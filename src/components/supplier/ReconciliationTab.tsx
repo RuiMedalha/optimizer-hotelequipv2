@@ -66,7 +66,7 @@ export function ReconciliationTab() {
     setOffset(prev => prev + ITEMS_PER_PAGE);
   };
 
-  const handleOpenDetail = (item: SyncStagingItem & { supplier: { supplier_name: string } | null }) => {
+  const handleOpenDetail = (item: SyncStagingItem & { job: { config: any } | null }) => {
     setSelectedItem(item);
     const initialChanges: Record<string, boolean> = {};
     if (item.proposed_changes) {
