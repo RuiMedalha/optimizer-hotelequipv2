@@ -363,12 +363,11 @@ export function useStagingCounts() {
           counts[item.change_type]++;
         }
         
-        // Count any item that has a price change regardless of its main classification
-        // We use the JSON data directly from the fetched items
-        // Note: allData from select("change_type") only has change_type.
-        // We need to fetch more fields to do this check accurately, 
-        // OR we can just rely on the fact that 'price_change' and 'multiple_changes' usually cover this.
-        // Actually, the user wants a precise count. 
+        const sp = item.supplier_data?.price || item.supplier_data?.original_price;
+        const siteP = item.site_data?.price || item.site_data?.original_price;
+        if (sp && siteP && Number(sp) !== Number(siteP)) {
+          counts.price_alerts++;
+        }
       });
 
       return counts;
