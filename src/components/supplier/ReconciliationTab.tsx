@@ -308,7 +308,9 @@ export function ReconciliationTab() {
                     <div className="font-medium">{item.sku_site_target || 'Novo Produto'}</div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="text-[10px]">{item.supplier?.supplier_name || 'Desconhecido'}</Badge>
+                    <Badge variant="outline" className="text-[10px]">
+                      {item.supplier?.supplier_name || (item as any).job?.config?.defaultBrand || 'Desconhecido'}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     <span className="text-xs font-medium">{matchMethodLabels[item.match_method] || item.match_method}</span>
