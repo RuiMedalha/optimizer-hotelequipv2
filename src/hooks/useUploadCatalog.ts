@@ -741,6 +741,8 @@ export function useUploadCatalog() {
     setColumnMapping,
     setUpdateFields,
     setSkuPrefix,
+    setDefaultBrand,
+    setAutoModelFromSku,
     confirmMapping,
     reopenMapping,
     selectSheet,
