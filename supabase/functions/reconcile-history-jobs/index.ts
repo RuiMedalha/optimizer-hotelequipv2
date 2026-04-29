@@ -300,6 +300,7 @@ Deno.serve(async (req) => {
         .from("sync_staging")
         .insert(chunk);
       if (insertErr) throw insertErr;
+      console.log(`Inserido lote ${Math.floor(i / 500) + 1} de ${Math.ceil(stagingRecords.length / 500)} em sync_staging`);
     }
 
     return new Response(JSON.stringify({ 
