@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
     if (authError || !user) throw new Error("Unauthorized");
 
     const body = await req.json();
-    const { workspaceId, sourceId, data, masterData, fileName, sourceType, fieldMappings, mergeStrategy, duplicateDetectionFields, groupingConfig, mode, skuPrefix, sourceLanguage, role, supplierId } = body;
+    const { workspaceId, sourceId, data, masterData, fileName, sourceType, fieldMappings, mergeStrategy, duplicateDetectionFields, groupingConfig, mode, skuPrefix, sourceLanguage, role, supplierId, defaultBrand, autoModelFromSku } = body;
 
     if (!workspaceId) throw new Error("workspaceId required");
     if (!data && !fileName) throw new Error("data or fileName required");
@@ -68,6 +68,8 @@ Deno.serve(async (req) => {
           mergeStrategy: strategy,
           duplicateDetectionFields: dupFields,
           skuPrefix: skuPrefix || null,
+          defaultBrand: defaultBrand || null,
+          autoModelFromSku: autoModelFromSku || false,
           sourceLanguage: sourceLanguage || "auto",
           role: role || null,
           groupingConfig: groupCfg
@@ -109,34 +111,38 @@ Deno.serve(async (req) => {
         Object.assign(mapped, row);
       }
 
-      // ─── Apply SKU Prefix ───
+      // ─── Apply SKU Prefix & Auto Model ───
       const targetSkuKey = Object.entries(mappings).find(([_, v]) => v === "sku")?.[1] || "sku";
       let sku = mapped[targetSkuKey];
+      let prePrefixSku = sku;
       
       if (skuPrefix && sku) {
         const prefixStr = String(skuPrefix).trim();
         const skuStr = String(sku).trim();
-        
-        // If it starts with the prefix AND has a separator, skip.
-        // Otherwise, if it's just a string prefix like "CH" and the ref is "CH350", 
-        // we should probably prepend it to get "CHCH350" which is the user's convention.
-        const hasSeparator = /[-_:\s]/.test(prefixStr);
         const alreadyHasPrefix = skuStr.toUpperCase().startsWith(prefixStr.toUpperCase());
         
-        if (hasSeparator) {
-          if (!alreadyHasPrefix) {
-            mapped[targetSkuKey] = `${prefixStr}${skuStr}`;
-          }
+        if (!alreadyHasPrefix) {
+          mapped[targetSkuKey] = `${prefixStr}${skuStr}`;
+          sku = mapped[targetSkuKey];
         } else {
-          // If no separator, and user explicitly provided a prefix, 
-          // we only skip if it already has the prefix TWICE (to prevent infinite growth)
-          // or if it matches some other safety criteria.
-          // For now, let's be more permissive: if the user provided a prefix, prepend it.
-          // To avoid CHCHCH350, we check if it already starts with (prefix + prefix)
-          const doublePrefix = (prefixStr + prefixStr).toUpperCase();
-          if (!skuStr.toUpperCase().startsWith(doublePrefix)) {
-            mapped[targetSkuKey] = `${prefixStr}${skuStr}`;
-          }
+          // If it already has the prefix, the pre-prefix SKU is the part after the prefix
+          prePrefixSku = skuStr.substring(prefixStr.length);
+        }
+      }
+
+      if (autoModelFromSku && sku) {
+        // Use SKU without prefix as model if enabled
+        const targetModelKey = Object.entries(mappings).find(([_, v]) => v === "model")?.[1] || "model";
+        if (!mapped[targetModelKey]) {
+          mapped[targetModelKey] = prePrefixSku;
+        }
+      }
+
+      // ─── Apply Default Brand ───
+      if (defaultBrand) {
+        const targetBrandKey = Object.entries(mappings).find(([_, v]) => v === "brand")?.[1] || "brand";
+        if (!mapped[targetBrandKey]) {
+          mapped[targetBrandKey] = defaultBrand;
         }
       }
 

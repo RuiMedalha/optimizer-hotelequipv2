@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -98,6 +99,8 @@ const IngestionHubPage = () => {
   const [mergeStrategy, setMergeStrategy] = useState("merge");
   const [dupFields, setDupFields] = useState("sku");
   const [skuPrefix, setSkuPrefix] = useState("");
+  const [defaultBrand, setDefaultBrand] = useState("");
+  const [autoModelFromSku, setAutoModelFromSku] = useState(false);
   const [sourceLang, setSourceLang] = useState("auto");
   const [jobRole, setJobRole] = useState<string | undefined>("supplier_delta");
 
@@ -246,6 +249,10 @@ const IngestionHubPage = () => {
       setCurrentDetection(detResult.detection);
       if (detResult.matched_supplier_id) {
         setJobRole("supplier_delta");
+        // Auto-fill default brand if it's empty and we have a detected supplier name
+        if (!defaultBrand && detResult.detection?.supplier_name) {
+          setDefaultBrand(detResult.detection.supplier_name);
+        }
       }
 
       // 2. Infer column mapping
@@ -346,6 +353,8 @@ const IngestionHubPage = () => {
         duplicateDetectionFields: dupFields.split(",").map(s => s.trim()).filter(Boolean),
         mode: "dry_run",
         skuPrefix: skuPrefix.trim() || undefined,
+        defaultBrand: defaultBrand.trim() || undefined,
+        autoModelFromSku,
         sourceLanguage: sourceLang,
         role: jobRole,
         supplierId: currentDetection?.matched_supplier_id,
@@ -377,6 +386,8 @@ const IngestionHubPage = () => {
         duplicateDetectionFields: dupFields.split(",").map(s => s.trim()).filter(Boolean),
         mode: "live",
         skuPrefix: skuPrefix.trim() || undefined,
+        defaultBrand: defaultBrand.trim() || undefined,
+        autoModelFromSku,
         sourceLanguage: sourceLang,
         role: jobRole,
         supplierId: currentDetection?.matched_supplier_id,
@@ -387,6 +398,8 @@ const IngestionHubPage = () => {
         config: {
           fieldMappings,
           skuPrefix,
+          defaultBrand,
+          autoModelFromSku,
           sourceLanguage: sourceLang,
           mergeStrategy,
           duplicateDetectionFields: dupFields.split(",").map(s => s.trim()).filter(Boolean),
@@ -737,13 +750,35 @@ const IngestionHubPage = () => {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold">Prefixo SKU (opcional)</Label>
-                      <Input 
-                        value={skuPrefix} 
-                        onChange={e => setSkuPrefix(e.target.value.toUpperCase())} 
-                        placeholder="Ex: UD-" 
-                      />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 col-span-1 md:col-span-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold">Prefixo SKU (opcional)</Label>
+                        <Input 
+                          value={skuPrefix} 
+                          onChange={e => setSkuPrefix(e.target.value.toUpperCase())} 
+                          placeholder="Ex: UD-" 
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold">Marca Padrão</Label>
+                        <Input 
+                          value={defaultBrand} 
+                          onChange={e => setDefaultBrand(e.target.value)} 
+                          placeholder="Ex: Samsung" 
+                        />
+                      </div>
+                      <div className="flex flex-col justify-center space-y-2 pt-4">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox 
+                            id="autoModel" 
+                            checked={autoModelFromSku} 
+                            onCheckedChange={(checked) => setAutoModelFromSku(checked === true)} 
+                          />
+                          <Label htmlFor="autoModel" className="text-xs font-medium cursor-pointer">
+                            Usar SKU sem prefixo como Modelo
+                          </Label>
+                        </div>
+                      </div>
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs font-semibold">Idioma de Origem</Label>

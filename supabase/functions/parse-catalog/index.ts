@@ -40,7 +40,7 @@ serve(async (req) => {
     const userId = user.id;
 
     const body = await req.json();
-    const { filePath, fileName, columnMapping, sheetName, parseKnowledge, workspaceId, fileId, parsedRows, _batch, updateMode, updateFields, workflowRunId, skuPrefix } = body;
+    const { filePath, fileName, columnMapping, sheetName, parseKnowledge, workspaceId, fileId, parsedRows, _batch, updateMode, updateFields, workflowRunId, skuPrefix, defaultBrand, autoModelFromSku } = body;
 
     // ─── Batch continuation mode (for large inserts) ───
     if (_batch) {
@@ -76,7 +76,7 @@ serve(async (req) => {
     // ─── Product parsing with pre-parsed rows from frontend ───
     if (parsedRows && Array.isArray(parsedRows)) {
       // Frontend already parsed the Excel — just insert into DB
-      const result = await insertProducts(parsedRows, columnMapping, userId, workspaceId, fileName, updateMode, updateFields, workflowRunId, skuPrefix);
+      const result = await insertProducts(parsedRows, columnMapping, userId, workspaceId, fileName, updateMode, updateFields, workflowRunId, skuPrefix, defaultBrand, autoModelFromSku);
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -119,7 +119,9 @@ async function insertProducts(
   updateMode?: boolean,
   updateFields?: string[],
   workflowRunId?: string,
-  skuPrefix?: string
+  skuPrefix?: string,
+  defaultBrand?: string,
+  autoModelFromSku?: boolean
 ) {
   const adminDb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
@@ -199,7 +201,7 @@ async function insertProducts(
       if (existingId) {
         if (updateMode && updateFields && updateFields.length > 0) {
           // ── Update Mode: only overwrite specified fields ──
-          const newData = buildProductData(p, false, mappedFieldKeys, hasMapping);
+          const newData = buildProductData(p, false, mappedFieldKeys, hasMapping, skuPrefix, defaultBrand, autoModelFromSku);
           const updateData: Record<string, unknown> = {};
           
           // Map updateFields to DB column names
@@ -232,7 +234,7 @@ async function insertProducts(
         } else {
           // ── Intelligent Merge: fill empty fields, combine arrays, pick best value ──
           const existing = existingFullMap.get(sku!) || {};
-          const mergeData = buildMergedProductData(p, existing, mappedFieldKeys, hasMapping, fileName);
+          const mergeData = buildMergedProductData(p, existing, mappedFieldKeys, hasMapping, fileName, skuPrefix, defaultBrand, autoModelFromSku);
           if (Object.keys(mergeData).length > 0) {
             toUpdate.push({ id: existingId, data: mergeData, product: p });
           } else {
@@ -245,7 +247,7 @@ async function insertProducts(
           skipped++;
           continue;
         }
-        const productData = buildProductData(p, false, mappedFieldKeys, hasMapping);
+        const productData = buildProductData(p, false, mappedFieldKeys, hasMapping, skuPrefix, defaultBrand, autoModelFromSku);
         productData.user_id = userId;
         productData.workspace_id = workspaceId || null;
         productData.source_file = fileName;
@@ -359,7 +361,7 @@ async function processBatch(batchData: any, userId: string) {
   await insertProducts(products, columnMapping, userId, workspaceId, fileName);
 }
 
-function buildProductData(p: Record<string, unknown>, onlyMapped: boolean, mappedFieldKeys: Set<string>, hasMapping: boolean) {
+function buildProductData(p: Record<string, unknown>, onlyMapped: boolean, mappedFieldKeys: Set<string>, hasMapping: boolean, skuPrefix?: string, defaultBrand?: string, autoModelFromSku?: boolean) {
   const data: Record<string, unknown> = {};
   const attributes: any[] = [];
   for (let a = 1; a <= 3; a++) {
@@ -393,9 +395,30 @@ function buildProductData(p: Record<string, unknown>, onlyMapped: boolean, mappe
   }
 
   // Collect extra technical attributes (Marca, EAN, Modelo) into the attributes array
-  const brandVal = toStr(p.brand, 200);
+  let brandVal = toStr(p.brand, 200);
   const eanVal = toStr(p.ean, 100);
-  const modeloVal = toStr(p.modelo, 200);
+  let modeloVal = toStr(p.modelo, 200);
+
+  // Apply default brand if none found
+  if (!brandVal && defaultBrand) {
+    brandVal = defaultBrand;
+  }
+
+  // Apply auto model from SKU if enabled
+  if (autoModelFromSku && !modeloVal && p.sku) {
+    const sku = String(p.sku).trim();
+    if (skuPrefix) {
+      const prefix = String(skuPrefix).trim();
+      if (sku.toUpperCase().startsWith(prefix.toUpperCase())) {
+        modeloVal = sku.substring(prefix.length);
+      } else {
+        modeloVal = sku;
+      }
+    } else {
+      modeloVal = sku;
+    }
+  }
+
   if (brandVal) attributes.push({ name: "Marca", value: brandVal, variation: false });
   if (eanVal) attributes.push({ name: "EAN", value: eanVal, variation: false });
   if (modeloVal) attributes.push({ name: "Modelo", value: modeloVal, variation: false });
@@ -457,9 +480,12 @@ function buildMergedProductData(
   existing: Record<string, any>,
   mappedFieldKeys: Set<string>,
   hasMapping: boolean,
-  sourceFile: string
+  sourceFile: string,
+  skuPrefix?: string,
+  defaultBrand?: string,
+  autoModelFromSku?: boolean
 ): Record<string, unknown> {
-  const newData = buildProductData(newProduct, false, mappedFieldKeys, hasMapping);
+  const newData = buildProductData(newProduct, false, mappedFieldKeys, hasMapping, skuPrefix, defaultBrand, autoModelFromSku);
   const merged: Record<string, unknown> = {};
 
   // Text fields: use new value if existing is empty, or if new is longer/more complete
@@ -582,7 +608,7 @@ async function processPdfInBackground(supabase: any, userId: string, filePath: s
     return;
   }
 
-  const result = await insertProducts(products, undefined, userId, workspaceId, fileName, undefined, undefined, workflowRunId);
+  const result = await insertProducts(products, undefined, userId, workspaceId, fileName, undefined, undefined, workflowRunId, undefined, undefined, undefined);
   await updateParseStatus(adminDb, userId, fileName, workspaceId, { ...result, done: true }, workflowRunId);
 }
 

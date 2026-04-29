@@ -28,6 +28,8 @@ export interface UploadedFile {
   columnMapping?: ColumnMapping;
   updateFields?: string[];
   skuPrefix?: string;
+  defaultBrand?: string;
+  autoModelFromSku?: boolean;
 }
 
 export interface ProductField {
@@ -268,7 +270,9 @@ async function sendParsedRowsInBatches(
   updateMode?: boolean,
   updateFields?: string[],
   workflowRunId?: string,
-  skuPrefix?: string
+  skuPrefix?: string,
+  defaultBrand?: string,
+  autoModelFromSku?: boolean
 ): Promise<{ count: number; updated: number; total: number; skipped: number; errors: string[] }> {
   const BATCH_SIZE = 500; // rows per request
   let totalCount = 0;
@@ -292,6 +296,8 @@ async function sendParsedRowsInBatches(
             updateFields: updateFields || undefined,
             workflowRunId: workflowRunId || undefined,
             skuPrefix: skuPrefix || undefined,
+            defaultBrand: defaultBrand || undefined,
+            autoModelFromSku: autoModelFromSku || undefined,
           },
         });
 
@@ -451,6 +457,14 @@ export function useUploadCatalog() {
     updateFile(id, { skuPrefix: prefix });
   };
 
+  const setDefaultBrand = (id: string, brand: string) => {
+    updateFile(id, { defaultBrand: brand });
+  };
+
+  const setAutoModelFromSku = (id: string, enabled: boolean) => {
+    updateFile(id, { autoModelFromSku: enabled });
+  };
+
   const confirmMapping = (id: string) => {
     updateFile(id, { status: "aguardando" });
   };
@@ -492,6 +506,9 @@ export function useUploadCatalog() {
         type: uploadedFile.type,
         columnMapping: uploadedFile.columnMapping,
         selectedSheet: uploadedFile.selectedSheet,
+        skuPrefix: uploadedFile.skuPrefix,
+        defaultBrand: uploadedFile.defaultBrand,
+        autoModelFromSku: uploadedFile.autoModelFromSku,
       },
     } as any);
   };
@@ -612,7 +629,9 @@ export function useUploadCatalog() {
           isUpdateMode,
           isUpdateMode ? uploadedFile.updateFields : undefined,
           workflowRunId,
-          uploadedFile.skuPrefix
+          uploadedFile.skuPrefix,
+          uploadedFile.defaultBrand,
+          uploadedFile.autoModelFromSku
         );
 
         const totalProcessed = (result.count || 0) + (result.updated || 0);
@@ -722,6 +741,8 @@ export function useUploadCatalog() {
     setColumnMapping,
     setUpdateFields,
     setSkuPrefix,
+    setDefaultBrand,
+    setAutoModelFromSku,
     confirmMapping,
     reopenMapping,
     selectSheet,

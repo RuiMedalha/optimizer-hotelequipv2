@@ -212,6 +212,8 @@ export function useParseIngestion() {
       sourceLanguage?: string;
       role?: string;
       supplierId?: string;
+      defaultBrand?: string;
+      autoModelFromSku?: boolean;
     }) => {
       const { data, error } = await supabase.functions.invoke("parse-ingestion", {
         body: {
