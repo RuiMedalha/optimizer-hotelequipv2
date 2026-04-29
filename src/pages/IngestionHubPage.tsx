@@ -613,9 +613,9 @@ const IngestionHubPage = () => {
           <TabsTrigger value="reconciliation" className="gap-2">
             <History className="w-4 h-4" /> 
             Reconciliação 
-            {pendingStagingItems && pendingStagingItems.length > 0 && (
+            {pendingStagingData?.totalCount && pendingStagingData.totalCount > 0 && (
               <Badge variant="secondary" className="ml-1 h-5 px-1 bg-primary/20 text-primary border-none">
-                {pendingStagingItems.length}
+                {pendingStagingData.totalCount}
               </Badge>
             )}
           </TabsTrigger>
