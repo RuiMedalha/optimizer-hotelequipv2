@@ -409,7 +409,7 @@ export function ReconciliationTab() {
               ) : (
                 <div className="space-y-6">
                   {/* Image comparison */}
-                  {selectedItem?.proposed_changes?.image_urls && (
+                  {(selectedItem?.proposed_changes?.image_urls || selectedItem?.site_data?.image_urls) && (
                     <div className="space-y-3">
                       <h4 className="text-sm font-semibold flex items-center gap-2">
                         <ImageIcon className="h-4 w-4" /> Revisão de Imagens
@@ -418,14 +418,18 @@ export function ReconciliationTab() {
                         <div className="space-y-2 border rounded-lg p-3 bg-muted/10">
                           <Label className="text-[10px] text-muted-foreground uppercase font-bold">Imagem no Site</Label>
                           <div className="aspect-square rounded-md border bg-white flex items-center justify-center overflow-hidden">
-                            {selectedItem.site_data?.image_urls?.[0] ? (
-                              <img src={selectedItem.site_data.image_urls[0]} alt="Atual" className="object-contain w-full h-full" />
-                            ) : (
-                              <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                                <ImageIcon className="w-8 h-8 opacity-20" />
-                                <span className="text-[10px]">Sem imagem atual</span>
-                              </div>
-                            )}
+                            {(() => {
+                              const siteImgs = selectedItem.site_data?.image_urls;
+                              const imgUrl = Array.isArray(siteImgs) ? siteImgs[0] : siteImgs;
+                              return imgUrl ? (
+                                <img src={imgUrl} alt="Atual" className="object-contain w-full h-full" />
+                              ) : (
+                                <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                  <ImageIcon className="w-8 h-8 opacity-20" />
+                                  <span className="text-[10px]">Sem imagem atual</span>
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
                         <div className={cn(
@@ -440,16 +444,48 @@ export function ReconciliationTab() {
                             />
                           </div>
                           <div className="aspect-square rounded-md border bg-white flex items-center justify-center overflow-hidden">
-                            {selectedItem.proposed_changes.image_urls?.[0] ? (
-                              <img src={selectedItem.proposed_changes.image_urls[0]} alt="Proposta" className="object-contain w-full h-full" />
-                            ) : (
-                              <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                                <ImageIcon className="w-8 h-8 opacity-20" />
-                                <span className="text-[10px]">Sem imagem na proposta</span>
-                              </div>
-                            )}
+                            {(() => {
+                              const proposedImgs = selectedItem.proposed_changes?.image_urls;
+                              const imgUrl = Array.isArray(proposedImgs) ? proposedImgs[0] : proposedImgs;
+                              return imgUrl ? (
+                                <img src={imgUrl} alt="Proposta" className="object-contain w-full h-full" />
+                              ) : (
+                                <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                                  <ImageIcon className="w-8 h-8 opacity-20" />
+                                  <span className="text-[10px]">Sem imagem na proposta</span>
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Reference Fields (Supplier Text that was preserved) */}
+                  {(selectedItem?.proposed_changes?.supplier_title || selectedItem?.proposed_changes?.supplier_description) && (
+                    <div className="space-y-3 p-4 bg-amber-50/50 border border-amber-200 rounded-lg">
+                      <h4 className="text-xs font-bold text-amber-800 uppercase tracking-wider flex items-center gap-2">
+                        <AlertTriangle className="h-3 w-3" /> Texto do Fornecedor (Preservado)
+                      </h4>
+                      <p className="text-[10px] text-amber-700 italic">
+                        Os campos abaixo foram preservados no site (Português). O texto do fornecedor (Delta) está aqui apenas para consulta.
+                      </p>
+                      <div className="space-y-3 mt-2">
+                        {selectedItem.proposed_changes.supplier_title && (
+                          <div className="space-y-1">
+                            <Label className="text-[9px] uppercase text-muted-foreground">Título Original (Supplier)</Label>
+                            <div className="text-xs p-2 bg-white border rounded">{selectedItem.proposed_changes.supplier_title}</div>
+                          </div>
+                        )}
+                        {selectedItem.proposed_changes.supplier_description && (
+                          <div className="space-y-1">
+                            <Label className="text-[9px] uppercase text-muted-foreground">Descrição Original (Supplier)</Label>
+                            <div className="text-xs p-2 bg-white border rounded max-h-32 overflow-y-auto whitespace-pre-wrap">
+                              {selectedItem.proposed_changes.supplier_description}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -461,8 +497,13 @@ export function ReconciliationTab() {
                     </h4>
                     <div className="border rounded-lg divide-y bg-background">
                       {Object.entries(selectedItem?.proposed_changes || {}).map(([key, newVal]: [string, any]) => {
-                        if (key === 'image_urls' || key === 'sku' || key === 'is_discontinued') return null;
+                        // Skip internal and image fields
+                        if (['image_urls', 'sku', 'is_discontinued', 'supplier_title', 'supplier_description', 'supplier_short_description'].includes(key)) return null;
+                        
                         const oldVal = selectedItem.site_data?.[key];
+                        // If values are the same, don't show in the list to reduce clutter
+                        if (oldVal === newVal && oldVal !== undefined) return null;
+
                         const isNewField = oldVal === null || oldVal === undefined || oldVal === '';
                         
                         return (
@@ -498,7 +539,7 @@ export function ReconciliationTab() {
                                 <Label className="text-[10px] text-primary uppercase font-bold tracking-wider">Novo Valor</Label>
                                 <div className={cn(
                                   "text-sm font-medium px-2 py-1 rounded inline-block",
-                                  key === 'price' || key === 'original_price' ? "bg-amber-100 text-amber-700" : "bg-primary/10 text-primary"
+                                  ['price', 'original_price', 'sale_price'].includes(key) ? "bg-amber-100 text-amber-700" : "bg-primary/10 text-primary"
                                 )}>
                                   {String(newVal || '—')}
                                 </div>

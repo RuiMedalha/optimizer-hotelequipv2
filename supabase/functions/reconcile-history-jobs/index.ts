@@ -22,12 +22,31 @@ const areValuesDifferent = (val1: any, val2: any): boolean => {
     return Math.abs(val1 - val2) > 0.001;
   }
   
+  // Handle strings that look like numbers
+  const n1 = parseFloat(String(val1).replace(',', '.'));
+  const n2 = parseFloat(String(val2).replace(',', '.'));
+  if (!isNaN(n1) && !isNaN(n2)) {
+    return Math.abs(n1 - n2) > 0.001;
+  }
+  
   // Handle arrays (like image_urls)
   if (Array.isArray(val1) && Array.isArray(val2)) {
     return val1.length !== val2.length || val1.some((v, i) => v !== val2[i]);
   }
   
   return String(val1 || '').trim() !== String(val2 || '').trim();
+};
+
+const ensureArray = (val: any): string[] => {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'string') {
+    if (val.startsWith('[') && val.endsWith(']')) {
+      try { return JSON.parse(val); } catch (e) { return [val]; }
+    }
+    return val.split(',').map(s => s.trim()).filter(Boolean);
+  }
+  return [String(val)];
 };
 
 Deno.serve(async (req) => {
@@ -44,10 +63,10 @@ Deno.serve(async (req) => {
 
     if (!masterJobId || !deltaJobId) throw new Error("masterJobId and deltaJobId are required");
 
-    // Fetch workspace info from the delta job if not provided
+    // Fetch Job Config and Field Mappings
     const { data: deltaJob } = await supabase
       .from("ingestion_jobs")
-      .select("workspace_id, supplier_id")
+      .select("workspace_id, supplier_id, config")
       .eq("id", deltaJobId)
       .single();
 
@@ -55,6 +74,12 @@ Deno.serve(async (req) => {
     if (!finalWorkspaceId) throw new Error("Could not determine workspaceId");
     
     const supplierId = deltaJob?.supplier_id;
+    const config = deltaJob?.config || {};
+    const fieldMappings = config.fieldMappings || {};
+    
+    // Reverse mapping to find target fields easily
+    const targetFields = Object.values(fieldMappings);
+    const hasPriceMapping = targetFields.includes('original_price');
 
     console.log(`Starting history reconciliation: Master=${masterJobId}, Delta=${deltaJobId}, Workspace=${finalWorkspaceId}`);
 
@@ -63,7 +88,7 @@ Deno.serve(async (req) => {
       .from("ingestion_job_items")
       .select("*")
       .eq("job_id", deltaJobId)
-      .limit(50000); // Increased limit for larger catalogs
+      .limit(50000);
 
     if (deltaErr) throw deltaErr;
 
@@ -72,7 +97,7 @@ Deno.serve(async (req) => {
       .from("ingestion_job_items")
       .select("*")
       .eq("job_id", masterJobId)
-      .limit(50000); // Increased limit for larger catalogs
+      .limit(50000);
 
     if (masterErr) throw masterErr;
 
@@ -86,7 +111,7 @@ Deno.serve(async (req) => {
       if (sku) masterMap.set(sku, item);
     });
 
-    // 4. Clear old staging for this delta job (now redundant due to migration clearing it, but good practice)
+    // 4. Clear old staging for this delta job
     await supabase.from("sync_staging").delete().eq("ingestion_job_id", deltaJobId);
 
     // 5. Process Delta against Master
@@ -115,16 +140,22 @@ Deno.serve(async (req) => {
         confidence = 100;
         matchMethod = "exact";
 
-        // Determine Change Type
-        const priceDiff = areValuesDifferent(mappedData.price || mappedData.Preço || mappedData.Publico, masterMapped.price || masterMapped.Preço || masterMapped.Publico);
+        // Determine Change Type based ONLY on mapped fields
+        let priceDiff = false;
+        if (hasPriceMapping) {
+          priceDiff = areValuesDifferent(mappedData.original_price, masterMapped.original_price);
+        }
         
-        const fieldsToCompare = ['name', 'description', 'category', 'brand', 'image_urls', 'status'];
+        // Fields to compare (only if mapped)
+        const possibleFields = ['original_title', 'original_description', 'short_description', 'category', 'brand', 'image_urls', 'status'];
+        const fieldsToCompare = possibleFields.filter(f => targetFields.includes(f));
+        
         let fieldsDiff = false;
         for (const field of fieldsToCompare) {
           if (areValuesDifferent(mappedData[field], masterMapped[field])) {
             // Special rule: Category and Brand from site_wins don't count as "field_update" if they match the site
             if ((field === 'category' || field === 'brand') && !mappedData[field]) {
-              continue; // If delta has no brand/category, we preserve site, so not a "field update" from delta's perspective
+              continue;
             }
             fieldsDiff = true;
             break;
@@ -134,21 +165,47 @@ Deno.serve(async (req) => {
         if (priceDiff && fieldsDiff) changeType = "multiple_changes";
         else if (priceDiff) changeType = "price_change";
         else if (fieldsDiff) changeType = "field_update";
-        else changeType = "none"; // No changes detected
+        else changeType = "none";
       }
 
-      // Skip records with no changes to keep staging lean (optional, but requested implicitly by "only show what to do")
       if (changeType === "none" && masterItem) continue;
 
-      // Prepare proposed changes with "Site Wins" for Category and Brand
-      const proposedChanges = {
-        ...mappedData,
-        is_discontinued: false,
-        // PRESERVATION RULE: Category and Brand from Master (Site) always win if they exist
-        category: masterMapped.category || masterMapped.Categoria || mappedData.category || mappedData.Categoria,
-        brand: masterMapped.brand || masterMapped.Marca || mappedData.brand || mappedData.Marca,
-        original_description: mappedData.original_description || mappedData.Descrição || sourceData.Descrição
+      // Prepare proposed changes
+      const proposedChanges: any = {
+        is_discontinued: false
       };
+
+      // Only include mapped fields in proposed_changes
+      targetFields.forEach((field: any) => {
+        if (mappedData[field] !== undefined) {
+          proposedChanges[field] = mappedData[field];
+        }
+      });
+
+      // PRESERVATION RULE: Workable text fields from Master always win
+      // We move supplier data to specific fields for reference
+      const textFields = ['original_title', 'original_description', 'short_description'];
+      textFields.forEach(field => {
+        if (masterItem && masterMapped[field]) {
+          // Keep master value
+          proposedChanges[field] = masterMapped[field];
+          // Move supplier value to a reference field
+          const refField = field === 'original_title' ? 'supplier_title' : 
+                          field === 'original_description' ? 'supplier_description' : 'supplier_short_description';
+          proposedChanges[refField] = mappedData[field];
+        }
+      });
+
+      // Special rule for Category and Brand preservation
+      if (masterItem) {
+        if (masterMapped.category) proposedChanges.category = masterMapped.category;
+        if (masterMapped.brand) proposedChanges.brand = masterMapped.brand;
+      }
+
+      // Ensure images are arrays
+      if (proposedChanges.image_urls) {
+        proposedChanges.image_urls = ensureArray(proposedChanges.image_urls);
+      }
 
       stagingRecords.push({
         workspace_id: finalWorkspaceId,
@@ -167,7 +224,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 6. Identify Discontinued (In Master but NOT in Delta)
+    // 6. Identify Discontinued
     for (const [sku, masterItem] of masterMap.entries()) {
       if (!processedSkusInDelta.has(sku)) {
         const masterMapped = masterItem.mapped_data || masterItem.source_data || {};
@@ -187,7 +244,7 @@ Deno.serve(async (req) => {
           },
           site_data: masterMapped,
           existing_product_id: masterItem.product_id || null,
-          status: "pending", // Mark as pending so it shows up
+          status: "pending",
           change_type: "discontinued"
         });
       }
