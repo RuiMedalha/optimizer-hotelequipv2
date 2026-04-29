@@ -207,6 +207,9 @@ Deno.serve(async (req) => {
         proposedChanges.image_urls = ensureArray(proposedChanges.image_urls);
       }
 
+      // Use defaultBrand from config if supplier_id is missing or as a fallback label
+      const displaySupplierName = config.defaultBrand || "Desconhecido";
+
       stagingRecords.push({
         workspace_id: finalWorkspaceId,
         ingestion_job_id: deltaJobId,
@@ -220,7 +223,9 @@ Deno.serve(async (req) => {
         site_data: masterItem ? masterMapped : null,
         existing_product_id: masterItem?.product_id || null,
         status: confidence >= 80 ? "pending" : "flagged",
-        change_type: changeType
+        change_type: changeType,
+        // We can store the fallback name in a metadata field if needed, 
+        // but for now, we ensure the ingestion_job link is correct.
       });
     }
 
