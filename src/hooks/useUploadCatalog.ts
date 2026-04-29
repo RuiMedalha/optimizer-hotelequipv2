@@ -296,6 +296,8 @@ async function sendParsedRowsInBatches(
             updateFields: updateFields || undefined,
             workflowRunId: workflowRunId || undefined,
             skuPrefix: skuPrefix || undefined,
+            defaultBrand: defaultBrand || undefined,
+            autoModelFromSku: autoModelFromSku || undefined,
           },
         });
 
