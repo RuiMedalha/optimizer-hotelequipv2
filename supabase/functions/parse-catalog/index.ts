@@ -608,7 +608,7 @@ async function processPdfInBackground(supabase: any, userId: string, filePath: s
     return;
   }
 
-  const result = await insertProducts(products, undefined, userId, workspaceId, fileName, undefined, undefined, workflowRunId);
+  const result = await insertProducts(products, undefined, userId, workspaceId, fileName, undefined, undefined, workflowRunId, undefined, undefined, undefined);
   await updateParseStatus(adminDb, userId, fileName, workspaceId, { ...result, done: true }, workflowRunId);
 }
 
