@@ -629,7 +629,9 @@ export function useUploadCatalog() {
           isUpdateMode,
           isUpdateMode ? uploadedFile.updateFields : undefined,
           workflowRunId,
-          uploadedFile.skuPrefix
+          uploadedFile.skuPrefix,
+          uploadedFile.defaultBrand,
+          uploadedFile.autoModelFromSku
         );
 
         const totalProcessed = (result.count || 0) + (result.updated || 0);
