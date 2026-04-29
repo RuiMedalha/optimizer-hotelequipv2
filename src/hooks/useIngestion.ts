@@ -22,6 +22,8 @@ export interface SyncStagingItem {
   created_at: string;
   updated_at: string;
   product?: any;
+  supplier?: any;
+  job?: any;
 }
 
 
