@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
       .from("ingestion_job_items")
       .select("*")
       .eq("job_id", deltaJobId)
-      .limit(10000);
+      .limit(50000); // Increased limit for larger catalogs
 
     if (deltaErr) throw deltaErr;
 
@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
       .from("ingestion_job_items")
       .select("*")
       .eq("job_id", masterJobId)
-      .limit(10000);
+      .limit(50000); // Increased limit for larger catalogs
 
     if (masterErr) throw masterErr;
 
