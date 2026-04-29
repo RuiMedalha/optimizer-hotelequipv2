@@ -29,7 +29,7 @@ export function ReconciliationTab() {
   const { activeWorkspace } = useWorkspaceContext();
   const [filterType, setFilterType] = useState<string | undefined>(undefined);
   const [offset, setOffset] = useState(0);
-  const [allItems, setAllItems] = useState<(SyncStagingItem & { supplier: { supplier_name: string } | null })[]>([]);
+  const [allItems, setAllItems] = useState<(SyncStagingItem & { job: { config: any } | null })[]>([]);
 
   const { data: stagingData, isLoading, isFetching, error: fetchError } = usePendingStagingItems({ 
     changeType: filterType, 
