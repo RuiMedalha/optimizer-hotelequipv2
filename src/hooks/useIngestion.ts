@@ -21,6 +21,7 @@ export interface SyncStagingItem {
   change_type: 'discontinued' | 'new_product' | 'price_change' | 'field_update' | 'multiple_changes' | null;
   created_at: string;
   updated_at: string;
+  product?: any;
 }
 
 
