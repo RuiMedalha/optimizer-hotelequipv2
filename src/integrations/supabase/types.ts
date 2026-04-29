@@ -9756,8 +9756,11 @@ export type Database = {
           stock: number | null
           suggested_categories: Json | null
           suggested_category: string | null
+          supplier_description: string | null
           supplier_id: string | null
           supplier_ref: string | null
+          supplier_short_description: string | null
+          supplier_title: string | null
           tags: string[] | null
           technical_specs: string | null
           updated_at: string
@@ -9812,8 +9815,11 @@ export type Database = {
           stock?: number | null
           suggested_categories?: Json | null
           suggested_category?: string | null
+          supplier_description?: string | null
           supplier_id?: string | null
           supplier_ref?: string | null
+          supplier_short_description?: string | null
+          supplier_title?: string | null
           tags?: string[] | null
           technical_specs?: string | null
           updated_at?: string
@@ -9870,8 +9876,11 @@ export type Database = {
           stock?: number | null
           suggested_categories?: Json | null
           suggested_category?: string | null
+          supplier_description?: string | null
           supplier_id?: string | null
           supplier_ref?: string | null
+          supplier_short_description?: string | null
+          supplier_title?: string | null
           tags?: string[] | null
           technical_specs?: string | null
           updated_at?: string
