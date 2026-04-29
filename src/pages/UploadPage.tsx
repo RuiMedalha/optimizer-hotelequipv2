@@ -400,17 +400,39 @@ const UploadPage = () => {
                         </Badge>
                       </div>
 
-                      {/* SKU Prefix Selector in Upload Cards */}
+                      {/* SKU Prefix & Brand Selector in Upload Cards */}
                       {!isConfirmed && (
-                        <div className="flex items-center gap-2 mt-1">
-                          <Label className="text-[10px] uppercase font-bold text-muted-foreground whitespace-nowrap">Prefixo SKU:</Label>
-                          <Input
-                            placeholder="Ex: SIGLA-"
-                            value={file.skuPrefix || ""}
-                            onChange={(e) => setSkuPrefix(file.id, e.target.value.toUpperCase())}
-                            className="h-6 text-[10px] w-32 bg-background border-primary/20"
-                          />
-                          <p className="text-[10px] text-muted-foreground italic">(opcional)</p>
+                        <div className="flex flex-col gap-2 mt-2 p-2 rounded-md bg-primary/5 border border-primary/10">
+                          <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                              <Label className="text-[10px] uppercase font-bold text-muted-foreground whitespace-nowrap">Prefixo SKU:</Label>
+                              <Input
+                                placeholder="Ex: UD-"
+                                value={file.skuPrefix || ""}
+                                onChange={(e) => setSkuPrefix(file.id, e.target.value.toUpperCase())}
+                                className="h-6 text-[10px] w-24 bg-background border-primary/20"
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Label className="text-[10px] uppercase font-bold text-muted-foreground whitespace-nowrap">Marca Padrão:</Label>
+                              <Input
+                                placeholder="Ex: Samsung"
+                                value={file.defaultBrand || ""}
+                                onChange={(e) => setDefaultBrand(file.id, e.target.value)}
+                                className="h-6 text-[10px] w-32 bg-background border-primary/20"
+                              />
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Checkbox 
+                                id={`autoModel-${file.id}`}
+                                checked={file.autoModelFromSku || false}
+                                onCheckedChange={(checked) => setAutoModelFromSku(file.id, checked === true)}
+                              />
+                              <Label htmlFor={`autoModel-${file.id}`} className="text-[10px] font-medium cursor-pointer">
+                                Usar SKU s/ prefixo como Modelo
+                              </Label>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </CardTitle>
