@@ -749,13 +749,35 @@ const IngestionHubPage = () => {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs font-semibold">Prefixo SKU (opcional)</Label>
-                      <Input 
-                        value={skuPrefix} 
-                        onChange={e => setSkuPrefix(e.target.value.toUpperCase())} 
-                        placeholder="Ex: UD-" 
-                      />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 col-span-1 md:col-span-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold">Prefixo SKU (opcional)</Label>
+                        <Input 
+                          value={skuPrefix} 
+                          onChange={e => setSkuPrefix(e.target.value.toUpperCase())} 
+                          placeholder="Ex: UD-" 
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold">Marca Padrão</Label>
+                        <Input 
+                          value={defaultBrand} 
+                          onChange={e => setDefaultBrand(e.target.value)} 
+                          placeholder="Ex: Samsung" 
+                        />
+                      </div>
+                      <div className="flex flex-col justify-center space-y-2 pt-4">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox 
+                            id="autoModel" 
+                            checked={autoModelFromSku} 
+                            onCheckedChange={(checked) => setAutoModelFromSku(checked === true)} 
+                          />
+                          <Label htmlFor="autoModel" className="text-xs font-medium cursor-pointer">
+                            Usar SKU sem prefixo como Modelo
+                          </Label>
+                        </div>
+                      </div>
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs font-semibold">Idioma de Origem</Label>
