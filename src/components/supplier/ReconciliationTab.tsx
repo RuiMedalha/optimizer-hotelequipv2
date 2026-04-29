@@ -589,7 +589,7 @@ export function ReconciliationTab() {
                         // Skip internal and image fields
                         if (['image_urls', 'sku', 'is_discontinued', 'supplier_title', 'supplier_description', 'supplier_short_description'].includes(key)) return null;
                         
-                        const oldVal = (selectedItem as any).product?.[key] !== undefined ? (selectedItem as any).product[key] : selectedItem.site_data?.[key];
+                        const oldVal = (selectedItem as any)?.product?.[key] !== undefined ? (selectedItem as any)?.product[key] : selectedItem?.site_data?.[key];
                         // If values are the same, still show descriptions and categories for context as requested
                         const isContextField = ['original_description', 'short_description', 'category', 'brand', 'original_title'].includes(key);
                         if (oldVal === newVal && oldVal !== undefined && !isContextField) return null;
