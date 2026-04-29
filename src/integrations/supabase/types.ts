@@ -13072,6 +13072,7 @@ export type Database = {
       }
       sync_staging: {
         Row: {
+          change_type: string | null
           confidence_score: number | null
           created_at: string | null
           existing_product_id: string | null
@@ -13092,6 +13093,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          change_type?: string | null
           confidence_score?: number | null
           created_at?: string | null
           existing_product_id?: string | null
@@ -13112,6 +13114,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          change_type?: string | null
           confidence_score?: number | null
           created_at?: string | null
           existing_product_id?: string | null
