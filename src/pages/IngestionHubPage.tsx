@@ -309,15 +309,9 @@ const IngestionHubPage = () => {
   const handleDryRun = async () => {
     if (!parsedData) return;
     
-    if (jobRole === "supplier_delta" && !masterFileData) {
-      toast.error("O Ficheiro Mestre é obrigatório para o modo Delta.");
-      return;
-    }
-
     try {
       const result = await parseIngestion.mutateAsync({
         data: parsedData,
-        masterData: masterFileData || undefined,
         fileName,
         sourceType: fileName.endsWith(".csv") ? "csv" : fileName.endsWith(".json") ? "json" : "xlsx",
         fieldMappings,
@@ -342,15 +336,9 @@ const IngestionHubPage = () => {
   const handleLiveRun = async () => {
     if (!parsedData) return;
 
-    if (jobRole === "supplier_delta" && !masterFileData) {
-      toast.error("O Ficheiro Mestre é obrigatório para o modo Delta.");
-      return;
-    }
-
     try {
       const result = await parseIngestion.mutateAsync({
         data: parsedData,
-        masterData: masterFileData || undefined,
         fileName,
         sourceType: fileName.endsWith(".csv") ? "csv" : fileName.endsWith(".json") ? "json" : "xlsx",
         fieldMappings,
@@ -376,7 +364,6 @@ const IngestionHubPage = () => {
           mergeStrategy,
           duplicateDetectionFields: dupFields.split(",").map(s => s.trim()).filter(Boolean),
           role: jobRole,
-          masterFileName: masterFileName || undefined
         }
       }).eq("id", result.jobId);
 
