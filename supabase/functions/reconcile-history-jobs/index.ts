@@ -143,7 +143,9 @@ Deno.serve(async (req) => {
         // Determine Change Type based ONLY on mapped fields
         let priceDiff = false;
         if (hasPriceMapping) {
-          priceDiff = areValuesDifferent(mappedData.original_price, masterMapped.original_price);
+          const sPrice = mappedData.original_price;
+          const mPrice = masterMapped.original_price;
+          priceDiff = areValuesDifferent(sPrice, mPrice);
         }
         
         // Fields to compare (only if mapped)
@@ -152,8 +154,9 @@ Deno.serve(async (req) => {
         
         let fieldsDiff = false;
         for (const field of fieldsToCompare) {
+          // Special rule: if it's a text field we protect, we check if supplier value is different from site value
+          // even if we won't overwrite it in proposed_changes
           if (areValuesDifferent(mappedData[field], masterMapped[field])) {
-            // Special rule: Category and Brand from site_wins don't count as "field_update" if they match the site
             if ((field === 'category' || field === 'brand') && !mappedData[field]) {
               continue;
             }
