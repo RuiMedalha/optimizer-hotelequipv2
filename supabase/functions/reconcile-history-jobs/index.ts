@@ -88,25 +88,26 @@ Deno.serve(async (req) => {
     let deltaItems: any[] = [];
     let hasMoreDelta = true;
     let deltaOffset = 0;
-    const BATCH_SIZE = 5000; // Increased batch size for faster fetching
+    const FETCH_BATCH_SIZE = 1000; 
 
     while (hasMoreDelta) {
       const { data, error } = await supabase
         .from("ingestion_job_items")
         .select("*")
         .eq("job_id", deltaJobId)
-        .range(deltaOffset, deltaOffset + BATCH_SIZE - 1);
+        .order("source_row_index", { ascending: true })
+        .range(deltaOffset, deltaOffset + FETCH_BATCH_SIZE - 1);
 
       if (error) throw error;
       if (data && data.length > 0) {
         deltaItems = [...deltaItems, ...data];
-        deltaOffset += BATCH_SIZE;
-        if (data.length < BATCH_SIZE) hasMoreDelta = false;
+        deltaOffset += FETCH_BATCH_SIZE;
+        console.log(`Fetched ${deltaItems.length} Delta items so far...`);
       } else {
         hasMoreDelta = false;
       }
     }
-    console.log(`Fetched ${deltaItems.length} items for Delta job`);
+    console.log(`Final: Fetched ${deltaItems.length} items for Delta job`);
 
     // 2. Fetch Master Items (Paginated)
     console.log(`Fetching items for Master job: ${masterJobId}`);
@@ -119,18 +120,19 @@ Deno.serve(async (req) => {
         .from("ingestion_job_items")
         .select("*")
         .eq("job_id", masterJobId)
-        .range(masterOffset, masterOffset + BATCH_SIZE - 1);
+        .order("source_row_index", { ascending: true })
+        .range(masterOffset, masterOffset + FETCH_BATCH_SIZE - 1);
 
       if (error) throw error;
       if (data && data.length > 0) {
         masterItems = [...masterItems, ...data];
-        masterOffset += BATCH_SIZE;
-        if (data.length < BATCH_SIZE) hasMoreMaster = false;
+        masterOffset += FETCH_BATCH_SIZE;
+        console.log(`Fetched ${masterItems.length} Master items so far...`);
       } else {
         hasMoreMaster = false;
       }
     }
-    console.log(`Fetched ${masterItems.length} items for Master job`);
+    console.log(`Final: Fetched ${masterItems.length} items for Master job`);
 
     // 3. Map Master items by SKU
     const masterMap = new Map<string, any>();
