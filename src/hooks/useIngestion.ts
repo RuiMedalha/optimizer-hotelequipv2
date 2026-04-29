@@ -331,13 +331,24 @@ export function useStagingCounts() {
         price_change: 0,
         field_update: 0,
         multiple_changes: 0,
-        total: data.length
+        total: data?.length || 0
       };
+
+      data?.forEach(item => {
+        if (item.change_type && counts[item.change_type] !== undefined) {
+          counts[item.change_type]++;
+        }
+      });
+
+      return counts;
+    },
+  });
+}
+
 export function useBatchProcessStaging() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ changeType, action, workspaceId }: { changeType: string; action: string; workspaceId: string }) => {
-      // We'll use a Supabase Edge Function to process in batch
       const { data, error } = await supabase.functions.invoke("batch-process-staging", {
         body: { changeType, action, workspaceId },
       });
@@ -351,17 +362,6 @@ export function useBatchProcessStaging() {
       toast.success("Processamento em lote concluído");
     },
     onError: (e) => toast.error(e.message),
-  });
-}
-
-      data.forEach(item => {
-        if (item.change_type && counts[item.change_type] !== undefined) {
-          counts[item.change_type]++;
-        }
-      });
-
-      return counts;
-    },
   });
 }
 
