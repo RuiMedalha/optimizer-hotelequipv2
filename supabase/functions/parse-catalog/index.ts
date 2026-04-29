@@ -234,7 +234,7 @@ async function insertProducts(
         } else {
           // ── Intelligent Merge: fill empty fields, combine arrays, pick best value ──
           const existing = existingFullMap.get(sku!) || {};
-          const mergeData = buildMergedProductData(p, existing, mappedFieldKeys, hasMapping, fileName);
+          const mergeData = buildMergedProductData(p, existing, mappedFieldKeys, hasMapping, fileName, skuPrefix, defaultBrand, autoModelFromSku);
           if (Object.keys(mergeData).length > 0) {
             toUpdate.push({ id: existingId, data: mergeData, product: p });
           } else {
