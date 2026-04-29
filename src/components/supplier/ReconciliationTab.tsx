@@ -407,7 +407,7 @@ export function ReconciliationTab() {
               <TableRow>
                 <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                   {filterType 
-                    ? `Nenhum produto do tipo "${changeTypeLabels[filterType]}" encontrado.`
+                    ? `Sem registos do tipo "${changeTypeLabels[filterType]}" encontrados.`
                     : "A carregar lista de produtos..."}
                 </TableCell>
               </TableRow>
