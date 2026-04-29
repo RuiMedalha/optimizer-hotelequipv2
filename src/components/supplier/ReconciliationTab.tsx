@@ -29,7 +29,7 @@ export function ReconciliationTab() {
   const { activeWorkspace } = useWorkspaceContext();
   const [filterType, setFilterType] = useState<string | undefined>(undefined);
   const [offset, setOffset] = useState(0);
-  const [allItems, setAllItems] = useState<(SyncStagingItem & { supplier: { supplier_name: string } | null })[]>([]);
+  const [allItems, setAllItems] = useState<(SyncStagingItem & { job: { config: any } | null })[]>([]);
 
   const { data: stagingData, isLoading, isFetching, error: fetchError } = usePendingStagingItems({ 
     changeType: filterType, 
@@ -41,7 +41,7 @@ export function ReconciliationTab() {
   const processItem = useProcessStagingItem();
   const batchProcess = useBatchProcessStaging();
   
-  const [selectedItem, setSelectedItem] = useState<(SyncStagingItem & { supplier: { supplier_name: string } | null }) | null>(null);
+  const [selectedItem, setSelectedItem] = useState<(SyncStagingItem & { job: { config: any } | null }) | null>(null);
   const [pendingChanges, setPendingChanges] = useState<Record<string, boolean>>({});
 
   // Append items when loading more
@@ -66,7 +66,7 @@ export function ReconciliationTab() {
     setOffset(prev => prev + ITEMS_PER_PAGE);
   };
 
-  const handleOpenDetail = (item: SyncStagingItem & { supplier: { supplier_name: string } | null }) => {
+  const handleOpenDetail = (item: SyncStagingItem & { job: { config: any } | null }) => {
     setSelectedItem(item);
     const initialChanges: Record<string, boolean> = {};
     if (item.proposed_changes) {
@@ -390,7 +390,7 @@ export function ReconciliationTab() {
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-[10px]">
-                        {item.supplier?.supplier_name || (item as any).job?.config?.defaultBrand || 'Desconhecido'}
+                        {(item as any).supplier?.supplier_name || (item as any).job?.config?.defaultBrand || 'Desconhecido'}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -482,7 +482,7 @@ export function ReconciliationTab() {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[10px] uppercase text-muted-foreground font-bold">Fornecedor</Label>
-                  <div className="text-sm">{selectedItem?.supplier?.supplier_name || 'Desconhecido'}</div>
+                  <div className="text-sm">{(selectedItem as any)?.supplier?.supplier_name || (selectedItem as any)?.job?.config?.defaultBrand || 'Desconhecido'}</div>
                 </div>
               </div>
 
