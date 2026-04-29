@@ -270,7 +270,9 @@ async function sendParsedRowsInBatches(
   updateMode?: boolean,
   updateFields?: string[],
   workflowRunId?: string,
-  skuPrefix?: string
+  skuPrefix?: string,
+  defaultBrand?: string,
+  autoModelFromSku?: boolean
 ): Promise<{ count: number; updated: number; total: number; skipped: number; errors: string[] }> {
   const BATCH_SIZE = 500; // rows per request
   let totalCount = 0;
