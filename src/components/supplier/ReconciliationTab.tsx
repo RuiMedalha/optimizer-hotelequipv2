@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ConfidenceIndicator } from "@/components/ConfidenceIndicator";
 import { 
   AlertCircle, Check, X, Eye, Image as ImageIcon, Search, AlertTriangle, 
-  Tag, ArrowUpCircle, RefreshCw, Layers, Trash2, LayoutDashboard, ChevronDown
+  Tag, ArrowUpCircle, RefreshCw, Layers, Trash2, LayoutDashboard, ChevronDown, DollarSign
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -124,6 +124,19 @@ export function ReconciliationTab() {
     } catch (e) {}
   };
 
+  const handleBatchApproveOnlyPrices = async () => {
+    if (!activeWorkspace?.id) return;
+    if (!confirm("Deseja aprovar apenas os preços para todos os produtos com múltiplas alterações?")) return;
+
+    try {
+      await batchProcess.mutateAsync({
+        changeType: 'multiple_changes',
+        action: 'approve_prices_only',
+        workspaceId: activeWorkspace.id
+      });
+    } catch (e) {}
+  };
+
   const changeTypeLabels: Record<string, string> = {
     discontinued: "Descontinuados",
     new_product: "Novos",
@@ -189,16 +202,18 @@ export function ReconciliationTab() {
           const count = counts?.[type] || 0;
           const Icon = changeTypeIcons[type];
           const isActive = filterType === type;
+          const isDisabled = count === 0;
           
           return (
             <Card 
               key={type} 
               className={cn(
-                "cursor-pointer transition-all hover:shadow-md border-2",
+                "transition-all border-2",
+                !isDisabled && "cursor-pointer hover:shadow-md",
                 isActive ? "border-primary" : "border-transparent",
-                count === 0 ? "opacity-60 grayscale" : ""
+                isDisabled ? "opacity-40 grayscale" : ""
               )}
-              onClick={() => handleSetFilter(isActive ? undefined : type)}
+              onClick={() => !isDisabled && handleSetFilter(isActive ? undefined : type)}
             >
               <CardContent className="p-4 flex flex-col items-center text-center gap-2">
                 <div className={cn("p-2 rounded-full", changeTypeColors[type].split(' ')[2])}>
@@ -209,8 +224,8 @@ export function ReconciliationTab() {
                   <div className="text-[10px] uppercase text-muted-foreground font-semibold tracking-wider">{label}</div>
                 </div>
                 
-                {count > 0 && (
-                  <div className="mt-1 pt-2 border-t w-full flex justify-center">
+                {!isDisabled && (
+                  <div className="mt-1 pt-2 border-t w-full flex flex-col gap-1 justify-center">
                     {type === 'discontinued' && (
                       <Button 
                         variant="ghost" 
@@ -241,7 +256,7 @@ export function ReconciliationTab() {
                         Aprovar Tudo
                       </Button>
                     )}
-                    {(type === 'field_update' || type === 'multiple_changes') && (
+                    {type === 'field_update' && (
                       <Button 
                         variant="ghost" 
                         size="sm" 
@@ -251,12 +266,51 @@ export function ReconciliationTab() {
                         Revisão Visual
                       </Button>
                     )}
+                    {type === 'multiple_changes' && (
+                      <>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 text-[9px] px-2 hover:bg-purple-100 text-purple-600"
+                          onClick={(e) => { e.stopPropagation(); handleBatchAction(type, 'review_visual', 'enviar para revisão'); }}
+                        >
+                          Revisão Visual
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 text-[9px] px-2 hover:bg-amber-100 text-amber-600"
+                          onClick={(e) => { e.stopPropagation(); handleBatchApproveOnlyPrices(); }}
+                        >
+                          Aprovar só preços
+                        </Button>
+                      </>
+                    )}
                   </div>
                 )}
               </CardContent>
             </Card>
           );
         })}
+      </div>
+
+      <div className="flex items-center justify-between p-3 bg-blue-50/50 rounded-lg border border-blue-100">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-blue-700">
+            <DollarSign className="w-4 h-4" />
+            <span className="text-sm font-medium">Produtos com alteração de preço:</span>
+            <Badge variant="secondary" className="bg-blue-200/50 text-blue-800 border-blue-300">
+              {stagingData?.items?.filter(i => {
+                const sp = i.supplier_data?.price || i.supplier_data?.original_price;
+                const siteP = i.site_data?.price || i.site_data?.original_price;
+                return sp && siteP && Number(sp) !== Number(siteP);
+              }).length || 0} (nesta vista)
+            </Badge>
+          </div>
+        </div>
+        <p className="text-[11px] text-blue-600 italic">
+          Contagem inclui "Preços" e "Múltiplos"
+        </p>
       </div>
 
       <div className="flex items-center justify-between mb-2">
