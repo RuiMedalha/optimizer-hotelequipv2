@@ -38,24 +38,35 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'approve') {
-      const finalData = approvedData || staging.proposed_changes || staging.supplier_data;
-      
+      const rawData = approvedData || staging.proposed_changes || staging.supplier_data || {};
+
+      // Sanitize: extract control flags that don't map to real columns
+      const { is_discontinued, ...cleanData } = rawData as Record<string, any>;
+
+      // Map control flags to real columns
+      if (is_discontinued === true) {
+        cleanData.stock = 0;
+        cleanData.workflow_state = 'draft';
+      }
+
       if (staging.existing_product_id) {
         // Update existing product
         const { error: updateErr } = await supabase
           .from("products")
-          .update({ ...finalData, updated_at: new Date().toISOString() })
+          .update({ ...cleanData, updated_at: new Date().toISOString() })
           .eq("id", staging.existing_product_id);
         
         if (updateErr) throw updateErr;
       } else {
-        // Create new product
+        // Create new product (from supplier reconciliation)
         const { error: insertErr } = await supabase
           .from("products")
           .insert({
-            ...finalData,
+            ...cleanData,
             workspace_id: staging.workspace_id,
-            status: 'pending' // As per user requirement
+            status: 'pending', // WooCommerce status: never auto-publish
+            workflow_state: cleanData.workflow_state || 'draft',
+            origin: cleanData.origin || 'supplier'
           });
         
         if (insertErr) throw insertErr;
