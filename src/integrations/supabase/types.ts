@@ -15489,6 +15489,7 @@ export type Database = {
         | "skip"
         | "merge"
         | "duplicate"
+        | "staging"
       ingestion_item_status:
         | "queued"
         | "parsed"
@@ -16741,7 +16742,14 @@ export const Constants = {
         "catalog_quality",
         "automation_efficiency",
       ],
-      ingestion_action_type: ["insert", "update", "skip", "merge", "duplicate"],
+      ingestion_action_type: [
+        "insert",
+        "update",
+        "skip",
+        "merge",
+        "duplicate",
+        "staging",
+      ],
       ingestion_item_status: [
         "queued",
         "parsed",
