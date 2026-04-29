@@ -286,7 +286,6 @@ export function usePendingStagingItems(options?: { changeType?: string; limit?: 
         .from("sync_staging")
         .select(`
           *,
-          supplier:supplier_profiles(supplier_name),
           job:ingestion_jobs(config)
         `, { count: 'exact' })
         .eq("workspace_id", activeWorkspace!.id)
