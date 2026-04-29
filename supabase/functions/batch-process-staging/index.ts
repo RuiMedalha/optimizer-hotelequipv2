@@ -42,9 +42,10 @@ Deno.serve(async (req) => {
       
       try {
         if (action === 'draft_discontinued' && existing_product_id) {
+          // Rule: Set stock to 0 and workflow_state to 'draft'
           await supabase.from("products").update({
             stock: 0,
-            status: 'draft',
+            workflow_state: 'draft',
             updated_at: new Date().toISOString()
           }).eq("id", existing_product_id);
           
@@ -52,17 +53,30 @@ Deno.serve(async (req) => {
           processedCount++;
         } 
         else if (action === 'create_drafts' && !existing_product_id) {
+          // Rule: Create new products from supplier data
           const finalData = proposed_changes || supplier_data;
-          await supabase.from("products").insert({
+          
+          // Safeguards for new products
+          const productToInsert = {
             ...finalData,
             workspace_id,
-            status: 'draft'
-          });
+            workflow_state: 'draft',
+            status: 'pending', // WooCommerce status as draft/pending
+            origin: 'supplier',
+            // Ensure original_title is preserved if we have a match (though usually !existing_product_id means new)
+            // If it's a new product, original_title will be the one from processing (PT title)
+            // supplier_title receives the raw Spanish title from supplier_data
+            supplier_title: supplier_data?.title || supplier_data?.Nome || finalData?.title,
+            original_price: supplier_data?.price || supplier_data?.Preço || finalData?.original_price
+          };
+
+          await supabase.from("products").insert(productToInsert);
           
           await supabase.from("sync_staging").update({ status: 'approved' }).eq("id", staging.id);
           processedCount++;
         }
         else if ((action === 'approve_prices' || action === 'approve_prices_only') && existing_product_id) {
+          // Rule: Update only the price
           const newPrice = proposed_changes.price || proposed_changes.original_price || proposed_changes.Preço || proposed_changes.Publico;
           if (newPrice !== undefined) {
              await supabase.from("products").update({
@@ -71,15 +85,10 @@ Deno.serve(async (req) => {
             }).eq("id", existing_product_id);
           }
           
-          // Se for "aprovar só preços" de múltiplos, podemos marcar como processado se não houver mais nada crítico,
-          // ou manter pendente mas com preço já tratado? 
-          // O pedido do utilizador sugere que quer "aceitar as alterações de preço sem aprovar os outros campos".
-          // Para isso, atualizamos o produto e marcamos o staging como processado.
           await supabase.from("sync_staging").update({ status: 'approved' }).eq("id", staging.id);
           processedCount++;
         }
         else if (action === 'review_visual') {
-          // Just mark as flagged for visual attention
           await supabase.from("sync_staging").update({ 
             status: 'flagged',
             review_notes: "Enviado para revisão visual em lote"

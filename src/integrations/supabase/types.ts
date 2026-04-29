@@ -9738,6 +9738,7 @@ export type Database = {
           optimized_sale_price: number | null
           optimized_short_description: string | null
           optimized_title: string | null
+          origin: string | null
           original_description: string | null
           original_price: number | null
           original_title: string | null
@@ -9793,6 +9794,7 @@ export type Database = {
           optimized_sale_price?: number | null
           optimized_short_description?: string | null
           optimized_title?: string | null
+          origin?: string | null
           original_description?: string | null
           original_price?: number | null
           original_title?: string | null
@@ -9850,6 +9852,7 @@ export type Database = {
           optimized_sale_price?: number | null
           optimized_short_description?: string | null
           optimized_title?: string | null
+          origin?: string | null
           original_description?: string | null
           original_price?: number | null
           original_title?: string | null
