@@ -165,14 +165,17 @@ export function ReconciliationTab() {
     );
   }
 
-  const noRecords = !isLoading && (!stagingData || stagingData.totalCount === 0);
+  const noRecords = !isLoading && (!allItems || allItems.length === 0) && (!counts || counts.total === 0);
 
-  if (noRecords && !filterType) {
+  if (noRecords && !filterType && !isLoading) {
     return (
       <Card className="mt-4">
         <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
           <Check className="h-12 w-12 mb-4 opacity-20" />
           <p>Não existem registos pendentes de reconciliação.</p>
+          <Button variant="outline" size="sm" className="mt-4" onClick={() => handleSetFilter(undefined)}>
+            <RefreshCw className="h-4 w-4 mr-2" /> Atualizar Dados
+          </Button>
         </CardContent>
       </Card>
     );
