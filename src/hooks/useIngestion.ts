@@ -333,6 +333,26 @@ export function useStagingCounts() {
         multiple_changes: 0,
         total: data.length
       };
+export function useBatchProcessStaging() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ changeType, action, workspaceId }: { changeType: string; action: string; workspaceId: string }) => {
+      // We'll use a Supabase Edge Function to process in batch
+      const { data, error } = await supabase.functions.invoke("batch-process-staging", {
+        body: { changeType, action, workspaceId },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["pending-staging-items"] });
+      qc.invalidateQueries({ queryKey: ["staging-counts"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      toast.success("Processamento em lote concluído");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+}
 
       data.forEach(item => {
         if (item.change_type && counts[item.change_type] !== undefined) {
