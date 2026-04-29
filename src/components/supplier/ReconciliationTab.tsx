@@ -482,7 +482,7 @@ export function ReconciliationTab() {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[10px] uppercase text-muted-foreground font-bold">Fornecedor</Label>
-                  <div className="text-sm">{selectedItem?.supplier?.supplier_name || 'Desconhecido'}</div>
+                  <div className="text-sm">{(selectedItem as any)?.supplier?.supplier_name || (selectedItem as any)?.job?.config?.defaultBrand || 'Desconhecido'}</div>
                 </div>
               </div>
 
