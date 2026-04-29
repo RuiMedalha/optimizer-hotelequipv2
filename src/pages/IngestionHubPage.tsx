@@ -406,7 +406,7 @@ const IngestionHubPage = () => {
         .select("source_data")
         .eq("job_id", jobId)
         .order("source_row_index", { ascending: true })
-        .limit(20000); // Increased limit to support larger catalogs up to 20k rows
+        .limit(50000); // Increased limit to support larger catalogs up to 50k rows
 
       if (itemsErr) throw itemsErr;
       if (!items || items.length === 0) throw new Error("Job sem dados fonte");
