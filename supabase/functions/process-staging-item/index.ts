@@ -82,10 +82,12 @@ Deno.serve(async (req) => {
       const skuPrefix = jobConfig.skuPrefix || "";
       const useSkuAsModel = jobConfig.autoModelFromSku === true;
 
-      // Calcular Modelo (Remover prefixo se configurado)
-      const calculatedModel = useSkuAsModel && skuPrefix && sku.startsWith(skuPrefix) 
-        ? sku.slice(skuPrefix.length) 
-        : (rawData.model || staging.sku_supplier || sku);
+      // Calcular Modelo: se configurado para usar SKU, remove o prefixo. 
+      // Caso contrário, usa o modelo do fornecedor ou o SKU original (sku_supplier).
+      let calculatedModel = rawData.model || staging.sku_supplier || sku;
+      if (useSkuAsModel && skuPrefix && String(sku).startsWith(skuPrefix)) {
+        calculatedModel = String(sku).slice(skuPrefix.length);
+      }
 
       if (is_discontinued) {
         if (effectiveProductId) {
