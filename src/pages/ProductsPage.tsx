@@ -1561,7 +1561,7 @@ const ProductsPage = () => {
       )}
 
       {/* WooCommerce Publish Job Completed */}
-      {activePublishJob && (activePublishJob.status === "completed" || activePublishJob.status === "cancelled" || activePublishJob.status === "failed") && (
+      {activePublishJob && (activePublishJob.status === "cancelled" || activePublishJob.status === "failed") && (
         <Card className={cn(
           "border-l-4",
           activePublishJob.status === "completed" ? "border-l-success" : "border-l-warning"
