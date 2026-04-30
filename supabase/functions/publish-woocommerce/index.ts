@@ -728,17 +728,53 @@ async function assignBrandToProductTaxonomies(baseUrl: string, auth: string, bra
 }
 
 function extractBrandValue(product: any, fallbackAttributes?: any[]): string | null {
+  // 1. Try explicit brand column
+  const fromColumn = String(product?.brand || "").trim();
+  if (fromColumn) return fromColumn;
+
+  // 2. Try primary attributes
   const fromPrimaryAttrs = extractBrandFromAttributes(Array.isArray(product?.attributes) ? product.attributes : []);
   if (fromPrimaryAttrs) return fromPrimaryAttrs;
 
+  // 3. Try fallback attributes
   const fromFallbackAttrs = extractBrandFromAttributes(Array.isArray(fallbackAttributes) ? fallbackAttributes : []);
   if (fromFallbackAttrs) return fromFallbackAttrs;
 
+  // 4. Try supplier_ref as last resort (often contains brand)
   const supplierRef = String(product?.supplier_ref || "").trim();
   if (supplierRef) return supplierRef;
 
   return null;
 }
+
+function extractModelValue(product: any, fallbackAttributes?: any[]): string | null {
+  // 1. Try explicit model column
+  const fromColumn = String(product?.model || "").trim();
+  if (fromColumn) return fromColumn;
+
+  // 2. Try primary attributes
+  const attributes = Array.isArray(product?.attributes) ? product.attributes : [];
+  for (const attr of attributes) {
+    const n = String(attr?.name || "").toLowerCase().trim();
+    if (n === "modelo" || n === "model") {
+      const rawValue = attr?.value ?? attr?.options?.[0] ?? (Array.isArray(attr?.values) ? attr.values[0] : null);
+      if (rawValue) return String(rawValue).trim();
+    }
+  }
+
+  // 3. Try fallback attributes
+  const fbAttrs = Array.isArray(fallbackAttributes) ? fallbackAttributes : [];
+  for (const attr of fbAttrs) {
+    const n = String(attr?.name || "").toLowerCase().trim();
+    if (n === "modelo" || n === "model") {
+      const rawValue = attr?.value ?? attr?.options?.[0] ?? (Array.isArray(attr?.values) ? attr.values[0] : null);
+      if (rawValue) return String(rawValue).trim();
+    }
+  }
+
+  return null;
+}
+
 
 async function findWooProductBySku(baseUrl: string, auth: string, sku: string | null): Promise<number | null> {
   if (!sku) return null;
