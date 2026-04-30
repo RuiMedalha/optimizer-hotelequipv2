@@ -653,7 +653,11 @@ Deno.serve(async (req) => {
             const res = await publishSingleInline(baseUrl, auth, product, payload);
             if (res.ok && res.woocommerce_id) {
               await supabase.from("products")
-                .update({ woocommerce_id: res.woocommerce_id, status: "published" })
+                .update({ 
+                  woocommerce_id: res.woocommerce_id, 
+                  status: "published",
+                  workflow_state: "published"
+                })
                 .eq("id", product.id);
               existingResults.push({
                 id: product.id,
