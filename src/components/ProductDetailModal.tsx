@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
+import DOMPurify from "dompurify";
+import { ProductDescriptionPreview } from "./ProductDescriptionPreview";
 import { UsoProfissionalTab } from "@/components/UsoProfissionalTab";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Check, X, ExternalLink, RotateCcw, History, Send, ArrowUpRight, Shuffle, AlertTriangle, Brain, BookOpen, Globe, Database, Loader2, BarChart3, Columns, GitBranch, PackageSearch, ImageIcon, Sparkles, Camera, ShieldCheck, ClipboardCheck, Languages } from "lucide-react";
+import { Check, X, ExternalLink, RotateCcw, History, Send, ArrowUpRight, Shuffle, AlertTriangle, Brain, BookOpen, Globe, Database, Loader2, BarChart3, Columns, GitBranch, PackageSearch, ImageIcon, Sparkles, Camera, ShieldCheck, ClipboardCheck, Languages, Eye } from "lucide-react";
 import { useProcessImages } from "@/hooks/useProcessImages";
 import { useActiveImageModels } from "@/hooks/useAiProviderCenter";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
@@ -95,6 +97,7 @@ export function ProductDetailModal({ product, onClose }: Props) {
 
   const [editData, setEditData] = useState<Record<string, any>>({});
   const [hasChanges, setHasChanges] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   useEffect(() => {
     if (product) {
@@ -175,6 +178,16 @@ export function ProductDetailModal({ product, onClose }: Props) {
   const faq = Array.isArray(product.faq) ? product.faq : [];
   const upsells = Array.isArray((product as any).upsell_skus) ? (product as any).upsell_skus : [];
   const crosssells = Array.isArray((product as any).crosssell_skus) ? (product as any).crosssell_skus : [];
+
+  // Parse technical specs for preview
+  const technicalSpecs = useMemo(() => {
+    if (!product.technical_specs) return null;
+    try {
+      return JSON.parse(product.technical_specs);
+    } catch {
+      return product.technical_specs;
+    }
+  }, [product.technical_specs]);
 
   return (
     <Dialog open={!!product} onOpenChange={() => onClose()}>
@@ -278,6 +291,7 @@ export function ProductDetailModal({ product, onClose }: Props) {
               onChange={(v) => handleFieldChange("optimized_description", v)}
               multiline
               large
+              showHtmlToggle
             />
           </TabsContent>
 
@@ -947,6 +961,9 @@ export function ProductDetailModal({ product, onClose }: Props) {
             )}
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsPreviewOpen(true)}>
+              <Eye className="w-4 h-4 mr-1" /> Ver Preview
+            </Button>
             <Button variant="destructive" size="sm" onClick={() => { updateStatus.mutate({ ids: [product.id], status: "error" }); onClose(); }}>
               Rejeitar
             </Button>
@@ -965,6 +982,19 @@ export function ProductDetailModal({ product, onClose }: Props) {
             </Button>
           </div>
         </div>
+
+        <ProductDescriptionPreview
+          open={isPreviewOpen}
+          onClose={() => setIsPreviewOpen(false)}
+          title={editData.optimized_title || product.original_title || "Sem título"}
+          shortDescription={editData.optimized_short_description || product.short_description}
+          longDescription={editData.optimized_description || product.original_description}
+          price={editData.optimized_price || product.original_price}
+          category={editData.category || product.category}
+          imageUrl={product.image_urls?.[0]}
+          seoKeywords={editData.focus_keyword ? editData.focus_keyword.split(",").map((k: string) => k.trim()) : []}
+          specs={technicalSpecs}
+        />
       </DialogContent>
     </Dialog>
   );
@@ -977,6 +1007,7 @@ function EditableComparison({
   onChange,
   multiline = false,
   large = false,
+  showHtmlToggle = false,
 }: {
   label: string;
   original: string;
@@ -984,10 +1015,35 @@ function EditableComparison({
   onChange: (v: string) => void;
   multiline?: boolean;
   large?: boolean;
+  showHtmlToggle?: boolean;
 }) {
+  const [showPreview, setShowPreview] = useState(showHtmlToggle);
+
   return (
     <div className="border border-border/50 rounded-lg p-4">
-      <h4 className="text-sm font-semibold mb-3">{label}</h4>
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-sm font-semibold">{label}</h4>
+        {showHtmlToggle && (
+          <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-md border border-border/50">
+            <Button
+              variant={!showPreview ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 text-xs px-2 py-0"
+              onClick={() => setShowPreview(false)}
+            >
+              Código
+            </Button>
+            <Button
+              variant={showPreview ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 text-xs px-2 py-0"
+              onClick={() => setShowPreview(true)}
+            >
+              Preview
+            </Button>
+          </div>
+        )}
+      </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
           <p className="text-xs text-muted-foreground mb-1">Original</p>
@@ -1000,7 +1056,15 @@ function EditableComparison({
         </div>
         <div>
           <p className="text-xs text-primary mb-1">Otimizado</p>
-          {multiline ? (
+          {showPreview ? (
+            <div 
+              className={cn(
+                "p-3 rounded-lg bg-primary/5 border border-primary/20 text-sm overflow-y-auto prose prose-sm max-w-none",
+                large ? "min-h-[200px] max-h-[400px]" : "min-h-[80px]"
+              )}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(value) }}
+            />
+          ) : multiline ? (
             <Textarea
               value={value}
               onChange={(e) => onChange(e.target.value)}

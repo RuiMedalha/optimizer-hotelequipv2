@@ -14,6 +14,7 @@ interface Props {
   category?: string;
   imageUrl?: string;
   seoKeywords?: string[];
+  specs?: Record<string, string> | string;
   open: boolean;
   onClose: () => void;
 }
@@ -26,6 +27,7 @@ export function ProductDescriptionPreview({
   category,
   imageUrl,
   seoKeywords,
+  specs,
   open,
   onClose,
 }: Props) {
@@ -141,6 +143,26 @@ export function ProductDescriptionPreview({
                       [&_.specs-table]:bg-[#f9fafb] [&_.specs-table]:border [&_.specs-table]:border-[#e5e7eb] [&_.specs-table]:rounded-lg [&_.specs-table]:overflow-hidden"
                     dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(longDescription) }}
                   />
+                </TabsContent>
+                <TabsContent value="specs" className="mt-4">
+                  {specs ? (
+                    typeof specs === 'string' ? (
+                      <div className="text-sm whitespace-pre-wrap p-4 bg-muted/30 rounded-lg">
+                        {specs}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
+                        {Object.entries(specs).map(([key, value]) => (
+                          <div key={key} className="flex justify-between py-2 border-b border-border/50 text-sm">
+                            <span className="font-medium text-muted-foreground">{key}</span>
+                            <span className="text-right">{value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  ) : (
+                    <p className="text-sm text-muted-foreground py-8 text-center">Nenhuma especificação técnica disponível.</p>
+                  )}
                 </TabsContent>
               </Tabs>
             </div>
