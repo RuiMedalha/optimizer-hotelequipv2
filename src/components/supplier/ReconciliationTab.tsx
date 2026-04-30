@@ -93,8 +93,8 @@ export function ReconciliationTab() {
     
     const approvedData: any = {};
     Object.keys(pendingChanges).forEach(key => {
-      if (pendingChanges[key] && selectedItem.proposed_changes[key] !== undefined) {
-        approvedData[key] = selectedItem.proposed_changes[key];
+      if (pendingChanges[key] !== undefined && pendingChanges[key] !== false) {
+        approvedData[key] = pendingChanges[key];
       }
     });
 
