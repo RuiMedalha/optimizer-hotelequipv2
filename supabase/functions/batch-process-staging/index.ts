@@ -5,6 +5,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const cleanSupplierValue = (val: any) => {
+  if (val === null || val === undefined) return undefined;
+  const sVal = String(val).trim();
+  if (sVal === "" || sVal === "-" || sVal === "—") return undefined;
+  return val;
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -17,93 +24,78 @@ Deno.serve(async (req) => {
     const { changeType, action, workspaceId } = await req.json();
     if (!changeType || !action || !workspaceId) throw new Error("Missing parameters");
 
-    console.log(`Batch process: ${changeType} -> ${action} in workspace ${workspaceId}`);
-
-    // Fetch all pending/flagged records for this type
     const { data: stagingRecords, error: fetchErr } = await supabase
       .from("sync_staging")
       .select("*")
       .eq("workspace_id", workspaceId)
       .eq("change_type", changeType)
       .in("status", ["pending", "flagged"])
-      .limit(10000);
+      .limit(500); // Batch smaller for safety
 
     if (fetchErr) throw fetchErr;
     if (!stagingRecords || stagingRecords.length === 0) {
-      return new Response(JSON.stringify({ success: true, count: 0 }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      });
+      return new Response(JSON.stringify({ success: true, count: 0 }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     let processedCount = 0;
+    const { data: ws } = await supabase.from("workspaces").select("user_id").eq("id", workspaceId).single();
 
     for (const staging of stagingRecords) {
-      const { proposed_changes, existing_product_id, supplier_data } = staging;
-      
       try {
-        if (action === 'draft_discontinued' && existing_product_id) {
-          // Rule: Set stock to 0 and workflow_state to 'draft'
+        const rawData = staging.proposed_changes || staging.supplier_data || {};
+        
+        // REGRA 3: Validar SKU
+        const sku = cleanSupplierValue(rawData.sku || staging.sku_supplier);
+        if (!sku) {
+          await supabase.from("sync_staging").update({ status: 'error', review_notes: 'SKU em falta (Regra 3)' }).eq("id", staging.id);
+          continue;
+        }
+
+        if (action === 'draft_discontinued' && staging.existing_product_id) {
+          // REGRA 1: Minimalista
           await supabase.from("products").update({
+            is_discontinued: true,
             stock: 0,
             workflow_state: 'draft',
             updated_at: new Date().toISOString()
-          }).eq("id", existing_product_id);
+          }).eq("id", staging.existing_product_id);
           
-          await supabase.from("sync_staging").update({ status: 'processed' }).eq("id", staging.id);
+          await supabase.from("sync_staging").update({ status: 'approved' }).eq("id", staging.id);
           processedCount++;
         } 
-        else if (action === 'create_drafts' && !existing_product_id) {
-          // Rule: Create new products from supplier data
-          const finalData = proposed_changes || supplier_data;
-
-          // products.user_id is NOT NULL — fetch workspace owner
-          const { data: ws } = await supabase
-            .from("workspaces")
-            .select("user_id")
-            .eq("id", workspaceId)
-            .single();
-          if (!ws?.user_id) throw new Error("Workspace owner not found");
-
-          // Strip control flags / unknown keys
-          const { is_discontinued, model, family, ...rest } = finalData as Record<string, any>;
+        else if (action === 'create_drafts' && !staging.existing_product_id && ws?.user_id) {
+          // REGRA 2 e 4: Novos produtos
+          const sTitle = cleanSupplierValue(rawData.supplier_title ?? rawData.title ?? rawData.Nome ?? rawData.Nombre);
+          const price = cleanSupplierValue(rawData.original_price ?? rawData.price ?? rawData.Preço ?? rawData.Publico);
 
           const productToInsert = {
-            ...rest,
+            sku: sku,
             workspace_id: workspaceId,
             user_id: ws.user_id,
             workflow_state: 'draft',
             status: 'pending',
             origin: 'supplier',
-            supplier_title: supplier_data?.title || supplier_data?.Nome || supplier_data?.Nombre || finalData?.title || finalData?.supplier_title,
-            original_price: supplier_data?.price || supplier_data?.Preço || supplier_data?.Publico || finalData?.original_price || finalData?.price,
-            original_title: finalData?.original_title || finalData?.title || supplier_data?.title,
-            ...(model && { canonical_supplier_model: model }),
-            ...(family && { canonical_supplier_family: family })
+            supplier_title: sTitle,
+            original_price: price,
+            original_title: cleanSupplierValue(rawData.original_title) || sTitle,
+            is_discontinued: false
           };
 
-          await supabase.from("products").insert(productToInsert);
-          
-          await supabase.from("sync_staging").update({ status: 'approved' }).eq("id", staging.id);
-          processedCount++;
+          const { error: insErr } = await supabase.from("products").insert(productToInsert);
+          if (!insErr) {
+            await supabase.from("sync_staging").update({ status: 'approved' }).eq("id", staging.id);
+            processedCount++;
+          }
         }
-        else if ((action === 'approve_prices' || action === 'approve_prices_only') && existing_product_id) {
-          // Rule: Update only the price
-          const newPrice = proposed_changes.price || proposed_changes.original_price || proposed_changes.Preço || proposed_changes.Publico;
+        else if ((action === 'approve_prices' || action === 'approve_prices_only') && staging.existing_product_id) {
+          const newPrice = cleanSupplierValue(rawData.price || rawData.original_price || rawData.Preço || rawData.Publico);
           if (newPrice !== undefined) {
              await supabase.from("products").update({
               original_price: newPrice,
               updated_at: new Date().toISOString()
-            }).eq("id", existing_product_id);
+            }).eq("id", staging.existing_product_id);
           }
-          
           await supabase.from("sync_staging").update({ status: 'approved' }).eq("id", staging.id);
-          processedCount++;
-        }
-        else if (action === 'review_visual') {
-          await supabase.from("sync_staging").update({ 
-            status: 'flagged',
-            review_notes: "Enviado para revisão visual em lote"
-          }).eq("id", staging.id);
           processedCount++;
         }
       } catch (err) {
@@ -116,7 +108,6 @@ Deno.serve(async (req) => {
     });
 
   } catch (e: any) {
-    console.error(e);
     return new Response(JSON.stringify({ success: false, error: e.message }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
