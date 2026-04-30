@@ -948,9 +948,9 @@ const ProductsPage = () => {
               {product.product_type === "variable" ? "Variável" : "Variação"}
             </Badge>
           )}
-          <Badge variant="outline" className={cn("text-xs", statusColors[product.status])}>
+          <Badge variant="outline" className={cn("text-xs", product.is_discontinued ? statusColors.discontinued : statusColors[product.status])}>
             {product.status === "processing" && <Loader2 className="w-3 h-3 animate-spin mr-1" />}
-            {statusLabels[product.status]}
+            {product.is_discontinued ? statusLabels.discontinued : statusLabels[product.status]}
           </Badge>
           {product.woocommerce_id && (
             <Badge variant="outline" className="text-[10px] bg-success/10 text-success border-success/20 gap-0.5" title={`Publicado no WooCommerce (ID: ${product.woocommerce_id})`}>
