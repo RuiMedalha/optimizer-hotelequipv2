@@ -281,6 +281,7 @@ export function ProductDetailModal({ product, onClose }: Props) {
               onChange={(v) => handleFieldChange("optimized_description", v)}
               multiline
               large
+              showHtmlToggle
             />
           </TabsContent>
 
