@@ -99,6 +99,20 @@ export function ProductDetailModal({ product, onClose }: Props) {
   const [hasChanges, setHasChanges] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
+  // Hooks moved to top to avoid React Hook Order violations
+  const faq = useMemo(() => Array.isArray(product?.faq) ? product.faq : [], [product?.faq]);
+  const upsells = useMemo(() => Array.isArray((product as any)?.upsell_skus) ? (product as any).upsell_skus : [], [product]);
+  const crosssells = useMemo(() => Array.isArray((product as any)?.crosssell_skus) ? (product as any).crosssell_skus : [], [product]);
+
+  const technicalSpecs = useMemo(() => {
+    if (!product || !product.technical_specs) return null;
+    try {
+      return JSON.parse(product.technical_specs);
+    } catch {
+      return product.technical_specs;
+    }
+  }, [product?.technical_specs]);
+
   useEffect(() => {
     if (product) {
       setEditData({
@@ -138,6 +152,7 @@ export function ProductDetailModal({ product, onClose }: Props) {
   };
 
   const handleSave = () => {
+    if (!product) return;
     const updates: Record<string, any> = {
       optimized_title: editData.optimized_title || null,
       optimized_description: editData.optimized_description || null,
@@ -151,8 +166,6 @@ export function ProductDetailModal({ product, onClose }: Props) {
       focus_keyword: editData.focus_keyword ? editData.focus_keyword.split(",").map((t: string) => t.trim()).filter(Boolean) : null,
     };
 
-    // Collect image alt texts from edit fields — save as object { url: altText }
-    // to match the format used by the edge function (process-product-images)
     if (product.image_urls && product.image_urls.length > 0) {
       const altTextsObj: Record<string, string> = {};
       product.image_urls.forEach((url, i) => {
@@ -169,25 +182,13 @@ export function ProductDetailModal({ product, onClose }: Props) {
   };
 
   const handleRestore = (version: ProductVersion) => {
+    if (!product) return;
     if (confirm(`Restaurar versão ${version.version_number}? Os dados atuais serão substituídos.`)) {
       restoreVersion.mutate({ productId: product.id, version });
       onClose();
     }
   };
 
-  const faq = useMemo(() => Array.isArray(product?.faq) ? product.faq : [], [product?.faq]);
-  const upsells = useMemo(() => Array.isArray((product as any)?.upsell_skus) ? (product as any).upsell_skus : [], [product]);
-  const crosssells = useMemo(() => Array.isArray((product as any)?.crosssell_skus) ? (product as any).crosssell_skus : [], [product]);
-
-  // Parse technical specs for preview
-  const technicalSpecs = useMemo(() => {
-    if (!product || !product.technical_specs) return null;
-    try {
-      return JSON.parse(product.technical_specs);
-    } catch {
-      return product.technical_specs;
-    }
-  }, [product?.technical_specs]);
 
   return (
     <Dialog open={!!product} onOpenChange={() => onClose()}>
