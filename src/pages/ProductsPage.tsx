@@ -739,6 +739,7 @@ const ProductsPage = () => {
     { value: "optimized", label: "Otimizado" },
     { value: "needs_review", label: "Revisão Necessária" },
     { value: "published", label: "Publicado" },
+    { value: "discontinued", label: "Descontinuados" },
     { value: "error", label: "Erro" },
   ];
 
