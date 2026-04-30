@@ -162,14 +162,33 @@ export function useIngestionJobItems(jobId: string | null) {
     queryKey: ["ingestion-job-items", jobId],
     enabled: !!jobId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("ingestion_job_items" as any)
-        .select("*")
-        .eq("job_id", jobId)
-        .limit(50000) // Increase limit to handle larger jobs (up to 50k rows)
-        .order("source_row_index", { ascending: true });
-      if (error) throw error;
-      return (data || []) as unknown as IngestionJobItem[];
+      let allData: IngestionJobItem[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data, error, count } = await supabase
+          .from("ingestion_job_items" as any)
+          .select("*", { count: 'exact' })
+          .eq("job_id", jobId)
+          .order("source_row_index", { ascending: true })
+          .range(from, from + pageSize - 1);
+
+        if (error) throw error;
+        if (data && data.length > 0) {
+          allData = [...allData, ...(data as unknown as IngestionJobItem[])];
+          from += pageSize;
+          hasMore = count !== null ? allData.length < count : data.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+        
+        // Safety break for extremely large files
+        if (allData.length >= 100000) break;
+      }
+
+      return allData;
     },
   });
 }
