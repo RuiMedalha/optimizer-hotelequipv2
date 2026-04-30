@@ -42,7 +42,7 @@ export function ReconciliationTab() {
   const batchProcess = useBatchProcessStaging();
   
   const [selectedItem, setSelectedItem] = useState<(SyncStagingItem & { job: { config: any } | null }) | null>(null);
-  const [pendingChanges, setPendingChanges] = useState<Record<string, boolean>>({});
+  const [pendingChanges, setPendingChanges] = useState<Record<string, any>>({});
 
   // Append items when loading more
   useEffect(() => {
@@ -68,12 +68,23 @@ export function ReconciliationTab() {
 
   const handleOpenDetail = (item: SyncStagingItem & { job: { config: any } | null }) => {
     setSelectedItem(item);
-    const initialChanges: Record<string, boolean> = {};
+    const initialChanges: Record<string, any> = {};
     if (item.proposed_changes) {
       Object.keys(item.proposed_changes).forEach(key => {
-        initialChanges[key] = true;
+        initialChanges[key] = item.proposed_changes[key];
       });
     }
+    
+    // Default image reordering logic: Delta first, Site second
+    const deltaImgs = Array.isArray(item.proposed_changes?.image_urls) ? item.proposed_changes.image_urls : (item.proposed_changes?.image_urls ? [item.proposed_changes.image_urls] : []);
+    const siteImgs = Array.isArray(item.site_data?.image_urls) ? item.site_data.image_urls : (item.site_data?.image_urls ? [item.site_data.image_urls] : []);
+    
+    if (deltaImgs.length > 0) {
+      initialChanges['image_urls'] = [...new Set([...deltaImgs, ...siteImgs])];
+    } else if (siteImgs.length > 0) {
+      initialChanges['image_urls'] = siteImgs;
+    }
+    
     setPendingChanges(initialChanges);
   };
 
@@ -82,8 +93,8 @@ export function ReconciliationTab() {
     
     const approvedData: any = {};
     Object.keys(pendingChanges).forEach(key => {
-      if (pendingChanges[key] && selectedItem.proposed_changes[key] !== undefined) {
-        approvedData[key] = selectedItem.proposed_changes[key];
+      if (pendingChanges[key] !== undefined && pendingChanges[key] !== false) {
+        approvedData[key] = pendingChanges[key];
       }
     });
 
@@ -504,7 +515,8 @@ export function ReconciliationTab() {
                         <ImageIcon className="h-4 w-4" /> Revisão de Imagens
                       </h4>
                       <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2 border rounded-lg p-3 bg-muted/10">
+                        {/* Site Image (Galleria/Secondary) */}
+                        <div className="space-y-2 border rounded-lg p-3 bg-muted/10 relative">
                           <Label className="text-[10px] text-muted-foreground uppercase font-bold">Imagem no Site</Label>
                           <div className="aspect-square rounded-md border bg-white flex items-center justify-center overflow-hidden">
                             {(() => {
@@ -520,18 +532,39 @@ export function ReconciliationTab() {
                               );
                             })()}
                           </div>
+                          {(() => {
+                            const siteImgs = (selectedItem as any)?.product?.image_urls || selectedItem?.site_data?.image_urls || [];
+                            const deltaImgs = selectedItem.proposed_changes?.image_urls || [];
+                            const currentList = Array.isArray(pendingChanges['image_urls']) ? pendingChanges['image_urls'] : [];
+                            const firstImg = currentList[0];
+                            const isSiteMain = siteImgs.length > 0 && firstImg === (Array.isArray(siteImgs) ? siteImgs[0] : siteImgs);
+                            
+                            return (
+                              <Button 
+                                variant={isSiteMain ? "default" : "outline"} 
+                                size="sm" 
+                                className="w-full mt-2 h-7 text-[10px]"
+                                onClick={() => {
+                                  const sImgs = Array.isArray(siteImgs) ? siteImgs : [siteImgs];
+                                  const dImgs = Array.isArray(deltaImgs) ? deltaImgs : (deltaImgs ? [deltaImgs] : []);
+                                  setPendingChanges(prev => ({
+                                    ...prev,
+                                    image_urls: [...new Set([...sImgs, ...dImgs])]
+                                  }));
+                                }}
+                              >
+                                {isSiteMain ? "Principal (Site)" : "Definir como Principal"}
+                              </Button>
+                            );
+                          })()}
                         </div>
+
+                        {/* Delta Image (New Main) */}
                         <div className={cn(
                           "space-y-2 border rounded-lg p-3 relative",
-                          pendingChanges['image_urls'] ? "border-primary bg-primary/5" : "border-muted"
+                          "border-primary bg-primary/5"
                         )}>
-                          <div className="flex items-center justify-between mb-1">
-                            <Label className="text-[10px] text-primary font-bold uppercase">Proposta Fornecedor</Label>
-                            <Checkbox 
-                              checked={pendingChanges['image_urls']} 
-                              onCheckedChange={(val) => setPendingChanges(prev => ({ ...prev, image_urls: !!val }))} 
-                            />
-                          </div>
+                          <Label className="text-[10px] text-primary font-bold uppercase">Imagem Delta (Fornecedor)</Label>
                           <div className="aspect-square rounded-md border bg-white flex items-center justify-center overflow-hidden">
                             {(() => {
                               const proposedImgs = selectedItem.proposed_changes?.image_urls;
@@ -546,8 +579,37 @@ export function ReconciliationTab() {
                               );
                             })()}
                           </div>
+                          {(() => {
+                            const siteImgs = (selectedItem as any)?.product?.image_urls || selectedItem?.site_data?.image_urls || [];
+                            const deltaImgs = selectedItem.proposed_changes?.image_urls || [];
+                            const currentList = Array.isArray(pendingChanges['image_urls']) ? pendingChanges['image_urls'] : [];
+                            const firstImg = currentList[0];
+                            const isDeltaMain = deltaImgs.length > 0 && firstImg === (Array.isArray(deltaImgs) ? deltaImgs[0] : deltaImgs);
+                            
+                            return (
+                              <Button 
+                                variant={isDeltaMain ? "default" : "outline"} 
+                                size="sm" 
+                                className="w-full mt-2 h-7 text-[10px]"
+                                disabled={!deltaImgs || deltaImgs.length === 0}
+                                onClick={() => {
+                                  const sImgs = Array.isArray(siteImgs) ? siteImgs : (siteImgs ? [siteImgs] : []);
+                                  const dImgs = Array.isArray(deltaImgs) ? deltaImgs : [deltaImgs];
+                                  setPendingChanges(prev => ({
+                                    ...prev,
+                                    image_urls: [...new Set([...dImgs, ...sImgs])]
+                                  }));
+                                }}
+                              >
+                                {isDeltaMain ? "Principal (Delta)" : "Definir como Principal"}
+                              </Button>
+                            );
+                          })()}
                         </div>
                       </div>
+                      <p className="text-[10px] text-muted-foreground italic text-center">
+                        As imagens existentes não serão apagadas. A imagem escolhida como "Principal" ficará no topo, e as restantes formarão a galeria.
+                      </p>
                     </div>
                   )}
 

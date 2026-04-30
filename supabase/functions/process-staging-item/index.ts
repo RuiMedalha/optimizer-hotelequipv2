@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
         // ... (continua com a lógica normal de update/create)
         // Note: I will need to use effectiveProductId here too
 
-        // REGRA 2: Filtrar campos vazios
+        // REGRA 2: Filtrar campos vazios e Reordenar Imagens
         const productColumns = [
           'sku', 'original_title', 'optimized_title', 'original_description', 'optimized_description',
           'original_price', 'optimized_price', 'category', 'tags', 'meta_title', 'meta_description',
@@ -135,11 +135,24 @@ Deno.serve(async (req) => {
 
         // Limpeza geral de colunas
         Object.keys(rawData).forEach(key => {
-          if (productColumns.includes(key)) {
+          if (productColumns.includes(key) && key !== 'image_urls') {
             const val = cleanSupplierValue(rawData[key]);
             if (val !== undefined) cleanData[key] = val;
           }
         });
+
+        // REORDENAÇÃO DE IMAGENS (REGRA NOVA)
+        const deltaImgs = Array.isArray(rawData.image_urls) ? rawData.image_urls : (rawData.image_urls ? [rawData.image_urls] : []);
+        const siteImgs = Array.isArray(staging.site_data?.image_urls) ? staging.site_data.image_urls : (staging.site_data?.image_urls ? [staging.site_data.image_urls] : []);
+
+        if (deltaImgs.length > 0) {
+          // A imagem do Delta é a principal, as do site vêm a seguir
+          const combinedImgs = [...new Set([...deltaImgs, ...siteImgs])];
+          cleanData.image_urls = combinedImgs;
+        } else if (siteImgs.length > 0) {
+          // Delta não trouxe imagens, mantemos as do site
+          cleanData.image_urls = siteImgs;
+        }
 
         if (effectiveProductId) {
           // RULE: Se o produto já existia no site com marca preenchida, manter a marca existente — só preencher se estiver vazio.
