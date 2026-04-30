@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { Upload, FileSpreadsheet, Play, Eye, Loader2, CheckCircle, AlertCircle, Clock, ArrowRight, X, Database, Webhook, Zap, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RefreshCw, Plus, Check, FileText, Search, Trash2, History } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -122,6 +122,27 @@ const IngestionHubPage = () => {
   const [reconcileDeltaId, setReconcileDeltaId] = useState<string | null>(null);
   const [isProcessingReconciliation, setIsProcessingReconciliation] = useState(false);
 
+  // Auto-select latest master and delta if not set
+  useEffect(() => {
+    if (!jobs) return;
+    
+    // Auto-select latest master if not set
+    if (!reconcileMasterId) {
+      const latestMaster = jobs.find(j => j.role === 'master' && j.status === 'done');
+      if (latestMaster) {
+        setReconcileMasterId(latestMaster.id);
+      }
+    }
+    
+    // Auto-select latest delta if not set
+    if (!reconcileDeltaId) {
+      const latestDelta = jobs.find(j => j.role === 'supplier_delta' && j.status === 'done');
+      if (latestDelta) {
+        setReconcileDeltaId(latestDelta.id);
+      }
+    }
+  }, [jobs, reconcileMasterId, reconcileDeltaId]);
+
   const handleFile = useCallback(async (file: File) => {
     setFileName(file.name);
     setCurrentDetection(null);
@@ -235,6 +256,24 @@ const IngestionHubPage = () => {
 
     setParsedHeaders(headers);
     setParsedData(rows);
+
+    // WooCommerce export detection logic
+    const wooIdHeader = headers.find(h => {
+      const lower = h.toLowerCase().trim();
+      return lower === "woocommerce id" || lower === "id";
+    });
+    
+    const isWooCommerceExport = !!wooIdHeader && rows.slice(0, 10).some(row => {
+      const idVal = row[wooIdHeader];
+      return idVal && !isNaN(Number(idVal));
+    });
+
+    if (isWooCommerceExport) {
+      setJobRole("master");
+      toast.info("Detetada exportação WooCommerce — sugerido como Mestre para reconciliação.", {
+        duration: 5000,
+      });
+    }
 
     // 1. Auto-detect supplier
     try {
@@ -355,6 +394,7 @@ const IngestionHubPage = () => {
       
       // Update job config immediately to ensure mappings are persisted
       await supabase.from("ingestion_jobs").update({
+        role: jobRole,
         config: {
           fieldMappings,
           skuPrefix,
@@ -761,17 +801,22 @@ const IngestionHubPage = () => {
                       <Select value={jobRole || "direct"} onValueChange={(v) => setJobRole(v === "direct" ? undefined : v)}>
                         <SelectTrigger className={cn(
                           "h-10",
-                          (jobRole === "supplier_delta" || (!jobRole && currentDetection?.matched_supplier_id)) ? "border-amber-500 bg-amber-50" : "border-blue-500 bg-blue-50"
+                          jobRole === "master" ? "border-blue-500 bg-blue-50" : 
+                          (jobRole === "supplier_delta" || (!jobRole && currentDetection?.matched_supplier_id)) ? "border-amber-500 bg-amber-50" : 
+                          "border-blue-500 bg-blue-50"
                         )}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="direct">🚀 Atualização Direta de Produtos</SelectItem>
                           <SelectItem value="supplier_delta">⚖️ Delta de Fornecedor (Reconciliação)</SelectItem>
+                          <SelectItem value="master">💎 Mestre (Ficheiro de Referência)</SelectItem>
                         </SelectContent>
                       </Select>
                       <p className="text-[10px] text-muted-foreground mt-1 italic">
-                        {jobRole === "supplier_delta" ? 
+                        {jobRole === "master" ? 
+                          "Ficheiro de referência do seu catálogo. Ideal para comparar com novos ficheiros de fornecedores." :
+                          jobRole === "supplier_delta" ? 
                           "Compare o ficheiro do fornecedor com o seu ficheiro mestre. Nada será alterado sem revisão." : 
                           "Os produtos serão atualizados ou criados no site assim que clicar em Importar."}
                       </p>
@@ -1119,6 +1164,7 @@ const IngestionHubPage = () => {
                               <div className="flex items-center gap-2">
                                 <p className="text-sm font-medium truncate">{job.file_name || `Job ${job.id.slice(0, 8)}`}</p>
                                 <Badge className={cn("text-[10px]", st.color)}>{st.label}</Badge>
+                                {job.role === 'master' && !isMaster && <Badge variant="outline" className="text-[10px] border-blue-200 text-blue-700">MESTRE (Role)</Badge>}
                                 {isMaster && <Badge className="text-[10px] bg-blue-600">MESTRE</Badge>}
                                 {isDelta && <Badge className="text-[10px] bg-amber-600">DELTA</Badge>}
                               </div>
