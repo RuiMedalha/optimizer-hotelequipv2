@@ -558,7 +558,7 @@ export function ProductDetailModal({ product, onClose }: Props) {
                               value={item.question} 
                               onChange={(e) => {
                                 const newFaq = [...faq];
-                                newFaq[idx] = { ...newFaq[idx], question: e.target.value };
+                                newFaq[idx] = { ...(newFaq[idx] as any), question: e.target.value };
                                 updateProduct.mutate({ id: product.id, updates: { faq: newFaq } });
                               }}
                               className="text-sm font-medium h-8"
@@ -570,7 +570,7 @@ export function ProductDetailModal({ product, onClose }: Props) {
                               value={item.answer} 
                               onChange={(e) => {
                                 const newFaq = [...faq];
-                                newFaq[idx] = { ...newFaq[idx], answer: e.target.value };
+                                newFaq[idx] = { ...(newFaq[idx] as any), answer: e.target.value };
                                 updateProduct.mutate({ id: product.id, updates: { faq: newFaq } });
                               }}
                               className="text-sm text-muted-foreground min-h-[60px]"
