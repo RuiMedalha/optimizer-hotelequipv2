@@ -70,17 +70,22 @@ Deno.serve(async (req) => {
 
       const is_discontinued = rawData.is_discontinued === true || staging.change_type === 'discontinued';
 
-      // BUSCAR CONFIGURAÇÃO DO JOB (Mapeado corretamente do campo config JSONB)
+      // BUSCAR CONFIGURAÇÃO DO JOB (Mapeado corretamente do campo ingestion_job_id)
       const { data: job } = await supabase
         .from("ingestion_jobs")
         .select("config, id")
-        .eq("id", staging.job_id)
+        .eq("id", staging.ingestion_job_id)
         .single();
 
       const jobConfig = job?.config || {};
       const defaultBrand = jobConfig.defaultBrand || null;
       const skuPrefix = jobConfig.skuPrefix || "";
       const useSkuAsModel = jobConfig.autoModelFromSku === true;
+
+      // Calcular Modelo (Remover prefixo se configurado)
+      const calculatedModel = useSkuAsModel && skuPrefix && sku.startsWith(skuPrefix) 
+        ? sku.slice(skuPrefix.length) 
+        : (rawData.model || staging.sku_supplier || sku);
 
       if (is_discontinued) {
         if (effectiveProductId) {
