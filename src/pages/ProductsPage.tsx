@@ -40,25 +40,27 @@ import { useDuplicateDetection } from "@/hooks/useDuplicateDetection";
 import { DuplicateDetectionDialog } from "@/components/DuplicateDetectionDialog";
 import { AiComparisonWizard } from "@/components/ai-comparison/AiComparisonWizard";
 import { CategoryReviewModal } from "@/components/CategoryReviewModal";
-const statusLabels: Record<Enums<"product_status">, string> = {
+const statusLabels: Record<string, string> = {
   pending: "Pendente",
   processing: "A Processar",
   optimized: "Otimizado",
   needs_review: "Revisão Necessária",
   published: "Publicado",
   error: "Erro",
+  discontinued: "Descontinuado",
 };
 
-const statusColors: Record<Enums<"product_status">, string> = {
+const statusColors: Record<string, string> = {
   pending: "bg-warning/10 text-warning border-warning/20",
   processing: "bg-primary/10 text-primary border-primary/20",
   optimized: "bg-success/10 text-success border-success/20",
   needs_review: "bg-amber-500/10 text-amber-600 border-amber-500/20",
   published: "bg-primary/10 text-primary border-primary/20",
   error: "bg-destructive/10 text-destructive border-destructive/20",
+  discontinued: "bg-destructive/10 text-destructive border-destructive/20",
 };
 
-type FilterStatus = Enums<"product_status"> | "all";
+type FilterStatus = Enums<"product_status"> | "all" | "discontinued";
 
 const ALL_FIELDS: OptimizationField[] = OPTIMIZATION_FIELDS.map(f => f.key);
 const ALL_PHASES = OPTIMIZATION_PHASES.map(p => p.phase);
