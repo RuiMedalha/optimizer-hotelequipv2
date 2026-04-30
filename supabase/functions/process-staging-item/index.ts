@@ -193,13 +193,13 @@ Deno.serve(async (req) => {
             cleanData.model = useSkuAsModel ? staging.sku_supplier : sku;
           }
 
-          const { error: updateErr = await supabase
+          const { error: updateErr } = await supabase
             .from("products")
             .update({ ...cleanData, updated_at: new Date().toISOString() })
             .eq("id", effectiveProductId);
           if (updateErr) throw updateErr;
         } else {
-          const { data: ws = await supabase.from("workspaces").select("user_id").eq("id", staging.workspace_id).single();
+          const { data: ws } = await supabase.from("workspaces").select("user_id").eq("id", staging.workspace_id).single();
           if (!ws?.user_id) throw new Error("Workspace owner not found");
 
           const insertData = {
