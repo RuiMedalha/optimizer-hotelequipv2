@@ -46,6 +46,16 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [] }: Props
     return cat.name;
   };
 
+  const level2Options = useMemo(() => 
+    level1 ? categories?.filter(c => c.parent_id === level1) || [] : [],
+    [level1, categories]
+  );
+
+  const level3Options = useMemo(() => 
+    level2 ? categories?.filter(c => c.parent_id === level2) || [] : [],
+    [level2, categories]
+  );
+
   const searchResults = useMemo(() => {
     if (!search || !categories) return [];
     const query = search.toLowerCase();
