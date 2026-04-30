@@ -55,19 +55,29 @@ Deno.serve(async (req) => {
         else if (action === 'create_drafts' && !existing_product_id) {
           // Rule: Create new products from supplier data
           const finalData = proposed_changes || supplier_data;
-          
-          // Safeguards for new products
+
+          // products.user_id is NOT NULL — fetch workspace owner
+          const { data: ws } = await supabase
+            .from("workspaces")
+            .select("user_id")
+            .eq("id", workspaceId)
+            .single();
+          if (!ws?.user_id) throw new Error("Workspace owner not found");
+
+          // Strip control flags / unknown keys
+          const { is_discontinued, model, family, ...rest } = finalData as Record<string, any>;
+
           const productToInsert = {
-            ...finalData,
-            workspace_id,
+            ...rest,
+            workspace_id: workspaceId,
+            user_id: ws.user_id,
             workflow_state: 'draft',
-            status: 'pending', // WooCommerce status as draft/pending
+            status: 'pending',
             origin: 'supplier',
-            // Ensure original_title is preserved if we have a match (though usually !existing_product_id means new)
-            // If it's a new product, original_title will be the one from processing (PT title)
-            // supplier_title receives the raw Spanish title from supplier_data
             supplier_title: supplier_data?.title || supplier_data?.Nome || finalData?.title,
-            original_price: supplier_data?.price || supplier_data?.Preço || finalData?.original_price
+            original_price: supplier_data?.price || supplier_data?.Preço || finalData?.original_price,
+            ...(model && { canonical_supplier_model: model }),
+            ...(family && { canonical_supplier_family: family })
           };
 
           await supabase.from("products").insert(productToInsert);
