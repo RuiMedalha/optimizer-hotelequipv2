@@ -688,20 +688,50 @@ function ensureBrandMeta(target: Record<string, unknown>, brandValue: string) {
   target.meta_data = existingMeta;
 }
 
+function ensureModelMeta(target: Record<string, unknown>, modelValue: string) {
+
+  if (!modelValue) return;
+  const existingMeta = Array.isArray(target.meta_data) ? target.meta_data as Array<{ key: string; value: string }> : [];
+  const upsert = (key: string, value: string) => {
+    const idx = existingMeta.findIndex((m) => String(m?.key || "") === key);
+    if (idx >= 0) existingMeta[idx] = { key, value };
+    else existingMeta.push({ key, value });
+  };
+  upsert("_model", modelValue);
+  upsert("xstore_model", modelValue);
+  target.meta_data = existingMeta;
+}
+
+
 /**
  * Extracts brand value from product attributes array.
  */
-function extractBrandFromAttributes(attributes: any[]): string | null {
-  if (!Array.isArray(attributes)) return null;
-  for (const attr of attributes) {
-    const n = String(attr?.name || "").toLowerCase().trim();
-    if (n === "marca" || n === "brand") {
-      const rawValue = attr?.value ?? attr?.options?.[0] ?? (Array.isArray(attr?.values) ? attr.values[0] : null);
-      return String(rawValue || "").trim() || null;
+function extractBrandFromAttributes(attributes: any): string | null {
+  if (!attributes) return null;
+
+  // Handle array format: [{name: "Marca", value: "CLIMA"}]
+  if (Array.isArray(attributes)) {
+    for (const attr of attributes) {
+      const n = String(attr?.name || "").toLowerCase().trim();
+      if (n === "marca" || n === "brand") {
+        const rawValue = attr?.value ?? attr?.options?.[0] ?? (Array.isArray(attr?.values) ? attr.values[0] : null);
+        return String(rawValue || "").trim() || null;
+      }
+    }
+  } 
+  // Handle flat object format: {"Marca": "CLIMA", "model": "..."}
+  else if (typeof attributes === "object") {
+    for (const [key, val] of Object.entries(attributes)) {
+      const n = key.toLowerCase().trim();
+      if (n === "marca" || n === "brand") {
+        return String(val || "").trim() || null;
+      }
     }
   }
+
   return null;
 }
+
 
 async function assignBrandToProductTaxonomies(baseUrl: string, auth: string, brandValue: string, target: Record<string, unknown>) {
   if (!brandValue) return;
@@ -728,17 +758,64 @@ async function assignBrandToProductTaxonomies(baseUrl: string, auth: string, bra
 }
 
 function extractBrandValue(product: any, fallbackAttributes?: any[]): string | null {
+  // 1. Try explicit brand column
+  const fromColumn = String(product?.brand || "").trim();
+  if (fromColumn) return fromColumn;
+
+  // 2. Try primary attributes
   const fromPrimaryAttrs = extractBrandFromAttributes(Array.isArray(product?.attributes) ? product.attributes : []);
   if (fromPrimaryAttrs) return fromPrimaryAttrs;
 
+  // 3. Try fallback attributes
   const fromFallbackAttrs = extractBrandFromAttributes(Array.isArray(fallbackAttributes) ? fallbackAttributes : []);
   if (fromFallbackAttrs) return fromFallbackAttrs;
 
+  // 4. Try supplier_ref as last resort (often contains brand)
   const supplierRef = String(product?.supplier_ref || "").trim();
   if (supplierRef) return supplierRef;
 
   return null;
 }
+
+function extractModelValue(product: any, fallbackAttributes?: any): string | null {
+  // 1. Try explicit model column
+  const fromColumn = String(product?.model || "").trim();
+  if (fromColumn) return fromColumn;
+
+  // Helper to extract from attributes (handles both array and object formats)
+  const fromAttrs = (attrs: any) => {
+    if (!attrs) return null;
+    if (Array.isArray(attrs)) {
+      for (const attr of attrs) {
+        const n = String(attr?.name || "").toLowerCase().trim();
+        if (n === "modelo" || n === "model") {
+          const rawValue = attr?.value ?? attr?.options?.[0] ?? (Array.isArray(attr?.values) ? attr.values[0] : null);
+          if (rawValue) return String(rawValue).trim();
+        }
+      }
+    } else if (typeof attrs === "object") {
+      for (const [key, val] of Object.entries(attrs)) {
+        const n = key.toLowerCase().trim();
+        if (n === "modelo" || n === "model") {
+          if (val) return String(val).trim();
+        }
+      }
+    }
+    return null;
+  };
+
+  // 2. Try primary attributes
+  const modelFromPrimary = fromAttrs(product?.attributes);
+  if (modelFromPrimary) return modelFromPrimary;
+
+  // 3. Try fallback attributes
+  const modelFromFallback = fromAttrs(fallbackAttributes);
+  if (modelFromFallback) return modelFromFallback;
+
+  return null;
+}
+
+
 
 async function findWooProductBySku(baseUrl: string, auth: string, sku: string | null): Promise<number | null> {
   if (!sku) return null;
@@ -1684,7 +1761,35 @@ async function buildBasePayload(
 
   // ── Attributes (EAN, Marca, Modelo, etc.) for non-variation products ──
   if (product.product_type !== "variable" && !product.parent_product_id) {
-    const productAttrs = Array.isArray(product.attributes) ? product.attributes : [];
+    let productAttrs: any[] = [];
+    if (Array.isArray(product.attributes)) {
+      productAttrs = [...product.attributes];
+    } else if (product.attributes && typeof product.attributes === "object") {
+      // Convert flat object to array format
+      productAttrs = Object.entries(product.attributes).map(([name, value]) => ({
+        name,
+        value: String(value)
+      }));
+    }
+
+    
+    // Inject Marca and Modelo from top-level columns if they are missing from attributes
+    const hasMarca = productAttrs.some(a => {
+      const n = String(a?.name || "").toLowerCase().trim();
+      return n === "marca" || n === "brand";
+    });
+    if (!hasMarca && product.brand) {
+      productAttrs.push({ name: "Marca", value: product.brand, variation: false, visible: true });
+    }
+
+    const hasModelo = productAttrs.some(a => {
+      const n = String(a?.name || "").toLowerCase().trim();
+      return n === "modelo" || n === "model";
+    });
+    if (!hasModelo && product.model) {
+      productAttrs.push({ name: "Modelo", value: product.model, variation: false, visible: true });
+    }
+
     if (productAttrs.length > 0) {
       const attrPayload: Array<{ name: string; options: string[]; visible: boolean; variation: boolean }> = [];
       for (const attr of productAttrs) {
@@ -1706,6 +1811,7 @@ async function buildBasePayload(
         wooProduct.attributes = attrPayload;
       }
     }
+
 
     // Add brand meta for simple products too (XStore compatibility)
     if (Array.isArray(product.attributes)) {
@@ -2224,22 +2330,38 @@ function buildStaticAttributesForParent(
     map.get(n)!.add(v);
   };
 
-  const collect = (attrs: any[]) => {
-    if (!Array.isArray(attrs)) return;
-    for (const attr of attrs) {
-      const n = String(attr?.name || "").trim();
-      if (!n) continue;
-      const isTechnical = attr?.variation === false || isTechnicalAttrName(n);
-      if (!isTechnical) continue;
+  const collect = (attrs: any) => {
+    if (!attrs) return;
+    if (Array.isArray(attrs)) {
+      for (const attr of attrs) {
+        const n = String(attr?.name || "").trim();
+        if (!n) continue;
+        const isTechnical = attr?.variation === false || isTechnicalAttrName(n);
+        if (!isTechnical) continue;
 
-      if (attr?.value) add(n, attr.value);
-      if (Array.isArray(attr.values)) for (const v of attr.values) add(n, v);
-      if (Array.isArray(attr.options)) for (const v of attr.options) add(n, v);
+        if (attr?.value) add(n, attr.value);
+        if (Array.isArray(attr.values)) for (const v of attr.values) add(n, v);
+        if (Array.isArray(attr.options)) for (const v of attr.options) add(n, v);
+      }
+    } else if (typeof attrs === "object") {
+      for (const [name, value] of Object.entries(attrs)) {
+        if (!name) continue;
+        const isTechnical = isTechnicalAttrName(name);
+        if (!isTechnical) continue;
+        if (value) add(name, String(value));
+      }
     }
   };
 
+
   collect(parent.attributes || []);
+  
+  // Inject parent brand and model if present
+  if (parent.brand) add("Marca", parent.brand);
+  if (parent.model) add("Modelo", parent.model);
+
   for (const v of variations) collect(v.attributes || []);
+
 
   return Array.from(map.entries()).map(([name, values]) => ({
     name,
@@ -2434,6 +2556,12 @@ async function publishSingleProduct(
     ensureBrandMeta(wooProduct, brandVal);
   }
 
+  const modelVal = extractModelValue(enrichedProduct, sourceAttrs);
+  if (modelVal) {
+    ensureModelMeta(wooProduct, modelVal);
+  }
+
+
   let existingWooId = enrichedProduct.woocommerce_id;
   if (!existingWooId && enrichedProduct.sku) {
     existingWooId = await findWooProductBySku(baseUrl, auth, enrichedProduct.sku);
@@ -2555,8 +2683,10 @@ async function publishVariableProduct(
     console.log(`[publish-variable] Consolidated ${sizeAttrs.length} size attributes into "${primary.name}" with ${primary.options.length} options`);
   }
 
-  // Extract brand from static attributes for XStore meta_data
+  // Extract brand and model from static attributes for XStore meta_data
   const brandValue = extractBrandValue(parent, staticAttributes);
+  const modelValue = extractModelValue(parent, staticAttributes);
+
 
   if (variationAttributes.length > 0 || staticAttributes.length > 0) {
     const merged: any[] = [...variationAttributes];
@@ -2576,15 +2706,16 @@ async function publishVariableProduct(
     parentPayload.attributes = merged;
   }
 
-  // Add XStore brand meta_data
+  // Add XStore brand/model meta_data
   if (brandValue) {
-    const existingMeta = Array.isArray((parentPayload as any).meta_data) ? (parentPayload as any).meta_data : [];
-    existingMeta.push({ key: "_brand", value: brandValue });
-    existingMeta.push({ key: "xstore_brand", value: brandValue });
-    existingMeta.push({ key: "brand_id", value: brandValue });
-    (parentPayload as any).meta_data = existingMeta;
+    ensureBrandMeta(parentPayload, brandValue);
     console.log(`[publish-variable] Added brand meta: ${brandValue}`);
   }
+  if (modelValue) {
+    ensureModelMeta(parentPayload, modelValue);
+    console.log(`[publish-variable] Added model meta: ${modelValue}`);
+  }
+
 
   console.log(`[publish-variable] Payload keys: ${Object.keys(parentPayload).join(", ")}, name=${parentPayload.name}, images=${Array.isArray(parentPayload.images) ? (parentPayload.images as any[]).length : 0}, attrs=${JSON.stringify(parentPayload.attributes)}`);
 
