@@ -40,25 +40,27 @@ import { useDuplicateDetection } from "@/hooks/useDuplicateDetection";
 import { DuplicateDetectionDialog } from "@/components/DuplicateDetectionDialog";
 import { AiComparisonWizard } from "@/components/ai-comparison/AiComparisonWizard";
 import { CategoryReviewModal } from "@/components/CategoryReviewModal";
-const statusLabels: Record<Enums<"product_status">, string> = {
+const statusLabels: Record<string, string> = {
   pending: "Pendente",
   processing: "A Processar",
   optimized: "Otimizado",
   needs_review: "Revisão Necessária",
   published: "Publicado",
   error: "Erro",
+  discontinued: "Descontinuado",
 };
 
-const statusColors: Record<Enums<"product_status">, string> = {
+const statusColors: Record<string, string> = {
   pending: "bg-warning/10 text-warning border-warning/20",
   processing: "bg-primary/10 text-primary border-primary/20",
   optimized: "bg-success/10 text-success border-success/20",
   needs_review: "bg-amber-500/10 text-amber-600 border-amber-500/20",
   published: "bg-primary/10 text-primary border-primary/20",
   error: "bg-destructive/10 text-destructive border-destructive/20",
+  discontinued: "bg-destructive/10 text-destructive border-destructive/20",
 };
 
-type FilterStatus = Enums<"product_status"> | "all";
+type FilterStatus = Enums<"product_status"> | "all" | "discontinued";
 
 const ALL_FIELDS: OptimizationField[] = OPTIMIZATION_FIELDS.map(f => f.key);
 const ALL_PHASES = OPTIMIZATION_PHASES.map(p => p.phase);
@@ -474,10 +476,39 @@ const ProductsPage = () => {
     }
   };
 
+  const handleDiscontinuedPublish = async () => {
+    if (selected.size === 0 || !activeWorkspace) return;
+    
+    try {
+      await createPublishJob({
+        productIds: Array.from(selected),
+        workspaceId: activeWorkspace.id,
+        // Send stock to trigger the draft + 0 stock logic in edge function
+        publishFields: ["stock"], 
+        pricing: { forcePublish: true } as any
+      });
+      toast.success("Publicação de descontinuados iniciada!");
+      setSelected(new Set());
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
   const handleOptimizeClick = (ids: string[]) => {
+    // Excluir descontinuados da otimização
+    const validIds = ids.filter(id => {
+      const p = products.find(prod => prod.id === id) || (allProductsLight ?? []).find((prod: any) => prod.id === id);
+      return !p?.is_discontinued;
+    });
+
+    if (validIds.length === 0) {
+      toast.warning("Nenhum produto válido para otimização selecionado (descontinuados são ignorados).");
+      return;
+    }
+
     // Auto-include entire family: parent + all siblings for variable products
     const allProducts = allProductsLight ?? [];
-    const expandedIds = new Set(ids);
+    const expandedIds = new Set(validIds);
     ids.forEach(id => {
       const p = allProducts.find(pr => pr.id === id);
       if (p?.product_type === "variable") {
@@ -737,6 +768,7 @@ const ProductsPage = () => {
     { value: "optimized", label: "Otimizado" },
     { value: "needs_review", label: "Revisão Necessária" },
     { value: "published", label: "Publicado" },
+    { value: "discontinued", label: "Descontinuados" },
     { value: "error", label: "Erro" },
   ];
 
@@ -945,9 +977,9 @@ const ProductsPage = () => {
               {product.product_type === "variable" ? "Variável" : "Variação"}
             </Badge>
           )}
-          <Badge variant="outline" className={cn("text-xs", statusColors[product.status])}>
+          <Badge variant="outline" className={cn("text-xs", product.is_discontinued ? statusColors.discontinued : statusColors[product.status])}>
             {product.status === "processing" && <Loader2 className="w-3 h-3 animate-spin mr-1" />}
-            {statusLabels[product.status]}
+            {product.is_discontinued ? statusLabels.discontinued : statusLabels[product.status]}
           </Badge>
           {product.woocommerce_id && (
             <Badge variant="outline" className="text-[10px] bg-success/10 text-success border-success/20 gap-0.5" title={`Publicado no WooCommerce (ID: ${product.woocommerce_id})`}>
@@ -1132,10 +1164,16 @@ const ProductsPage = () => {
                   searchUrl: s.searchUrl || (s.url ? (s.url.includes('{sku}') ? s.url : s.url + '{sku}') : ''),
                   scrapingInstructions: s.scrapingInstructions || '',
                 }));
+                const selectedIds = selected.size > 0 ? Array.from(selected) : undefined;
+                const validIds = selectedIds?.filter(id => {
+                  const p = (allProductsLight ?? []).find((prod: any) => prod.id === id);
+                  return !p?.is_discontinued;
+                });
+                
                 enrich({
                   workspaceId: activeWorkspace.id,
                   supplierPrefixes: prefixes,
-                  productIds: selected.size > 0 ? Array.from(selected) : undefined,
+                  productIds: validIds,
                 });
               } catch {
                 toast.error("Erro ao ler prefixos de fornecedor. Verifique as Definições.");
@@ -1183,7 +1221,11 @@ const ProductsPage = () => {
               className="text-xs h-8"
               onClick={() => {
                 if (!activeWorkspace) return;
-                const ids = selected.size > 0 ? Array.from(selected) : (allProductsLight ?? []).filter((p: any) => p.image_urls?.length > 0).map((p: any) => p.id).slice(0, 50);
+                const ids = (selected.size > 0 ? Array.from(selected) : (allProductsLight ?? []).filter((p: any) => p.image_urls?.length > 0).map((p: any) => p.id).slice(0, 50))
+                  .filter(id => {
+                    const p = (allProductsLight ?? []).find((prod: any) => prod.id === id);
+                    return !p?.is_discontinued;
+                  });
                 if (ids.length === 0) {
                   toast.warning("Nenhum produto com imagens para processar.");
                   return;
@@ -1242,6 +1284,11 @@ const ProductsPage = () => {
               <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => setShowPublishModal(true)} disabled={isCreatingPublish}>
                 <Send className="w-3.5 h-3.5 mr-1" /> <span className="hidden sm:inline">Publicar </span>WC ({selected.size})
               </Button>
+              {statusFilter === "discontinued" && (
+                <Button size="sm" variant="outline" className="text-xs h-8 border-destructive text-destructive" onClick={handleDiscontinuedPublish} disabled={isCreatingPublish}>
+                  <Send className="w-3.5 h-3.5 mr-1" /> <span className="hidden sm:inline">Enviar para WooCommerce como Rascunho </span>({selected.size})
+                </Button>
+              )}
               <Button size="sm" variant="secondary" className="text-xs h-8" onClick={() => handleOptimizeClick(Array.from(selected))} disabled={optimizeProducts.isPending}>
                 <Sparkles className="w-3.5 h-3.5 mr-1" /> <span className="hidden sm:inline">Otimizar </span>IA ({selected.size})
               </Button>

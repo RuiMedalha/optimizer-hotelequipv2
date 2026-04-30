@@ -131,12 +131,22 @@ serve(async (req) => {
       .in("id", productIds);
 
     if (fetchError) throw fetchError;
-    if (!products || products.length === 0) {
-      return new Response(JSON.stringify({ error: "Nenhum produto encontrado" }), {
-        status: 404,
+    
+    // EXCLUDE DISCONTINUED PRODUCTS
+    const activeProducts = (products || []).filter(p => !p.is_discontinued);
+
+    if (!activeProducts || activeProducts.length === 0) {
+      console.log(`[optimize-product] Skipping optimization: all products are discontinued or not found.`);
+      return new Response(JSON.stringify({ 
+        success: true, 
+        results: (products || []).map(p => ({ productId: p.id, status: "skipped", reason: "discontinued" }))
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Use activeProducts from here on
+    const productsToProcess = activeProducts;
 
     // Fetch user's optimization prompt from settings
     const { data: promptSetting } = await supabase
@@ -675,8 +685,8 @@ serve(async (req) => {
 
     // Process products in parallel batches of 2 (reduced to avoid WORKER_LIMIT)
     const CONCURRENCY = 2;
-    for (let batchStart = 0; batchStart < products.length; batchStart += CONCURRENCY) {
-      const batch = products.slice(batchStart, batchStart + CONCURRENCY);
+    for (let batchStart = 0; batchStart < productsToProcess.length; batchStart += CONCURRENCY) {
+      const batch = productsToProcess.slice(batchStart, batchStart + CONCURRENCY);
       const batchResults = await Promise.allSettled(batch.map(async (product) => {
       try {
         // === SAVE VERSION BEFORE OPTIMIZING (keep max 3) — only in phase 1 or no-phase mode ===

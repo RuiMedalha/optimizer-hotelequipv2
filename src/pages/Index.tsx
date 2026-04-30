@@ -1,4 +1,4 @@
-import { Package, CheckCircle, Clock, Activity, Loader2, Brain, BookOpen, Globe, Database, Search, Layers, BarChart3, TrendingUp, AlertTriangle, Tag, Cpu, ImageIcon, DollarSign } from "lucide-react";
+import { Package, CheckCircle, Clock, Activity, Loader2, Brain, BookOpen, Globe, Database, Search, Layers, BarChart3, TrendingUp, AlertTriangle, Tag, Cpu, ImageIcon, DollarSign, Ban } from "lucide-react";
 import { IntelligenceDashboardPanel } from "@/components/IntelligenceDashboardPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -66,6 +66,7 @@ const Dashboard = () => {
     { label: "Otimizados",      value: stats?.optimized    ?? 0, color: "text-success",     bg: "bg-success/10",     icon: CheckCircle },
     { label: "Em revisão",      value: stats?.needs_review ?? 0, color: "text-amber-500",   bg: "bg-amber-500/10",   icon: AlertTriangle },
     { label: "Publicados",      value: stats?.published    ?? 0, color: "text-blue-500",    bg: "bg-blue-500/10",    icon: Globe },
+    { label: "Descontinuados",  value: stats?.discontinued ?? 0, color: "text-destructive", bg: "bg-destructive/10", icon: Ban },
     { label: "Com erro",        value: stats?.failed       ?? 0, color: "text-destructive", bg: "bg-destructive/10", icon: AlertTriangle },
   ];
 
@@ -92,7 +93,7 @@ const Dashboard = () => {
           {statsLoading ? (
             <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
               {lifecycleStages.map((stage) => (
                 <div key={stage.label} className={`rounded-lg p-3 text-center ${stage.bg}`}>
                   <p className={`text-2xl font-bold ${stage.color}`}>{stage.value}</p>

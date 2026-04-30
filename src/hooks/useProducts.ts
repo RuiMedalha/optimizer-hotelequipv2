@@ -177,7 +177,7 @@ export function useProductStats() {
       });
       if (error) throw error;
 
-      let pending = 0, processing = 0, optimized = 0, needs_review = 0, published = 0, failed = 0, total = 0;
+      let pending = 0, processing = 0, optimized = 0, needs_review = 0, published = 0, failed = 0, discontinued = 0, total = 0;
       (data || []).forEach((row: any) => {
         const count = Number(row.count);
         total += count;
@@ -187,9 +187,10 @@ export function useProductStats() {
         else if (row.status === "needs_review") needs_review += count;
         else if (row.status === "published") published += count;
         else if (row.status === "error") failed += count;
+        else if (row.status === "discontinued") discontinued += count;
       });
 
-      return { pending, processing, optimized, needs_review, published, failed, total };
+      return { pending, processing, optimized, needs_review, published, failed, discontinued, total };
     },
   });
 }
