@@ -1720,7 +1720,25 @@ async function buildBasePayload(
 
   // ── Attributes (EAN, Marca, Modelo, etc.) for non-variation products ──
   if (product.product_type !== "variable" && !product.parent_product_id) {
-    const productAttrs = Array.isArray(product.attributes) ? product.attributes : [];
+    const productAttrs = [...(Array.isArray(product.attributes) ? product.attributes : [])];
+    
+    // Inject Marca and Modelo from top-level columns if they are missing from attributes
+    const hasMarca = productAttrs.some(a => {
+      const n = String(a?.name || "").toLowerCase().trim();
+      return n === "marca" || n === "brand";
+    });
+    if (!hasMarca && product.brand) {
+      productAttrs.push({ name: "Marca", value: product.brand, variation: false, visible: true });
+    }
+
+    const hasModelo = productAttrs.some(a => {
+      const n = String(a?.name || "").toLowerCase().trim();
+      return n === "modelo" || n === "model";
+    });
+    if (!hasModelo && product.model) {
+      productAttrs.push({ name: "Modelo", value: product.model, variation: false, visible: true });
+    }
+
     if (productAttrs.length > 0) {
       const attrPayload: Array<{ name: string; options: string[]; visible: boolean; variation: boolean }> = [];
       for (const attr of productAttrs) {
@@ -1742,6 +1760,7 @@ async function buildBasePayload(
         wooProduct.attributes = attrPayload;
       }
     }
+
 
     // Add brand meta for simple products too (XStore compatibility)
     if (Array.isArray(product.attributes)) {
