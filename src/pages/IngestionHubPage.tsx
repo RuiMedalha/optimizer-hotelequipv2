@@ -440,18 +440,35 @@ const IngestionHubPage = () => {
     try {
       toast.info("A carregar dados para re-mapeamento...");
       
-      // 1. Fetch source data from items
-      const { data: items, error: itemsErr } = await supabase
-        .from("ingestion_job_items")
-        .select("source_data")
-        .eq("job_id", jobId)
-        .order("source_row_index", { ascending: true })
-        .limit(50000); // Increased limit to support larger catalogs up to 50k rows
+      // 1. Fetch source data from items using pagination to avoid 1000 items limit
+      let allItems: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (itemsErr) throw itemsErr;
-      if (!items || items.length === 0) throw new Error("Job sem dados fonte");
+      while (hasMore) {
+        const { data: items, error: itemsErr, count } = await supabase
+          .from("ingestion_job_items")
+          .select("source_data", { count: 'exact' })
+          .eq("job_id", jobId)
+          .order("source_row_index", { ascending: true })
+          .range(from, from + pageSize - 1);
 
-      const sourceRows = items.map(i => i.source_data);
+        if (itemsErr) throw itemsErr;
+        if (items && items.length > 0) {
+          allItems = [...allItems, ...items];
+          from += pageSize;
+          hasMore = count !== null ? allItems.length < count : items.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+        
+        if (allItems.length >= 100000) break;
+      }
+
+      if (!allItems || allItems.length === 0) throw new Error("Job sem dados fonte");
+
+      const sourceRows = allItems.map(i => i.source_data);
       const headers = Object.keys(sourceRows[0] || {});
       
       // 2. Populate state with job configuration
@@ -516,11 +533,35 @@ const IngestionHubPage = () => {
     }
   };
 
+  const handleRenameJob = async (jobId: string) => {
+    const job = jobs?.find(j => j.id === jobId);
+    if (!job) return;
+    
+    const newName = prompt("Novo nome para o Job:", job.file_name || "");
+    if (newName && newName !== job.file_name) {
+      try {
+        const { error } = await supabase
+          .from("ingestion_jobs")
+          .update({ file_name: newName })
+          .eq("id", jobId);
+        
+        if (error) throw error;
+        toast.success("Job renomeado com sucesso");
+        refetchJobs();
+      } catch (e: any) {
+        toast.error(`Erro ao renomear: ${e.message}`);
+      }
+    }
+  };
+
   const handleJobAction = (action: string, jobId: string) => {
     const job = jobs?.find(j => j.id === jobId);
     switch (action) {
       case "view":
         if (job) setDetailJob(job);
+        break;
+      case "rename":
+        handleRenameJob(jobId);
         break;
       case "run":
       case "reimport":

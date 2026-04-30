@@ -36,6 +36,9 @@ export function IngestionJobActionsDropdown({ job, onAction }: Props) {
         <DropdownMenuItem onClick={() => onAction("open_draft", job.id)}>
           <Zap className="w-3 h-3 mr-2" /> Ver auto-draft
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onAction("rename", job.id)}>
+          <Edit className="w-3 h-3 mr-2" /> Renomear Job
+        </DropdownMenuItem>
 
         <DropdownMenuSeparator />
 
