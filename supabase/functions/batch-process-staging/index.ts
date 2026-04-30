@@ -74,8 +74,9 @@ Deno.serve(async (req) => {
             workflow_state: 'draft',
             status: 'pending',
             origin: 'supplier',
-            supplier_title: supplier_data?.title || supplier_data?.Nome || finalData?.title,
-            original_price: supplier_data?.price || supplier_data?.Preço || finalData?.original_price,
+            supplier_title: supplier_data?.title || supplier_data?.Nome || supplier_data?.Nombre || finalData?.title || finalData?.supplier_title,
+            original_price: supplier_data?.price || supplier_data?.Preço || supplier_data?.Publico || finalData?.original_price || finalData?.price,
+            original_title: finalData?.original_title || finalData?.title || supplier_data?.title,
             ...(model && { canonical_supplier_model: model }),
             ...(family && { canonical_supplier_family: family })
           };
