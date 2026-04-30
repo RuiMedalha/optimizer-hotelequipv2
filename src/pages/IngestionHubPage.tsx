@@ -371,6 +371,7 @@ const IngestionHubPage = () => {
       
       // Update job config immediately to ensure mappings are persisted
       await supabase.from("ingestion_jobs").update({
+        role: jobRole,
         config: {
           fieldMappings,
           skuPrefix,
