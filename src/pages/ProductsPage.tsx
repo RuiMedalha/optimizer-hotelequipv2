@@ -1509,20 +1509,27 @@ const ProductsPage = () => {
       )}
 
       {/* WooCommerce Publish Job Progress */}
-      {activePublishJob && (activePublishJob.status === "processing" || activePublishJob.status === "queued" || activePublishJob.status === "scheduled") && (
-        <Card className="border-primary/30 bg-primary/5">
+      {activePublishJob && (activePublishJob.status === "processing" || activePublishJob.status === "queued" || activePublishJob.status === "scheduled" || activePublishJob.status === "completed") && (
+        <Card className={cn(
+          "border-primary/30",
+          activePublishJob.status === "completed" ? "bg-success/5 border-success/30" : "bg-primary/5"
+        )}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 {activePublishJob.status === "scheduled" ? (
                   <Send className="w-4 h-4 text-primary" />
+                ) : activePublishJob.status === "completed" ? (
+                  <Check className="w-4 h-4 text-success" />
                 ) : (
                   <Loader2 className="w-4 h-4 animate-spin text-primary" />
                 )}
                 <span className="text-sm font-medium">
                   {activePublishJob.status === "scheduled"
                     ? `Agendado para ${activePublishJob.scheduled_for ? new Date(activePublishJob.scheduled_for).toLocaleString("pt-PT") : "..."}`
-                    : `A publicar no WC: ${activePublishJob.current_product_name || "A iniciar..."}`
+                    : activePublishJob.status === "completed"
+                      ? "Publicado com sucesso"
+                      : `A publicar no WC: ${activePublishJob.current_product_name || "A iniciar..."}`
                   }
                 </span>
               </div>
