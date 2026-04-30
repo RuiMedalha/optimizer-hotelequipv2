@@ -1160,8 +1160,9 @@ const IngestionHubPage = () => {
                               <div className="flex items-center gap-2">
                                 <p className="text-sm font-medium truncate">{job.file_name || `Job ${job.id.slice(0, 8)}`}</p>
                                 <Badge className={cn("text-[10px]", st.color)}>{st.label}</Badge>
-                                {isMaster && <Badge className="text-[10px] bg-blue-600">MESTRE</Badge>}
-                                {isDelta && <Badge className="text-[10px] bg-amber-600">DELTA</Badge>}
+                                {job.role === 'master' && !isMaster && <Badge variant="outline" className="text-[10px] border-blue-200 text-blue-700">MESTRE (Role)</Badge>}
+                                {isMaster && <Badge className="text-[10px] bg-blue-600">MESTRE SELECIONADO</Badge>}
+                                {isDelta && <Badge className="text-[10px] bg-amber-600">DELTA SELECIONADO</Badge>}
                               </div>
                               <p className="text-xs text-muted-foreground mt-0.5">
                                 {job.total_rows} linhas · {job.imported_rows} processados
