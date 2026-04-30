@@ -181,13 +181,13 @@ export function ProductDetailModal({ product, onClose }: Props) {
 
   // Parse technical specs for preview
   const technicalSpecs = useMemo(() => {
-    if (!product.technical_specs) return null;
+    if (!product || !product.technical_specs) return null;
     try {
       return JSON.parse(product.technical_specs);
     } catch {
       return product.technical_specs;
     }
-  }, [product.technical_specs]);
+  }, [product?.technical_specs]);
 
   return (
     <Dialog open={!!product} onOpenChange={() => onClose()}>
@@ -986,12 +986,12 @@ export function ProductDetailModal({ product, onClose }: Props) {
         <ProductDescriptionPreview
           open={isPreviewOpen}
           onClose={() => setIsPreviewOpen(false)}
-          title={editData.optimized_title || product.original_title || "Sem título"}
-          shortDescription={editData.optimized_short_description || product.short_description}
-          longDescription={editData.optimized_description || product.original_description}
-          price={editData.optimized_price || product.original_price}
-          category={editData.category || product.category}
-          imageUrl={product.image_urls?.[0]}
+          title={editData.optimized_title || product?.original_title || "Sem título"}
+          shortDescription={editData.optimized_short_description || product?.short_description}
+          longDescription={editData.optimized_description || product?.original_description}
+          price={editData.optimized_price || product?.original_price}
+          category={editData.category || product?.category}
+          imageUrl={product?.image_urls?.[0]}
           seoKeywords={editData.focus_keyword ? editData.focus_keyword.split(",").map((k: string) => k.trim()) : []}
           specs={technicalSpecs}
         />
