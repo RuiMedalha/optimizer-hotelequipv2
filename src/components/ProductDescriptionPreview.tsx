@@ -14,6 +14,7 @@ interface Props {
   category?: string;
   imageUrl?: string;
   seoKeywords?: string[];
+  specs?: Record<string, string> | string;
   open: boolean;
   onClose: () => void;
 }
