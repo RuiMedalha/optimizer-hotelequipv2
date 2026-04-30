@@ -236,6 +236,22 @@ const IngestionHubPage = () => {
     setParsedHeaders(headers);
     setParsedData(rows);
 
+    // WooCommerce export detection logic
+    const isWooCommerceExport = headers.some(h => {
+      const lower = h.toLowerCase().trim();
+      return lower === "woocommerce id" || lower === "id";
+    }) && rows.slice(0, 10).some(row => {
+      const idVal = row["WooCommerce ID"] || row["ID"];
+      return idVal && !isNaN(Number(idVal));
+    });
+
+    if (isWooCommerceExport) {
+      setJobRole("master");
+      toast.info("Detetada exportação WooCommerce — sugerido como Mestre para reconciliação.", {
+        duration: 5000,
+      });
+    }
+
     // 1. Auto-detect supplier
     try {
       const detResult = await autoDetect.mutateAsync({
