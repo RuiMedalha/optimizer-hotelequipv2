@@ -495,9 +495,20 @@ const ProductsPage = () => {
   };
 
   const handleOptimizeClick = (ids: string[]) => {
+    // Excluir descontinuados da otimização
+    const validIds = ids.filter(id => {
+      const p = products.find(prod => prod.id === id) || (allProductsLight ?? []).find((prod: any) => prod.id === id);
+      return !p?.is_discontinued;
+    });
+
+    if (validIds.length === 0) {
+      toast.warning("Nenhum produto válido para otimização selecionado (descontinuados são ignorados).");
+      return;
+    }
+
     // Auto-include entire family: parent + all siblings for variable products
     const allProducts = allProductsLight ?? [];
-    const expandedIds = new Set(ids);
+    const expandedIds = new Set(validIds);
     ids.forEach(id => {
       const p = allProducts.find(pr => pr.id === id);
       if (p?.product_type === "variable") {
