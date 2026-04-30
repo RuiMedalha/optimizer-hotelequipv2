@@ -122,6 +122,27 @@ const IngestionHubPage = () => {
   const [reconcileDeltaId, setReconcileDeltaId] = useState<string | null>(null);
   const [isProcessingReconciliation, setIsProcessingReconciliation] = useState(false);
 
+  // Auto-select latest master and delta if not set
+  useEffect(() => {
+    if (!jobs) return;
+    
+    // Auto-select latest master if not set
+    if (!reconcileMasterId) {
+      const latestMaster = jobs.find(j => j.role === 'master' && j.status === 'done');
+      if (latestMaster) {
+        setReconcileMasterId(latestMaster.id);
+      }
+    }
+    
+    // Auto-select latest delta if not set
+    if (!reconcileDeltaId) {
+      const latestDelta = jobs.find(j => j.role === 'supplier_delta' && j.status === 'done');
+      if (latestDelta) {
+        setReconcileDeltaId(latestDelta.id);
+      }
+    }
+  }, [jobs, reconcileMasterId, reconcileDeltaId]);
+
   const handleFile = useCallback(async (file: File) => {
     setFileName(file.name);
     setCurrentDetection(null);
