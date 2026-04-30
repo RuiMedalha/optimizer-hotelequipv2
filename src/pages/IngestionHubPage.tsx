@@ -258,11 +258,13 @@ const IngestionHubPage = () => {
     setParsedData(rows);
 
     // WooCommerce export detection logic
-    const isWooCommerceExport = headers.some(h => {
+    const wooIdHeader = headers.find(h => {
       const lower = h.toLowerCase().trim();
       return lower === "woocommerce id" || lower === "id";
-    }) && rows.slice(0, 10).some(row => {
-      const idVal = row["WooCommerce ID"] || row["ID"];
+    });
+    
+    const isWooCommerceExport = !!wooIdHeader && rows.slice(0, 10).some(row => {
+      const idVal = row[wooIdHeader];
       return idVal && !isNaN(Number(idVal));
     });
 
