@@ -980,6 +980,7 @@ function EditableComparison({
   onChange,
   multiline = false,
   large = false,
+  showHtmlToggle = false,
 }: {
   label: string;
   original: string;
@@ -987,10 +988,35 @@ function EditableComparison({
   onChange: (v: string) => void;
   multiline?: boolean;
   large?: boolean;
+  showHtmlToggle?: boolean;
 }) {
+  const [showPreview, setShowPreview] = useState(showHtmlToggle);
+
   return (
     <div className="border border-border/50 rounded-lg p-4">
-      <h4 className="text-sm font-semibold mb-3">{label}</h4>
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-sm font-semibold">{label}</h4>
+        {showHtmlToggle && (
+          <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-md border border-border/50">
+            <Button
+              variant={!showPreview ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 text-xs px-2 py-0"
+              onClick={() => setShowPreview(false)}
+            >
+              Código
+            </Button>
+            <Button
+              variant={showPreview ? "secondary" : "ghost"}
+              size="sm"
+              className="h-7 text-xs px-2 py-0"
+              onClick={() => setShowPreview(true)}
+            >
+              Preview
+            </Button>
+          </div>
+        )}
+      </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
           <p className="text-xs text-muted-foreground mb-1">Original</p>
@@ -1003,7 +1029,15 @@ function EditableComparison({
         </div>
         <div>
           <p className="text-xs text-primary mb-1">Otimizado</p>
-          {multiline ? (
+          {showPreview ? (
+            <div 
+              className={cn(
+                "p-3 rounded-lg bg-primary/5 border border-primary/20 text-sm overflow-y-auto prose prose-sm max-w-none",
+                large ? "min-h-[200px] max-h-[400px]" : "min-h-[80px]"
+              )}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(value) }}
+            />
+          ) : multiline ? (
             <Textarea
               value={value}
               onChange={(e) => onChange(e.target.value)}
