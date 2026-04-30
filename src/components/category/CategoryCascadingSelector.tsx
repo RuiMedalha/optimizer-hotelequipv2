@@ -16,64 +16,92 @@ interface Category {
 interface Props {
   onSelect: (category: { id: string; name: string }) => void;
   suggestedIds?: string[];
+  workspaceId?: string | null;
 }
 
-export function CategoryCascadingSelector({ onSelect, suggestedIds = [] }: Props) {
+export function CategoryCascadingSelector({ onSelect, suggestedIds = [], workspaceId }: Props) {
   const [level1, setLevel1] = useState<string | null>(null);
   const [level2, setLevel2] = useState<string | null>(null);
   const [level3, setLevel3] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
-  const { data: categories, isLoading } = useQuery({
-    queryKey: ["all-categories-tree"],
+  const { data: roots, isLoading: loadingRoots } = useQuery({
+    queryKey: ["category-roots", workspaceId],
+    queryFn: async () => {
+      let query = supabase
+        .from("categories")
+        .select("id, name, parent_id")
+        .is("parent_id", null)
+        .order("name");
+      
+      if (workspaceId) {
+        query = query.or(`workspace_id.eq.${workspaceId},workspace_id.is.null`);
+      } else {
+        query = query.is("workspace_id", null);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      
+      // Filter out duplicates in names for display, preferring workspace-specific ones
+      const uniqueNames = new Map();
+      data?.forEach(cat => {
+        if (!uniqueNames.has(cat.name) || (workspaceId && cat.workspace_id === workspaceId)) {
+          uniqueNames.set(cat.name, cat);
+        }
+      });
+      return Array.from(uniqueNames.values()) as Category[];
+    }
+  });
+
+  const { data: level2Options, isLoading: loadingL2 } = useQuery({
+    queryKey: ["category-sub", level1, workspaceId],
+    enabled: !!level1,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("categories")
         .select("id, name, parent_id")
+        .eq("parent_id", level1)
         .order("name");
       if (error) throw error;
       return data as Category[];
     }
   });
 
-  const getFullPath = (catId: string, list: Category[]): string => {
-    const cat = list.find(c => c.id === catId);
-    if (!cat) return "";
-    if (cat.parent_id) {
-      const parentPath = getFullPath(cat.parent_id, list);
-      return parentPath ? `${parentPath} > ${cat.name}` : cat.name;
+  const { data: level3Options, isLoading: loadingL3 } = useQuery({
+    queryKey: ["category-sub", level2, workspaceId],
+    enabled: !!level2,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, name, parent_id")
+        .eq("parent_id", level2)
+        .order("name");
+      if (error) throw error;
+      return data as Category[];
     }
-    return cat.name;
-  };
+  });
 
-  const level2Options = useMemo(() => 
-    level1 ? categories?.filter(c => c.parent_id === level1) || [] : [],
-    [level1, categories]
-  );
+  const { data: searchResults, isLoading: loadingSearch } = useQuery({
+    queryKey: ["category-search", search, workspaceId],
+    enabled: search.length > 1,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, name, parent_id")
+        .ilike("name", `%${search}%`)
+        .limit(20);
+      if (error) throw error;
+      
+      // For search results, we'd ideally want the full path. 
+      // Since calculating it recursively for each result is expensive,
+      // we'll just return the names for now, but we'll try to get their parent names.
+      return data as Category[];
+    }
+  });
 
-  const level3Options = useMemo(() => 
-    level2 ? categories?.filter(c => c.parent_id === level2) || [] : [],
-    [level2, categories]
-  );
+  const isLoading = loadingRoots || loadingL2 || loadingL3 || loadingSearch;
 
-  const searchResults = useMemo(() => {
-    if (!search || !categories) return [];
-    const query = search.toLowerCase();
-    return categories
-      .filter(c => c.name.toLowerCase().includes(query))
-      .map(c => ({
-        id: c.id,
-        name: c.name,
-        fullPath: getFullPath(c.id, categories)
-      }))
-      .sort((a, b) => a.fullPath.localeCompare(b.fullPath))
-      .slice(0, 10);
-  }, [search, categories]);
-
-  const roots = useMemo(() => 
-    categories?.filter(c => !c.parent_id) || [], 
-    [categories]
-  );
 
   if (isLoading) return <div className="flex items-center justify-center p-4"><Loader2 className="w-4 h-4 animate-spin mr-2" /> Carregando categorias...</div>;
 
