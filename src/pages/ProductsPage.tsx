@@ -1221,7 +1221,11 @@ const ProductsPage = () => {
               className="text-xs h-8"
               onClick={() => {
                 if (!activeWorkspace) return;
-                const ids = selected.size > 0 ? Array.from(selected) : (allProductsLight ?? []).filter((p: any) => p.image_urls?.length > 0).map((p: any) => p.id).slice(0, 50);
+                const ids = (selected.size > 0 ? Array.from(selected) : (allProductsLight ?? []).filter((p: any) => p.image_urls?.length > 0).map((p: any) => p.id).slice(0, 50))
+                  .filter(id => {
+                    const p = (allProductsLight ?? []).find((prod: any) => prod.id === id);
+                    return !p?.is_discontinued;
+                  });
                 if (ids.length === 0) {
                   toast.warning("Nenhum produto com imagens para processar.");
                   return;
