@@ -139,17 +139,22 @@ Deno.serve(async (req) => {
 
         // Limpeza geral de colunas
         Object.keys(rawData).forEach(key => {
-          if (productColumns.includes(key) && key !== 'image_urls') {
+          if (productColumns.includes(key) && key !== 'image_urls' && key !== 'original_title' && key !== 'original_description') {
             const val = cleanSupplierValue(rawData[key]);
             if (val !== undefined) cleanData[key] = val;
           }
         });
 
         // REGRAS DE TÍTULO E DESCRIÇÃO
-        cleanData.supplier_title = cleanSupplierValue(rawData.original_title ?? rawData.supplier_title ?? rawData.title);
-        cleanData.supplier_description = cleanSupplierValue(rawData.original_description ?? rawData.supplier_description ?? rawData.description);
+        // 1. Capturar os valores do fornecedor
+        const sTitle = cleanSupplierValue(rawData.original_title ?? rawData.supplier_title ?? rawData.title);
+        const sDesc = cleanSupplierValue(rawData.original_description ?? rawData.supplier_description ?? rawData.description);
         
-        // Definir originais como null (serão preenchidos na otimização)
+        // 2. Mover para os campos de supplier
+        if (sTitle !== undefined) cleanData.supplier_title = sTitle;
+        if (sDesc !== undefined) cleanData.supplier_description = sDesc;
+        
+        // 3. Forçar originais a null para futura otimização
         cleanData.original_title = null;
         cleanData.original_description = null;
 
