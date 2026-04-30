@@ -2590,7 +2590,11 @@ async function publishSingleProduct(
 
   await supabase
     .from("products")
-    .update({ woocommerce_id: wooData.id, status: "published" as any })
+    .update({ 
+      woocommerce_id: wooData.id, 
+      status: "published" as any,
+      workflow_state: "published" as any 
+    })
     .eq("id", enrichedProduct.id);
 
   return { id: enrichedProduct.id, status: action, woocommerce_id: wooData.id };
