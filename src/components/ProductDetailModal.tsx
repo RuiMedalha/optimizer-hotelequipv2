@@ -179,6 +179,16 @@ export function ProductDetailModal({ product, onClose }: Props) {
   const upsells = Array.isArray((product as any).upsell_skus) ? (product as any).upsell_skus : [];
   const crosssells = Array.isArray((product as any).crosssell_skus) ? (product as any).crosssell_skus : [];
 
+  // Parse technical specs for preview
+  const technicalSpecs = useMemo(() => {
+    if (!product.technical_specs) return null;
+    try {
+      return JSON.parse(product.technical_specs);
+    } catch {
+      return product.technical_specs;
+    }
+  }, [product.technical_specs]);
+
   return (
     <Dialog open={!!product} onOpenChange={() => onClose()}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
