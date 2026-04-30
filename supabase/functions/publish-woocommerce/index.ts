@@ -2294,7 +2294,13 @@ function buildStaticAttributesForParent(
   };
 
   collect(parent.attributes || []);
+  
+  // Inject parent brand and model if present
+  if (parent.brand) add("Marca", parent.brand);
+  if (parent.model) add("Modelo", parent.model);
+
   for (const v of variations) collect(v.attributes || []);
+
 
   return Array.from(map.entries()).map(([name, values]) => ({
     name,
