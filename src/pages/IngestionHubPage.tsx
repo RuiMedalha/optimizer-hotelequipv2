@@ -812,7 +812,9 @@ const IngestionHubPage = () => {
                         </SelectContent>
                       </Select>
                       <p className="text-[10px] text-muted-foreground mt-1 italic">
-                        {jobRole === "supplier_delta" ? 
+                        {jobRole === "master" ? 
+                          "Ficheiro de referência do seu catálogo. Ideal para comparar com novos ficheiros de fornecedores." :
+                          jobRole === "supplier_delta" ? 
                           "Compare o ficheiro do fornecedor com o seu ficheiro mestre. Nada será alterado sem revisão." : 
                           "Os produtos serão atualizados ou criados no site assim que clicar em Importar."}
                       </p>
