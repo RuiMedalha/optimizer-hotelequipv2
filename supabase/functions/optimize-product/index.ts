@@ -131,12 +131,22 @@ serve(async (req) => {
       .in("id", productIds);
 
     if (fetchError) throw fetchError;
-    if (!products || products.length === 0) {
-      return new Response(JSON.stringify({ error: "Nenhum produto encontrado" }), {
-        status: 404,
+    
+    // EXCLUDE DISCONTINUED PRODUCTS
+    const activeProducts = (products || []).filter(p => !p.is_discontinued);
+
+    if (!activeProducts || activeProducts.length === 0) {
+      console.log(`[optimize-product] Skipping optimization: all products are discontinued or not found.`);
+      return new Response(JSON.stringify({ 
+        success: true, 
+        results: (products || []).map(p => ({ productId: p.id, status: "skipped", reason: "discontinued" }))
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Use activeProducts from here on
+    const productsToProcess = activeProducts;
 
     // Fetch user's optimization prompt from settings
     const { data: promptSetting } = await supabase
