@@ -1062,7 +1062,7 @@ function EditableComparison({
                 "p-3 rounded-lg bg-primary/5 border border-primary/20 text-sm overflow-y-auto prose prose-sm max-w-none",
                 large ? "min-h-[200px] max-h-[400px]" : "min-h-[80px]"
               )}
-              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(value) }}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(value || "") }}
             />
           ) : multiline ? (
             <Textarea
