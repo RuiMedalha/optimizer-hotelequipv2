@@ -175,9 +175,9 @@ export function ProductDetailModal({ product, onClose }: Props) {
     }
   };
 
-  const faq = Array.isArray(product.faq) ? product.faq : [];
-  const upsells = Array.isArray((product as any).upsell_skus) ? (product as any).upsell_skus : [];
-  const crosssells = Array.isArray((product as any).crosssell_skus) ? (product as any).crosssell_skus : [];
+  const faq = useMemo(() => Array.isArray(product?.faq) ? product.faq : [], [product?.faq]);
+  const upsells = useMemo(() => Array.isArray((product as any)?.upsell_skus) ? (product as any).upsell_skus : [], [product]);
+  const crosssells = useMemo(() => Array.isArray((product as any)?.crosssell_skus) ? (product as any).crosssell_skus : [], [product]);
 
   // Parse technical specs for preview
   const technicalSpecs = useMemo(() => {
@@ -1062,7 +1062,7 @@ function EditableComparison({
                 "p-3 rounded-lg bg-primary/5 border border-primary/20 text-sm overflow-y-auto prose prose-sm max-w-none",
                 large ? "min-h-[200px] max-h-[400px]" : "min-h-[80px]"
               )}
-              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(value) }}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(value || "") }}
             />
           ) : multiline ? (
             <Textarea
