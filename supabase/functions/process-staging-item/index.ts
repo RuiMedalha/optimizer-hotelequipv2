@@ -203,7 +203,7 @@ Deno.serve(async (req) => {
           }
 
           if (!existingProd?.model) {
-            cleanData.model = useSkuAsModel ? staging.sku_supplier : sku;
+            cleanData.model = calculatedModel;
           }
 
           const { error: updateErr } = await supabase
