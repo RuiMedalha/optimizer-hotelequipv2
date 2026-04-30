@@ -1535,7 +1535,7 @@ const ProductsPage = () => {
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm font-mono text-muted-foreground">
-                  {publishStats.confirmed}/{activePublishJob.total_products}
+                  {activePublishJob.status === "completed" ? activePublishJob.total_products : publishStats.confirmed}/{activePublishJob.total_products}
                 </span>
                 {publishStats.errors > 0 && (
                   <Badge variant="destructive" className="text-[10px]">
