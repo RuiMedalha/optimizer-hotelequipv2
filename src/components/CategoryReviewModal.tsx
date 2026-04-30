@@ -389,10 +389,9 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                   </TableHead>
                   <TableHead className="text-xs font-bold uppercase tracking-wider text-muted-foreground">SKU / Referência</TableHead>
                   <TableHead className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Produto</TableHead>
-                  <TableHead className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Categoria Atual</TableHead>
+                  <TableHead className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Categoria Atual / Sugestões</TableHead>
                   <TableHead className="w-10"></TableHead>
-                  <TableHead className="text-xs font-bold uppercase tracking-wider text-muted-foreground min-w-[300px]">Sugestão / Nova Escolha</TableHead>
-                  <TableHead className="w-20"></TableHead>
+                  <TableHead className="text-xs font-bold uppercase tracking-wider text-muted-foreground min-w-[200px]">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
