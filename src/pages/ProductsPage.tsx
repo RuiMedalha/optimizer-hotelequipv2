@@ -40,6 +40,7 @@ import { useDuplicateDetection } from "@/hooks/useDuplicateDetection";
 import { DuplicateDetectionDialog } from "@/components/DuplicateDetectionDialog";
 import { AiComparisonWizard } from "@/components/ai-comparison/AiComparisonWizard";
 import { CategoryReviewModal } from "@/components/CategoryReviewModal";
+import { CategoryCell } from "@/components/category/CategoryCell";
 const statusLabels: Record<string, string> = {
   pending: "Pendente",
   processing: "A Processar",
