@@ -66,6 +66,7 @@ const Dashboard = () => {
     { label: "Otimizados",      value: stats?.optimized    ?? 0, color: "text-success",     bg: "bg-success/10",     icon: CheckCircle },
     { label: "Em revisão",      value: stats?.needs_review ?? 0, color: "text-amber-500",   bg: "bg-amber-500/10",   icon: AlertTriangle },
     { label: "Publicados",      value: stats?.published    ?? 0, color: "text-blue-500",    bg: "bg-blue-500/10",    icon: Globe },
+    { label: "Descontinuados",  value: stats?.discontinued ?? 0, color: "text-destructive", bg: "bg-destructive/10", icon: Ban },
     { label: "Com erro",        value: stats?.failed       ?? 0, color: "text-destructive", bg: "bg-destructive/10", icon: AlertTriangle },
   ];
 
