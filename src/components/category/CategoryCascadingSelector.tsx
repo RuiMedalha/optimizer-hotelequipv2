@@ -138,10 +138,11 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [], workspa
             {searchResults.map(res => (
               <button
                 key={res.id}
-                onClick={() => onSelect({ id: res.id, name: res.name })}
+                onClick={() => onSelect({ id: res.id, name: res.parentName ? `${res.parentName} > ${res.name}` : res.name })}
                 className="w-full text-left p-2 hover:bg-primary/10 rounded text-[11px] flex flex-col gap-0.5 transition-colors"
               >
                 <span className="font-semibold">{res.name}</span>
+                {res.parentName && <span className="text-[10px] text-muted-foreground italic truncate">em {res.parentName}</span>}
               </button>
             ))}
           </div>
