@@ -70,12 +70,17 @@ Deno.serve(async (req) => {
 
       const is_discontinued = rawData.is_discontinued === true || staging.change_type === 'discontinued';
 
-      // BUSCAR CONFIGURAÇÃO DO JOB
+      // BUSCAR CONFIGURAÇÃO DO JOB (Mapeado corretamente do campo config JSONB)
       const { data: job } = await supabase
         .from("ingestion_jobs")
-        .select("default_brand, sku_prefix, use_sku_as_model")
+        .select("config, id")
         .eq("id", staging.job_id)
         .single();
+
+      const jobConfig = job?.config || {};
+      const defaultBrand = jobConfig.defaultBrand || null;
+      const skuPrefix = jobConfig.skuPrefix || "";
+      const useSkuAsModel = jobConfig.autoModelFromSku === true;
 
       if (is_discontinued) {
         if (effectiveProductId) {
@@ -103,8 +108,8 @@ Deno.serve(async (req) => {
             is_discontinued: true,
             stock: 0,
             origin: 'supplier',
-            brand: job?.default_brand,
-            model: job?.use_sku_as_model ? staging.sku_supplier : sku,
+            brand: defaultBrand,
+            model: useSkuAsModel ? staging.sku_supplier : sku,
             supplier_title: cleanSupplierValue(rawData.original_title ?? rawData.supplier_title ?? rawData.title),
             original_title: null
           };
@@ -123,7 +128,7 @@ Deno.serve(async (req) => {
           'optimized_sale_price', 'suggested_category', 'workflow_state', 'quality_score',
           'locked_for_publish', 'validation_status', 'validation_errors', 'supplier_id',
           'canonical_supplier_family', 'canonical_supplier_model', 'stock', 'brand', 'origin',
-          'supplier_title', 'supplier_description', 'supplier_short_description', 'model'
+          'supplier_title', 'supplier_description', 'supplier_short_description', 'model', 'attributes'
         ];
 
         const cleanData: Record<string, any> = {};
@@ -148,6 +153,19 @@ Deno.serve(async (req) => {
         cleanData.original_title = null;
         cleanData.original_description = null;
 
+        // TRATAMENTO DE EAN (Extrair de attributes se necessário)
+        const ean = cleanSupplierValue(rawData.ean ?? rawData.EAN);
+        if (ean) {
+          const attributes = Array.isArray(cleanData.attributes) ? cleanData.attributes : [];
+          const eanIndex = attributes.findIndex((a: any) => a.name?.toLowerCase() === 'ean');
+          if (eanIndex > -1) {
+            attributes[eanIndex].value = ean;
+          } else {
+            attributes.push({ name: 'EAN', value: ean });
+          }
+          cleanData.attributes = attributes;
+        }
+
         // REORDENAÇÃO DE IMAGENS
         const deltaImgs = Array.isArray(rawData.image_urls) ? rawData.image_urls : (rawData.image_urls ? [rawData.image_urls] : []);
         const siteImgs = Array.isArray(staging.site_data?.image_urls) ? staging.site_data.image_urls : (staging.site_data?.image_urls ? [staging.site_data.image_urls] : []);
@@ -167,12 +185,12 @@ Deno.serve(async (req) => {
             .eq("id", effectiveProductId)
             .single();
           
-          if (!existingProd?.brand && job?.default_brand) {
-            cleanData.brand = job.default_brand;
+          if (!existingProd?.brand && defaultBrand) {
+            cleanData.brand = defaultBrand;
           }
 
           if (!existingProd?.model) {
-            cleanData.model = job?.use_sku_as_model ? staging.sku_supplier : sku;
+            cleanData.model = useSkuAsModel ? staging.sku_supplier : sku;
           }
 
           const { error: updateErr } = await supabase
@@ -192,8 +210,8 @@ Deno.serve(async (req) => {
             status: 'pending',
             workflow_state: 'draft',
             origin: 'supplier',
-            brand: job?.default_brand,
-            model: job?.use_sku_as_model ? staging.sku_supplier : sku,
+            brand: defaultBrand,
+            model: useSkuAsModel ? staging.sku_supplier : sku,
             is_discontinued: false
           };
 
