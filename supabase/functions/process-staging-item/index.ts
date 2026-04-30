@@ -118,7 +118,9 @@ Deno.serve(async (req) => {
             brand: defaultBrand,
             model: calculatedModel,
             supplier_title: cleanSupplierValue(rawData.original_title ?? rawData.supplier_title ?? rawData.title),
-            original_title: null
+            original_title: cleanSupplierValue(rawData.original_title ?? rawData.supplier_title ?? rawData.title),
+            supplier_description: cleanSupplierValue(rawData.original_description ?? rawData.supplier_description ?? rawData.description),
+            original_description: cleanSupplierValue(rawData.original_description ?? rawData.supplier_description ?? rawData.description)
           };
 
           const { error: insertErr } = await supabase.from("products").insert(insertData);
