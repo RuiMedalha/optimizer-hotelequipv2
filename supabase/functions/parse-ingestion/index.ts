@@ -114,28 +114,21 @@ Deno.serve(async (req) => {
       // ─── Apply SKU Prefix & Auto Model ───
       const targetSkuKey = Object.entries(mappings).find(([_, v]) => v === "sku")?.[1] || "sku";
       let sku = mapped[targetSkuKey];
-      let prePrefixSku = sku;
+      let prePrefixSku = sku; // Original supplier SKU
       
       if (skuPrefix && sku) {
         const prefixStr = String(skuPrefix).trim();
         const skuStr = String(sku).trim();
-        const alreadyHasPrefix = skuStr.toUpperCase().startsWith(prefixStr.toUpperCase());
         
-        if (!alreadyHasPrefix) {
-          mapped[targetSkuKey] = `${prefixStr}${skuStr}`;
-          sku = mapped[targetSkuKey];
-        } else {
-          // If it already has the prefix, the pre-prefix SKU is the part after the prefix
-          prePrefixSku = skuStr.substring(prefixStr.length);
-        }
+        // RULE: Always add prefix without checking if it already exists
+        mapped[targetSkuKey] = `${prefixStr}${skuStr}`;
+        sku = mapped[targetSkuKey];
       }
 
       if (autoModelFromSku && sku) {
-        // Use SKU without prefix as model if enabled
+        // RULE: Model is ALWAYS the original supplier SKU (pre-prefix)
         const targetModelKey = Object.entries(mappings).find(([_, v]) => v === "model")?.[1] || "model";
-        if (!mapped[targetModelKey]) {
-          mapped[targetModelKey] = prePrefixSku;
-        }
+        mapped[targetModelKey] = prePrefixSku;
       }
 
       // ─── Apply Default Brand ───
