@@ -84,12 +84,21 @@ Deno.serve(async (req) => {
         
         if (updateErr) throw updateErr;
       } else {
-        // Create new product
+        // products.user_id is NOT NULL — fetch workspace owner
+        const { data: ws } = await supabase
+          .from("workspaces")
+          .select("user_id")
+          .eq("id", staging.workspace_id)
+          .single();
+
+        if (!ws?.user_id) throw new Error("Workspace owner not found");
+
         const { error: insertErr } = await supabase
           .from("products")
           .insert({
             ...cleanData,
             workspace_id: staging.workspace_id,
+            user_id: ws.user_id,
             status: 'pending',
             workflow_state: cleanData.workflow_state || 'draft',
             origin: cleanData.origin || 'supplier'
