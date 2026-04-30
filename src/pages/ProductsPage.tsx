@@ -1086,24 +1086,19 @@ const ProductsPage = () => {
             <Copy className="w-3.5 h-3.5 mr-1" />
             Duplicados{duplicateGroups.length > 0 ? ` (${duplicateGroups.length})` : ""}
           </Button>
-          {(() => {
-            // Optimization: avoid re-calculating suggested count on every render for large lists
-            const catCount = useMemo(() => 
-              (allProductsLight ?? []).filter((p: any) => p && p.suggested_category && p.suggested_category !== p.category).length,
-              [allProductsLight]
-            );
-            return catCount > 0 ? (
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-xs h-8 border-amber-500/50 text-amber-600"
-                onClick={() => setShowCategoryReview(true)}
-              >
-                <Wand2 className="w-3.5 h-3.5 mr-1" />
-                Rever Categorias IA ({catCount})
-              </Button>
-            ) : null;
-          })()}
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-xs h-8 border-amber-500/50 text-amber-600"
+            onClick={() => setShowCategoryReview(true)}
+          >
+            <Wand2 className="w-3.5 h-3.5 mr-1" />
+            Rever Categorias IA
+            {(() => {
+              const catCount = (allProductsLight ?? []).filter((p: any) => p && p.suggested_category && p.suggested_category !== p.category).length;
+              return catCount > 0 ? ` (${catCount})` : "";
+            })()}
+          </Button>
           <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => {
             setExportTarget("all");
             setExportSkuPrefix("");

@@ -139,11 +139,7 @@ export function CategoryCell({ product }: Props) {
                 Escolher manualmente...
               </Button>
             ) : (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between px-2">
-                  <span className="text-[10px] font-bold uppercase text-muted-foreground">Seletor Manual</span>
-                  <button className="text-[10px] text-primary hover:underline" onClick={() => setShowManual(false)}>Cancelar</button>
-                </div>
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
                 <CategoryCascadingSelector 
                   onSelect={(cat) => handleSelect(cat.id, cat.name, 'manual')}
                   suggestedIds={suggestions?.map(s => s.category_id) || []}
