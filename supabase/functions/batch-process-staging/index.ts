@@ -85,7 +85,13 @@ Deno.serve(async (req) => {
           processedCount++;
         } 
         else if (action === 'create_drafts' && !effectiveProductId && ws?.user_id) {
-          // REGRA 2 e 4: Novos produtos
+          // BUSCAR MARCA PADRÃO
+          const { data: job } = await supabase
+            .from("ingestion_jobs")
+            .select("default_brand")
+            .eq("id", staging.job_id)
+            .single();
+
           const sTitle = cleanSupplierValue(rawData.supplier_title ?? rawData.title ?? rawData.Nome ?? rawData.Nombre);
           const price = cleanSupplierValue(rawData.original_price ?? rawData.price ?? rawData.Preço ?? rawData.Publico);
 
@@ -96,9 +102,11 @@ Deno.serve(async (req) => {
             workflow_state: 'draft',
             status: 'pending',
             origin: 'supplier',
+            brand: job?.default_brand,
+            model: staging.sku_supplier || sku,
             supplier_title: sTitle,
             original_price: price,
-            original_title: cleanSupplierValue(rawData.original_title) || sTitle,
+            original_title: null,
             is_discontinued: false
           };
 
