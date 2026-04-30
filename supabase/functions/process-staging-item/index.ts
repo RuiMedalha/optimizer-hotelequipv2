@@ -144,24 +144,27 @@ Deno.serve(async (req) => {
 
         // Limpeza geral de colunas
         Object.keys(rawData).forEach(key => {
-          if (productColumns.includes(key) && key !== 'image_urls' && key !== 'original_title' && key !== 'original_description') {
+          // Não copiar brand e model do rawData, pois são controlados pelo Job
+          if (productColumns.includes(key) && !['image_urls', 'original_title', 'original_description', 'brand', 'model'].includes(key)) {
             const val = cleanSupplierValue(rawData[key]);
             if (val !== undefined) cleanData[key] = val;
           }
         });
 
         // REGRAS DE TÍTULO E DESCRIÇÃO
-        // 1. Capturar os valores do fornecedor
         const sTitle = cleanSupplierValue(rawData.original_title ?? rawData.supplier_title ?? rawData.title);
         const sDesc = cleanSupplierValue(rawData.original_description ?? rawData.supplier_description ?? rawData.description);
         
-        // 2. Mover para os campos de supplier
         if (sTitle !== undefined) cleanData.supplier_title = sTitle;
         if (sDesc !== undefined) cleanData.supplier_description = sDesc;
         
-        // 3. Forçar originais a null para futura otimização
+        // Forçar originais a null para futura otimização
         cleanData.original_title = null;
         cleanData.original_description = null;
+
+        // Forçar Marca e Modelo do Job
+        cleanData.brand = defaultBrand;
+        cleanData.model = calculatedModel;
 
         // TRATAMENTO DE EAN (Extrair de attributes se necessário)
         const ean = cleanSupplierValue(rawData.ean ?? rawData.EAN);
