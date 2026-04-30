@@ -51,19 +51,40 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        if (action === 'draft_discontinued' && staging.existing_product_id) {
-          // REGRA 1: Minimalista
-          await supabase.from("products").update({
-            is_discontinued: true,
-            stock: 0,
-            workflow_state: 'draft',
-            updated_at: new Date().toISOString()
-          }).eq("id", staging.existing_product_id);
+        // Resolução do ID do produto se estiver em falta
+        let effectiveProductId = staging.existing_product_id;
+        if (!effectiveProductId) {
+          const { data: p } = await supabase.from("products").select("id").eq("workspace_id", workspaceId).eq("sku", sku).maybeSingle();
+          if (p) effectiveProductId = p.id;
+        }
+
+        if (action === 'draft_discontinued') {
+          // REGRA 1: Minimalista para descontinuados
+          if (effectiveProductId) {
+            await supabase.from("products").update({
+              is_discontinued: true,
+              stock: 0,
+              workflow_state: 'draft',
+              updated_at: new Date().toISOString()
+            }).eq("id", effectiveProductId);
+          } else {
+            // Se for descontinuado e não existir, criar como descontinuado
+            await supabase.from("products").insert({
+              sku: sku,
+              workspace_id: workspaceId,
+              user_id: ws.user_id,
+              workflow_state: 'draft',
+              is_discontinued: true,
+              stock: 0,
+              original_title: cleanSupplierValue(rawData.original_title) || sku,
+              origin: 'supplier'
+            });
+          }
           
-          await supabase.from("sync_staging").update({ status: 'approved' }).eq("id", staging.id);
+          await supabase.from("sync_staging").update({ status: 'approved', existing_product_id: effectiveProductId }).eq("id", staging.id);
           processedCount++;
         } 
-        else if (action === 'create_drafts' && !staging.existing_product_id && ws?.user_id) {
+        else if (action === 'create_drafts' && !effectiveProductId && ws?.user_id) {
           // REGRA 2 e 4: Novos produtos
           const sTitle = cleanSupplierValue(rawData.supplier_title ?? rawData.title ?? rawData.Nome ?? rawData.Nombre);
           const price = cleanSupplierValue(rawData.original_price ?? rawData.price ?? rawData.Preço ?? rawData.Publico);
@@ -87,15 +108,15 @@ Deno.serve(async (req) => {
             processedCount++;
           }
         }
-        else if ((action === 'approve_prices' || action === 'approve_prices_only') && staging.existing_product_id) {
+        else if ((action === 'approve_prices' || action === 'approve_prices_only') && effectiveProductId) {
           const newPrice = cleanSupplierValue(rawData.price || rawData.original_price || rawData.Preço || rawData.Publico);
           if (newPrice !== undefined) {
              await supabase.from("products").update({
               original_price: newPrice,
               updated_at: new Date().toISOString()
-            }).eq("id", staging.existing_product_id);
+            }).eq("id", effectiveProductId);
           }
-          await supabase.from("sync_staging").update({ status: 'approved' }).eq("id", staging.id);
+          await supabase.from("sync_staging").update({ status: 'approved', existing_product_id: effectiveProductId }).eq("id", staging.id);
           processedCount++;
         }
       } catch (err) {

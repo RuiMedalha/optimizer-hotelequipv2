@@ -439,7 +439,11 @@ Deno.serve(async (req) => {
           }
 
           groupItems.forEach(gi => {
-            itemsToUpdateStatus.push({ id: gi.id, status: "processed" });
+            itemsToUpdateStatus.push({ 
+              id: gi.id, 
+              status: "processed", 
+              product_id: productId 
+            });
           });
         } catch (err) {
           console.error(`Error processing SKU ${sku}:`, err);
