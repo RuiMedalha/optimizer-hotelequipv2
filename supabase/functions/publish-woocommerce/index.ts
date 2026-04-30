@@ -2507,6 +2507,12 @@ async function publishSingleProduct(
     ensureBrandMeta(wooProduct, brandVal);
   }
 
+  const modelVal = extractModelValue(enrichedProduct, sourceAttrs);
+  if (modelVal) {
+    ensureModelMeta(wooProduct, modelVal);
+  }
+
+
   let existingWooId = enrichedProduct.woocommerce_id;
   if (!existingWooId && enrichedProduct.sku) {
     existingWooId = await findWooProductBySku(baseUrl, auth, enrichedProduct.sku);
