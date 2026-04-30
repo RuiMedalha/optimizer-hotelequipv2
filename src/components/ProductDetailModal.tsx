@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Check, X, ExternalLink, RotateCcw, History, Send, ArrowUpRight, Shuffle, AlertTriangle, Brain, BookOpen, Globe, Database, Loader2, BarChart3, Columns, GitBranch, PackageSearch, ImageIcon, Sparkles, Camera, ShieldCheck, ClipboardCheck, Languages } from "lucide-react";
+import { Check, X, ExternalLink, RotateCcw, History, Send, ArrowUpRight, Shuffle, AlertTriangle, Brain, BookOpen, Globe, Database, Loader2, BarChart3, Columns, GitBranch, PackageSearch, ImageIcon, Sparkles, Camera, ShieldCheck, ClipboardCheck, Languages, Eye } from "lucide-react";
 import { useProcessImages } from "@/hooks/useProcessImages";
 import { useActiveImageModels } from "@/hooks/useAiProviderCenter";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
