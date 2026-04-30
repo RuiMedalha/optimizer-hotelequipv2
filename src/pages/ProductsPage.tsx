@@ -1263,6 +1263,11 @@ const ProductsPage = () => {
               <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => setShowPublishModal(true)} disabled={isCreatingPublish}>
                 <Send className="w-3.5 h-3.5 mr-1" /> <span className="hidden sm:inline">Publicar </span>WC ({selected.size})
               </Button>
+              {statusFilter === "discontinued" && (
+                <Button size="sm" variant="outline" className="text-xs h-8 border-destructive text-destructive" onClick={handleDiscontinuedPublish} disabled={isCreatingPublish}>
+                  <Send className="w-3.5 h-3.5 mr-1" /> <span className="hidden sm:inline">Enviar para WooCommerce como Rascunho </span>({selected.size})
+                </Button>
+              )}
               <Button size="sm" variant="secondary" className="text-xs h-8" onClick={() => handleOptimizeClick(Array.from(selected))} disabled={optimizeProducts.isPending}>
                 <Sparkles className="w-3.5 h-3.5 mr-1" /> <span className="hidden sm:inline">Otimizar </span>IA ({selected.size})
               </Button>
