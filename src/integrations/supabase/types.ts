@@ -9734,6 +9734,7 @@ export type Database = {
           locked_for_publish: boolean | null
           meta_description: string | null
           meta_title: string | null
+          model: string | null
           optimized_description: string | null
           optimized_price: number | null
           optimized_sale_price: number | null
@@ -9794,6 +9795,7 @@ export type Database = {
           locked_for_publish?: boolean | null
           meta_description?: string | null
           meta_title?: string | null
+          model?: string | null
           optimized_description?: string | null
           optimized_price?: number | null
           optimized_sale_price?: number | null
@@ -9856,6 +9858,7 @@ export type Database = {
           locked_for_publish?: boolean | null
           meta_description?: string | null
           meta_title?: string | null
+          model?: string | null
           optimized_description?: string | null
           optimized_price?: number | null
           optimized_sale_price?: number | null

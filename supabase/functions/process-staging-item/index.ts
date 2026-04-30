@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
           'optimized_sale_price', 'suggested_category', 'workflow_state', 'quality_score',
           'locked_for_publish', 'validation_status', 'validation_errors', 'supplier_id',
           'canonical_supplier_family', 'canonical_supplier_model', 'stock', 'brand', 'origin',
-          'supplier_title', 'supplier_description', 'supplier_short_description'
+          'supplier_title', 'supplier_description', 'supplier_short_description', 'model'
         ];
 
         const cleanData: Record<string, any> = {};
@@ -146,39 +146,43 @@ Deno.serve(async (req) => {
         const siteImgs = Array.isArray(staging.site_data?.image_urls) ? staging.site_data.image_urls : (staging.site_data?.image_urls ? [staging.site_data.image_urls] : []);
 
         if (deltaImgs.length > 0) {
-          // A imagem do Delta é a principal, as do site vêm a seguir
           const combinedImgs = [...new Set([...deltaImgs, ...siteImgs])];
           cleanData.image_urls = combinedImgs;
         } else if (siteImgs.length > 0) {
-          // Delta não trouxe imagens, mantemos as do site
           cleanData.image_urls = siteImgs;
         }
 
+        // BUSCAR MARCA PADRÃO E MODELO
+        const { data: job } = await supabase
+          .from("ingestion_jobs")
+          .select("default_brand")
+          .eq("id", staging.job_id)
+          .single();
+
         if (effectiveProductId) {
-          // RULE: Se o produto já existia no site com marca preenchida, manter a marca existente — só preencher se estiver vazio.
           const { data: existingProd } = await supabase
             .from("products")
-            .select("brand")
+            .select("brand, model")
             .eq("id", effectiveProductId)
             .single();
           
-          if (existingProd?.brand && cleanData.brand) {
-            console.log(`Preserving existing brand "${existingProd.brand}" instead of overwriting with "${cleanData.brand}"`);
-            delete cleanData.brand;
+          if (!existingProd?.brand && job?.default_brand) {
+            cleanData.brand = job.default_brand;
           }
 
-          // Update: cleanData já não tem campos vazios (Regra 2)
+          if (!existingProd?.model) {
+            cleanData.model = staging.sku_supplier || sku;
+          }
+
           const { error: updateErr } = await supabase
             .from("products")
-            .update({ ...cleanData, updated_at: new Date().toISOString() })
+            .update({ ...cleanData, original_title: null, updated_at: new Date().toISOString() })
             .eq("id", effectiveProductId);
           if (updateErr) throw updateErr;
         } else {
-          // Create (Regra 4)
           const { data: ws } = await supabase.from("workspaces").select("user_id").eq("id", staging.workspace_id).single();
           if (!ws?.user_id) throw new Error("Workspace owner not found");
 
-          // Preparar dados de criação (Regra 4)
           const insertData = {
             ...cleanData,
             sku: sku,
@@ -187,8 +191,10 @@ Deno.serve(async (req) => {
             status: 'pending',
             workflow_state: 'draft',
             origin: 'supplier',
-            // Regra 4: original_title recebe o valor do fornecedor como base se não existir um otimizado
-            original_title: cleanData.original_title || sTitle,
+            brand: cleanData.brand || job?.default_brand,
+            model: staging.sku_supplier || sku,
+            supplier_title: sTitle,
+            original_title: null,
             is_discontinued: false
           };
 
