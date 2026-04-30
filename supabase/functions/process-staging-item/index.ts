@@ -224,7 +224,7 @@ Deno.serve(async (req) => {
             workflow_state: 'draft',
             origin: 'supplier',
             brand: defaultBrand,
-            model: useSkuAsModel ? staging.sku_supplier : sku,
+            model: calculatedModel,
             is_discontinued: false
           };
 
