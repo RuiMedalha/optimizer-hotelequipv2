@@ -2657,15 +2657,16 @@ async function publishVariableProduct(
     parentPayload.attributes = merged;
   }
 
-  // Add XStore brand meta_data
+  // Add XStore brand/model meta_data
   if (brandValue) {
-    const existingMeta = Array.isArray((parentPayload as any).meta_data) ? (parentPayload as any).meta_data : [];
-    existingMeta.push({ key: "_brand", value: brandValue });
-    existingMeta.push({ key: "xstore_brand", value: brandValue });
-    existingMeta.push({ key: "brand_id", value: brandValue });
-    (parentPayload as any).meta_data = existingMeta;
+    ensureBrandMeta(parentPayload, brandValue);
     console.log(`[publish-variable] Added brand meta: ${brandValue}`);
   }
+  if (modelValue) {
+    ensureModelMeta(parentPayload, modelValue);
+    console.log(`[publish-variable] Added model meta: ${modelValue}`);
+  }
+
 
   console.log(`[publish-variable] Payload keys: ${Object.keys(parentPayload).join(", ")}, name=${parentPayload.name}, images=${Array.isArray(parentPayload.images) ? (parentPayload.images as any[]).length : 0}, attrs=${JSON.stringify(parentPayload.attributes)}`);
 
