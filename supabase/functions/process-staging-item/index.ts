@@ -142,6 +142,18 @@ Deno.serve(async (req) => {
         });
 
         if (effectiveProductId) {
+          // RULE: Se o produto já existia no site com marca preenchida, manter a marca existente — só preencher se estiver vazio.
+          const { data: existingProd } = await supabase
+            .from("products")
+            .select("brand")
+            .eq("id", effectiveProductId)
+            .single();
+          
+          if (existingProd?.brand && cleanData.brand) {
+            console.log(`Preserving existing brand "${existingProd.brand}" instead of overwriting with "${cleanData.brand}"`);
+            delete cleanData.brand;
+          }
+
           // Update: cleanData já não tem campos vazios (Regra 2)
           const { error: updateErr } = await supabase
             .from("products")
