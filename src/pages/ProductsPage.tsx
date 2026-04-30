@@ -476,6 +476,24 @@ const ProductsPage = () => {
     }
   };
 
+  const handleDiscontinuedPublish = async () => {
+    if (selected.size === 0 || !activeWorkspace) return;
+    
+    try {
+      await createPublishJob({
+        productIds: Array.from(selected),
+        workspaceId: activeWorkspace.id,
+        // Send stock to trigger the draft + 0 stock logic in edge function
+        publishFields: ["stock"], 
+        pricing: { forcePublish: true } as any
+      });
+      toast.success("Publicação de descontinuados iniciada!");
+      setSelected(new Set());
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
   const handleOptimizeClick = (ids: string[]) => {
     // Auto-include entire family: parent + all siblings for variable products
     const allProducts = allProductsLight ?? [];
