@@ -85,13 +85,26 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [], workspa
     queryKey: ["category-search", search, workspaceId],
     enabled: search.length > 1,
     queryFn: async () => {
+      // Use join to get parent name for context
       const { data, error } = await supabase
         .from("categories")
-        .select("id, name, parent_id, workspace_id")
+        .select(`
+          id, 
+          name, 
+          parent_id, 
+          workspace_id,
+          parent:parent_id (
+            name
+          )
+        `)
         .ilike("name", `%${search}%`)
         .limit(20);
       if (error) throw error;
-      return data as Category[];
+      
+      return data.map((cat: any) => ({
+        ...cat,
+        parentName: cat.parent?.name
+      })) as (Category & { parentName?: string })[];
     }
   });
 
