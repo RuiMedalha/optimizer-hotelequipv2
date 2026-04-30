@@ -27,6 +27,7 @@ export function ProductDescriptionPreview({
   category,
   imageUrl,
   seoKeywords,
+  specs,
   open,
   onClose,
 }: Props) {
