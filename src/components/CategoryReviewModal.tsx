@@ -61,34 +61,6 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
     return () => clearTimeout(timer);
   }, [localSearchQuery]);
 
-  // Fetch all categories for manual selection
-  const { data: allCategories } = useQuery({
-    queryKey: ["all-categories-list"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("categories")
-        .select("id, name, parent_id");
-      if (error) throw error;
-      
-      const catMap = new Map(data.map(c => [c.id, c]));
-      const getFullPath = (id: string): string => {
-        const c = catMap.get(id);
-        if (!c) return "";
-        const name = (c.name || "").replace(/&gt;/g, " > ");
-        if (c.parent_id) {
-          const parent = getFullPath(c.parent_id);
-          if (parent && !name.startsWith(parent)) return `${parent} > ${name}`;
-        }
-        return name;
-      };
-
-      return data.map(c => ({
-        id: c.id,
-        fullPath: getFullPath(c.id)
-      })).sort((a, b) => a.fullPath.localeCompare(b.fullPath));
-    },
-    enabled: open
-  });
 
   const getEffectiveSuggestion = (p: CategoryProduct) => overrides[p.id] || p.suggested_category;
 
