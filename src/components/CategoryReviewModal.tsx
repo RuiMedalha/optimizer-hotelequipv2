@@ -94,8 +94,13 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
 
   const candidates = useMemo(() => {
     if (showAllProducts) return products;
-    // Default: Only products with a suggested_category different from current
-    return products.filter(p => p.suggested_category && p.suggested_category !== p.category);
+    // Show products needing confirmation: 
+    // 1. Has suggested category different from current
+    // 2. OR current category is empty
+    return products.filter(p => 
+      (p.suggested_category && p.suggested_category !== p.category) || 
+      (!p.category)
+    );
   }, [products, showAllProducts]);
 
   const uniqueCurrentCategories = useMemo(() =>
