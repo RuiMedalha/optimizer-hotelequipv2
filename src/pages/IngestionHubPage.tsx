@@ -777,13 +777,16 @@ const IngestionHubPage = () => {
                       <Select value={jobRole || "direct"} onValueChange={(v) => setJobRole(v === "direct" ? undefined : v)}>
                         <SelectTrigger className={cn(
                           "h-10",
-                          (jobRole === "supplier_delta" || (!jobRole && currentDetection?.matched_supplier_id)) ? "border-amber-500 bg-amber-50" : "border-blue-500 bg-blue-50"
+                          jobRole === "master" ? "border-blue-500 bg-blue-50" : 
+                          (jobRole === "supplier_delta" || (!jobRole && currentDetection?.matched_supplier_id)) ? "border-amber-500 bg-amber-50" : 
+                          "border-blue-500 bg-blue-50"
                         )}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="direct">🚀 Atualização Direta de Produtos</SelectItem>
                           <SelectItem value="supplier_delta">⚖️ Delta de Fornecedor (Reconciliação)</SelectItem>
+                          <SelectItem value="master">💎 Mestre (Ficheiro de Referência)</SelectItem>
                         </SelectContent>
                       </Select>
                       <p className="text-[10px] text-muted-foreground mt-1 italic">
