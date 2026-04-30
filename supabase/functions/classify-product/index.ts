@@ -16,13 +16,24 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Fetch existing categories for this workspace and global categories
+    // Extract SKU prefix
+    const sku = product.sku || "";
+    const skuPrefix = sku.match(/^[A-Z]+/)?.[0] || sku.substring(0, 3);
+
+    // 1. Fetch patterns from category_learning
+    const { data: learningPatterns } = await supabase
+      .from("category_learning")
+      .select("*")
+      .eq("sku_prefix", skuPrefix)
+      .order("times_confirmed", { ascending: false });
+
+    // 2. Fetch existing categories for this workspace and global categories
     const { data: categories } = await supabase
       .from("categories")
       .select("id, name, slug, parent_id, description, workspace_id")
       .or(`workspace_id.eq.${workspace_id},workspace_id.is.null`);
 
-    // Fetch some successfully categorized products to use as examples (Few-Shot Prompting)
+    // 3. Fetch some successfully categorized products to use as examples (Few-Shot Prompting)
     const { data: examples } = await supabase
       .from("products")
       .select("original_title, category")
@@ -85,6 +96,27 @@ CRITICAL RULES:
 5. ACCESSORY DETECTION: If the product is an accessory (e.g., "Estante", "Prateleira", "Grelha", "Cesto", "Shelf", "Kit", "Suporte", "Acessório"), you MUST look for the "Acessorios" sub-category within the correct top-level category.
 6. Choose the MOST SPECIFIC category possible (the leaf node).
 7. Suggest up to 3 alternative categories from the list if relevant.
+
+    const learningExamplesStr = (learningPatterns || []).map(p => `- SKU Prefix: "${p.sku_prefix}" -> Category: "${p.category_path}" (Confidence: ${p.confidence}%)`).join('\n');
+
+    // Build the prompt
+    const systemPrompt = `You are a Product Classification Agent for an e-commerce catalog management system focused on the HORECA sector.
+
+Your task: classify a raw product into the most specific correct category from the existing taxonomy provided.
+
+CRITICAL RULES:
+1. You MUST ONLY use categories that ALREADY EXIST in the catalog taxonomy provided below.
+2. DO NOT invent new category names, do not fix typos, and do not truncate the hierarchy.
+3. ALWAYS provide the FULL path starting from the root (e.g., "FRIO COMERCIAL > Armarios > Expositores > Bebidas/Cerveja").
+4. TEMPERATURE DETECTION: 
+   - If description or title mentions cooling, refrigerated, "frio", "frigorífico", "chiller", "refrigeração", "refrigerado", "positivo", or positive temperatures (e.g., "0°C", "+2°C"), the category MUST start with "FRIO COMERCIAL".
+   - If description or title mentions freezing, "congelação", "congelador", "congelado", "freezer", "negativo", or negative temperatures (e.g., "-18°C", "-20°C"), prioritize "CONGELAÇÃO" or the relevant sub-path within "FRIO COMERCIAL" if it contains freezing units.
+5. ACCESSORY DETECTION: If the product is an accessory (e.g., "Estante", "Prateleira", "Grelha", "Cesto", "Shelf", "Kit", "Suporte", "Acessório"), you MUST look for the "Acessorios" sub-category within the correct top-level category.
+6. Choose the MOST SPECIFIC category possible (the leaf node).
+7. Suggest up to 3 alternative categories from the list if relevant.
+
+LEARNING PATTERNS (Strong indicators based on SKU prefix):
+${learningExamplesStr || "No specific patterns yet."}
 
 LEARNING EXAMPLES (How existing products are classified):
 ${examples?.map(e => `- Product: "${e.original_title}" -> Category: "${e.category}"`).join('\n') || "No examples available yet."}
