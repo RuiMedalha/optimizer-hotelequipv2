@@ -2634,8 +2634,10 @@ async function publishVariableProduct(
     console.log(`[publish-variable] Consolidated ${sizeAttrs.length} size attributes into "${primary.name}" with ${primary.options.length} options`);
   }
 
-  // Extract brand from static attributes for XStore meta_data
+  // Extract brand and model from static attributes for XStore meta_data
   const brandValue = extractBrandValue(parent, staticAttributes);
+  const modelValue = extractModelValue(parent, staticAttributes);
+
 
   if (variationAttributes.length > 0 || staticAttributes.length > 0) {
     const merged: any[] = [...variationAttributes];
