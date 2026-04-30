@@ -2319,6 +2319,15 @@ async function publishSingleProduct(
 
   const wooProduct = await buildBasePayload(enrichedProduct, supabase, baseUrl, auth, has, markupPercent, discountPercent);
 
+  // If product is discontinued, force it to be a draft with 0 stock in WooCommerce
+  if (enrichedProduct.is_discontinued) {
+    console.log(`[publish] Product ${enrichedProduct.id} is discontinued. Forcing draft status and 0 stock.`);
+    wooProduct.status = "draft";
+    wooProduct.manage_stock = true;
+    wooProduct.stock_quantity = 0;
+    wooProduct.stock_status = "outofstock";
+  }
+
   // ── FAQ & Uso Profissional Content Routing ──
   await enrichWithExtraContent(wooProduct, enrichedProduct, supabase, adminClient, has);
 
