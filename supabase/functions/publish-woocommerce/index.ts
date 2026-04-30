@@ -2882,7 +2882,11 @@ async function publishVariation(
 
     await supabase
       .from("products")
-      .update({ woocommerce_id: varWooData.id, status: "published" as any })
+      .update({ 
+        woocommerce_id: varWooData.id, 
+        status: "published" as any,
+        workflow_state: "published" as any 
+      })
       .eq("id", variation.id);
 
     return { id: variation.id, status: action, woocommerce_id: varWooData.id };
