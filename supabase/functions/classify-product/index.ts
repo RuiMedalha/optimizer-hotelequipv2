@@ -16,13 +16,24 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Fetch existing categories for this workspace and global categories
+    // Extract SKU prefix
+    const sku = product.sku || "";
+    const skuPrefix = sku.match(/^[A-Z]+/)?.[0] || sku.substring(0, 3);
+
+    // 1. Fetch patterns from category_learning
+    const { data: learningPatterns } = await supabase
+      .from("category_learning")
+      .select("*")
+      .eq("sku_prefix", skuPrefix)
+      .order("times_confirmed", { ascending: false });
+
+    // 2. Fetch existing categories for this workspace and global categories
     const { data: categories } = await supabase
       .from("categories")
       .select("id, name, slug, parent_id, description, workspace_id")
       .or(`workspace_id.eq.${workspace_id},workspace_id.is.null`);
 
-    // Fetch some successfully categorized products to use as examples (Few-Shot Prompting)
+    // 3. Fetch some successfully categorized products to use as examples (Few-Shot Prompting)
     const { data: examples } = await supabase
       .from("products")
       .select("original_title, category")
@@ -69,6 +80,7 @@ Deno.serve(async (req) => {
     });
 
     const categoryList = Array.from(uniqueCategoryMap.values());
+    const learningExamplesStr = (learningPatterns || []).map(p => `- SKU Prefix: "${p.sku_prefix}" -> Category: "${p.category_path}" (Confidence: ${p.confidence}%)`).join('\n');
 
     // Build the prompt
     const systemPrompt = `You are a Product Classification Agent for an e-commerce catalog management system focused on the HORECA sector.
@@ -85,6 +97,9 @@ CRITICAL RULES:
 5. ACCESSORY DETECTION: If the product is an accessory (e.g., "Estante", "Prateleira", "Grelha", "Cesto", "Shelf", "Kit", "Suporte", "Acessório"), you MUST look for the "Acessorios" sub-category within the correct top-level category.
 6. Choose the MOST SPECIFIC category possible (the leaf node).
 7. Suggest up to 3 alternative categories from the list if relevant.
+
+LEARNING PATTERNS (Strong indicators based on SKU prefix):
+${learningExamplesStr || "No specific patterns yet."}
 
 LEARNING EXAMPLES (How existing products are classified):
 ${examples?.map(e => `- Product: "${e.original_title}" -> Category: "${e.category}"`).join('\n') || "No examples available yet."}

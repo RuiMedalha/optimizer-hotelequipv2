@@ -4051,6 +4051,56 @@ export type Database = {
           },
         ]
       }
+      category_learning: {
+        Row: {
+          brand: string | null
+          category_id: string | null
+          category_path: string | null
+          confidence: number | null
+          created_at: string | null
+          id: string
+          product_type_keywords: string[] | null
+          sku_prefix: string | null
+          times_confirmed: number | null
+          times_corrected: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          brand?: string | null
+          category_id?: string | null
+          category_path?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          product_type_keywords?: string[] | null
+          sku_prefix?: string | null
+          times_confirmed?: number | null
+          times_corrected?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          brand?: string | null
+          category_id?: string | null
+          category_path?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          product_type_keywords?: string[] | null
+          sku_prefix?: string | null
+          times_confirmed?: number | null
+          times_corrected?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "category_learning_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       category_schemas: {
         Row: {
           category_id: string | null

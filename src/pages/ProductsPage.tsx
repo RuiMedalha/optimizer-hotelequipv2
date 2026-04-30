@@ -40,6 +40,7 @@ import { useDuplicateDetection } from "@/hooks/useDuplicateDetection";
 import { DuplicateDetectionDialog } from "@/components/DuplicateDetectionDialog";
 import { AiComparisonWizard } from "@/components/ai-comparison/AiComparisonWizard";
 import { CategoryReviewModal } from "@/components/CategoryReviewModal";
+import { CategoryCell } from "@/components/category/CategoryCell";
 const statusLabels: Record<string, string> = {
   pending: "Pendente",
   processing: "A Processar",
@@ -876,45 +877,7 @@ const ProductsPage = () => {
         )}
       </td>
       <td className="p-3 max-w-[200px]" onClick={(e) => e.stopPropagation()}>
-        {editingCell?.id === product.id && editingCell.field === "category" ? (
-          <div className="flex gap-1">
-            <Input
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              className="text-xs h-7"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === "Enter") saveInlineEdit();
-                if (e.key === "Escape") cancelInlineEdit();
-              }}
-            />
-            <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={saveInlineEdit}>
-              <Save className="w-3 h-3" />
-            </Button>
-          </div>
-        ) : (
-          <>
-            <span
-              className="truncate block text-xs cursor-text hover:bg-primary/5 rounded px-1 -mx-1"
-              onDoubleClick={() => startInlineEdit(product.id, "category", product.category ?? "")}
-              title={product.category || "Duplo-clique para editar"}
-            >
-              {product.category ?? "—"}
-            </span>
-            {(product as any).suggested_category && (product as any).suggested_category !== product.category && (
-              <span
-                className="truncate block text-[10px] text-destructive font-medium italic mt-0.5 cursor-pointer hover:text-destructive/80 border-l-2 border-destructive/40 pl-1"
-                title={`Proposta IA: ${(product as any).suggested_category} — Clique para aceitar`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  updateProduct.mutate({ id: product.id, updates: { category: (product as any).suggested_category, suggested_category: null } });
-                }}
-              >
-                💡 {(product as any).suggested_category}
-              </span>
-            )}
-          </>
-        )}
+        <CategoryCell product={product} />
       </td>
       <td className="p-3 max-w-[140px]" onClick={(e) => e.stopPropagation()}>
         {editingCell?.id === product.id && editingCell.field === "optimized_short_description" ? (
@@ -1965,7 +1928,9 @@ const ProductsPage = () => {
                             </td>
                             <td className="p-3 max-w-[180px] truncate font-medium" title={item.product.original_title ?? undefined}>{item.product.original_title ?? "—"}</td>
                             <td className="p-3 max-w-[180px] truncate text-primary font-medium" title={item.product.optimized_title ?? undefined}>{item.product.optimized_title ?? "—"}</td>
-                            <td className="p-3 max-w-[200px] truncate text-xs" title={item.product.category ?? undefined}>{item.product.category ?? "—"}</td>
+                            <td className="p-3 max-w-[200px]" onClick={(e) => e.stopPropagation()}>
+                              <CategoryCell product={item.product} />
+                            </td>
                             <td className="p-3 max-w-[140px] truncate text-xs" title={item.product.optimized_short_description ?? undefined}>{item.product.optimized_short_description ?? "—"}</td>
                             <td className="p-3 max-w-[120px] truncate text-xs font-mono text-muted-foreground" title={item.product.seo_slug ?? undefined}>{item.product.seo_slug ?? "—"}</td>
                             <td className="p-3">
@@ -2027,19 +1992,8 @@ const ProductsPage = () => {
                               </td>
                               <td className="p-3 max-w-[180px] truncate text-muted-foreground text-xs" title={child.original_title ?? undefined}>{child.original_title ?? "—"}</td>
                               <td className="p-3 max-w-[180px] truncate text-primary/70 text-xs" title={child.optimized_title ?? undefined}>{child.optimized_title ?? "—"}</td>
-                              <td className="p-3 max-w-[140px] truncate text-xs text-muted-foreground" title={
-                                Array.isArray(child.attributes) && (child.attributes as any[]).length > 0
-                                  ? (child.attributes as any[]).map((a: any) => 
-                                      Array.isArray(a.values) ? a.values.join("/") : (a.value || "")
-                                    ).filter(Boolean).join(", ")
-                                  : (child.category ?? undefined)
-                              }>
-                                {Array.isArray(child.attributes) && (child.attributes as any[]).length > 0
-                                  ? (child.attributes as any[]).map((a: any) => 
-                                      Array.isArray(a.values) ? a.values.join("/") : (a.value || "")
-                                    ).filter(Boolean).join(", ")
-                                  : child.category ?? "—"
-                                }
+                              <td className="p-3 max-w-[140px]" onClick={(e) => e.stopPropagation()}>
+                                <CategoryCell product={child} />
                               </td>
                               <td className="p-3 max-w-[140px] truncate text-xs text-muted-foreground" title={child.optimized_short_description ?? undefined}>{child.optimized_short_description ?? "—"}</td>
                               <td className="p-3 max-w-[120px] truncate text-xs font-mono text-muted-foreground/60" title={child.seo_slug ?? undefined}>{child.seo_slug ?? "—"}</td>

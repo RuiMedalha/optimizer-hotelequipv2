@@ -38,6 +38,7 @@ import { pt } from "date-fns/locale";
 import { useProductLocalizations, useTranslateProduct, useApproveLocalization, SUPPORTED_LOCALES } from "@/hooks/useTranslations";
 import { useAuth } from "@/hooks/auth-context";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CategoryCell } from "./category/CategoryCell";
 
 interface Props {
   product: Product | null;
@@ -355,13 +356,8 @@ export function ProductDetailModal({ product, onClose }: Props) {
             {/* Category */}
             <div className="border border-border/50 rounded-lg p-4">
               <h4 className="text-sm font-semibold mb-3">Categoria</h4>
-              <Input
-                value={editData.category}
-                onChange={(e) => handleFieldChange("category", e.target.value)}
-                placeholder="Categoria > Subcategoria"
-                className="text-sm"
-              />
-              <p className="text-xs text-muted-foreground mt-1">Formato: Categoria &gt; Subcategoria (ex: Equipamento de Cozinha &gt; Fritadeiras)</p>
+              <CategoryCell product={product} />
+              <p className="text-xs text-muted-foreground mt-2 italic">A categoria confirmada será guardada no sistema de aprendizagem global.</p>
             </div>
             <EditableComparison
               label="Meta Title"
@@ -558,7 +554,7 @@ export function ProductDetailModal({ product, onClose }: Props) {
                               value={item.question} 
                               onChange={(e) => {
                                 const newFaq = [...faq];
-                                newFaq[idx] = { ...newFaq[idx], question: e.target.value };
+                                newFaq[idx] = { ...(newFaq[idx] as any), question: e.target.value };
                                 updateProduct.mutate({ id: product.id, updates: { faq: newFaq } });
                               }}
                               className="text-sm font-medium h-8"
@@ -570,7 +566,7 @@ export function ProductDetailModal({ product, onClose }: Props) {
                               value={item.answer} 
                               onChange={(e) => {
                                 const newFaq = [...faq];
-                                newFaq[idx] = { ...newFaq[idx], answer: e.target.value };
+                                newFaq[idx] = { ...(newFaq[idx] as any), answer: e.target.value };
                                 updateProduct.mutate({ id: product.id, updates: { faq: newFaq } });
                               }}
                               className="text-sm text-muted-foreground min-h-[60px]"
