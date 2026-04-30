@@ -70,17 +70,22 @@ Deno.serve(async (req) => {
 
       const is_discontinued = rawData.is_discontinued === true || staging.change_type === 'discontinued';
 
-      // BUSCAR CONFIGURAÇÃO DO JOB (Mapeado corretamente do campo config JSONB)
+      // BUSCAR CONFIGURAÇÃO DO JOB (Mapeado corretamente do campo ingestion_job_id)
       const { data: job } = await supabase
         .from("ingestion_jobs")
         .select("config, id")
-        .eq("id", staging.job_id)
+        .eq("id", staging.ingestion_job_id)
         .single();
 
       const jobConfig = job?.config || {};
       const defaultBrand = jobConfig.defaultBrand || null;
       const skuPrefix = jobConfig.skuPrefix || "";
       const useSkuAsModel = jobConfig.autoModelFromSku === true;
+
+      // Calcular Modelo (Remover prefixo se configurado)
+      const calculatedModel = useSkuAsModel && skuPrefix && sku.startsWith(skuPrefix) 
+        ? sku.slice(skuPrefix.length) 
+        : (rawData.model || staging.sku_supplier || sku);
 
       if (is_discontinued) {
         if (effectiveProductId) {
@@ -109,7 +114,7 @@ Deno.serve(async (req) => {
             stock: 0,
             origin: 'supplier',
             brand: defaultBrand,
-            model: useSkuAsModel ? staging.sku_supplier : sku,
+            model: calculatedModel,
             supplier_title: cleanSupplierValue(rawData.original_title ?? rawData.supplier_title ?? rawData.title),
             original_title: null
           };
@@ -139,24 +144,27 @@ Deno.serve(async (req) => {
 
         // Limpeza geral de colunas
         Object.keys(rawData).forEach(key => {
-          if (productColumns.includes(key) && key !== 'image_urls' && key !== 'original_title' && key !== 'original_description') {
+          // Não copiar brand e model do rawData, pois são controlados pelo Job
+          if (productColumns.includes(key) && !['image_urls', 'original_title', 'original_description', 'brand', 'model'].includes(key)) {
             const val = cleanSupplierValue(rawData[key]);
             if (val !== undefined) cleanData[key] = val;
           }
         });
 
         // REGRAS DE TÍTULO E DESCRIÇÃO
-        // 1. Capturar os valores do fornecedor
         const sTitle = cleanSupplierValue(rawData.original_title ?? rawData.supplier_title ?? rawData.title);
         const sDesc = cleanSupplierValue(rawData.original_description ?? rawData.supplier_description ?? rawData.description);
         
-        // 2. Mover para os campos de supplier
         if (sTitle !== undefined) cleanData.supplier_title = sTitle;
         if (sDesc !== undefined) cleanData.supplier_description = sDesc;
         
-        // 3. Forçar originais a null para futura otimização
+        // Forçar originais a null para futura otimização
         cleanData.original_title = null;
         cleanData.original_description = null;
+
+        // Forçar Marca e Modelo do Job
+        cleanData.brand = defaultBrand;
+        cleanData.model = calculatedModel;
 
         // TRATAMENTO DE EAN (Extrair de attributes se necessário)
         const ean = cleanSupplierValue(rawData.ean ?? rawData.EAN);
@@ -195,7 +203,7 @@ Deno.serve(async (req) => {
           }
 
           if (!existingProd?.model) {
-            cleanData.model = useSkuAsModel ? staging.sku_supplier : sku;
+            cleanData.model = calculatedModel;
           }
 
           const { error: updateErr } = await supabase
@@ -216,7 +224,7 @@ Deno.serve(async (req) => {
             workflow_state: 'draft',
             origin: 'supplier',
             brand: defaultBrand,
-            model: useSkuAsModel ? staging.sku_supplier : sku,
+            model: calculatedModel,
             is_discontinued: false
           };
 
