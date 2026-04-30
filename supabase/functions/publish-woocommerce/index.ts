@@ -706,17 +706,32 @@ function ensureModelMeta(target: Record<string, unknown>, modelValue: string) {
 /**
  * Extracts brand value from product attributes array.
  */
-function extractBrandFromAttributes(attributes: any[]): string | null {
-  if (!Array.isArray(attributes)) return null;
-  for (const attr of attributes) {
-    const n = String(attr?.name || "").toLowerCase().trim();
-    if (n === "marca" || n === "brand") {
-      const rawValue = attr?.value ?? attr?.options?.[0] ?? (Array.isArray(attr?.values) ? attr.values[0] : null);
-      return String(rawValue || "").trim() || null;
+function extractBrandFromAttributes(attributes: any): string | null {
+  if (!attributes) return null;
+
+  // Handle array format: [{name: "Marca", value: "CLIMA"}]
+  if (Array.isArray(attributes)) {
+    for (const attr of attributes) {
+      const n = String(attr?.name || "").toLowerCase().trim();
+      if (n === "marca" || n === "brand") {
+        const rawValue = attr?.value ?? attr?.options?.[0] ?? (Array.isArray(attr?.values) ? attr.values[0] : null);
+        return String(rawValue || "").trim() || null;
+      }
+    }
+  } 
+  // Handle flat object format: {"Marca": "CLIMA", "model": "..."}
+  else if (typeof attributes === "object") {
+    for (const [key, val] of Object.entries(attributes)) {
+      const n = key.toLowerCase().trim();
+      if (n === "marca" || n === "brand") {
+        return String(val || "").trim() || null;
+      }
     }
   }
+
   return null;
 }
+
 
 async function assignBrandToProductTaxonomies(baseUrl: string, auth: string, brandValue: string, target: Record<string, unknown>) {
   if (!brandValue) return;
