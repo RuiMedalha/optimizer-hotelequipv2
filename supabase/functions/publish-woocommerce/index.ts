@@ -2330,19 +2330,29 @@ function buildStaticAttributesForParent(
     map.get(n)!.add(v);
   };
 
-  const collect = (attrs: any[]) => {
-    if (!Array.isArray(attrs)) return;
-    for (const attr of attrs) {
-      const n = String(attr?.name || "").trim();
-      if (!n) continue;
-      const isTechnical = attr?.variation === false || isTechnicalAttrName(n);
-      if (!isTechnical) continue;
+  const collect = (attrs: any) => {
+    if (!attrs) return;
+    if (Array.isArray(attrs)) {
+      for (const attr of attrs) {
+        const n = String(attr?.name || "").trim();
+        if (!n) continue;
+        const isTechnical = attr?.variation === false || isTechnicalAttrName(n);
+        if (!isTechnical) continue;
 
-      if (attr?.value) add(n, attr.value);
-      if (Array.isArray(attr.values)) for (const v of attr.values) add(n, v);
-      if (Array.isArray(attr.options)) for (const v of attr.options) add(n, v);
+        if (attr?.value) add(n, attr.value);
+        if (Array.isArray(attr.values)) for (const v of attr.values) add(n, v);
+        if (Array.isArray(attr.options)) for (const v of attr.options) add(n, v);
+      }
+    } else if (typeof attrs === "object") {
+      for (const [name, value] of Object.entries(attrs)) {
+        if (!name) continue;
+        const isTechnical = isTechnicalAttrName(name);
+        if (!isTechnical) continue;
+        if (value) add(name, String(value));
+      }
     }
   };
+
 
   collect(parent.attributes || []);
   
