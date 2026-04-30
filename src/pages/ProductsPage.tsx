@@ -1552,7 +1552,7 @@ const ProductsPage = () => {
                 </Button>
               </div>
             </div>
-            <Progress value={activePublishJob.total_products > 0 ? (publishStats.confirmed / activePublishJob.total_products) * 100 : 0} className="h-2" />
+            <Progress value={activePublishJob.status === "completed" ? 100 : (activePublishJob.total_products > 0 ? (publishStats.confirmed / activePublishJob.total_products) * 100 : 0)} className="h-2" />
             <p className="text-[10px] text-muted-foreground mt-1.5">
               Só conta como publicado quando o WooCommerce confirma criação/atualização real.
             </p>
