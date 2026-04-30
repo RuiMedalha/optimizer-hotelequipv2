@@ -213,6 +213,13 @@ export function ProductDetailModal({ product, onClose }: Props) {
                 <p className="truncate text-base">{product.original_title ?? "Sem título"}</p>
                 <WorkflowStateBadge state={(product as any).workflow_state} size="sm" />
               </div>
+              <div className="mt-3 bg-muted/20 p-3 rounded-lg border border-border/50 max-w-2xl">
+                <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1.5 flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3 text-primary" />
+                  Categorização Inteligente
+                </p>
+                <CategoryCell product={product} />
+              </div>
             </div>
           </DialogTitle>
         </DialogHeader>

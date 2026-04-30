@@ -43,32 +43,47 @@ export function CategoryCell({ product }: Props) {
             </div>
 
             {/* Suggestions indicators below the main category */}
-            {!product.category && primarySuggestion && (
-              <div 
-                className="mt-1 flex items-center gap-1.5 text-[10px] text-primary font-bold bg-primary/5 border border-primary/20 px-1.5 py-0.5 rounded cursor-pointer hover:bg-primary/10 transition-all shadow-sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleSelect(primarySuggestion.category_id, primarySuggestion.category_name, primarySuggestion.source);
-                }}
-              >
-                <Sparkles className="w-2.5 h-2.5" />
-                <span className="truncate max-w-[120px]">{primarySuggestion.category_name}</span>
-                <span className="ml-auto opacity-70">{primarySuggestion.confidence}%</span>
-              </div>
-            )}
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {!product.category && primarySuggestion && (
+                <div 
+                  className="flex items-center gap-1.5 text-[10px] text-primary font-bold bg-primary/5 border border-primary/20 px-2 py-0.5 rounded cursor-pointer hover:bg-primary/10 transition-all shadow-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSelect(primarySuggestion.category_id, primarySuggestion.category_name, primarySuggestion.source);
+                  }}
+                >
+                  <Sparkles className="w-2.5 h-2.5" />
+                  <span className="truncate max-w-[150px]">{primarySuggestion.category_name}</span>
+                  <span className="ml-1 opacity-70">{primarySuggestion.confidence}%</span>
+                </div>
+              )}
 
-            {product.category && primarySuggestion && primarySuggestion.category_name !== product.category && (
-              <div 
-                className="mt-1 flex items-center gap-1.5 text-[10px] text-destructive font-bold bg-destructive/5 border border-destructive/20 px-1.5 py-0.5 rounded cursor-pointer hover:bg-destructive/10 transition-all"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleSelect(primarySuggestion.category_id, primarySuggestion.category_name, primarySuggestion.source);
-                }}
-              >
-                <MousePointer2 className="w-2.5 h-2.5 rotate-45" />
-                <span className="truncate max-w-[120px] italic">Melhorar para: {primarySuggestion.category_name}</span>
-              </div>
-            )}
+              {secondarySuggestion && (
+                <div 
+                  className="flex items-center gap-1.5 text-[10px] text-orange-600 font-bold bg-orange-50 border border-orange-200 px-2 py-0.5 rounded cursor-pointer hover:bg-orange-100 transition-all shadow-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSelect(secondarySuggestion.category_id, secondarySuggestion.category_name, secondarySuggestion.source);
+                  }}
+                >
+                  <span className="truncate max-w-[150px]">{secondarySuggestion.category_name}</span>
+                  <span className="ml-1 opacity-70">{secondarySuggestion.confidence}%</span>
+                </div>
+              )}
+
+              {product.category && primarySuggestion && primarySuggestion.category_name !== product.category && (
+                <div 
+                  className="flex items-center gap-1.5 text-[10px] text-destructive font-bold bg-destructive/5 border border-destructive/20 px-2 py-0.5 rounded cursor-pointer hover:bg-destructive/10 transition-all"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSelect(primarySuggestion.category_id, primarySuggestion.category_name, primarySuggestion.source);
+                  }}
+                >
+                  <MousePointer2 className="w-2.5 h-2.5 rotate-45" />
+                  <span className="truncate max-w-[150px] italic">Corrigir para: {primarySuggestion.category_name}</span>
+                </div>
+              )}
+            </div>
           </div>
         </PopoverTrigger>
 
