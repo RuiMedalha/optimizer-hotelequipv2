@@ -68,12 +68,23 @@ export function ReconciliationTab() {
 
   const handleOpenDetail = (item: SyncStagingItem & { job: { config: any } | null }) => {
     setSelectedItem(item);
-    const initialChanges: Record<string, boolean> = {};
+    const initialChanges: Record<string, any> = {};
     if (item.proposed_changes) {
       Object.keys(item.proposed_changes).forEach(key => {
-        initialChanges[key] = true;
+        initialChanges[key] = item.proposed_changes[key];
       });
     }
+    
+    // Default image reordering logic: Delta first, Site second
+    const deltaImgs = Array.isArray(item.proposed_changes?.image_urls) ? item.proposed_changes.image_urls : (item.proposed_changes?.image_urls ? [item.proposed_changes.image_urls] : []);
+    const siteImgs = Array.isArray(item.site_data?.image_urls) ? item.site_data.image_urls : (item.site_data?.image_urls ? [item.site_data.image_urls] : []);
+    
+    if (deltaImgs.length > 0) {
+      initialChanges['image_urls'] = [...new Set([...deltaImgs, ...siteImgs])];
+    } else if (siteImgs.length > 0) {
+      initialChanges['image_urls'] = siteImgs;
+    }
+    
     setPendingChanges(initialChanges);
   };
 
