@@ -1562,21 +1562,14 @@ const ProductsPage = () => {
 
       {/* WooCommerce Publish Job Completed */}
       {activePublishJob && (activePublishJob.status === "cancelled" || activePublishJob.status === "failed") && (
-        <Card className={cn(
-          "border-l-4",
-          activePublishJob.status === "completed" ? "border-l-success" : "border-l-warning"
-        )}>
+        <Card className="border-l-4 border-l-warning">
           <CardContent className="p-3">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                {activePublishJob.status === "completed" ? (
-                  <Check className="w-4 h-4 text-success" />
-                ) : (
-                  <Ban className="w-4 h-4 text-warning" />
-                )}
+                <Ban className="w-4 h-4 text-warning" />
                 <span className="text-sm">
-                  {activePublishJob.status === "completed"
-                    ? `Publicação concluída: ${publishStats.confirmed} publicados, ${publishStats.errors} erros${publishStats.skipped > 0 ? `, ${publishStats.skipped} ignorados` : ""}`
+                  {activePublishJob.status === "failed" 
+                    ? `Publicação falhou: ${activePublishJob.total_products} produtos` 
                     : `Publicação cancelada: ${publishStats.confirmed} publicados confirmados de ${activePublishJob.total_products}`
                   }
                 </span>
@@ -1585,7 +1578,7 @@ const ProductsPage = () => {
                 <XCircle className="w-3 h-3 mr-1" /> Fechar
               </Button>
             </div>
-            {activePublishJob.status === "completed" && activePublishJob.results && (activePublishJob.results as any[]).length > 0 && (
+            {activePublishJob.results && (activePublishJob.results as any[]).length > 0 && (
               <div className="space-y-1 max-h-40 overflow-y-auto">
                 {(activePublishJob.results as any[]).map((r: any, i: number) => {
                   const product = products.find(p => p.id === r.id);
