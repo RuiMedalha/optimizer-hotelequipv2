@@ -97,6 +97,7 @@ export function ProductDetailModal({ product, onClose }: Props) {
 
   const [editData, setEditData] = useState<Record<string, any>>({});
   const [hasChanges, setHasChanges] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   useEffect(() => {
     if (product) {
