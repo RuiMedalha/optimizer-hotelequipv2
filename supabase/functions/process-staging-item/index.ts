@@ -82,10 +82,12 @@ Deno.serve(async (req) => {
       const skuPrefix = jobConfig.skuPrefix || "";
       const useSkuAsModel = jobConfig.autoModelFromSku === true;
 
-      // Calcular Modelo (Remover prefixo se configurado)
-      const calculatedModel = useSkuAsModel && skuPrefix && sku.startsWith(skuPrefix) 
-        ? sku.slice(skuPrefix.length) 
-        : (rawData.model || staging.sku_supplier || sku);
+      // Calcular Modelo: se configurado para usar SKU, remove o prefixo. 
+      // Caso contrário, usa o modelo do fornecedor ou o SKU original (sku_supplier).
+      let calculatedModel = rawData.model || staging.sku_supplier || sku;
+      if (useSkuAsModel && skuPrefix && String(sku).startsWith(skuPrefix)) {
+        calculatedModel = String(sku).slice(skuPrefix.length);
+      }
 
       if (is_discontinued) {
         if (effectiveProductId) {
@@ -116,7 +118,9 @@ Deno.serve(async (req) => {
             brand: defaultBrand,
             model: calculatedModel,
             supplier_title: cleanSupplierValue(rawData.original_title ?? rawData.supplier_title ?? rawData.title),
-            original_title: null
+            original_title: cleanSupplierValue(rawData.original_title ?? rawData.supplier_title ?? rawData.title),
+            supplier_description: cleanSupplierValue(rawData.original_description ?? rawData.supplier_description ?? rawData.description),
+            original_description: cleanSupplierValue(rawData.original_description ?? rawData.supplier_description ?? rawData.description)
           };
 
           const { error: insertErr } = await supabase.from("products").insert(insertData);
@@ -151,16 +155,18 @@ Deno.serve(async (req) => {
           }
         });
 
-        // REGRAS DE TÍTULO E DESCRIÇÃO
+        // REGRAS DE TÍTULO E DESCRIÇÃO: Preencher ambos (original e supplier) para novos produtos
         const sTitle = cleanSupplierValue(rawData.original_title ?? rawData.supplier_title ?? rawData.title);
         const sDesc = cleanSupplierValue(rawData.original_description ?? rawData.supplier_description ?? rawData.description);
         
-        if (sTitle !== undefined) cleanData.supplier_title = sTitle;
-        if (sDesc !== undefined) cleanData.supplier_description = sDesc;
-        
-        // Forçar originais a null para futura otimização
-        cleanData.original_title = null;
-        cleanData.original_description = null;
+        if (sTitle !== undefined) {
+          cleanData.supplier_title = sTitle;
+          cleanData.original_title = sTitle;
+        }
+        if (sDesc !== undefined) {
+          cleanData.supplier_description = sDesc;
+          cleanData.original_description = sDesc;
+        }
 
         // Forçar Marca e Modelo do Job
         cleanData.brand = defaultBrand;
