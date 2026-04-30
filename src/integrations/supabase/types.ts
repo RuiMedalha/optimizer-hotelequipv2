@@ -9730,6 +9730,7 @@ export type Database = {
           id: string
           image_alt_texts: Json | null
           image_urls: string[] | null
+          is_discontinued: boolean | null
           locked_for_publish: boolean | null
           meta_description: string | null
           meta_title: string | null
@@ -9789,6 +9790,7 @@ export type Database = {
           id?: string
           image_alt_texts?: Json | null
           image_urls?: string[] | null
+          is_discontinued?: boolean | null
           locked_for_publish?: boolean | null
           meta_description?: string | null
           meta_title?: string | null
@@ -9850,6 +9852,7 @@ export type Database = {
           id?: string
           image_alt_texts?: Json | null
           image_urls?: string[] | null
+          is_discontinued?: boolean | null
           locked_for_publish?: boolean | null
           meta_description?: string | null
           meta_title?: string | null
