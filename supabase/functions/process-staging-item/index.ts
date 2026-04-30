@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
             stock: 0,
             origin: 'supplier',
             brand: defaultBrand,
-            model: useSkuAsModel ? staging.sku_supplier : sku,
+            model: calculatedModel,
             supplier_title: cleanSupplierValue(rawData.original_title ?? rawData.supplier_title ?? rawData.title),
             original_title: null
           };
