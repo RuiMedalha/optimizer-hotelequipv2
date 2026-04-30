@@ -613,7 +613,11 @@ Deno.serve(async (req) => {
             const r = arr[map.pos];
             if (r && r.id && !r.error) {
               await supabase.from("products")
-                .update({ woocommerce_id: r.id, status: "published" })
+                .update({ 
+                  woocommerce_id: r.id, 
+                  status: "published",
+                  workflow_state: "published"
+                })
                 .eq("id", map.product.id);
               existingResults.push({
                 id: map.product.id,
