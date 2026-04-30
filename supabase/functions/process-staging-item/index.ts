@@ -9,7 +9,7 @@ const corsHeaders = {
 const cleanSupplierValue = (val: any) => {
   if (val === null || val === undefined) return undefined;
   const sVal = String(val).trim();
-  if (sVal === "" || sVal === "-" || sVal === "—" || sVal === "—") return undefined;
+  if (sVal === "" || sVal === "-" || sVal === "—") return undefined;
   return val;
 };
 
@@ -64,14 +64,19 @@ Deno.serve(async (req) => {
         
         if (existingProd) {
           effectiveProductId = existingProd.id;
-          // Opcionalmente atualizar o staging com o ID encontrado para futuras referências
           await supabase.from("sync_staging").update({ existing_product_id: effectiveProductId }).eq("id", id);
         }
       }
 
       const is_discontinued = rawData.is_discontinued === true || staging.change_type === 'discontinued';
 
-      // REGRA 1: Se descontinuado
+      // BUSCAR CONFIGURAÇÃO DO JOB
+      const { data: job } = await supabase
+        .from("ingestion_jobs")
+        .select("default_brand, sku_prefix, use_sku_as_model")
+        .eq("id", staging.job_id)
+        .single();
+
       if (is_discontinued) {
         if (effectiveProductId) {
           const { error: updateErr } = await supabase
@@ -86,7 +91,6 @@ Deno.serve(async (req) => {
           
           if (updateErr) throw updateErr;
         } else {
-          // Se é novo e já vem como descontinuado, criamos como rascunho descontinuado
           const { data: ws } = await supabase.from("workspaces").select("user_id").eq("id", staging.workspace_id).single();
           if (!ws?.user_id) throw new Error("Workspace owner not found");
 
@@ -98,18 +102,17 @@ Deno.serve(async (req) => {
             workflow_state: 'draft',
             is_discontinued: true,
             stock: 0,
-            original_title: cleanSupplierValue(rawData.original_title ?? rawData.title ?? rawData.Nome ?? rawData.Nombre) || sku,
-            origin: 'supplier'
+            origin: 'supplier',
+            brand: job?.default_brand,
+            model: job?.use_sku_as_model ? staging.sku_supplier : sku,
+            supplier_title: cleanSupplierValue(rawData.original_title ?? rawData.supplier_title ?? rawData.title),
+            original_title: null
           };
 
           const { error: insertErr } = await supabase.from("products").insert(insertData);
           if (insertErr) throw insertErr;
         }
       } else {
-        // ... (continua com a lógica normal de update/create)
-        // Note: I will need to use effectiveProductId here too
-
-        // REGRA 2: Filtrar campos vazios e Reordenar Imagens
         const productColumns = [
           'sku', 'original_title', 'optimized_title', 'original_description', 'optimized_description',
           'original_price', 'optimized_price', 'category', 'tags', 'meta_title', 'meta_description',
@@ -125,13 +128,9 @@ Deno.serve(async (req) => {
 
         const cleanData: Record<string, any> = {};
         
-        // Mapear preços (Regra 2 aplicada)
+        // Mapear preços
         const price = cleanSupplierValue(rawData.original_price ?? rawData.price ?? rawData.Preço ?? rawData.Publico);
         if (price !== undefined) cleanData.original_price = price;
-
-        // Mapear títulos e descrições (Regra 4)
-        const sTitle = cleanSupplierValue(rawData.supplier_title ?? rawData.title ?? rawData.Nome ?? rawData.Nombre);
-        if (sTitle !== undefined) cleanData.supplier_title = sTitle;
 
         // Limpeza geral de colunas
         Object.keys(rawData).forEach(key => {
@@ -141,7 +140,15 @@ Deno.serve(async (req) => {
           }
         });
 
-        // REORDENAÇÃO DE IMAGENS (REGRA NOVA)
+        // REGRAS DE TÍTULO E DESCRIÇÃO
+        cleanData.supplier_title = cleanSupplierValue(rawData.original_title ?? rawData.supplier_title ?? rawData.title);
+        cleanData.supplier_description = cleanSupplierValue(rawData.original_description ?? rawData.supplier_description ?? rawData.description);
+        
+        // Definir originais como null (serão preenchidos na otimização)
+        cleanData.original_title = null;
+        cleanData.original_description = null;
+
+        // REORDENAÇÃO DE IMAGENS
         const deltaImgs = Array.isArray(rawData.image_urls) ? rawData.image_urls : (rawData.image_urls ? [rawData.image_urls] : []);
         const siteImgs = Array.isArray(staging.site_data?.image_urls) ? staging.site_data.image_urls : (staging.site_data?.image_urls ? [staging.site_data.image_urls] : []);
 
@@ -152,13 +159,7 @@ Deno.serve(async (req) => {
           cleanData.image_urls = siteImgs;
         }
 
-        // BUSCAR MARCA PADRÃO E MODELO
-        const { data: job } = await supabase
-          .from("ingestion_jobs")
-          .select("default_brand")
-          .eq("id", staging.job_id)
-          .single();
-
+        // REGRAS DE MARCA E MODELO
         if (effectiveProductId) {
           const { data: existingProd } = await supabase
             .from("products")
@@ -171,12 +172,12 @@ Deno.serve(async (req) => {
           }
 
           if (!existingProd?.model) {
-            cleanData.model = staging.sku_supplier || sku;
+            cleanData.model = job?.use_sku_as_model ? staging.sku_supplier : sku;
           }
 
           const { error: updateErr } = await supabase
             .from("products")
-            .update({ ...cleanData, original_title: null, updated_at: new Date().toISOString() })
+            .update({ ...cleanData, updated_at: new Date().toISOString() })
             .eq("id", effectiveProductId);
           if (updateErr) throw updateErr;
         } else {
@@ -191,10 +192,8 @@ Deno.serve(async (req) => {
             status: 'pending',
             workflow_state: 'draft',
             origin: 'supplier',
-            brand: cleanData.brand || job?.default_brand,
-            model: staging.sku_supplier || sku,
-            supplier_title: sTitle,
-            original_title: null,
+            brand: job?.default_brand,
+            model: job?.use_sku_as_model ? staging.sku_supplier : sku,
             is_discontinued: false
           };
 
