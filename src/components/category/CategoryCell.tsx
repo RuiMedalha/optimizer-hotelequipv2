@@ -158,6 +158,7 @@ export function CategoryCell({ product }: Props) {
                 <CategoryCascadingSelector 
                   onSelect={(cat) => handleSelect(cat.id, cat.name, 'manual')}
                   suggestedIds={suggestions?.map(s => s.category_id) || []}
+                  workspaceId={product.workspace_id}
                 />
               </div>
             )}

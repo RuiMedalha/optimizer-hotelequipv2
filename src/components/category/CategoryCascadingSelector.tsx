@@ -11,71 +11,113 @@ interface Category {
   id: string;
   name: string;
   parent_id: string | null;
+  workspace_id?: string | null;
 }
 
 interface Props {
   onSelect: (category: { id: string; name: string }) => void;
   suggestedIds?: string[];
+  workspaceId?: string | null;
 }
 
-export function CategoryCascadingSelector({ onSelect, suggestedIds = [] }: Props) {
+export function CategoryCascadingSelector({ onSelect, suggestedIds = [], workspaceId }: Props) {
   const [level1, setLevel1] = useState<string | null>(null);
   const [level2, setLevel2] = useState<string | null>(null);
   const [level3, setLevel3] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
-  const { data: categories, isLoading } = useQuery({
-    queryKey: ["all-categories-tree"],
+  const { data: roots, isLoading: loadingRoots } = useQuery({
+    queryKey: ["category-roots", workspaceId],
+    queryFn: async () => {
+      let query = supabase
+        .from("categories")
+        .select("id, name, parent_id, workspace_id")
+        .is("parent_id", null)
+        .order("name");
+      
+      if (workspaceId) {
+        query = query.or(`workspace_id.eq.${workspaceId},workspace_id.is.null`);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      
+      // Filter out duplicates in names for display, preferring workspace-specific ones
+      const uniqueNames = new Map();
+      data?.forEach(cat => {
+        if (!uniqueNames.has(cat.name) || (workspaceId && cat.workspace_id === workspaceId)) {
+          uniqueNames.set(cat.name, cat);
+        }
+      });
+      return Array.from(uniqueNames.values()) as Category[];
+    }
+  });
+
+  const { data: level2Options, isLoading: loadingL2 } = useQuery({
+    queryKey: ["category-sub", level1, workspaceId],
+    enabled: !!level1,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("categories")
-        .select("id, name, parent_id")
+        .select("id, name, parent_id, workspace_id")
+        .eq("parent_id", level1)
         .order("name");
       if (error) throw error;
       return data as Category[];
     }
   });
 
-  const getFullPath = (catId: string, list: Category[]): string => {
-    const cat = list.find(c => c.id === catId);
-    if (!cat) return "";
-    if (cat.parent_id) {
-      const parentPath = getFullPath(cat.parent_id, list);
-      return parentPath ? `${parentPath} > ${cat.name}` : cat.name;
+  const { data: level3Options, isLoading: loadingL3 } = useQuery({
+    queryKey: ["category-sub", level2, workspaceId],
+    enabled: !!level2,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, name, parent_id, workspace_id")
+        .eq("parent_id", level2)
+        .order("name");
+      if (error) throw error;
+      return data as Category[];
     }
-    return cat.name;
+  });
+
+  const { data: searchResults, isLoading: loadingSearch } = useQuery({
+    queryKey: ["category-search", search, workspaceId],
+    enabled: search.length > 1,
+    queryFn: async () => {
+      // Use join to get parent name for context
+      const { data, error } = await supabase
+        .from("categories")
+        .select(`
+          id, 
+          name, 
+          parent_id, 
+          workspace_id,
+          parent:parent_id (
+            name
+          )
+        `)
+        .ilike("name", `%${search}%`)
+        .limit(20);
+      if (error) throw error;
+      
+      return data.map((cat: any) => ({
+        ...cat,
+        parentName: cat.parent?.name
+      })) as (Category & { parentName?: string })[];
+    }
+  });
+
+  const isLoading = loadingRoots || loadingL2 || loadingL3;
+
+  const getLabel = (catId: string | null): string => {
+    if (!catId) return "";
+    const allOptions = [...(roots || []), ...(level2Options || []), ...(level3Options || []), ...(searchResults || [])];
+    const cat = allOptions.find(c => c.id === catId);
+    return cat ? cat.name : "";
   };
 
-  const level2Options = useMemo(() => 
-    level1 ? categories?.filter(c => c.parent_id === level1) || [] : [],
-    [level1, categories]
-  );
-
-  const level3Options = useMemo(() => 
-    level2 ? categories?.filter(c => c.parent_id === level2) || [] : [],
-    [level2, categories]
-  );
-
-  const searchResults = useMemo(() => {
-    if (!search || !categories) return [];
-    const query = search.toLowerCase();
-    return categories
-      .filter(c => c.name.toLowerCase().includes(query))
-      .map(c => ({
-        id: c.id,
-        name: c.name,
-        fullPath: getFullPath(c.id, categories)
-      }))
-      .sort((a, b) => a.fullPath.localeCompare(b.fullPath))
-      .slice(0, 10);
-  }, [search, categories]);
-
-  const roots = useMemo(() => 
-    categories?.filter(c => !c.parent_id) || [], 
-    [categories]
-  );
-
-  if (isLoading) return <div className="flex items-center justify-center p-4"><Loader2 className="w-4 h-4 animate-spin mr-2" /> Carregando categorias...</div>;
+  if (loadingRoots && !roots) return <div className="flex items-center justify-center p-4"><Loader2 className="w-4 h-4 animate-spin mr-2" /> Carregando categorias...</div>;
 
   return (
     <div className="space-y-4 p-2">
@@ -91,18 +133,26 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [] }: Props
           />
         </div>
 
-        {search && searchResults.length > 0 && (
+        {search && searchResults && searchResults.length > 0 && (
           <div className="bg-muted/30 border rounded-md p-1 mt-1 space-y-1">
             {searchResults.map(res => (
               <button
                 key={res.id}
-                onClick={() => onSelect({ id: res.id, name: res.fullPath })}
+                onClick={() => onSelect({ id: res.id, name: res.parentName ? `${res.parentName} > ${res.name}` : res.name })}
                 className="w-full text-left p-2 hover:bg-primary/10 rounded text-[11px] flex flex-col gap-0.5 transition-colors"
               >
                 <span className="font-semibold">{res.name}</span>
-                <span className="text-muted-foreground truncate">{res.fullPath}</span>
+                {res.parentName && <span className="text-[10px] text-muted-foreground italic truncate">em {res.parentName}</span>}
               </button>
             ))}
+          </div>
+        )}
+        {search && searchResults && searchResults.length === 0 && !loadingSearch && (
+          <div className="p-2 text-center text-[10px] text-muted-foreground italic">Nenhum resultado encontrado</div>
+        )}
+        {loadingSearch && (
+          <div className="p-2 text-center text-[10px] text-muted-foreground italic flex items-center justify-center gap-2">
+            <Loader2 className="w-3 h-3 animate-spin" /> Pesquisando...
           </div>
         )}
       </div>
@@ -117,7 +167,7 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [] }: Props
                 <SelectValue placeholder="Selecione categoria" />
               </SelectTrigger>
               <SelectContent className="max-h-[300px]">
-                {roots.map(c => (
+                {roots?.map(c => (
                   <SelectItem key={c.id} value={c.id}>
                     <div className="flex items-center gap-2">
                       {c.name}
@@ -134,11 +184,11 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [] }: Props
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold uppercase text-muted-foreground px-1">Nível 2</label>
               <Select value={level2 || ""} onValueChange={(v) => { setLevel2(v); setLevel3(null); }}>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Selecione sub-categoria" />
+                <SelectTrigger className="h-9 text-left">
+                  <SelectValue placeholder={loadingL2 ? "Carregando..." : "Selecione sub-categoria"} />
                 </SelectTrigger>
                 <SelectContent className="max-h-[300px]">
-                  {level2Options.map(c => (
+                  {level2Options?.map(c => (
                     <SelectItem key={c.id} value={c.id}>
                       <div className="flex items-center gap-2">
                         {c.name}
@@ -146,21 +196,24 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [] }: Props
                       </div>
                     </SelectItem>
                   ))}
+                  {!loadingL2 && (!level2Options || level2Options.length === 0) && (
+                    <div className="p-2 text-center text-xs text-muted-foreground italic">Nenhuma sub-categoria</div>
+                  )}
                 </SelectContent>
               </Select>
             </div>
           )}
 
           {/* Level 3 */}
-          {level2 && level3Options.length > 0 && (
+          {level2 && (
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold uppercase text-muted-foreground px-1">Nível 3</label>
               <Select value={level3 || ""} onValueChange={(v) => setLevel3(v)}>
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Selecione detalhe" />
+                <SelectTrigger className="h-9 text-left">
+                  <SelectValue placeholder={loadingL3 ? "Carregando..." : "Selecione detalhe"} />
                 </SelectTrigger>
                 <SelectContent className="max-h-[300px]">
-                  {level3Options.map(c => (
+                  {level3Options?.map(c => (
                     <SelectItem key={c.id} value={c.id}>
                       <div className="flex items-center gap-2">
                         {c.name}
@@ -168,6 +221,9 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [] }: Props
                       </div>
                     </SelectItem>
                   ))}
+                  {!loadingL3 && (!level3Options || level3Options.length === 0) && (
+                    <div className="p-2 text-center text-xs text-muted-foreground italic">Nenhum detalhe disponível</div>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -179,8 +235,8 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [] }: Props
               disabled={!level1}
               onClick={() => {
                 const finalId = level3 || level2 || level1;
-                if (finalId && categories) {
-                  onSelect({ id: finalId, name: getFullPath(finalId, categories) });
+                if (finalId) {
+                  onSelect({ id: finalId, name: getLabel(finalId) });
                 }
               }}
             >
