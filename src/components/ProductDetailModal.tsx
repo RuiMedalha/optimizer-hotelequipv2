@@ -951,6 +951,9 @@ export function ProductDetailModal({ product, onClose }: Props) {
             )}
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsPreviewOpen(true)}>
+              <Eye className="w-4 h-4 mr-1" /> Ver Preview
+            </Button>
             <Button variant="destructive" size="sm" onClick={() => { updateStatus.mutate({ ids: [product.id], status: "error" }); onClose(); }}>
               Rejeitar
             </Button>
