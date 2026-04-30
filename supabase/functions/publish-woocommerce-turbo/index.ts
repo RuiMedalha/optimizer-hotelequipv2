@@ -682,7 +682,7 @@ Deno.serve(async (req) => {
           }
         }
       }
-      }
+    }
 
       // 4) Persistir progresso
       const newFailed = existingResults.filter(r => r.status === "error").length - (job.failed_products || 0);
