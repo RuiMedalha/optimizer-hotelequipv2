@@ -181,13 +181,13 @@ export function ProductDetailModal({ product, onClose }: Props) {
 
   // Parse technical specs for preview
   const technicalSpecs = useMemo(() => {
-    if (!product.technical_specs) return null;
+    if (!product || !product.technical_specs) return null;
     try {
       return JSON.parse(product.technical_specs);
     } catch {
       return product.technical_specs;
     }
-  }, [product.technical_specs]);
+  }, [product?.technical_specs]);
 
   return (
     <Dialog open={!!product} onOpenChange={() => onClose()}>
