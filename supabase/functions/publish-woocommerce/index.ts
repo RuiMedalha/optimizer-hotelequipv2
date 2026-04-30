@@ -1444,8 +1444,15 @@ async function enrichWithExtraContent(
     const wantsFaqCustom = has("faq_custom_field");
     const wantsFaqInDesc = has("faq_in_description");
 
-    // FAQ in description — ONLY if explicitly selected AND custom field is NOT selected
-    // When custom field is chosen, it takes priority (no duplication in description)
+    // --- FAQ STRIPPING (Default: remove from description if not explicitly requested) ---
+    if (!wantsFaqInDesc) {
+      let desc = String(wooProduct.description || product.optimized_description || product.original_description || "");
+      if (desc.includes("product-faq")) {
+        desc = desc.replace(/<div\s+class=["']product-faq["'][\s\S]*?<\/div>\s*<\/div>/gi, "");
+        console.log(`[enrichExtraContent] Inline FAQ div stripped by default for ${product.id}`);
+      }
+      wooProduct.description = desc;
+    }
     if (wantsFaqInDesc && !wantsFaqCustom) {
       const faqHtml = buildFaqHtml(faq);
       if (faqHtml) {

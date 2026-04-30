@@ -1152,7 +1152,7 @@ SECÇÕES OBRIGATÓRIAS (nesta ordem):
    - td: style="border:1px solid #e5e7eb; padding:8px 12px;"
 
 4. <div class="product-faq" style="margin-bottom:22px;"> com <h3>Perguntas Frequentes</h3>
-   - MÁXIMO 4 perguntas (nunca mais de 4, mínimo 2)
+   - EXATAMENTE 5 perguntas (nunca menos de 5)
    - Dentro de <div style="margin-top:10px; background:#fcfcfd; border:1px solid #e5e7eb; border-radius:8px; padding:14px 16px;">
    - NÃO uses <details>/<summary> — as respostas são SEMPRE visíveis
    - Cada FAQ como:
@@ -1249,8 +1249,9 @@ REGRAS:
 - Mantém o preço original se parecer correto para o mercado
 - Ajusta ligeiramente se for claramente abaixo ou acima do mercado
 - Considera o posicionamento do produto (entrada, médio, premium)`,
-          faq: `Gera 3-5 FAQs sobre o produto.
+          faq: `Gera EXATAMENTE 5 FAQs sobre o produto.
 REGRAS OBRIGATÓRIAS:
+- Gera SEMPRE 5 perguntas relevantes. Se não houver informação suficiente, gera perguntas baseadas nas especificações técnicas e aplicação prática.
 - Pergunta sobre dimensões/espaço necessário
 - Pergunta sobre instalação/requisitos (gás, electricidade, água)
 - Pergunta sobre manutenção/limpeza
@@ -1618,10 +1619,31 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
         }
 
         if (typeof optimized.optimized_description === "string") {
+          // --- FAQ EXTRACTION (if structured data is missing but HTML has it) ---
+          if ((!optimized.faq || !Array.isArray(optimized.faq) || optimized.faq.length === 0) && optimized.optimized_description.includes("product-faq")) {
+            try {
+              const faqMatch = optimized.optimized_description.match(/<div class="product-faq"[\s\S]*?>([\s\S]*?)<\/div>\s*<\/div>/i);
+              if (faqMatch) {
+                const faqHtml = faqMatch[1];
+                const qas = [];
+                const pMatches = faqHtml.matchAll(/<p style="font-weight:bold[^>]*>(.*?)<\/p>\s*<p style="font-style:italic[^>]*>(.*?)<\/p>/gi);
+                for (const m of pMatches) {
+                  if (m[1] && m[2]) qas.push({ question: m[1].trim(), answer: m[2].trim() });
+                }
+                if (qas.length > 0) {
+                  console.log(`[optimize-product] Extracted ${qas.length} FAQs from HTML description`);
+                  optimized.faq = qas;
+                }
+              }
+            } catch (e) {
+              console.warn("[optimize-product] Failed to extract FAQs from HTML:", e);
+            }
+          }
+
           const hadFaqPlaceholder = /\{\{faq\}\}/i.test(optimized.optimized_description);
           // Replace {{faq}} with actual FAQ HTML if we have FAQ data
           if (optimized.faq && Array.isArray(optimized.faq) && optimized.faq.length > 0) {
-            const limitedFaq = optimized.faq.slice(0, 4);
+            const limitedFaq = optimized.faq.slice(0, 5);
             const faqHtml = limitedFaq.map((f: any) =>
               `<p style="font-weight:bold; margin:0 0 4px; color:#2c2c2c;">${f.question}</p>\n<p style="font-style:italic; color:#6b7280; margin:0 0 14px;">${f.answer}</p>`
             ).join("\n");

@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Check, X, ExternalLink, RotateCcw, History, Send, ArrowUpRight, Shuffle, AlertTriangle, Brain, BookOpen, Globe, Database, Loader2, BarChart3, Columns, GitBranch, PackageSearch, ImageIcon, Sparkles, Camera, ShieldCheck, ClipboardCheck, Languages, Eye } from "lucide-react";
+import { Check, X, ExternalLink, RotateCcw, History, Send, ArrowUpRight, Shuffle, AlertTriangle, Brain, BookOpen, Globe, Database, Loader2, BarChart3, Columns, GitBranch, PackageSearch, ImageIcon, Sparkles, Camera, ShieldCheck, ClipboardCheck, Languages, Eye, Plus, Trash2 } from "lucide-react";
 import { useProcessImages } from "@/hooks/useProcessImages";
 import { useActiveImageModels } from "@/hooks/useAiProviderCenter";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
@@ -505,18 +505,82 @@ export function ProductDetailModal({ product, onClose }: Props) {
               <div className="text-center py-12 text-muted-foreground">
                 <p>Nenhuma FAQ gerada para este produto.</p>
                 <p className="text-xs mt-1">Otimize com o campo "FAQ" selecionado.</p>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="mt-4"
+                  onClick={() => {
+                    updateProduct.mutate({ id: product.id, updates: { faq: [{ question: "Nova Pergunta", answer: "Resposta aqui..." }] } });
+                  }}
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Criar Primeira FAQ
+                </Button>
               </div>
             ) : (
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">{faq.length} pergunta(s) frequente(s)</p>
-                {faq.map((item: { question: string; answer: string }, idx: number) => (
-                  <Card key={idx}>
-                    <CardContent className="p-4">
-                      <h4 className="font-medium text-sm mb-2">❓ {item.question}</h4>
-                      <p className="text-sm text-muted-foreground">{item.answer}</p>
-                    </CardContent>
-                  </Card>
-                ))}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">{faq.length} pergunta(s) frequente(s)</p>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={() => {
+                      const newFaq = [...faq, { question: "Nova Pergunta", answer: "Resposta aqui..." }];
+                      updateProduct.mutate({ id: product.id, updates: { faq: newFaq } });
+                    }}
+                    disabled={updateProduct.isPending || faq.length >= 8}
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1" /> Adicionar FAQ
+                  </Button>
+                </div>
+                <div className="space-y-3">
+                  {faq.map((item: any, idx: number) => (
+                    <Card key={idx} className="group relative">
+                      <CardContent className="p-4 pt-6">
+                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button 
+                            size="icon" 
+                            variant="ghost" 
+                            className="h-7 w-7 text-destructive"
+                            onClick={() => {
+                              if (confirm("Remover esta FAQ?")) {
+                                const newFaq = faq.filter((_: any, i: number) => i !== idx);
+                                updateProduct.mutate({ id: product.id, updates: { faq: newFaq } });
+                              }
+                            }}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                        <div className="space-y-3">
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-semibold text-muted-foreground uppercase">Pergunta</label>
+                            <Input 
+                              value={item.question} 
+                              onChange={(e) => {
+                                const newFaq = [...faq];
+                                newFaq[idx] = { ...newFaq[idx], question: e.target.value };
+                                updateProduct.mutate({ id: product.id, updates: { faq: newFaq } });
+                              }}
+                              className="text-sm font-medium h-8"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[10px] font-semibold text-muted-foreground uppercase">Resposta</label>
+                            <Textarea 
+                              value={item.answer} 
+                              onChange={(e) => {
+                                const newFaq = [...faq];
+                                newFaq[idx] = { ...newFaq[idx], answer: e.target.value };
+                                updateProduct.mutate({ id: product.id, updates: { faq: newFaq } });
+                              }}
+                              className="text-sm text-muted-foreground min-h-[60px]"
+                            />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               </div>
             )}
           </TabsContent>
