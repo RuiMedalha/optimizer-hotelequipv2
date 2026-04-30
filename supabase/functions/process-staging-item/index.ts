@@ -52,22 +52,63 @@ Deno.serve(async (req) => {
         throw new Error("SKU em falta");
       }
 
+      // Tentar encontrar o ID do produto se estiver em falta no staging
+      let effectiveProductId = staging.existing_product_id;
+      if (!effectiveProductId) {
+        const { data: existingProd } = await supabase
+          .from("products")
+          .select("id")
+          .eq("workspace_id", staging.workspace_id)
+          .eq("sku", sku)
+          .maybeSingle();
+        
+        if (existingProd) {
+          effectiveProductId = existingProd.id;
+          // Opcionalmente atualizar o staging com o ID encontrado para futuras referências
+          await supabase.from("sync_staging").update({ existing_product_id: effectiveProductId }).eq("id", id);
+        }
+      }
+
       const is_discontinued = rawData.is_discontinued === true || staging.change_type === 'discontinued';
 
-      // REGRA 1: Se descontinuado, apenas estas 3 colunas
-      if (is_discontinued && staging.existing_product_id) {
-        const { error: updateErr } = await supabase
-          .from("products")
-          .update({ 
+      // REGRA 1: Se descontinuado
+      if (is_discontinued) {
+        if (effectiveProductId) {
+          const { error: updateErr } = await supabase
+            .from("products")
+            .update({ 
+              is_discontinued: true,
+              stock: 0,
+              workflow_state: 'draft',
+              updated_at: new Date().toISOString() 
+            })
+            .eq("id", effectiveProductId);
+          
+          if (updateErr) throw updateErr;
+        } else {
+          // Se é novo e já vem como descontinuado, criamos como rascunho descontinuado
+          const { data: ws } = await supabase.from("workspaces").select("user_id").eq("id", staging.workspace_id).single();
+          if (!ws?.user_id) throw new Error("Workspace owner not found");
+
+          const insertData = {
+            sku: sku,
+            workspace_id: staging.workspace_id,
+            user_id: ws.user_id,
+            status: 'pending',
+            workflow_state: 'draft',
             is_discontinued: true,
             stock: 0,
-            workflow_state: 'draft',
-            updated_at: new Date().toISOString() 
-          })
-          .eq("id", staging.existing_product_id);
-        
-        if (updateErr) throw updateErr;
+            original_title: cleanSupplierValue(rawData.original_title ?? rawData.title ?? rawData.Nome ?? rawData.Nombre) || sku,
+            origin: 'supplier'
+          };
+
+          const { error: insertErr } = await supabase.from("products").insert(insertData);
+          if (insertErr) throw insertErr;
+        }
       } else {
+        // ... (continua com a lógica normal de update/create)
+        // Note: I will need to use effectiveProductId here too
+
         // REGRA 2: Filtrar campos vazios
         const productColumns = [
           'sku', 'original_title', 'optimized_title', 'original_description', 'optimized_description',
