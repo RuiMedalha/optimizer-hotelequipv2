@@ -686,7 +686,10 @@ function ensureBrandMeta(target: Record<string, unknown>, brandValue: string) {
   upsert("xstore_brand", brandValue);
   upsert("brand_id", brandValue);
   target.meta_data = existingMeta;
+}
+
 function ensureModelMeta(target: Record<string, unknown>, modelValue: string) {
+
   if (!modelValue) return;
   const existingMeta = Array.isArray(target.meta_data) ? target.meta_data as Array<{ key: string; value: string }> : [];
   const upsert = (key: string, value: string) => {
