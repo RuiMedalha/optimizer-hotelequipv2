@@ -153,16 +153,18 @@ Deno.serve(async (req) => {
           }
         });
 
-        // REGRAS DE TÍTULO E DESCRIÇÃO
+        // REGRAS DE TÍTULO E DESCRIÇÃO: Preencher ambos (original e supplier) para novos produtos
         const sTitle = cleanSupplierValue(rawData.original_title ?? rawData.supplier_title ?? rawData.title);
         const sDesc = cleanSupplierValue(rawData.original_description ?? rawData.supplier_description ?? rawData.description);
         
-        if (sTitle !== undefined) cleanData.supplier_title = sTitle;
-        if (sDesc !== undefined) cleanData.supplier_description = sDesc;
-        
-        // Forçar originais a null para futura otimização
-        cleanData.original_title = null;
-        cleanData.original_description = null;
+        if (sTitle !== undefined) {
+          cleanData.supplier_title = sTitle;
+          cleanData.original_title = sTitle;
+        }
+        if (sDesc !== undefined) {
+          cleanData.supplier_description = sDesc;
+          cleanData.original_description = sDesc;
+        }
 
         // Forçar Marca e Modelo do Job
         cleanData.brand = defaultBrand;
