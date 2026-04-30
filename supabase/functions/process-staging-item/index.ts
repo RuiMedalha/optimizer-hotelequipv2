@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
     if (action === 'approve') {
       const rawData = approvedData || staging.proposed_changes || staging.supplier_data || {};
 
-      // Get valid column names from DB to filter out any "proposed_changes" that don't exist
+      // Get valid column names from DB
       const productColumns = [
         'sku', 'original_title', 'optimized_title', 'original_description', 'optimized_description',
         'original_price', 'optimized_price', 'category', 'tags', 'meta_title', 'meta_description',
@@ -56,15 +56,27 @@ Deno.serve(async (req) => {
 
       const { is_discontinued, model, family, ...rest } = rawData as Record<string, any>;
       
-      // Build sanitized data: only keep keys that exist in products table
       const cleanData: Record<string, any> = {};
       
-      // Mapeamento especial para campos que vêm do fornecedor mas têm nomes diferentes na DB
+      // 1. Mapeamento de Preço (procurar em várias fontes comuns)
+      const foundPrice = rest.original_price ?? rest.price ?? rest.Preço ?? rest.Publico ?? rest.preco;
+      if (foundPrice !== undefined) {
+        cleanData.original_price = foundPrice;
+      }
+
+      // 2. Mapeamento de Título
+      const foundSupplierTitle = rest.supplier_title ?? rest.title ?? rest.Nome ?? rest.Nombre;
+      if (foundSupplierTitle !== undefined) {
+        cleanData.supplier_title = foundSupplierTitle;
+      }
+
+      // 3. Mapeamento de Modelo/Família
       if (model && !cleanData.canonical_supplier_model) cleanData.canonical_supplier_model = model;
       if (family && !cleanData.canonical_supplier_family) cleanData.canonical_supplier_family = family;
 
+      // 4. Copiar outros campos válidos
       Object.keys(rest).forEach(key => {
-        if (productColumns.includes(key)) {
+        if (productColumns.includes(key) && cleanData[key] === undefined) {
           cleanData[key] = rest[key];
         }
       });
