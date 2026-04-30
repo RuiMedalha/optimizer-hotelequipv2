@@ -777,33 +777,44 @@ function extractBrandValue(product: any, fallbackAttributes?: any[]): string | n
   return null;
 }
 
-function extractModelValue(product: any, fallbackAttributes?: any[]): string | null {
+function extractModelValue(product: any, fallbackAttributes?: any): string | null {
   // 1. Try explicit model column
   const fromColumn = String(product?.model || "").trim();
   if (fromColumn) return fromColumn;
 
-  // 2. Try primary attributes
-  const attributes = Array.isArray(product?.attributes) ? product.attributes : [];
-  for (const attr of attributes) {
-    const n = String(attr?.name || "").toLowerCase().trim();
-    if (n === "modelo" || n === "model") {
-      const rawValue = attr?.value ?? attr?.options?.[0] ?? (Array.isArray(attr?.values) ? attr.values[0] : null);
-      if (rawValue) return String(rawValue).trim();
+  // Helper to extract from attributes (handles both array and object formats)
+  const fromAttrs = (attrs: any) => {
+    if (!attrs) return null;
+    if (Array.isArray(attrs)) {
+      for (const attr of attrs) {
+        const n = String(attr?.name || "").toLowerCase().trim();
+        if (n === "modelo" || n === "model") {
+          const rawValue = attr?.value ?? attr?.options?.[0] ?? (Array.isArray(attr?.values) ? attr.values[0] : null);
+          if (rawValue) return String(rawValue).trim();
+        }
+      }
+    } else if (typeof attrs === "object") {
+      for (const [key, val] of Object.entries(attrs)) {
+        const n = key.toLowerCase().trim();
+        if (n === "modelo" || n === "model") {
+          if (val) return String(val).trim();
+        }
+      }
     }
-  }
+    return null;
+  };
+
+  // 2. Try primary attributes
+  const modelFromPrimary = fromAttrs(product?.attributes);
+  if (modelFromPrimary) return modelFromPrimary;
 
   // 3. Try fallback attributes
-  const fbAttrs = Array.isArray(fallbackAttributes) ? fallbackAttributes : [];
-  for (const attr of fbAttrs) {
-    const n = String(attr?.name || "").toLowerCase().trim();
-    if (n === "modelo" || n === "model") {
-      const rawValue = attr?.value ?? attr?.options?.[0] ?? (Array.isArray(attr?.values) ? attr.values[0] : null);
-      if (rawValue) return String(rawValue).trim();
-    }
-  }
+  const modelFromFallback = fromAttrs(fallbackAttributes);
+  if (modelFromFallback) return modelFromFallback;
 
   return null;
 }
+
 
 
 async function findWooProductBySku(baseUrl: string, auth: string, sku: string | null): Promise<number | null> {
