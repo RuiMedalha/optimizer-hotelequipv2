@@ -1761,7 +1761,17 @@ async function buildBasePayload(
 
   // ── Attributes (EAN, Marca, Modelo, etc.) for non-variation products ──
   if (product.product_type !== "variable" && !product.parent_product_id) {
-    const productAttrs = [...(Array.isArray(product.attributes) ? product.attributes : [])];
+    let productAttrs: any[] = [];
+    if (Array.isArray(product.attributes)) {
+      productAttrs = [...product.attributes];
+    } else if (product.attributes && typeof product.attributes === "object") {
+      // Convert flat object to array format
+      productAttrs = Object.entries(product.attributes).map(([name, value]) => ({
+        name,
+        value: String(value)
+      }));
+    }
+
     
     // Inject Marca and Modelo from top-level columns if they are missing from attributes
     const hasMarca = productAttrs.some(a => {
