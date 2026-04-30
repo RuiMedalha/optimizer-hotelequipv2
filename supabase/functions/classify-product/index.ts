@@ -138,7 +138,7 @@ Attributes: ${product.attributes ? JSON.stringify(product.attributes) : "N/A"}`;
         taskType: "categorization",
         workspaceId: workspace_id,
         systemPrompt,
-        messages: [{ role: role: "user", content: userPrompt }],
+        messages: [{ role: "user", content: userPrompt }],
         options: { max_tokens: 1024 },
       }),
     });
