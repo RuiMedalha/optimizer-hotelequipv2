@@ -2590,7 +2590,11 @@ async function publishSingleProduct(
 
   await supabase
     .from("products")
-    .update({ woocommerce_id: wooData.id, status: "published" as any })
+    .update({ 
+      woocommerce_id: wooData.id, 
+      status: "published" as any,
+      workflow_state: "published" as any 
+    })
     .eq("id", enrichedProduct.id);
 
   return { id: enrichedProduct.id, status: action, woocommerce_id: wooData.id };
@@ -2801,7 +2805,11 @@ async function publishVariableProduct(
 
   await supabase
     .from("products")
-    .update({ woocommerce_id: parentWooId, status: "published" as any })
+    .update({ 
+      woocommerce_id: parentWooId, 
+      status: "published" as any,
+      workflow_state: "published" as any 
+    })
     .eq("id", parent.id);
 
   return { id: parent.id, status: parentAction, woocommerce_id: parentWooId };
@@ -2874,7 +2882,11 @@ async function publishVariation(
 
     await supabase
       .from("products")
-      .update({ woocommerce_id: varWooData.id, status: "published" as any })
+      .update({ 
+        woocommerce_id: varWooData.id, 
+        status: "published" as any,
+        workflow_state: "published" as any 
+      })
       .eq("id", variation.id);
 
     return { id: variation.id, status: action, woocommerce_id: varWooData.id };

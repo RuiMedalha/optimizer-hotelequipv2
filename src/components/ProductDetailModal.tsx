@@ -979,7 +979,8 @@ export function ProductDetailModal({ product, onClose }: Props) {
               publishWoo.mutate({ productIds: [product.id] }); 
               onClose(); 
             }} disabled={publishWoo.isPending}>
-              <Send className="w-4 h-4 mr-1" /> Publicar
+              <Send className="w-4 h-4 mr-1" /> 
+              {product.status === "published" || product.woocommerce_id ? "Atualizar no WC" : "Publicar"}
             </Button>
           </div>
         </div>

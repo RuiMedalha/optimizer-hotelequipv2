@@ -1509,26 +1509,33 @@ const ProductsPage = () => {
       )}
 
       {/* WooCommerce Publish Job Progress */}
-      {activePublishJob && (activePublishJob.status === "processing" || activePublishJob.status === "queued" || activePublishJob.status === "scheduled") && (
-        <Card className="border-primary/30 bg-primary/5">
+      {activePublishJob && (activePublishJob.status === "processing" || activePublishJob.status === "queued" || activePublishJob.status === "scheduled" || activePublishJob.status === "completed") && (
+        <Card className={cn(
+          "border-primary/30",
+          activePublishJob.status === "completed" ? "bg-success/5 border-success/30" : "bg-primary/5"
+        )}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 {activePublishJob.status === "scheduled" ? (
                   <Send className="w-4 h-4 text-primary" />
+                ) : activePublishJob.status === "completed" ? (
+                  <Check className="w-4 h-4 text-success" />
                 ) : (
                   <Loader2 className="w-4 h-4 animate-spin text-primary" />
                 )}
                 <span className="text-sm font-medium">
                   {activePublishJob.status === "scheduled"
                     ? `Agendado para ${activePublishJob.scheduled_for ? new Date(activePublishJob.scheduled_for).toLocaleString("pt-PT") : "..."}`
-                    : `A publicar no WC: ${activePublishJob.current_product_name || "A iniciar..."}`
+                    : activePublishJob.status === "completed"
+                      ? "Publicado com sucesso"
+                      : `A publicar no WC: ${activePublishJob.current_product_name || "A iniciar..."}`
                   }
                 </span>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-sm font-mono text-muted-foreground">
-                  {publishStats.confirmed}/{activePublishJob.total_products}
+                  {activePublishJob.status === "completed" ? activePublishJob.total_products : publishStats.confirmed}/{activePublishJob.total_products}
                 </span>
                 {publishStats.errors > 0 && (
                   <Badge variant="destructive" className="text-[10px]">
@@ -1545,7 +1552,7 @@ const ProductsPage = () => {
                 </Button>
               </div>
             </div>
-            <Progress value={activePublishJob.total_products > 0 ? (publishStats.confirmed / activePublishJob.total_products) * 100 : 0} className="h-2" />
+            <Progress value={activePublishJob.status === "completed" ? 100 : (activePublishJob.total_products > 0 ? (publishStats.confirmed / activePublishJob.total_products) * 100 : 0)} className="h-2" />
             <p className="text-[10px] text-muted-foreground mt-1.5">
               Só conta como publicado quando o WooCommerce confirma criação/atualização real.
             </p>
@@ -1554,22 +1561,15 @@ const ProductsPage = () => {
       )}
 
       {/* WooCommerce Publish Job Completed */}
-      {activePublishJob && (activePublishJob.status === "completed" || activePublishJob.status === "cancelled" || activePublishJob.status === "failed") && (
-        <Card className={cn(
-          "border-l-4",
-          activePublishJob.status === "completed" ? "border-l-success" : "border-l-warning"
-        )}>
+      {activePublishJob && (activePublishJob.status === "cancelled" || activePublishJob.status === "failed") && (
+        <Card className="border-l-4 border-l-warning">
           <CardContent className="p-3">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                {activePublishJob.status === "completed" ? (
-                  <Check className="w-4 h-4 text-success" />
-                ) : (
-                  <Ban className="w-4 h-4 text-warning" />
-                )}
+                <Ban className="w-4 h-4 text-warning" />
                 <span className="text-sm">
-                  {activePublishJob.status === "completed"
-                    ? `Publicação concluída: ${publishStats.confirmed} publicados, ${publishStats.errors} erros${publishStats.skipped > 0 ? `, ${publishStats.skipped} ignorados` : ""}`
+                  {activePublishJob.status === "failed" 
+                    ? `Publicação falhou: ${activePublishJob.total_products} produtos` 
                     : `Publicação cancelada: ${publishStats.confirmed} publicados confirmados de ${activePublishJob.total_products}`
                   }
                 </span>
@@ -1578,7 +1578,7 @@ const ProductsPage = () => {
                 <XCircle className="w-3 h-3 mr-1" /> Fechar
               </Button>
             </div>
-            {activePublishJob.status === "completed" && activePublishJob.results && (activePublishJob.results as any[]).length > 0 && (
+            {activePublishJob.results && (activePublishJob.results as any[]).length > 0 && (
               <div className="space-y-1 max-h-40 overflow-y-auto">
                 {(activePublishJob.results as any[]).map((r: any, i: number) => {
                   const product = products.find(p => p.id === r.id);
