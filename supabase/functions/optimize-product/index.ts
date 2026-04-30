@@ -1619,6 +1619,27 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
         }
 
         if (typeof optimized.optimized_description === "string") {
+          // --- FAQ EXTRACTION (if structured data is missing but HTML has it) ---
+          if ((!optimized.faq || !Array.isArray(optimized.faq) || optimized.faq.length === 0) && optimized.optimized_description.includes("product-faq")) {
+            try {
+              const faqMatch = optimized.optimized_description.match(/<div class="product-faq"[\s\S]*?>([\s\S]*?)<\/div>\s*<\/div>/i);
+              if (faqMatch) {
+                const faqHtml = faqMatch[1];
+                const qas = [];
+                const pMatches = faqHtml.matchAll(/<p style="font-weight:bold[^>]*>(.*?)<\/p>\s*<p style="font-style:italic[^>]*>(.*?)<\/p>/gi);
+                for (const m of pMatches) {
+                  if (m[1] && m[2]) qas.push({ question: m[1].trim(), answer: m[2].trim() });
+                }
+                if (qas.length > 0) {
+                  console.log(`[optimize-product] Extracted ${qas.length} FAQs from HTML description`);
+                  optimized.faq = qas;
+                }
+              }
+            } catch (e) {
+              console.warn("[optimize-product] Failed to extract FAQs from HTML:", e);
+            }
+          }
+
           const hadFaqPlaceholder = /\{\{faq\}\}/i.test(optimized.optimized_description);
           // Replace {{faq}} with actual FAQ HTML if we have FAQ data
           if (optimized.faq && Array.isArray(optimized.faq) && optimized.faq.length > 0) {
