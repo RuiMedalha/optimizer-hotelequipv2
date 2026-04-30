@@ -141,12 +141,12 @@ Deno.serve(async (req) => {
           }
         });
 
-        if (staging.existing_product_id) {
+        if (effectiveProductId) {
           // Update: cleanData já não tem campos vazios (Regra 2)
           const { error: updateErr } = await supabase
             .from("products")
             .update({ ...cleanData, updated_at: new Date().toISOString() })
-            .eq("id", staging.existing_product_id);
+            .eq("id", effectiveProductId);
           if (updateErr) throw updateErr;
         } else {
           // Create (Regra 4)
