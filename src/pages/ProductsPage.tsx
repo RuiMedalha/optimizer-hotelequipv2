@@ -1164,10 +1164,16 @@ const ProductsPage = () => {
                   searchUrl: s.searchUrl || (s.url ? (s.url.includes('{sku}') ? s.url : s.url + '{sku}') : ''),
                   scrapingInstructions: s.scrapingInstructions || '',
                 }));
+                const selectedIds = selected.size > 0 ? Array.from(selected) : undefined;
+                const validIds = selectedIds?.filter(id => {
+                  const p = (allProductsLight ?? []).find((prod: any) => prod.id === id);
+                  return !p?.is_discontinued;
+                });
+                
                 enrich({
                   workspaceId: activeWorkspace.id,
                   supplierPrefixes: prefixes,
-                  productIds: selected.size > 0 ? Array.from(selected) : undefined,
+                  productIds: validIds,
                 });
               } catch {
                 toast.error("Erro ao ler prefixos de fornecedor. Verifique as Definições.");
