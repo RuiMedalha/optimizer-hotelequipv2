@@ -90,11 +90,11 @@ Deno.serve(async (req) => {
       if (cats.length < 100) break;
     }
 
-    // Get existing categories for this workspace
+    // Get existing global categories
     const { data: existingCats } = await supabase
       .from("categories")
       .select("id, woocommerce_id, name")
-      .eq("workspace_id", workspaceId);
+      .is("workspace_id", null);
 
     const existingByWooId = new Map<number, string>();
     (existingCats || []).forEach((c: any) => {
@@ -137,13 +137,16 @@ Deno.serve(async (req) => {
         // Create new — scoped to workspace
         const { data: newCat, error: insertErr } = await supabase.from("categories").insert({
           user_id: user.id,
-          workspace_id: workspaceId,
+          workspace_id: null, // Global categories
           woocommerce_id: wooCat.id,
           name: wooCat.name,
           slug: wooCat.slug,
           description: wooCat.description || null,
           parent_id: parentInternalId,
           image_url: wooCat.image?.src || null,
+        }, { 
+          onConflict: 'name,parent_id,workspace_id',
+          ignoreDuplicates: true 
         }).select("id").single();
 
         if (insertErr) {

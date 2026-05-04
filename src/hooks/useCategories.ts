@@ -37,19 +37,15 @@ function buildTree(categories: Category[], parentId: string | null = null, depth
     }));
 }
 
-// Categories are now WORKSPACE-SCOPED — each site has its own categories
+// Categories are now GLOBAL — shared between all sites
 export function useCategories() {
-  const { activeWorkspace } = useWorkspaceContext();
-  const workspaceId = activeWorkspace?.id;
-
   return useQuery({
-    queryKey: ["categories", workspaceId],
-    enabled: !!workspaceId,
+    queryKey: ["categories"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("categories")
         .select("*")
-        .eq("workspace_id", workspaceId!)
+        .is("workspace_id", null)
         .order("sort_order", { ascending: true });
       if (error) throw error;
       return data as Category[];
@@ -71,11 +67,10 @@ export function useCreateCategory() {
     mutationFn: async (cat: { name: string; parent_id?: string | null; slug?: string; description?: string; meta_title?: string; meta_description?: string }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
-      if (!activeWorkspace) throw new Error("No active workspace");
       const { error } = await supabase.from("categories").insert({
         ...cat,
         user_id: user.id,
-        workspace_id: activeWorkspace.id,
+        workspace_id: null, // Global
         parent_id: cat.parent_id ?? null,
       });
       if (error) throw error;

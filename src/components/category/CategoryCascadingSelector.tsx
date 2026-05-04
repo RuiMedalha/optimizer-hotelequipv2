@@ -27,40 +27,29 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [], workspa
   const [search, setSearch] = useState("");
 
   const { data: roots, isLoading: loadingRoots } = useQuery({
-    queryKey: ["category-roots", workspaceId],
+    queryKey: ["category-roots"],
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from("categories")
         .select("id, name, parent_id, workspace_id")
         .is("parent_id", null)
+        .is("workspace_id", null)
         .order("name");
       
-      if (workspaceId) {
-        query = query.or(`workspace_id.eq.${workspaceId},workspace_id.is.null`);
-      }
-
-      const { data, error } = await query;
       if (error) throw error;
-      
-      // Filter out duplicates in names for display, preferring workspace-specific ones
-      const uniqueNames = new Map();
-      data?.forEach(cat => {
-        if (!uniqueNames.has(cat.name) || (workspaceId && cat.workspace_id === workspaceId)) {
-          uniqueNames.set(cat.name, cat);
-        }
-      });
-      return Array.from(uniqueNames.values()) as Category[];
+      return data as Category[];
     }
   });
 
   const { data: level2Options, isLoading: loadingL2 } = useQuery({
-    queryKey: ["category-sub", level1, workspaceId],
+    queryKey: ["category-sub", level1],
     enabled: !!level1,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("categories")
         .select("id, name, parent_id, workspace_id")
         .eq("parent_id", level1)
+        .is("workspace_id", null)
         .order("name");
       if (error) throw error;
       return data as Category[];
@@ -68,13 +57,14 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [], workspa
   });
 
   const { data: level3Options, isLoading: loadingL3 } = useQuery({
-    queryKey: ["category-sub", level2, workspaceId],
+    queryKey: ["category-sub", level2],
     enabled: !!level2,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("categories")
         .select("id, name, parent_id, workspace_id")
         .eq("parent_id", level2)
+        .is("workspace_id", null)
         .order("name");
       if (error) throw error;
       return data as Category[];
@@ -82,7 +72,7 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [], workspa
   });
 
   const { data: searchResults, isLoading: loadingSearch } = useQuery({
-    queryKey: ["category-search", search, workspaceId],
+    queryKey: ["category-search", search],
     enabled: search.length > 1,
     queryFn: async () => {
       // Use join to get parent name for context
@@ -97,6 +87,7 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [], workspa
             name
           )
         `)
+        .is("workspace_id", null)
         .ilike("name", `%${search}%`)
         .limit(20);
       if (error) throw error;
