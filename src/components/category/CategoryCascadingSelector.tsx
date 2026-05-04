@@ -27,29 +27,17 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [], workspa
   const [search, setSearch] = useState("");
 
   const { data: roots, isLoading: loadingRoots } = useQuery({
-    queryKey: ["category-roots", workspaceId],
+    queryKey: ["category-roots"],
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from("categories")
         .select("id, name, parent_id, workspace_id")
         .is("parent_id", null)
+        .is("workspace_id", null)
         .order("name");
       
-      if (workspaceId) {
-        query = query.or(`workspace_id.eq.${workspaceId},workspace_id.is.null`);
-      }
-
-      const { data, error } = await query;
       if (error) throw error;
-      
-      // Filter out duplicates in names for display, preferring workspace-specific ones
-      const uniqueNames = new Map();
-      data?.forEach(cat => {
-        if (!uniqueNames.has(cat.name) || (workspaceId && cat.workspace_id === workspaceId)) {
-          uniqueNames.set(cat.name, cat);
-        }
-      });
-      return Array.from(uniqueNames.values()) as Category[];
+      return data as Category[];
     }
   });
 
