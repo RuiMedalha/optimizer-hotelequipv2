@@ -1333,13 +1333,11 @@ REGRAS OBRIGATÓRIAS:
 - NÃO sugiras produtos redundantes`,
           image_alt: `Gera alt text SEO para CADA UMA das imagens do produto (máx 125 chars cada).
 REGRAS OBRIGATÓRIAS:
-- Inclui keyword principal
-- Tom descritivo e direto
-- Sem nomes de marcas
 - Deves gerar EXATAMENTE 1 alt text por cada URL de imagem fornecida — sem exceção
-- Descritivo e relevante para o produto
-- Inclui keyword principal + linha
+- Usa OBRIGATORIAMENTE o título otimizado em português como base para o alt text
 - NÃO incluas a marca no alt text
+- Inclui keyword principal + linha/modelo
+- Tom descritivo e direto, sem nomes de marcas
 - Inclui ângulo/perspetiva se possível (ex: "vista frontal", "detalhe do painel")
 - Não comeces com "Imagem de" — sê direto
 - Se houver imagens originais e optimizadas do mesmo produto, diferencia os alt texts`,
@@ -1910,13 +1908,23 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           }
           // FALLBACK: Ensure ALL image URLs have alt text — fill missing ones
           if (product.image_urls && Array.isArray(product.image_urls)) {
-            const focusKw = (optimized.focus_keywords?.[0] || updateData.focus_keyword?.[0] || product.original_title || "produto profissional").substring(0, 80);
+            // Priority for Alt Text: Optimized Title (Portuguese) -> Focus Keywords -> Original Title
+            const baseAltText = (
+              optimized.optimized_title || 
+              updateData.optimized_title || 
+              product.optimized_title || 
+              (optimized.focus_keywords && optimized.focus_keywords[0]) ||
+              updateData.focus_keyword?.[0] || 
+              product.original_title || 
+              "equipamento profissional"
+            ).substring(0, 100);
+
             for (let i = 0; i < product.image_urls.length; i++) {
               const url = product.image_urls[i];
               if (url && !altObj[url]) {
                 const suffix = product.image_urls.length > 1 ? ` — vista ${i + 1}` : "";
-                altObj[url] = `${focusKw}${suffix}`.substring(0, 125);
-                console.log(`⚠️ Alt text fallback generated for image ${i + 1}: ${url.substring(0, 60)}...`);
+                altObj[url] = `${baseAltText}${suffix}`.substring(0, 125);
+                console.log(`⚠️ Alt text fallback generated for image ${i + 1} (Portuguese): ${altObj[url]}`);
               }
             }
           }
