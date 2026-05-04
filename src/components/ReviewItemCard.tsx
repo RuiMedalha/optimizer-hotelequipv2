@@ -1,8 +1,9 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { CheckCircle2, XCircle, Eye, User, ImageIcon } from "lucide-react";
+import { CheckCircle2, XCircle, Eye, User, ImageIcon, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CategoryCell } from "./category/CategoryCell";
 
 const reasonLabels: Record<string, string> = {
   low_confidence: "Baixa confiança",
