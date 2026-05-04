@@ -276,7 +276,7 @@ Responde APENAS com o texto alt final.`,
         // Get product
         const { data: product } = await sb
           .from("products")
-          .select("id, sku, original_title, optimized_title, image_urls, image_alt_texts, product_type, parent_product_id, category, optimized_short_description, short_description")
+          .select("id, sku, seo_slug, original_title, optimized_title, image_urls, image_alt_texts, product_type, parent_product_id, category, optimized_short_description, short_description")
           .eq("id", productId)
           .single();
 
