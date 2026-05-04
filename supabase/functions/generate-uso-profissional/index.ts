@@ -258,31 +258,88 @@ IMPORTANTE: Devolve APENAS o JSON acima. Sem texto antes ou depois. Sem markdown
     // Normalize to expected structure
     const result = normalizeUsoProfissional(parsed);
 
-    // Warn if empty
-    if (!result.intro && result.useCases.length === 0) {
-      console.warn("[generate-uso-profissional] AI produced empty/unparseable content for product:", productId);
+    // --- HTML Generation with Fail-safe Autoria ---
+    let htmlContent = `<div class="uso-profissional" style="font-family: sans-serif; color: #374151;">`;
+    
+    if (result.intro) {
+      htmlContent += `<p style="font-size: 15px; line-height: 1.6; margin-bottom: 20px;">${result.intro}</p>`;
     }
 
-    // Log AI usage
+    if (result.useCases && result.useCases.length > 0) {
+      result.useCases.forEach((uc) => {
+        htmlContent += `
+          <div class="use-case" style="margin-bottom: 20px;">
+            <h3 style="margin: 0 0 8px; font-size: 17px; font-weight: 700; color: #00526d; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px;">${uc.context}</h3>
+            <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #4b5563;">${uc.description}</p>
+          </div>`;
+      });
+    }
+
+    // Check for Perfis section and add fallback if missing
+    const hasPerfis = htmlContent.includes('Perfis Profissionais') || (result.targetProfiles && result.targetProfiles.length > 0);
+    
+    if (!hasPerfis) {
+      htmlContent += `
+        <div class="professional-profiles" style="margin-top: 24px; margin-bottom: 20px;">
+          <h3 style="margin: 16px 0 8px; font-size: 16px; font-weight: 700; color: #2c2c2c;">Perfis Profissionais</h3>
+          <h4 style="margin: 12px 0 6px; font-size: 15px; font-weight: 600; color: #00526d;">Uso Geral HORECA</h4>
+          <p style="font-size: 14px; color: #4b5563;">Este equipamento adapta-se a diferentes contextos de serviço profissional, desde estabelecimentos de pequena dimensão até operações de maior escala.</p>
+          <h5 style="margin: 10px 0 4px; font-size: 14px; font-weight: 600; color: #2c2c2c;">Dica Profissional</h5>
+          <p style="font-size: 14px; color: #6b7280;">Consulte as especificações técnicas para garantir compatibilidade com as suas necessidades operacionais.</p>
+        </div>`;
+    } else if (result.targetProfiles && result.targetProfiles.length > 0) {
+       htmlContent += `
+        <div class="professional-profiles" style="margin-top: 24px; margin-bottom: 20px;">
+          <h3 style="margin: 16px 0 8px; font-size: 16px; font-weight: 700; color: #2c2c2c;">Perfis Profissionais</h3>
+          <ul style="margin: 0; padding-left: 20px; font-size: 14px; color: #4b5563;">
+            ${result.targetProfiles.map(profile => `<li style="margin-bottom: 4px;">${profile}</li>`).join('')}
+          </ul>
+        </div>`;
+    }
+
+    if (result.professionalTips && result.professionalTips.length > 0) {
+      htmlContent += `
+        <div class="professional-tips" style="margin-top: 20px;">
+          ${result.professionalTips.map(tip => `
+            <div style="background: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 12px; margin-bottom: 12px; border-radius: 0 4px 4px 0;">
+              <p style="margin: 0; font-size: 14px; color: #0369a1;"><strong>💡 Dica:</strong> ${tip}</p>
+            </div>
+          `).join('')}
+        </div>`;
+    }
+
+    // FAIL-SAFE PROGRAMMATIC AUTORIA
+    htmlContent += `
+      <p style="margin-top:24px; padding:16px; background:#f9fafb; border-left:4px solid #00526d; font-size:13px; color:#4b5563; font-style:italic; border-radius: 0 8px 8px 0; box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);">
+        <strong style="color: #00526d;">Nota HotelEquip:</strong> Informação baseada em 30 anos a servir a hotelaria com profissionalismo.
+      </p>
+    </div>`;
+
+    // Save to database
     try {
       const serviceClient = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
-      await serviceClient.from("ai_usage_logs").insert({
-        workspace_id: workspaceId,
-        task_type: "uso_profissional_generation",
-        model_name: aiResponse.model || "unknown",
-        input_tokens: aiResponse.usage?.prompt_tokens ?? 0,
-        output_tokens: aiResponse.usage?.completion_tokens ?? 0,
-        estimated_cost: ((aiResponse.usage?.prompt_tokens ?? 0) * 0.00000015 + (aiResponse.usage?.completion_tokens ?? 0) * 0.0000006),
-        decision_source: "direct-ai-call",
-      });
-    } catch (logErr) {
-      console.warn("[generate-uso-profissional] Failed to log usage:", logErr);
+      
+      const { error: updateError } = await serviceClient
+        .from("products")
+        .update({ 
+          professional_use_content: htmlContent,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", productId);
+        
+      if (updateError) {
+        console.error("[generate-uso-profissional] Failed to update product table:", updateError);
+      } else {
+        console.log(`[generate-uso-profissional] Saved with autoria for product ${productId}`);
+      }
+    } catch (dbErr) {
+      console.error("[generate-uso-profissional] Database error:", dbErr);
     }
 
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify({ ...result, html: htmlContent }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

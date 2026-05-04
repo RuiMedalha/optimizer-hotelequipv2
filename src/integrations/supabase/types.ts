@@ -9860,6 +9860,7 @@ export type Database = {
           original_title: string | null
           parent_product_id: string | null
           product_type: string
+          professional_use_content: string | null
           quality_score: number | null
           sale_price: number | null
           seo_score: number | null
@@ -9923,6 +9924,7 @@ export type Database = {
           original_title?: string | null
           parent_product_id?: string | null
           product_type?: string
+          professional_use_content?: string | null
           quality_score?: number | null
           sale_price?: number | null
           seo_score?: number | null
@@ -9988,6 +9990,7 @@ export type Database = {
           original_title?: string | null
           parent_product_id?: string | null
           product_type?: string
+          professional_use_content?: string | null
           quality_score?: number | null
           sale_price?: number | null
           seo_score?: number | null

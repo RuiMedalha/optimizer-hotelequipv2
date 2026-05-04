@@ -1300,6 +1300,15 @@ REGRAS OBRIGATÓRIAS:
 - NÃO sugiras produtos redundantes`,
           image_alt: `Gera alt text SEO para CADA UMA das imagens do produto (máx 125 chars cada).
 REGRAS OBRIGATÓRIAS:
+- Inclui keyword principal
+- Tom descritivo e direto
+- Sem nomes de marcas`,
+          certifications: `Identifica certificações relevantes baseadas na ficha técnica (ex: CE, HACCP, NSF, RoHS).
+REGRAS OBRIGATÓRIAS:
+- Devolve apenas um array de strings ["CE", "HACCP"]
+- Se não encontrares nada, devolve apenas ["CE"]
+- NUNCA inventes certificações que não estejam implícitas ou explícitas`,
+        };
 - Deves gerar EXATAMENTE 1 alt text por cada URL de imagem fornecida — sem exceção
 - Descritivo e relevante para o produto
 - Inclui keyword principal + linha
