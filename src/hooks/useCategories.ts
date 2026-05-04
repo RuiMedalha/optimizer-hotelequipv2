@@ -37,19 +37,15 @@ function buildTree(categories: Category[], parentId: string | null = null, depth
     }));
 }
 
-// Categories are now WORKSPACE-SCOPED — each site has its own categories
+// Categories are now GLOBAL — shared between all sites
 export function useCategories() {
-  const { activeWorkspace } = useWorkspaceContext();
-  const workspaceId = activeWorkspace?.id;
-
   return useQuery({
-    queryKey: ["categories", workspaceId],
-    enabled: !!workspaceId,
+    queryKey: ["categories"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("categories")
         .select("*")
-        .eq("workspace_id", workspaceId!)
+        .is("workspace_id", null)
         .order("sort_order", { ascending: true });
       if (error) throw error;
       return data as Category[];
