@@ -31,10 +31,22 @@ interface ValidationItem {
   label: string;
   passed: boolean;
   detail: string;
+  severity?: "error" | "warning";
 }
 
-function validateProducts(products: Product[]): { items: ValidationItem[]; passRate: number } {
+function validateProducts(products: Product[]): { items: ValidationItem[]; passRate: number; errorCount: number } {
   const items: ValidationItem[] = [];
+  
+  const locked = products.filter(p => (p as any).locked_for_publish);
+  if (locked.length > 0) {
+    items.push({ 
+      label: "Bloqueios de Qualidade", 
+      passed: false, 
+      severity: "error",
+      detail: `${locked.length} prod. bloqueados` 
+    });
+  }
+
   const withTitle = products.filter(p => (p.optimized_title ?? '').length > 5);
   items.push({ label: "Título otimizado", passed: withTitle.length === products.length, detail: `${withTitle.length}/${products.length}` });
   
@@ -50,8 +62,20 @@ function validateProducts(products: Product[]): { items: ValidationItem[]; passR
   const withSku = products.filter(p => (p.sku ?? '').length > 0);
   items.push({ label: "SKU definido", passed: withSku.length === products.length, detail: `${withSku.length}/${products.length}` });
 
+  // Check for HTML in SEO short description (Quality Gate rule)
+  const withHtmlInSeo = products.filter(p => (p as any).seo_short_description && /<[^>]+>/.test((p as any).seo_short_description));
+  if (withHtmlInSeo.length > 0) {
+    items.push({ 
+      label: "HTML em SEO Short", 
+      passed: false, 
+      severity: "error",
+      detail: `${withHtmlInSeo.length} prod. com HTML` 
+    });
+  }
+
+  const errorCount = items.filter(i => !i.passed && i.severity === "error").length;
   const passRate = Math.round((items.filter(i => i.passed).length / items.length) * 100);
-  return { items, passRate };
+  return { items, passRate, errorCount };
 }
 
 interface Props {
