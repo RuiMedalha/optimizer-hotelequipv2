@@ -150,6 +150,19 @@ Deno.serve(async (req) => {
     // Log generator resolution for debugging
     console.log(`🔍 [process-images] Generator resolution: generator_found=${!!lifestyleGeneratorPrompt}, generator_name="${lifestyleGeneratorName}", fallback_prompt_found=${!!lifestylePromptTemplate}`);
 
+    function slugify(text: string): string {
+      return text
+        .toString()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, "-")
+        .replace(/[^\w\-]+/g, "")
+        .replace(/\-\-+/g, "-")
+        .replace(/^-+/, "")
+        .replace(/-+$/, "");
+    }
+
     function normalizeAltText(value: string | null | undefined): string | null {
       const text = String(value || "").replace(/\s+/g, " ").trim();
       return text ? text.slice(0, 125) : null;
