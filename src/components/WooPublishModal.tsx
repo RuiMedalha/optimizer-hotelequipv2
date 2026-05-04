@@ -103,6 +103,8 @@ export function WooPublishModal({ open, onClose, onConfirm, productCount, variab
   // Default = OFF (modo Clássico, comportamento atual). Activar apenas para
   // grandes volumes em servidores WC com hosting saudável.
   const [turboMode, setTurboMode] = useState<boolean>(false);
+  
+  const validation = useMemo(() => validateProducts(products), [products]);
 
   // Load defaults from settings
   useEffect(() => {
