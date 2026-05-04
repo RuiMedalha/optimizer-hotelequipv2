@@ -1551,6 +1551,8 @@ async function enrichWithExtraContent(
     if (wantsFaqCustom) {
       const meta = ensureMeta();
       meta.push({ key: "_product_faq", value: buildFaqSchemaJson(faq) });
+      meta.push({ key: "_product_faqs", value: buildFaqSchemaJson(faq) }); // Backward compat
+      meta.push({ key: "_yoast_wpseo_schema_page_type", value: "FAQPage" });
       console.log(`[enrichExtraContent] FAQ sent to custom meta field for ${product.id}`);
     }
   }
@@ -1583,13 +1585,6 @@ async function enrichWithExtraContent(
         });
         console.log(`[seo-short] Injected clean short_description for Yoast`);
       }
-    }
-  }
-    if (wantsFaqCustom) {
-      const meta = ensureMeta();
-      meta.push({ key: "_product_faqs", value: buildFaqSchemaJson(faq) });
-      meta.push({ key: "_yoast_wpseo_schema_page_type", value: "FAQPage" });
-      console.log(`[enrichExtraContent] FAQ sent to custom meta field for ${product.id}`);
     }
   }
 
