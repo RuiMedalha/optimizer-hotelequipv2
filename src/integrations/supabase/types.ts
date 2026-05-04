@@ -9799,6 +9799,7 @@ export type Database = {
           quality_score: number | null
           sale_price: number | null
           seo_score: number | null
+          seo_short_description: string | null
           seo_slug: string | null
           short_description: string | null
           sku: string | null
@@ -9860,6 +9861,7 @@ export type Database = {
           quality_score?: number | null
           sale_price?: number | null
           seo_score?: number | null
+          seo_short_description?: string | null
           seo_slug?: string | null
           short_description?: string | null
           sku?: string | null
@@ -9923,6 +9925,7 @@ export type Database = {
           quality_score?: number | null
           sale_price?: number | null
           seo_score?: number | null
+          seo_short_description?: string | null
           seo_slug?: string | null
           short_description?: string | null
           sku?: string | null
