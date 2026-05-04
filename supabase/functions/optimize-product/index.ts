@@ -1908,13 +1908,23 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           }
           // FALLBACK: Ensure ALL image URLs have alt text — fill missing ones
           if (product.image_urls && Array.isArray(product.image_urls)) {
-            const focusKw = (optimized.focus_keywords?.[0] || updateData.focus_keyword?.[0] || product.original_title || "produto profissional").substring(0, 80);
+            // Priority for Alt Text: Optimized Title (Portuguese) -> Focus Keywords -> Original Title
+            const baseAltText = (
+              optimized.optimized_title || 
+              updateData.optimized_title || 
+              product.optimized_title || 
+              (optimized.focus_keywords && optimized.focus_keywords[0]) ||
+              updateData.focus_keyword?.[0] || 
+              product.original_title || 
+              "equipamento profissional"
+            ).substring(0, 100);
+
             for (let i = 0; i < product.image_urls.length; i++) {
               const url = product.image_urls[i];
               if (url && !altObj[url]) {
                 const suffix = product.image_urls.length > 1 ? ` — vista ${i + 1}` : "";
-                altObj[url] = `${focusKw}${suffix}`.substring(0, 125);
-                console.log(`⚠️ Alt text fallback generated for image ${i + 1}: ${url.substring(0, 60)}...`);
+                altObj[url] = `${baseAltText}${suffix}`.substring(0, 125);
+                console.log(`⚠️ Alt text fallback generated for image ${i + 1} (Portuguese): ${altObj[url]}`);
               }
             }
           }
