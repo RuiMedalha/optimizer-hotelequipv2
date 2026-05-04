@@ -1661,6 +1661,16 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
         }
         const optimized = finalOptimized;
 
+        // --- PROGRAMMATIC CERTIFICATIONS DETECTION ---
+        const detectedCerts = detectCertifications(product);
+        // Merge with AI results if any (prefer set to avoid duplicates)
+        const aiCerts = Array.isArray(optimized.certifications) ? optimized.certifications : [];
+        const finalCerts = new Set([...detectedCerts, ...aiCerts]);
+        optimized.certifications = Array.from(finalCerts).sort((a, b) => 
+          a === 'CE' ? -1 : b === 'CE' ? 1 : a.localeCompare(b)
+        );
+        console.log(`[certifications] Final certs for ${product.sku}: ${optimized.certifications.join(", ")}`);
+
         // === VALIDATE upsell/crosssell SKUs against real DB (SKU-only format) ===
         if (optimized.upsell_skus && Array.isArray(optimized.upsell_skus) && optimized.upsell_skus.length > 0) {
           // Normalize: handle both string[] and {sku}[] formats for backward compat
