@@ -1953,6 +1953,11 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           updateData.focus_keyword = optimized.focus_keywords.slice(0, 5);
         }
         
+        // --- LANGUAGE QUALITY VALIDATION ---
+        validateNaturalLanguage(updateData.optimized_description, "description");
+        validateNaturalLanguage(updateData.optimized_short_description, "short_description");
+        validateNaturalLanguage(updateData.meta_description, "meta_description");
+
         // --- CRITICAL FIX: MAP CERTIFICATIONS AND PROFESSIONAL CONTENT TO DB ---
         if (optimized.certifications) updateData.certifications = optimized.certifications;
         if (optimized.professional_use_content) updateData.professional_use_content = optimized.professional_use_content;
