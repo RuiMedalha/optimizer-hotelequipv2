@@ -577,15 +577,13 @@ INFORMAÇÃO DO PRODUTO:
                     console.warn(`⚠️ [lifestyle] Image exceeds 1MB (${fileSizeKB}KB) for ${productId} — WooCommerce may timeout on download`);
                   }
 
-                  const lifestyleId = `${Date.now()}_${crypto
-                    .randomUUID()
-                    .slice(0, 8)}`;
-                  const path = `${workspaceId}/${productId}/lifestyle_${lifestyleId}.webp`;
+                  const productSlug = product.seo_slug || slugify(product.optimized_title || product.original_title || product.sku || "produto");
+                  const path = `${workspaceId}/${productId}/${productSlug}-lifestyle.jpg`;
 
                   await sb.storage
                     .from("product-images")
                     .upload(path, bytes, {
-                      contentType: "image/webp",
+                      contentType: "image/jpeg",
                       upsert: true,
                     });
 
