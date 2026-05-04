@@ -1464,11 +1464,12 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
             items: {
               type: "object",
               properties: {
+                category_id: { type: "string", description: "ID da categoria (UUID extraído da lista fornecida)" },
                 category_name: { type: "string", description: "Nome da categoria (formato 'Pai > Filho')" },
                 confidence_score: { type: "number", description: "Nível de confiança de 0 a 1" },
                 reasoning: { type: "string", description: "Breve explicação da escolha" }
               },
-              required: ["category_name", "confidence_score"]
+              required: ["category_id", "category_name", "confidence_score"]
             }
           };
           requiredFields.push("suggested_category", "suggested_categories");
