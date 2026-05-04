@@ -301,6 +301,41 @@ Deno.serve(async (req) => {
           severity: "warning",
           message: "optimized_short_description contém HTML — considere usar apenas texto limpo"
         },
+        // FAQ Quality Rules
+        {
+          field: "faq",
+          rule: "min_items",
+          value: 4,
+          severity: "warning",
+          message: "Produto tem menos de 4 FAQs (recomendado: 4-6 para SEO)"
+        },
+        {
+          field: "faq",
+          rule: "faq_min_answer_length",
+          value: 50,
+          severity: "error",
+          message: "Uma ou mais respostas FAQ têm menos de 50 caracteres (muito curtas para rich results)"
+        },
+        {
+          field: "faq",
+          rule: "not_empty",
+          severity: "warning",
+          message: "Produto sem FAQs — considere gerar para melhorar SEO"
+        },
+
+        // Certification Rules
+        {
+          field: "certifications",
+          rule: "has_ce_certification",
+          severity: "error",
+          message: "Produto sem certificação CE (obrigatório para venda na UE)"
+        },
+        {
+          field: "certifications",
+          rule: "not_empty",
+          severity: "error",
+          message: "Array de certificações vazio"
+        },
       ];
 
       const { data: newGate, error: createErr } = await supabase
