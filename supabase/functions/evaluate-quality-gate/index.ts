@@ -65,6 +65,35 @@ function evaluateRule(product: any, rule: GateRule): RuleFailure | null {
         return { field: rule.field, rule: rule.rule, severity: rule.severity, expected: rule.value, actual: fieldStr, message: rule.message || `${rule.field} valor inválido: "${fieldStr}"` };
       }
       break;
+    case "no_html":
+      // Check if string contains HTML tags
+      const htmlPattern = /<[^>]+>/;
+      if (htmlPattern.test(fieldStr)) {
+        return { 
+          field: rule.field, 
+          rule: rule.rule, 
+          severity: rule.severity, 
+          expected: "plain text without HTML tags", 
+          actual: fieldStr.substring(0, 100) + "...", 
+          message: rule.message || `${rule.field} contém tags HTML (não permitido para SEO)` 
+        };
+      }
+      break;
+    case "strip_html_equals":
+      // Check if stripped HTML version equals the original (i.e., no HTML was present)
+      const stripped = fieldStr.replace(/<[^>]+>/g, '').trim();
+      const original = fieldStr.trim();
+      if (stripped !== original) {
+        return { 
+          field: rule.field, 
+          rule: rule.rule, 
+          severity: rule.severity, 
+          expected: "text without HTML", 
+          actual: `${original.length} chars, ${original.length - stripped.length} chars of HTML`, 
+          message: rule.message || `${rule.field} contém HTML que será removido no SEO` 
+        };
+      }
+      break;
   }
   return null;
 }
