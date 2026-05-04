@@ -177,6 +177,19 @@ Preço: ${product.price || product.original_price || "N/A"}`;
       completed_at: new Date().toISOString(),
     });
 
+    // Update the product with generated content
+    const updateData: any = {
+      optimized_short_description: result.short_description || "",
+      seo_short_description: result.short_description || "", // Clean text version
+      optimized_description: result.long_description || "",
+      seo_keywords: result.seo_keywords || [],
+    };
+
+    await supabase
+      .from("products")
+      .update(updateData)
+      .eq("id", product.id);
+
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
