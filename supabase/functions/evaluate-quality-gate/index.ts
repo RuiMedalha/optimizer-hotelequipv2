@@ -161,15 +161,41 @@ function calculateSubScores(product: any): Record<string, number> {
   const filled = fields.filter(f => product[f] && String(product[f]).trim() !== "").length;
   const completenessScore = Math.round((filled / fields.length) * 100);
 
-  const overall = Math.round((
-    titleScore * 0.15 + 
-    descScore * 0.15 + 
-    seoScore * 0.1 + 
-    imageScore * 0.1 + 
-    priceScore * 0.1 + 
-    completenessScore * 0.2 +
-    (product.seo_short_description ? 0.2 : 0) * 100
-  ));
+  // FAQ Quality Score
+  const faqCount = Array.isArray(product.faq) ? product.faq.length : 0;
+  const faqScore = (() => {
+    if (faqCount === 0) return 0;
+    if (faqCount < 4) return 50;
+    if (faqCount >= 4 && faqCount <= 6) return 100;
+    if (faqCount > 6) return 80;
+    return 0;
+  })();
+  
+  // FAQ Answer Quality Score
+  const faqAnswerQuality = (() => {
+    if (faqCount === 0) return 0;
+    const answers = product.faq.map((f: any) => String(f?.answer || f?.a || "").trim());
+    const validAnswers = answers.filter((a: string) => a.length >= 50);
+    return Math.round((validAnswers.length / answers.length) * 100);
+  })();
+  
+  // Certifications Score
+  const certsCount = Array.isArray(product.certifications) ? product.certifications.length : 0;
+  const hasCE = product.certifications?.includes('CE') || false;
+  const certsScore = hasCE ? (certsCount > 1 ? 100 : 80) : 0; // CE alone = 80, CE + others = 100
+
+  const overall = Math.round(
+    (titleScore * 0.10) +
+    (descScore * 0.12) +
+    (strScore(product.seo_short_description, 160) * 0.15) +
+    (faqScore * 0.08) +
+    (faqAnswerQuality * 0.08) +
+    (certsScore * 0.07) +
+    (imageScore * 0.15) +
+    (completenessScore * 0.10) +
+    (product.brand ? 0.08 * 100 : 0) +
+    (priceScore * 0.07)
+  );
 
   return {
     title_score: titleScore,
@@ -180,6 +206,9 @@ function calculateSubScores(product: any): Record<string, number> {
     completeness_score: completenessScore,
     seo_short: strScore(product.seo_short_description, 160),
     no_html_short: product.seo_short_description && !/<[^>]+>/.test(product.seo_short_description) ? 100 : 0,
+    faq: faqScore,
+    faq_answers: faqAnswerQuality,
+    certifications: certsScore,
     schema_match_score: 0,
     overall_score: Math.min(100, overall),
   };
