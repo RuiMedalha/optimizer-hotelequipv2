@@ -322,12 +322,19 @@ serve(async (req) => {
         .map(m => m.cat);
     }
 
-    let existingCategories: string[] = [];
+    let existingCategories: { id: string; full_path: string }[] = [];
     if (fields.includes("category")) {
+      // Use service role for categories to bypass restrictive RLS policies
+      const supabaseAdmin = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+
       // 1. Fetch from categories table (proper taxonomy with hierarchy)
-      const { data: catTableData } = await supabase
+      const { data: catTableData } = await supabaseAdmin
         .from("categories")
         .select("id, name, parent_id")
+        .or(`workspace_id.eq.${workspaceId},workspace_id.is.null`)
         .order("sort_order", { ascending: true });
 
       if (catTableData && catTableData.length > 0) {
@@ -345,24 +352,33 @@ serve(async (req) => {
           return parts.join(" > ");
         };
 
-        const catPaths = new Set<string>();
         for (const cat of catTableData) {
-          catPaths.add(buildPath(cat));
+          existingCategories.push({
+            id: cat.id,
+            full_path: buildPath(cat)
+          });
         }
-        existingCategories = Array.from(catPaths).sort();
       }
 
       // 2. Also include unique categories from products (for backward compat)
-      const { data: catData } = await supabase
+      const { data: catData } = await supabaseAdmin
         .from("products")
         .select("category")
+        .eq("workspace_id", workspaceId)
         .not("category", "is", null);
+
+      const uniqueLegacyCats = new Set<string>();
       (catData || []).forEach((p: any) => { 
-        if (p.category && !existingCategories.includes(p.category)) {
-          existingCategories.push(p.category);
+        if (p.category && !existingCategories.some(c => c.full_path === p.category)) {
+          uniqueLegacyCats.add(p.category);
         }
       });
-      existingCategories.sort();
+      
+      uniqueLegacyCats.forEach(cat => {
+        existingCategories.push({ id: "legacy", full_path: cat });
+      });
+
+      existingCategories.sort((a, b) => a.full_path.localeCompare(b.full_path));
     }
 
     // Mark as processing
@@ -1323,15 +1339,18 @@ REGRAS OBRIGATÓRIAS:
         }
         if (fields.includes("category")) {
           // Use semantic matching to find best candidate categories
+          const catPaths = existingCategories.map(c => c.full_path);
           const semanticMatches = findSemanticCategory(
             product.original_title || "",
             product.category || product.original_description || "",
-            existingCategories
+            catPaths
           );
           // Prefer hierarchical categories (with ">") for better context
-          const hierarchicalCats = existingCategories.filter(c => c.includes(">"));
-          const catList = existingCategories.length > 0
-            ? `\nCATEGORIAS DISPONÍVEIS (usa APENAS uma destas, NÃO inventes novas):\n${(hierarchicalCats.length > 0 ? hierarchicalCats : existingCategories).join("\n")}`
+          const hierarchicalCats = existingCategories.filter(c => c.full_path.includes(">"));
+          const catsToUse = hierarchicalCats.length > 0 ? hierarchicalCats : existingCategories;
+          
+          const catList = catsToUse.length > 0
+            ? `\nCATEGORIAS DISPONÍVEIS (usa APENAS uma destas, NÃO inventes novas):\n${catsToUse.map(c => `- [${c.id}] ${c.full_path}`).join("\n")}`
             : "";
           const semanticHint = semanticMatches.length > 0
             ? `\nCATEGORIAS MAIS RELEVANTES (por análise semântica): ${semanticMatches.join(", ")}`
@@ -1445,11 +1464,12 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
             items: {
               type: "object",
               properties: {
+                category_id: { type: "string", description: "ID da categoria (UUID extraído da lista fornecida)" },
                 category_name: { type: "string", description: "Nome da categoria (formato 'Pai > Filho')" },
                 confidence_score: { type: "number", description: "Nível de confiança de 0 a 1" },
                 reasoning: { type: "string", description: "Breve explicação da escolha" }
               },
-              required: ["category_name", "confidence_score"]
+              required: ["category_id", "category_name", "confidence_score"]
             }
           };
           requiredFields.push("suggested_category", "suggested_categories");

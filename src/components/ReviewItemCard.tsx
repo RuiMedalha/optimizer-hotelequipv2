@@ -1,8 +1,9 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { CheckCircle2, XCircle, Eye, User, ImageIcon } from "lucide-react";
+import { CheckCircle2, XCircle, Eye, User, ImageIcon, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CategoryCell } from "./category/CategoryCell";
 
 const reasonLabels: Record<string, string> = {
   low_confidence: "Baixa confiança",
@@ -59,6 +60,14 @@ export function ReviewItemCard({ item, onApprove, onReject, onOpen }: Props) {
                   Score: {product.quality_score}%
                 </span>
               )}
+            </div>
+            <div className="mt-2 flex items-center gap-2 max-w-lg">
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 rounded border border-border/50 w-full overflow-hidden">
+                <Sparkles className="w-3 h-3 text-primary shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <CategoryCell product={product} />
+                </div>
+              </div>
             </div>
             {item.reviewer_notes && (
               <p className="text-xs text-muted-foreground mt-1 italic">"{item.reviewer_notes}"</p>
