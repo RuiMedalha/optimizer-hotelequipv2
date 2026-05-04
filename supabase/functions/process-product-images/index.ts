@@ -690,12 +690,12 @@ INFORMAÇÃO DO PRODUTO:
                   console.warn(`⚠️ [upscale] Image exceeds 1MB (${fileSizeKB}KB) for ${productId} image ${i} — WooCommerce may timeout on download`);
                 }
 
-                const upscaleId = `${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
-                const path = `${workspaceId}/${productId}/upscale_${upscaleId}.webp`;
+                const productSlug = product.seo_slug || slugify(product.optimized_title || product.original_title || product.sku || "produto");
+                const path = `${workspaceId}/${productId}/${productSlug}-${i + 1}.jpg`;
                 await sb.storage
                   .from("product-images")
                   .upload(path, bytes, {
-                    contentType: "image/webp",
+                    contentType: "image/jpeg",
                     upsert: true,
                   });
 
