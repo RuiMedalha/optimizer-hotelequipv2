@@ -1339,15 +1339,18 @@ REGRAS OBRIGATÓRIAS:
         }
         if (fields.includes("category")) {
           // Use semantic matching to find best candidate categories
+          const catPaths = existingCategories.map(c => c.full_path);
           const semanticMatches = findSemanticCategory(
             product.original_title || "",
             product.category || product.original_description || "",
-            existingCategories
+            catPaths
           );
           // Prefer hierarchical categories (with ">") for better context
-          const hierarchicalCats = existingCategories.filter(c => c.includes(">"));
-          const catList = existingCategories.length > 0
-            ? `\nCATEGORIAS DISPONÍVEIS (usa APENAS uma destas, NÃO inventes novas):\n${(hierarchicalCats.length > 0 ? hierarchicalCats : existingCategories).join("\n")}`
+          const hierarchicalCats = existingCategories.filter(c => c.full_path.includes(">"));
+          const catsToUse = hierarchicalCats.length > 0 ? hierarchicalCats : existingCategories;
+          
+          const catList = catsToUse.length > 0
+            ? `\nCATEGORIAS DISPONÍVEIS (usa APENAS uma destas, NÃO inventes novas):\n${catsToUse.map(c => `- [${c.id}] ${c.full_path}`).join("\n")}`
             : "";
           const semanticHint = semanticMatches.length > 0
             ? `\nCATEGORIAS MAIS RELEVANTES (por análise semântica): ${semanticMatches.join(", ")}`
