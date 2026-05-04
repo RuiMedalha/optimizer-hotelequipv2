@@ -1919,6 +1919,7 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
               product.optimized_title || 
               (optimized.focus_keywords && optimized.focus_keywords[0]) ||
               updateData.focus_keyword?.[0] || 
+              product.focus_keyword?.[0] ||
               product.original_title || 
               "equipamento profissional"
             ).substring(0, 100);
@@ -1939,6 +1940,10 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
         if (optimized.focus_keywords && Array.isArray(optimized.focus_keywords) && optimized.focus_keywords.length > 0) {
           updateData.focus_keyword = optimized.focus_keywords.slice(0, 5);
         }
+        
+        // --- CRITICAL FIX: MAP CERTIFICATIONS AND PROFESSIONAL CONTENT TO DB ---
+        if (optimized.certifications) updateData.certifications = optimized.certifications;
+        if (optimized.professional_use_content) updateData.professional_use_content = optimized.professional_use_content;
 
         const { error: updateError } = await supabase
           .from("products")
