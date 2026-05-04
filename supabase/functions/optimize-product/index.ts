@@ -441,6 +441,39 @@ serve(async (req) => {
     }
     console.log(`[optimize-product] Model resolution: requested="${modelKey}" → resolved="${chosenModel.model}" via provider="${chosenModel.provider}" (override: ${modelOverride || "none"}, setting: ${modelSetting?.value || "default"})`);
 
+    function detectCertifications(product: any): string[] {
+      const certs = new Set<string>(["CE"]); // Always include CE (mandatory for EU)
+      const searchText = [
+        product.original_title || "",
+        product.original_description || "",
+        product.technical_specs || "",
+        product.short_description || "",
+      ].join(" ").toUpperCase();
+
+      const patterns = {
+        "HACCP": /\bHACCP\b/i,
+        "NSF": /\bNSF\b/i,
+        "RoHS": /\bROHS\b/i,
+        "IP65": /\bIP65\b/i,
+        "IP67": /\bIP67\b/i,
+        "UL": /\bUL LISTED\b|\bUL CERTIFIED\b/i,
+        "TÜV": /\bTÜV\b|\bTUV\b/i,
+        "GS": /\bGEPRÜFTE SICHERHEIT\b|\bGS MARK\b/i,
+        "ETL": /\bETL LISTED\b/i,
+        "ISO 9001": /\bISO 9001\b/i,
+        "WRAS": /\bWRAS\b/i,
+      };
+
+      for (const [cert, pattern] of Object.entries(patterns)) {
+        if (pattern.test(searchText)) certs.add(cert);
+      }
+
+      // Sort: CE first, then alphabetically
+      return Array.from(certs).sort((a, b) =>
+        a === "CE" ? -1 : b === "CE" ? 1 : a.localeCompare(b)
+      );
+    }
+
     const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
 
     // Fetch supplier mappings from settings
@@ -1300,6 +1333,9 @@ REGRAS OBRIGATÓRIAS:
 - NÃO sugiras produtos redundantes`,
           image_alt: `Gera alt text SEO para CADA UMA das imagens do produto (máx 125 chars cada).
 REGRAS OBRIGATÓRIAS:
+- Inclui keyword principal
+- Tom descritivo e direto
+- Sem nomes de marcas
 - Deves gerar EXATAMENTE 1 alt text por cada URL de imagem fornecida — sem exceção
 - Descritivo e relevante para o produto
 - Inclui keyword principal + linha
@@ -1307,6 +1343,11 @@ REGRAS OBRIGATÓRIAS:
 - Inclui ângulo/perspetiva se possível (ex: "vista frontal", "detalhe do painel")
 - Não comeces com "Imagem de" — sê direto
 - Se houver imagens originais e optimizadas do mesmo produto, diferencia os alt texts`,
+          certifications: `Identifica certificações relevantes baseadas na ficha técnica (ex: CE, HACCP, NSF, RoHS).
+REGRAS OBRIGATÓRIAS:
+- Devolve apenas um array de strings ["CE", "HACCP"]
+- Se não encontrares nada, devolve apenas ["CE"]
+- NUNCA inventes certificações que não estejam implícitas ou explícitas`,
           category: `Analisa o produto e sugere a melhor categoria e subcategoria.
 REGRAS OBRIGATÓRIAS:
 - Usa o formato "Categoria > Subcategoria" (ex: "Cozinha > Fritadeiras")
@@ -1651,6 +1692,16 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           console.warn("[optimize-product] output quality issues:", outputIssues);
         }
         const optimized = finalOptimized;
+
+        // --- PROGRAMMATIC CERTIFICATIONS DETECTION ---
+        const detectedCerts = detectCertifications(product);
+        // Merge with AI results if any (prefer set to avoid duplicates)
+        const aiCerts = Array.isArray(optimized.certifications) ? optimized.certifications : [];
+        const finalCerts = new Set([...detectedCerts, ...aiCerts]);
+        optimized.certifications = Array.from(finalCerts).sort((a, b) => 
+          a === 'CE' ? -1 : b === 'CE' ? 1 : a.localeCompare(b)
+        );
+        console.log(`[certifications] Final certs for ${product.sku}: ${optimized.certifications.join(", ")}`);
 
         // === VALIDATE upsell/crosssell SKUs against real DB (SKU-only format) ===
         if (optimized.upsell_skus && Array.isArray(optimized.upsell_skus) && optimized.upsell_skus.length > 0) {
