@@ -189,7 +189,7 @@ export function WooPublishModal({ open, onClose, onConfirm, productCount, variab
 
         {/* Pre-publish validation checklist */}
         {products.length > 0 && (() => {
-          const { items, passRate, errorCount } = validateProducts(products);
+          const { items, passRate, errorCount } = validation;
           const hasIssues = passRate < 100;
           const hasErrors = errorCount > 0;
           return (
