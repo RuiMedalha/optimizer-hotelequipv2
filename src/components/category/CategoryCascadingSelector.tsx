@@ -42,13 +42,14 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [], workspa
   });
 
   const { data: level2Options, isLoading: loadingL2 } = useQuery({
-    queryKey: ["category-sub", level1, workspaceId],
+    queryKey: ["category-sub", level1],
     enabled: !!level1,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("categories")
         .select("id, name, parent_id, workspace_id")
         .eq("parent_id", level1)
+        .is("workspace_id", null)
         .order("name");
       if (error) throw error;
       return data as Category[];
@@ -56,13 +57,14 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [], workspa
   });
 
   const { data: level3Options, isLoading: loadingL3 } = useQuery({
-    queryKey: ["category-sub", level2, workspaceId],
+    queryKey: ["category-sub", level2],
     enabled: !!level2,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("categories")
         .select("id, name, parent_id, workspace_id")
         .eq("parent_id", level2)
+        .is("workspace_id", null)
         .order("name");
       if (error) throw error;
       return data as Category[];
