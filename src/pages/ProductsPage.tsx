@@ -1262,8 +1262,28 @@ const ProductsPage = () => {
               </Button>
             </>
           )}
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-[10px] h-8 text-muted-foreground hover:text-primary transition-colors"
+            onClick={async () => {
+              if (!activeWorkspace) return;
+              try {
+                const { data, error } = await supabase.functions.invoke("extract-category-patterns", {
+                  body: { workspaceId: activeWorkspace.id }
+                });
+                if (error) throw error;
+                toast.success(data.message || "Padrões de categorização atualizados!");
+              } catch (err: any) {
+                toast.error(`Erro ao aprender padrões: ${err.message}`);
+              }
+            }}
+          >
+            🧠 Aprender Padrões
+          </Button>
         </div>
       </div>
+
 
       {/* Batch Progress Bar */}
       {batchProgress && (
