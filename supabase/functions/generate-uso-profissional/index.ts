@@ -129,16 +129,17 @@ Deno.serve(async (req) => {
     }
 
     // Try to load custom prompt from prompt_templates
-    let systemPrompt = `És um especialista em equipamentos profissionais para hotelaria, restauração e catering em Portugal. Escreves conteúdo editorial em português europeu para um catálogo B2B. O teu público são chefs, responsáveis de F&B, gestores de hotel e compradores profissionais.
+    let systemPrompt = `És um especialista em equipamentos profissionais para hotelaria, restauração e catering em Portugal. Escreves conteúdo editorial para um catálogo B2B.
 
-Quando descreves como um equipamento é usado, focas em:
-- Contextos reais de uso profissional (não doméstico)
-- Benefícios operacionais concretos (velocidade, consistência, higiene, custo)
-- Linguagem técnica mas acessível
-- Casos de uso específicos da hotelaria portuguesa
+REGRAS DE LINGUAGEM NATURAL — OBRIGATÓRIO:
+O conteúdo DEVE soar humano e natural. NUNCA soar robótico.
+1. LIMITAR \"HORECA\": Máximo 1 menção.
+2. DIRIGIR-SE A PROFISSIONAIS: Chefs, gestores F&B, compradores.
+3. LINGUAGEM DE INSIDER: \"rush do serviço\", \"mise en place\", \"rotação de stock\".
+4. CONTEXTOS CONCRETOS: \"Fine Dining com 80 lugares\", \"Hotel 4 estrelas com buffet\", \"Catering para 200+ pessoas\".
+5. EVITAR \"estabelecimentos HORECA\" — usar contextos específicos.
 
-NUNCA uses linguagem de review de consumidor. 
-Escreves como um técnico especialista, não como um cliente.`;
+NUNCA uses linguagem de review de consumidor. Escreves como um técnico especialista.`;
 
     // Check for custom prompt in prompt_templates
     const { data: customPrompt } = await supabase

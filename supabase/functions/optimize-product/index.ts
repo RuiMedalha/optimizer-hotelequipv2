@@ -4,6 +4,40 @@ import { enforceFieldLimits } from "../_shared/ai/output-guardrails.ts";
 import { formatProductOutput } from "../_shared/ai/output-formatter.ts";
 import { cleanHtmlContentWithStats } from "../_shared/text/clean-html-content.ts";
 
+/**
+ * Validates content follows natural language guidelines
+ * Logs warnings for monitoring (doesn't block generation)
+ */
+function validateNaturalLanguage(content: string, fieldName: string): void {
+  if (!content) return;
+  const warnings: string[] = [];
+  
+  // Check HORECA overuse
+  const horecaCount = (content.match(/\bHORECA\b/gi) || []).length;
+  if (horecaCount > 1) {
+    warnings.push(`"HORECA" aparece ${horecaCount} vezes (máx: 1)`);
+  }
+  
+  // Check "estabelecimentos" repetition
+  const estabelCount = (content.match(/\bestablecimentos\b/gi) || []).length;
+  if (estabelCount > 2) {
+    warnings.push(`"estabelecimentos" aparece ${estabelCount} vezes (máx: 2)`);
+  }
+  
+  // Check repetitive sentence starts
+  const thisEquipCount = (content.match(/(Este equipamento|Este produto|Esta máquina|Este expositor)/gi) || []).length;
+  if (thisEquipCount > 2) {
+    warnings.push(`${thisEquipCount} frases começam com "Este equipamento/produto..." (repetitivo)`);
+  }
+  
+  if (warnings.length > 0) {
+    console.warn(`[language-quality] ${fieldName}:`, warnings);
+  } else {
+    console.log(`[language-quality] ${fieldName} ✓`);
+  }
+}
+
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -1174,107 +1208,43 @@ IMPORTANTE: Otimiza o conteúdo BASE que será propagado para todas as variaçõ
         // Build field-specific instructions using per-field prompts
         // Default prompts match the frontend defaults in useFieldPrompts.ts
         const DEFAULT_FIELD_PROMPTS: Record<string, string> = {
-          title: `Gera um título otimizado para SEO (máx 70 chars).
-CONTEXTO: Estes são equipamentos PROFISSIONAIS para hotelaria, restauração, cozinhas industriais e bares.
+          title: `Gera um título otimizado para SEO (50-60 chars).
 REGRAS OBRIGATÓRIAS:
-- Inclui a keyword principal no início
-- NÃO incluas o nome da marca no título (ex: NÃO "Zanussi Fritadeira", NÃO "Lizotel Caixa", SIM "Fritadeira a Gás Linha 700")
-- NÃO incluas códigos EAN, códigos de barras, referências numéricas de fornecedor ou SKUs no título
-- NÃO incluas quantidades de embalagem no título (ex: NÃO "Pack 6 unidades")
-- Inclui linha/série se aplicável (ex: "Linha 700", "Linha 900")
-- Inclui capacidade/dimensão se relevante (ex: "40x40", "4 Bicos", "8 Litros")
-- Mantém o tipo de energia se aplicável (Gás, Elétrico, etc.)
-- Nunca uses palavras genéricas como "Profissional" sem contexto técnico`,
-          description: `Gera uma descrição otimizada com ESTRUTURA OBRIGATÓRIA:
-CONTEXTO: Estes são equipamentos PROFISSIONAIS para hotelaria, restauração, cozinhas industriais e bares.
+- NUNCA incluas \"HORECA\" no título.
+- Foco: Tipo de Produto + Característica Distintiva + Dimensão/Capacidade.
+- Usar termo específico se necessário: \"Profissional\", \"Industrial\", \"Comercial\".
+- NÃO incluas marca, códigos EAN, referências ou SKUs no título.
+- Inclui linha/série se aplicável (ex: \"Linha 700\").
+- Inclui tipo de energia se aplicável (Gás, Elétrico).`,
+          description: `Gera uma descrição otimizada (HTML) que soe humana e natural.
+REGRAS DE LINGUAGEM NATURAL — OBRIGATÓRIO:
+- NUNCA soar robótico ou repetitivo. Limitar \"HORECA\" a máx 1 menção.
+- Substituir \"HORECA\" por: \"o seu restaurante\", \"o seu bar\", \"cozinhas profissionais\".
+- Dirigir-se ao cliente: \"Perfeito para o seu bar\", \"A sua equipa vai apreciar\".
+- VARIAR CONSTRUÇÕES: Nunca começar parágrafos seguidos com \"Este equipamento...\".
+- BENEFÍCIOS REAIS: Impacto no negócio (custos, ruído, rapidez) em vez de apenas specs.
 
-Envolve TUDO num div raiz: <div class="product-description" style="font-size:15px; line-height:1.65; color:#2c2c2c;">
-
-Cada secção é um div com classe própria e margin-bottom:22px. Usa h3 (NÃO h2) com este estilo EXATO:
-style="margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;"
-
-REGRA SEO CRÍTICA PARA HEADINGS:
-- O PRIMEIRO h3 da descrição DEVE conter a focus keyword principal do produto (ex: se a focus keyword é "fritadeira a gás profissional", o primeiro h3 deve ser algo como "Vantagens da Fritadeira a Gás Profissional" ou "Fritadeira a Gás Profissional — Principais Benefícios")
-- Adapta o texto do heading para ser natural e incluir a keyword — NÃO uses apenas "Principais Vantagens" genérico
-
-SECÇÕES OBRIGATÓRIAS (nesta ordem):
+ESTRUTURA OBRIGATÓRIA:
+Envolve TUDO num div: <div class="product-description" style="font-size:15px; line-height:1.65; color:#2c2c2c;">
+Usa h3 com style=\"margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;\"
 
 1. <div class="product-benefits" style="margin-bottom:22px;"> com <h3>[Focus Keyword] — Principais Vantagens</h3>
-   - O h3 DEVE incluir a focus keyword principal integrada naturalmente
-   - Dentro de <div style="margin-top:10px;">, parágrafos com benefícios-chave (2-4 parágrafos)
+2. <div class="product-applications" style="margin-bottom:22px;"> com <h3>Aplicações</h3> (Contextos concretos: \"buffet de hotel\", \"cafetaria movimentada\")
+3. <div class="product-specs" style="margin-bottom:22px;"> com <h3>Especificações Técnicas</h3> (Tabela HTML)
+4. <div class="product-faq" style="margin-bottom:22px;"> com <h3>Perguntas Frequentes</h3> (EXATAMENTE 5 perguntas)`,
 
-2. <div class="product-applications" style="margin-bottom:22px;"> com <h3>Aplicações</h3>
-   - Dentro de <div style="margin-top:10px;">, aplicações concretas: tipos de estabelecimento, volume, situações
-
-3. <div class="product-specs" style="margin-bottom:22px;"> com <h3>Especificações Técnicas</h3>
-   - <div class="specs-table" style="margin-top:10px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden;">
-   - Dentro, <table style="width:100%; border-collapse:collapse; font-size:0.9em;">
-   - th: style="border:1px solid #e5e7eb; padding:8px 12px; background:#f3f4f6; font-weight:bold; text-align:left;"
-   - td: style="border:1px solid #e5e7eb; padding:8px 12px;"
-
-4. <div class="product-faq" style="margin-bottom:22px;"> com <h3>Perguntas Frequentes</h3>
-   - EXATAMENTE 5 perguntas (nunca menos de 5)
-   - Dentro de <div style="margin-top:10px; background:#fcfcfd; border:1px solid #e5e7eb; border-radius:8px; padding:14px 16px;">
-   - NÃO uses <details>/<summary> — as respostas são SEMPRE visíveis
-   - Cada FAQ como:
-     <p style="font-weight:bold; margin:0 0 4px; color:#2c2c2c;">Pergunta aqui?</p>
-     <p style="font-style:italic; color:#6b7280; margin:0 0 14px;">Resposta aqui.</p>
-
-REGRAS OBRIGATÓRIAS:
-- NÃO incluas o nome da marca no texto comercial — foca no equipamento e nas suas capacidades
-- NÃO incluas códigos EAN, códigos de barras ou referências no texto comercial
-- NÃO mistures dados técnicos no texto comercial
-- Menciona aplicações práticas (restaurante, hotel, pastelaria, bar, etc.)
-- Inclui benefícios de eficiência energética se aplicável
-- Menciona conformidade com normas (CE, HACCP) se relevante
-
-REGRA SEO — INTEGRAÇÃO NATURAL DE SINÓNIMOS NO TEXTO (CRÍTICO):
-- O Google indexa muito mais o TEXTO VISÍVEL da descrição do que tags ou meta-keywords.
-- Identifica 1-2 sinónimos PT/regionais/internacionais relevantes para o produto e integra-os de forma NATURAL e ÚTIL no corpo da descrição.
-- Locais ideais para inserir sinónimos:
-  • No primeiro ou segundo parágrafo de "Principais Vantagens" (ex: "Este exaustor profissional — também conhecido como hotte ou apanha-fumos — ...")
-  • Entre parêntesis na primeira menção do produto (ex: "O grelhador (plancha/chapa) garante...")
-  • Numa frase contextual de "Aplicações" (ex: "Ideal para cozinhas que necessitam de uma coifa potente...")
-- Mapeamento de referência (usa apenas o que se aplica ao produto):
-  • Exaustor → hotte, coifa, apanha-fumos, extractor hood
-  • Grelhador → plancha, chapa, griddle
-  • Forno combinado → combi, forno convetor
-  • Frigorífico → refrigerador, armário refrigerado
-  • Cortador → fiambreira, slicer
-  • Lava-louça → máquina de lavar loiça, dishwasher
-  • Bancada → mesa de trabalho, mesa inox
-  • Máquina de gelo → fabricador de gelo, ice maker
-- LIMITES OBRIGATÓRIOS para evitar keyword stuffing:
-  • MÁXIMO 2 sinónimos por descrição (não 5, não 10)
-  • Cada sinónimo aparece UMA SÓ VEZ no corpo
-  • A integração deve ler-se como linguagem natural — se forçada, NÃO insiras
-  • NUNCA uses listas tipo "exaustor, hotte, coifa, apanha-fumos" no texto`,
           short_description: `Gera uma descrição curta (máx 160 chars) para listagens.
-CONTEXTO: Equipamento profissional para hotelaria, restauração, cozinhas industriais e bares.
-REGRAS OBRIGATÓRIAS:
-- Resumo conciso focado no benefício principal
-- NÃO incluas o nome da marca
-- NÃO incluas códigos EAN ou referências
-- Inclui 1-2 specs chave (dimensão ou capacidade)
-- Inclui tipo de energia se aplicável
-- Tom profissional e direto`,
+CONTEÚDO NATURAL: NUNCA usar \"HORECA\". Substituir por contextos específicos.`,
           meta_title: `Gera meta title SEO (máx 60 chars).
-CONTEXTO: Equipamento profissional para hotelaria, restauração e bares.
+- Keyword principal no início.
+- Inclui \"Comprar\" ou \"Preço\".
+- NÃO incluas marca, códigos EAN ou referências.`,
+          meta_description: `Gera meta description SEO (140-155 chars).
 REGRAS OBRIGATÓRIAS:
-- OBRIGATÓRIO: A focus keyword principal DEVE aparecer no meta title (ex: se focus keyword é "fogão a gás profissional", essas palavras devem estar no título)
-- Keyword principal no início ou muito perto do início
-- Inclui "Comprar" ou "Preço" para intenção comercial
-- NÃO incluas o nome da marca — foca na linha/série e tipo de equipamento
-- NÃO incluas códigos EAN ou referências
-- Termina com separador e nome da loja se couber`,
-          meta_description: `Gera meta description SEO (máx 155 chars).
-REGRAS OBRIGATÓRIAS:
-- Inclui call-to-action (ex: "Encomende já", "Entrega rápida")
-- Menciona 1-2 benefícios chave
-- Inclui preço ou "Melhor preço" se aplicável
-- NÃO incluas o nome da marca
-- Usa linguagem que gere cliques
-- Se couber naturalmente (sem forçar), inclui 1 sinónimo popular do produto (ex: "exaustor / hotte", "grelhador (plancha)") — só se a frase ficar fluida`,
+- NUNCA usar \"HORECA\". Usar: \"restaurantes\", \"hotéis\", \"bares\".
+- Dirigir-se ao cliente: \"para o seu restaurante\", \"ideal para o seu bar\".
+- Benefício concreto + contexto específico + call-to-action (ex: \"Entrega 24-48h\").
+- NÃO incluas marca. Usa linguagem que gere cliques.`,
           seo_slug: `Gera um slug SEO-friendly.
 REGRAS OBRIGATÓRIAS:
 - Lowercase, sem acentos, com hífens
@@ -1288,7 +1258,8 @@ REGRAS OBRIGATÓRIAS:
 - Inclui categoria principal (ex: "fritadeira")
 - Inclui tipo de energia (ex: "gás", "elétrico")
 - Inclui linha/série (ex: "linha 700")
-- Inclui aplicação (ex: "restaurante", "hotelaria", "horeca")
+- Inclui aplicação (ex: "restaurante", "hotelaria")
+- NUNCA usar "HORECA" em tags se puder ser evitado (preferir termos específicos)
 - NÃO incluas códigos EAN ou referências como tags
 - OBRIGATÓRIO: Inclui SINÓNIMOS PT e INTERNACIONAIS pelos quais o cliente pode pesquisar.
   Exemplos de mapeamento (aplica o que for relevante ao produto):
@@ -1941,6 +1912,11 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           updateData.focus_keyword = optimized.focus_keywords.slice(0, 5);
         }
         
+        // --- LANGUAGE QUALITY VALIDATION ---
+        validateNaturalLanguage(updateData.optimized_description, "description");
+        validateNaturalLanguage(updateData.optimized_short_description, "short_description");
+        validateNaturalLanguage(updateData.meta_description, "meta_description");
+
         // --- CRITICAL FIX: MAP CERTIFICATIONS AND PROFESSIONAL CONTENT TO DB ---
         if (optimized.certifications) updateData.certifications = optimized.certifications;
         if (optimized.professional_use_content) updateData.professional_use_content = optimized.professional_use_content;
