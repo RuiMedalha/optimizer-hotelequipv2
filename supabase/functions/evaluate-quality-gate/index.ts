@@ -94,6 +94,48 @@ function evaluateRule(product: any, rule: GateRule): RuleFailure | null {
         };
       }
       break;
+    case "faq_min_answer_length":
+      // Validate that all FAQ answers meet minimum length
+      if (Array.isArray(fieldValue) && fieldValue.length > 0) {
+        const minLength = rule.value || 50;
+        const invalidFaqs = fieldValue.filter((faq: any) => {
+          const answer = String(faq?.answer || faq?.a || "").trim();
+          return answer.length < minLength;
+        });
+        
+        if (invalidFaqs.length > 0) {
+          const shortestAnswer = invalidFaqs.reduce((min: any, faq: any) => {
+            const answerLen = String(faq?.answer || faq?.a || "").length;
+            return answerLen < (String(min?.answer || min?.a || "").length || 999) ? faq : min;
+          }, invalidFaqs[0]);
+          
+          const shortestLen = String(shortestAnswer?.answer || shortestAnswer?.a || "").length;
+          
+          return {
+            field: rule.field,
+            rule: rule.rule,
+            severity: rule.severity,
+            expected: `todas as respostas >= ${minLength} chars`,
+            actual: `${invalidFaqs.length} respostas curtas (menor: ${shortestLen} chars)`,
+            message: rule.message || `${invalidFaqs.length} FAQ(s) com respostas muito curtas`
+          };
+        }
+      }
+      break;
+    case "has_ce_certification":
+      // Validate CE certification is present
+      const certs = Array.isArray(fieldValue) ? fieldValue : [];
+      if (!certs.includes('CE')) {
+        return {
+          field: rule.field,
+          rule: rule.rule,
+          severity: rule.severity,
+          expected: "Array contém 'CE'",
+          actual: JSON.stringify(certs),
+          message: rule.message || "Certificação CE obrigatória está ausente"
+        };
+      }
+      break;
   }
   return null;
 }
