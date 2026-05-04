@@ -1335,13 +1335,7 @@ REGRAS OBRIGATÓRIAS:
 REGRAS OBRIGATÓRIAS:
 - Inclui keyword principal
 - Tom descritivo e direto
-- Sem nomes de marcas`,
-          certifications: `Identifica certificações relevantes baseadas na ficha técnica (ex: CE, HACCP, NSF, RoHS).
-REGRAS OBRIGATÓRIAS:
-- Devolve apenas um array de strings ["CE", "HACCP"]
-- Se não encontrares nada, devolve apenas ["CE"]
-- NUNCA inventes certificações que não estejam implícitas ou explícitas`,
-        };
+- Sem nomes de marcas
 - Deves gerar EXATAMENTE 1 alt text por cada URL de imagem fornecida — sem exceção
 - Descritivo e relevante para o produto
 - Inclui keyword principal + linha
@@ -1349,6 +1343,11 @@ REGRAS OBRIGATÓRIAS:
 - Inclui ângulo/perspetiva se possível (ex: "vista frontal", "detalhe do painel")
 - Não comeces com "Imagem de" — sê direto
 - Se houver imagens originais e optimizadas do mesmo produto, diferencia os alt texts`,
+          certifications: `Identifica certificações relevantes baseadas na ficha técnica (ex: CE, HACCP, NSF, RoHS).
+REGRAS OBRIGATÓRIAS:
+- Devolve apenas um array de strings ["CE", "HACCP"]
+- Se não encontrares nada, devolve apenas ["CE"]
+- NUNCA inventes certificações que não estejam implícitas ou explícitas`,
           category: `Analisa o produto e sugere a melhor categoria e subcategoria.
 REGRAS OBRIGATÓRIAS:
 - Usa o formato "Categoria > Subcategoria" (ex: "Cozinha > Fritadeiras")
