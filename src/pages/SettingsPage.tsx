@@ -14,6 +14,7 @@ import { Plus, Trash2, Save, Eye, EyeOff, Loader2, Zap, Send, ImageIcon, Externa
 import { Link } from "react-router-dom";
 import { Progress } from "@/components/ui/progress";
 import { useSettings, useSaveSettings } from "@/hooks/useSettings";
+import { useWorkspaceSeoSettings, useSaveWorkspaceSeoSettings } from "@/hooks/useWorkspaceSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { WOO_PUBLISH_GROUPS, DEFAULT_WOO_FIELDS, SETTING_KEY_WOO_PUBLISH_FIELDS } from "@/lib/wooPublishFields";
@@ -52,6 +53,8 @@ const SettingsPage = () => {
   const { activeWorkspace } = useWorkspaceContext();
   const { data: settings, isLoading } = useSettings();
   const saveSettings = useSaveSettings();
+  const { data: seoSettings } = useWorkspaceSeoSettings();
+  const saveSeoSettings = useSaveWorkspaceSeoSettings();
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const [form, setForm] = useState<Record<string, string>>({});
   const [suppliers, setSuppliers] = useState<Supplier[]>([{ name: "", prefix: "", url: "" }]);
@@ -387,6 +390,37 @@ const SettingsPage = () => {
           <Button variant="outline" size="sm" onClick={addSupplier}>
             <Plus className="w-4 h-4 mr-1" /> Adicionar Fornecedor
           </Button>
+        </CardContent>
+      </Card>
+
+      <Separator />
+
+      {/* SEO Configuration */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">🔍 Configuração SEO (WooCommerce)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="seo-plugin">Plugin SEO Instalado</Label>
+            <Select 
+              value={seoSettings?.seo_plugin || 'rankmath'} 
+              onValueChange={(val) => saveSeoSettings.mutate(val)}
+            >
+              <SelectTrigger id="seo-plugin">
+                <SelectValue placeholder="Selecione o plugin" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="rankmath">RankMath Pro</SelectItem>
+                <SelectItem value="yoast">Yoast SEO</SelectItem>
+                <SelectItem value="none">Nenhum (não injetar meta SEO)</SelectItem>
+                <SelectItem value="custom:seo">Custom Plugin (prefixo: seo_)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Define qual plugin SEO está instalado no WooCommerce para o mapeamento automático de títulos, descrições e palavras-chave.
+            </p>
+          </div>
         </CardContent>
       </Card>
 

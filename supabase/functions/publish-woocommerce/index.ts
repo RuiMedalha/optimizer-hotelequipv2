@@ -411,6 +411,50 @@ Deno.serve(async (req) => {
 
 // ─── Helpers ───
 
+/**
+ * Maps generic SEO field names to plugin-specific meta_data keys
+ */
+function getSeoFieldMapping(seoPlugin: string): {
+  title: string;
+  description: string;
+  focusKeyword: string;
+  robots?: string;
+} | null {
+  if (!seoPlugin || seoPlugin === 'none') return null;
+  
+  // RankMath Pro
+  if (seoPlugin === 'rankmath') {
+    return {
+      title: 'rank_math_title',
+      description: 'rank_math_description',
+      focusKeyword: 'rank_math_focus_keyword',
+      robots: 'rank_math_robots',
+    };
+  }
+  
+  // Yoast SEO
+  if (seoPlugin === 'yoast') {
+    return {
+      title: '_yoast_wpseo_title',
+      description: '_yoast_wpseo_metadesc',
+      focusKeyword: '_yoast_wpseo_focuskw',
+    };
+  }
+  
+  // Custom plugin format: custom:prefix
+  if (seoPlugin.startsWith('custom:')) {
+    const prefix = seoPlugin.replace('custom:', '');
+    return {
+      title: `${prefix}_title`,
+      description: `${prefix}_description`,
+      focusKeyword: `${prefix}_focus_keyword`,
+    };
+  }
+  
+  console.warn(`Unknown seo_plugin value: ${seoPlugin}, skipping SEO meta injection`);
+  return null;
+}
+
 async function getWooConfig(supabase: any) {
   const { data: settings } = await supabase
     .from("settings")
@@ -1759,11 +1803,49 @@ async function buildBasePayload(
     }
   }
 
-  if (has("meta_title") || has("meta_description")) {
-    const meta_data: Array<{ key: string; value: string }> = [];
-    if (has("meta_title")) meta_data.push({ key: "_yoast_wpseo_title", value: product.meta_title || "" });
-    if (has("meta_description")) meta_data.push({ key: "_yoast_wpseo_metadesc", value: product.meta_description || "" });
-    wooProduct.meta_data = meta_data;
+  // ── SEO Meta (RankMath / Yoast / Custom) ──
+  if (has("meta_title") || has("meta_description") || has("focus_keyword")) {
+    // Get workspace SEO plugin config (default: rankmath)
+    const { data: wsSettings } = await adminClient
+      .from("workspace_settings")
+      .select("seo_plugin")
+      .eq("workspace_id", job.workspace_id)
+      .maybeSingle();
+    
+    const seoPlugin = wsSettings?.seo_plugin || 'rankmath';
+    const fieldMap = getSeoFieldMapping(seoPlugin);
+    
+    if (fieldMap) {
+      const seoMeta: Array<{ key: string; value: any }> = [];
+      
+      if (has("meta_title") && product.meta_title) {
+        seoMeta.push({ key: fieldMap.title, value: product.meta_title });
+      }
+      
+      if (has("meta_description") && product.meta_description) {
+        seoMeta.push({ key: fieldMap.description, value: product.meta_description });
+      }
+      
+      if (has("focus_keyword") && (product.focus_keyword || product.seo_keywords?.[0])) {
+        seoMeta.push({ 
+          key: fieldMap.focusKeyword, 
+          value: product.focus_keyword || (Array.isArray(product.seo_keywords) ? product.seo_keywords[0] : "") 
+        });
+      }
+      
+      // RankMath-specific: robots meta (serialized PHP array)
+      if (fieldMap.robots && seoPlugin === 'rankmath') {
+        seoMeta.push({ key: fieldMap.robots, value: "a:1:{i:0;s:5:\"index\";}" });
+      }
+      
+      // Merge with existing meta_data
+      if (!Array.isArray(wooProduct.meta_data)) wooProduct.meta_data = [];
+      wooProduct.meta_data.push(...seoMeta);
+      
+      console.log(`[seo-meta] Injected ${seoMeta.length} fields for plugin: ${seoPlugin}`);
+    } else {
+      console.log(`[seo-meta] Skipped (plugin: ${seoPlugin})`);
+    }
   }
 
   // ── Attributes (EAN, Marca, Modelo, etc.) for non-variation products ──
