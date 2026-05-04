@@ -1753,7 +1753,10 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           }
           updateData.optimized_description = desc;
         }
-        if (optimized.optimized_short_description !== undefined) updateData.optimized_short_description = optimized.optimized_short_description || null;
+        if (optimized.optimized_short_description !== undefined) {
+          updateData.optimized_short_description = optimized.optimized_short_description || null;
+          updateData.seo_short_description = optimized.optimized_short_description || null;
+        }
         if (optimized.meta_title) updateData.meta_title = optimized.meta_title;
         if (optimized.meta_description) updateData.meta_description = optimized.meta_description;
         if (optimized.seo_slug) updateData.seo_slug = optimized.seo_slug;
