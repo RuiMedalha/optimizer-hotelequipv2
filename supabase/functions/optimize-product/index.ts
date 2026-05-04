@@ -1350,6 +1350,46 @@ REGRAS OBRIGATÓRIAS:
           fieldInstructions.push(`ALT TEXT IMAGENS (${product.image_urls.length} imagens):\n${getFieldPrompt("image_alt", "Alt text descritivo")}`);
         }
         if (fields.includes("category")) {
+          // 🧠 Build pattern-aware category hints (if learnedPatterns exists and has results)
+          // We check for learnedPatterns which was fetched once at the top level
+          if (typeof learnedPatterns !== 'undefined' && learnedPatterns && learnedPatterns.length > 0) {
+            const patternsByCategory = new Map<string, string[]>();
+            
+            for (const pattern of learnedPatterns) {
+              if (!patternsByCategory.has(pattern.category_id)) {
+                patternsByCategory.set(pattern.category_id, []);
+              }
+              
+              let hint = "";
+              if (pattern.pattern_type === "title_keyword") {
+                hint = `título contém "${pattern.pattern_value}"`;
+              } else if (pattern.pattern_type === "attribute_value") {
+                hint = `${pattern.pattern_key} = "${pattern.pattern_value}"`;
+              } else if (pattern.pattern_type === "brand_model") {
+                hint = `marca/modelo: ${pattern.pattern_value}`;
+              }
+              
+              if (hint) {
+                patternsByCategory.get(pattern.category_id)!.push(
+                  `${hint} (${Math.round(pattern.confidence * 100)}% confiança)`
+                );
+              }
+            }
+
+            // Build hint text
+            const hintLines: string[] = [];
+            for (const [catId, hints] of patternsByCategory.entries()) {
+              const cat = existingCategories.find(c => c.id === catId);
+              if (cat && hints.length > 0) {
+                hintLines.push(`- ${cat.full_path}: ${hints.join(", ")}`);
+              }
+            }
+
+            if (hintLines.length > 0) {
+              patternHints = `\n\n🧠 PADRÕES APRENDIDOS (baseado em produtos já categorizados):\n${hintLines.join("\n")}`;
+            }
+          }
+
           // Use semantic matching to find best candidate categories
           const catPaths = existingCategories.map(c => c.full_path);
           const semanticMatches = findSemanticCategory(
