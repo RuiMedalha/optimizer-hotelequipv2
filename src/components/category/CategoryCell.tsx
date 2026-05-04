@@ -177,7 +177,23 @@ export function CategoryCell({ product }: Props) {
                   disabled={isConfirming}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold truncate pr-8">{s.category_name}</span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="text-xs font-semibold truncate pr-8 cursor-help">{s.category_name}</span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-md break-words">
+                          <p className="text-xs">
+                            {s.category_name.split(' > ').map((part: string, i: number, arr: string[]) => (
+                              <span key={i}>
+                                <span className="font-medium">{part}</span>
+                                {i < arr.length - 1 && <span className="text-muted-foreground mx-1">→</span>}
+                              </span>
+                            ))}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                     <Badge 
                       variant={s.confidence > 80 ? "default" : "secondary"} 
                       className="text-[9px] h-4 px-1 shrink-0"
