@@ -65,6 +65,35 @@ function evaluateRule(product: any, rule: GateRule): RuleFailure | null {
         return { field: rule.field, rule: rule.rule, severity: rule.severity, expected: rule.value, actual: fieldStr, message: rule.message || `${rule.field} valor inválido: "${fieldStr}"` };
       }
       break;
+    case "no_html":
+      // Check if string contains HTML tags
+      const htmlPattern = /<[^>]+>/;
+      if (htmlPattern.test(fieldStr)) {
+        return { 
+          field: rule.field, 
+          rule: rule.rule, 
+          severity: rule.severity, 
+          expected: "plain text without HTML tags", 
+          actual: fieldStr.substring(0, 100) + "...", 
+          message: rule.message || `${rule.field} contém tags HTML (não permitido para SEO)` 
+        };
+      }
+      break;
+    case "strip_html_equals":
+      // Check if stripped HTML version equals the original (i.e., no HTML was present)
+      const stripped = fieldStr.replace(/<[^>]+>/g, '').trim();
+      const original = fieldStr.trim();
+      if (stripped !== original) {
+        return { 
+          field: rule.field, 
+          rule: rule.rule, 
+          severity: rule.severity, 
+          expected: "text without HTML", 
+          actual: `${original.length} chars, ${original.length - stripped.length} chars of HTML`, 
+          message: rule.message || `${rule.field} contém HTML que será removido no SEO` 
+        };
+      }
+      break;
   }
   return null;
 }
@@ -90,7 +119,15 @@ function calculateSubScores(product: any): Record<string, number> {
   const filled = fields.filter(f => product[f] && String(product[f]).trim() !== "").length;
   const completenessScore = Math.round((filled / fields.length) * 100);
 
-  const overall = Math.round((titleScore * 0.2 + descScore * 0.2 + seoScore * 0.15 + imageScore * 0.15 + priceScore * 0.15 + completenessScore * 0.15));
+  const overall = Math.round((
+    titleScore * 0.15 + 
+    descScore * 0.15 + 
+    seoScore * 0.1 + 
+    imageScore * 0.1 + 
+    priceScore * 0.1 + 
+    completenessScore * 0.2 +
+    (product.seo_short_description ? 0.2 : 0) * 100
+  ));
 
   return {
     title_score: titleScore,
@@ -99,8 +136,10 @@ function calculateSubScores(product: any): Record<string, number> {
     image_score: imageScore,
     price_score: priceScore,
     completeness_score: completenessScore,
-    schema_match_score: 0, // placeholder for future
-    overall_score: overall,
+    seo_short: strScore(product.seo_short_description, 160),
+    no_html_short: product.seo_short_description && !/<[^>]+>/.test(product.seo_short_description) ? 100 : 0,
+    schema_match_score: 0,
+    overall_score: Math.min(100, overall),
   };
 }
 
@@ -157,6 +196,40 @@ Deno.serve(async (req) => {
         { field: "meta_description", rule: "max_length", value: 160, severity: "warning" },
         { field: "image_urls", rule: "min_items", value: 1, severity: "warning" },
         { field: "optimized_price", rule: "min_value", value: 0.01, severity: "error" },
+        // SEO Short Description Rules
+        {
+          field: "seo_short_description",
+          rule: "not_empty",
+          severity: "error",
+          message: "Campo seo_short_description é obrigatório para partilhas sociais"
+        },
+        {
+          field: "seo_short_description",
+          rule: "min_length",
+          value: 50,
+          severity: "warning",
+          message: "seo_short_description muito curta (mínimo recomendado: 50 chars)"
+        },
+        {
+          field: "seo_short_description",
+          rule: "max_length",
+          value: 160,
+          severity: "error",
+          message: "seo_short_description excede 160 caracteres (limite do Google snippet)"
+        },
+        {
+          field: "seo_short_description",
+          rule: "no_html",
+          severity: "error",
+          message: "seo_short_description não pode conter tags HTML (será exibido em og:description)"
+        },
+        // Verify optimized_short_description doesn't have HTML wrapper
+        {
+          field: "optimized_short_description",
+          rule: "no_html",
+          severity: "warning",
+          message: "optimized_short_description contém HTML — considere usar apenas texto limpo"
+        },
       ];
 
       const { data: newGate, error: createErr } = await supabase

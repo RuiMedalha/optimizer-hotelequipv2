@@ -31,10 +31,22 @@ interface ValidationItem {
   label: string;
   passed: boolean;
   detail: string;
+  severity?: "error" | "warning";
 }
 
-function validateProducts(products: Product[]): { items: ValidationItem[]; passRate: number } {
+function validateProducts(products: Product[]): { items: ValidationItem[]; passRate: number; errorCount: number } {
   const items: ValidationItem[] = [];
+  
+  const locked = products.filter(p => (p as any).locked_for_publish);
+  if (locked.length > 0) {
+    items.push({ 
+      label: "Bloqueios de Qualidade", 
+      passed: false, 
+      severity: "error",
+      detail: `${locked.length} prod. bloqueados` 
+    });
+  }
+
   const withTitle = products.filter(p => (p.optimized_title ?? '').length > 5);
   items.push({ label: "Título otimizado", passed: withTitle.length === products.length, detail: `${withTitle.length}/${products.length}` });
   
@@ -50,8 +62,20 @@ function validateProducts(products: Product[]): { items: ValidationItem[]; passR
   const withSku = products.filter(p => (p.sku ?? '').length > 0);
   items.push({ label: "SKU definido", passed: withSku.length === products.length, detail: `${withSku.length}/${products.length}` });
 
+  // Check for HTML in SEO short description (Quality Gate rule)
+  const withHtmlInSeo = products.filter(p => (p as any).seo_short_description && /<[^>]+>/.test((p as any).seo_short_description));
+  if (withHtmlInSeo.length > 0) {
+    items.push({ 
+      label: "HTML em SEO Short", 
+      passed: false, 
+      severity: "error",
+      detail: `${withHtmlInSeo.length} prod. com HTML` 
+    });
+  }
+
+  const errorCount = items.filter(i => !i.passed && i.severity === "error").length;
   const passRate = Math.round((items.filter(i => i.passed).length / items.length) * 100);
-  return { items, passRate };
+  return { items, passRate, errorCount };
 }
 
 interface Props {
@@ -79,6 +103,8 @@ export function WooPublishModal({ open, onClose, onConfirm, productCount, variab
   // Default = OFF (modo Clássico, comportamento atual). Activar apenas para
   // grandes volumes em servidores WC com hosting saudável.
   const [turboMode, setTurboMode] = useState<boolean>(false);
+  
+  const validation = useMemo(() => validateProducts(products), [products]);
 
   // Load defaults from settings
   useEffect(() => {
@@ -163,24 +189,34 @@ export function WooPublishModal({ open, onClose, onConfirm, productCount, variab
 
         {/* Pre-publish validation checklist */}
         {products.length > 0 && (() => {
-          const { items, passRate } = validateProducts(products);
+          const { items, passRate, errorCount } = validation;
           const hasIssues = passRate < 100;
+          const hasErrors = errorCount > 0;
           return (
-            <div className={cn("border rounded-md p-3 space-y-2", hasIssues ? "border-yellow-500/50 bg-yellow-500/5" : "border-green-500/50 bg-green-500/5")}>
+            <div className={cn(
+              "border rounded-md p-3 space-y-2", 
+              hasErrors ? "border-destructive/50 bg-destructive/5" : hasIssues ? "border-yellow-500/50 bg-yellow-500/5" : "border-green-500/50 bg-green-500/5"
+            )}>
               <div className="flex items-center gap-1.5 text-sm font-medium">
-                {hasIssues ? <AlertTriangle className="w-4 h-4 text-yellow-500" /> : <Check className="w-4 h-4 text-green-500" />}
+                {hasErrors ? <X className="w-4 h-4 text-destructive" /> : hasIssues ? <AlertTriangle className="w-4 h-4 text-yellow-500" /> : <Check className="w-4 h-4 text-green-500" />}
                 Validação pré-publicação ({passRate}%)
               </div>
               <div className="space-y-1">
                 {items.map((item, idx) => (
                   <div key={idx} className="flex items-center gap-2 text-xs">
-                    {item.passed ? <Check className="w-3 h-3 text-green-500 shrink-0" /> : <X className="w-3 h-3 text-yellow-500 shrink-0" />}
-                    <span className={cn(!item.passed && "text-yellow-600 dark:text-yellow-400")}>{item.label}</span>
+                    {item.passed ? <Check className="w-3 h-3 text-green-500 shrink-0" /> : <X className={cn("w-3 h-3 shrink-0", item.severity === "error" ? "text-destructive" : "text-yellow-500")} />}
+                    <span className={cn(
+                      !item.passed && (item.severity === "error" ? "text-destructive" : "text-yellow-600 dark:text-yellow-400")
+                    )}>
+                      {item.label}
+                    </span>
                     <span className="ml-auto text-muted-foreground">{item.detail}</span>
                   </div>
                 ))}
               </div>
-              {hasIssues && (
+              {hasErrors ? (
+                <p className="text-[10px] text-destructive font-medium">❌ Publicação bloqueada por regras críticas do Quality Gate.</p>
+              ) : hasIssues && (
                 <p className="text-[10px] text-yellow-600 dark:text-yellow-400">⚠️ Produtos com campos em falta serão publicados, mas podem ter informação incompleta.</p>
               )}
             </div>
@@ -380,7 +416,7 @@ export function WooPublishModal({ open, onClose, onConfirm, productCount, variab
           <Button
             size="sm"
             onClick={handleConfirm}
-            disabled={isPending || selectedFields.size === 0 || (scheduleEnabled && !scheduleDate)}
+            disabled={isPending || selectedFields.size === 0 || (scheduleEnabled && !scheduleDate) || validation.errorCount > 0}
           >
             {isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Send className="w-4 h-4 mr-1" />}
             {scheduleEnabled ? "Agendar" : "Publicar"} ({selectedFields.size} campos)
