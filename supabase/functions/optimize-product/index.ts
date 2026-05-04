@@ -379,6 +379,55 @@ serve(async (req) => {
       });
 
       existingCategories.sort((a, b) => a.full_path.localeCompare(b.full_path));
+
+      // 🧠 Fetch learned patterns for smarter categorization
+      const { data: learnedPatterns } = await supabaseAdmin
+        .from("category_learning_patterns")
+        .select("category_id, pattern_type, pattern_key, pattern_value, pattern_operator, confidence")
+        .eq("workspace_id", workspaceId)
+        .gte("confidence", 0.4) // Only use patterns with 40%+ confidence
+        .order("confidence", { ascending: false });
+
+      // Build pattern-aware category hints
+      let patternHints = "";
+      if (learnedPatterns && learnedPatterns.length > 0) {
+        const patternsByCategory = new Map<string, string[]>();
+        
+        for (const pattern of learnedPatterns) {
+          if (!patternsByCategory.has(pattern.category_id)) {
+            patternsByCategory.set(pattern.category_id, []);
+          }
+          
+          let hint = "";
+          if (pattern.pattern_type === "title_keyword") {
+            hint = `título contém "${pattern.pattern_value}"`;
+          } else if (pattern.pattern_type === "attribute_value") {
+            hint = `${pattern.pattern_key} = "${pattern.pattern_value}"`;
+          } else if (pattern.pattern_type === "brand_model") {
+            hint = `marca/modelo: ${pattern.pattern_value}`;
+          }
+          
+          if (hint) {
+            patternsByCategory.get(pattern.category_id)!.push(
+              `${hint} (${Math.round(pattern.confidence * 100)}% confiança)`
+            );
+          }
+        }
+
+        // Build hint text
+        const hintLines: string[] = [];
+        for (const [catId, hints] of patternsByCategory.entries()) {
+          const cat = existingCategories.find(c => c.id === catId);
+          if (cat && hints.length > 0) {
+            hintLines.push(`- ${cat.full_path}: ${hints.join(", ")}`);
+          }
+        }
+
+        if (hintLines.length > 0) {
+          patternHints = `\n\n🧠 PADRÕES APRENDIDOS (baseado em produtos já categorizados):\n${hintLines.join("\n")}`;
+        }
+      }
+
     }
 
     // Mark as processing
@@ -1359,7 +1408,7 @@ REGRAS OBRIGATÓRIAS:
             ? "\nATENÇÃO: Este produto NÃO tem categoria atribuída. Analisa o título, descrição e especificações técnicas para sugerir a categoria mais adequada da lista."
             : "";
           const accessoryRule = "\nREGRA DE ACESSÓRIOS: Se o produto for uma peça, extra ou acessório (ex: estante, prateleira, cesto, kit, shelf), deves SEMPRE procurar uma subcategoria 'Acessorios' dentro da categoria principal (ex: 'FRIO COMERCIAL > Acessorios').";
-          fieldInstructions.push(`CATEGORIA SUGERIDA:\n${getFieldPrompt("category", "Analisa o produto e escolhe a categoria mais específica da lista.")}${catList}${semanticHint}${accessoryRule}${noCatHint}`);
+          fieldInstructions.push(`CATEGORIA SUGERIDA:\n${getFieldPrompt("category", "Analisa o produto e escolhe a categoria mais específica da lista.")}${catList}${semanticHint}${patternHints}${accessoryRule}${noCatHint}`);
         }
 
         const defaultPrompt = `Optimiza o seguinte produto de e-commerce para SEO e conversão em português europeu.

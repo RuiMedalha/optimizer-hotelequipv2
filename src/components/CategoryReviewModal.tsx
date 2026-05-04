@@ -221,9 +221,11 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                 workspaceId: prods[0]?.workspace_id || "",
                 reviewedBy: userData.user?.id,
                 corrections: learningEvents,
-                saveAsPatterns: true
+                saveAsPatterns: true,
+                triggerPatternExtraction: true
               }
             });
+
           } catch (err) {
             console.warn("Learning function failed:", err);
           }

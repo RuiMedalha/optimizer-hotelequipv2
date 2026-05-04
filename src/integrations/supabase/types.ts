@@ -4101,6 +4101,69 @@ export type Database = {
           },
         ]
       }
+      category_learning_patterns: {
+        Row: {
+          category_id: string
+          confidence: number | null
+          created_at: string | null
+          id: string
+          last_seen_at: string | null
+          pattern_key: string
+          pattern_operator: string | null
+          pattern_type: string
+          pattern_value: string
+          sample_count: number | null
+          source: string | null
+          updated_at: string | null
+          workspace_id: string
+        }
+        Insert: {
+          category_id: string
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          last_seen_at?: string | null
+          pattern_key: string
+          pattern_operator?: string | null
+          pattern_type: string
+          pattern_value: string
+          sample_count?: number | null
+          source?: string | null
+          updated_at?: string | null
+          workspace_id: string
+        }
+        Update: {
+          category_id?: string
+          confidence?: number | null
+          created_at?: string | null
+          id?: string
+          last_seen_at?: string | null
+          pattern_key?: string
+          pattern_operator?: string | null
+          pattern_type?: string
+          pattern_value?: string
+          sample_count?: number | null
+          source?: string | null
+          updated_at?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "category_learning_patterns_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "category_learning_patterns_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       category_schemas: {
         Row: {
           category_id: string | null
