@@ -1208,51 +1208,30 @@ IMPORTANTE: Otimiza o conteúdo BASE que será propagado para todas as variaçõ
         // Build field-specific instructions using per-field prompts
         // Default prompts match the frontend defaults in useFieldPrompts.ts
         const DEFAULT_FIELD_PROMPTS: Record<string, string> = {
-          title: `Gera um título otimizado para SEO (máx 70 chars).
-CONTEXTO: Estes são equipamentos PROFISSIONAIS para hotelaria, restauração, cozinhas industriais e bares.
+          title: `Gera um título otimizado para SEO (50-60 chars).
 REGRAS OBRIGATÓRIAS:
-- Inclui a keyword principal no início
-- NÃO incluas o nome da marca no título (ex: NÃO "Zanussi Fritadeira", NÃO "Lizotel Caixa", SIM "Fritadeira a Gás Linha 700")
-- NÃO incluas códigos EAN, códigos de barras, referências numéricas de fornecedor ou SKUs no título
-- NÃO incluas quantidades de embalagem no título (ex: NÃO "Pack 6 unidades")
-- Inclui linha/série se aplicável (ex: "Linha 700", "Linha 900")
-- Inclui capacidade/dimensão se relevante (ex: "40x40", "4 Bicos", "8 Litros")
-- Mantém o tipo de energia se aplicável (Gás, Elétrico, etc.)
-- Nunca uses palavras genéricas como "Profissional" sem contexto técnico`,
-          description: `Gera uma descrição otimizada com ESTRUTURA OBRIGATÓRIA:
-CONTEXTO: Estes são equipamentos PROFISSIONAIS para hotelaria, restauração, cozinhas industriais e bares.
+- NUNCA incluas \"HORECA\" no título.
+- Foco: Tipo de Produto + Característica Distintiva + Dimensão/Capacidade.
+- Usar termo específico se necessário: \"Profissional\", \"Industrial\", \"Comercial\".
+- NÃO incluas marca, códigos EAN, referências ou SKUs no título.
+- Inclui linha/série se aplicável (ex: \"Linha 700\").
+- Inclui tipo de energia se aplicável (Gás, Elétrico).`,
+          description: `Gera uma descrição otimizada (HTML) que soe humana e natural.
+REGRAS DE LINGUAGEM NATURAL — OBRIGATÓRIO:
+- NUNCA soar robótico ou repetitivo. Limitar \"HORECA\" a máx 1 menção.
+- Substituir \"HORECA\" por: \"o seu restaurante\", \"o seu bar\", \"cozinhas profissionais\".
+- Dirigir-se ao cliente: \"Perfeito para o seu bar\", \"A sua equipa vai apreciar\".
+- VARIAR CONSTRUÇÕES: Nunca começar parágrafos seguidos com \"Este equipamento...\".
+- BENEFÍCIOS REAIS: Impacto no negócio (custos, ruído, rapidez) em vez de apenas specs.
 
-Envolve TUDO num div raiz: <div class="product-description" style="font-size:15px; line-height:1.65; color:#2c2c2c;">
-
-Cada secção é um div com classe própria e margin-bottom:22px. Usa h3 (NÃO h2) com este estilo EXATO:
-style="margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;"
-
-REGRA SEO CRÍTICA PARA HEADINGS:
-- O PRIMEIRO h3 da descrição DEVE conter a focus keyword principal do produto (ex: se a focus keyword é "fritadeira a gás profissional", o primeiro h3 deve ser algo como "Vantagens da Fritadeira a Gás Profissional" ou "Fritadeira a Gás Profissional — Principais Benefícios")
-- Adapta o texto do heading para ser natural e incluir a keyword — NÃO uses apenas "Principais Vantagens" genérico
-
-SECÇÕES OBRIGATÓRIAS (nesta ordem):
+ESTRUTURA OBRIGATÓRIA:
+Envolve TUDO num div: <div class="product-description" style="font-size:15px; line-height:1.65; color:#2c2c2c;">
+Usa h3 com style=\"margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;\"
 
 1. <div class="product-benefits" style="margin-bottom:22px;"> com <h3>[Focus Keyword] — Principais Vantagens</h3>
-   - O h3 DEVE incluir a focus keyword principal integrada naturalmente
-   - Dentro de <div style="margin-top:10px;">, parágrafos com benefícios-chave (2-4 parágrafos)
-
-2. <div class="product-applications" style="margin-bottom:22px;"> com <h3>Aplicações</h3>
-   - Dentro de <div style="margin-top:10px;">, aplicações concretas: tipos de estabelecimento, volume, situações
-
-3. <div class="product-specs" style="margin-bottom:22px;"> com <h3>Especificações Técnicas</h3>
-   - <div class="specs-table" style="margin-top:10px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden;">
-   - Dentro, <table style="width:100%; border-collapse:collapse; font-size:0.9em;">
-   - th: style="border:1px solid #e5e7eb; padding:8px 12px; background:#f3f4f6; font-weight:bold; text-align:left;"
-   - td: style="border:1px solid #e5e7eb; padding:8px 12px;"
-
-4. <div class="product-faq" style="margin-bottom:22px;"> com <h3>Perguntas Frequentes</h3>
-   - EXATAMENTE 5 perguntas (nunca menos de 5)
-   - Dentro de <div style="margin-top:10px; background:#fcfcfd; border:1px solid #e5e7eb; border-radius:8px; padding:14px 16px;">
-   - NÃO uses <details>/<summary> — as respostas são SEMPRE visíveis
-   - Cada FAQ como:
-     <p style="font-weight:bold; margin:0 0 4px; color:#2c2c2c;">Pergunta aqui?</p>
-     <p style="font-style:italic; color:#6b7280; margin:0 0 14px;">Resposta aqui.</p>
+2. <div class="product-applications" style="margin-bottom:22px;"> com <h3>Aplicações</h3> (Contextos concretos: \"buffet de hotel\", \"cafetaria movimentada\")
+3. <div class="product-specs" style="margin-bottom:22px;"> com <h3>Especificações Técnicas</h3> (Tabela HTML)
+4. <div class="product-faq" style="margin-bottom:22px;"> com <h3>Perguntas Frequentes</h3> (EXATAMENTE 5 perguntas)`,
 
 REGRAS OBRIGATÓRIAS:
 - NÃO incluas o nome da marca no texto comercial — foca no equipamento e nas suas capacidades
@@ -1301,14 +1280,12 @@ REGRAS OBRIGATÓRIAS:
 - NÃO incluas o nome da marca — foca na linha/série e tipo de equipamento
 - NÃO incluas códigos EAN ou referências
 - Termina com separador e nome da loja se couber`,
-          meta_description: `Gera meta description SEO (máx 155 chars).
+          meta_description: `Gera meta description SEO (140-155 chars).
 REGRAS OBRIGATÓRIAS:
-- Inclui call-to-action (ex: "Encomende já", "Entrega rápida")
-- Menciona 1-2 benefícios chave
-- Inclui preço ou "Melhor preço" se aplicável
-- NÃO incluas o nome da marca
-- Usa linguagem que gere cliques
-- Se couber naturalmente (sem forçar), inclui 1 sinónimo popular do produto (ex: "exaustor / hotte", "grelhador (plancha)") — só se a frase ficar fluida`,
+- NUNCA usar \"HORECA\". Usar: \"restaurantes\", \"hotéis\", \"bares\".
+- Dirigir-se ao cliente: \"para o seu restaurante\", \"ideal para o seu bar\".
+- Benefício concreto + contexto específico + call-to-action (ex: \"Entrega 24-48h\").
+- NÃO incluas marca. Usa linguagem que gere cliques.`,
           seo_slug: `Gera um slug SEO-friendly.
 REGRAS OBRIGATÓRIAS:
 - Lowercase, sem acentos, com hífens
@@ -1322,7 +1299,8 @@ REGRAS OBRIGATÓRIAS:
 - Inclui categoria principal (ex: "fritadeira")
 - Inclui tipo de energia (ex: "gás", "elétrico")
 - Inclui linha/série (ex: "linha 700")
-- Inclui aplicação (ex: "restaurante", "hotelaria", "horeca")
+- Inclui aplicação (ex: "restaurante", "hotelaria")
+- NUNCA usar "HORECA" em tags se puder ser evitado (preferir termos específicos)
 - NÃO incluas códigos EAN ou referências como tags
 - OBRIGATÓRIO: Inclui SINÓNIMOS PT e INTERNACIONAIS pelos quais o cliente pode pesquisar.
   Exemplos de mapeamento (aplica o que for relevante ao produto):
