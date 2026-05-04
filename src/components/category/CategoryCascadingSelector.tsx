@@ -72,7 +72,7 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [], workspa
   });
 
   const { data: searchResults, isLoading: loadingSearch } = useQuery({
-    queryKey: ["category-search", search, workspaceId],
+    queryKey: ["category-search", search],
     enabled: search.length > 1,
     queryFn: async () => {
       // Use join to get parent name for context
@@ -87,6 +87,7 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [], workspa
             name
           )
         `)
+        .is("workspace_id", null)
         .ilike("name", `%${search}%`)
         .limit(20);
       if (error) throw error;
