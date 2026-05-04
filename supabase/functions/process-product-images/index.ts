@@ -150,6 +150,19 @@ Deno.serve(async (req) => {
     // Log generator resolution for debugging
     console.log(`🔍 [process-images] Generator resolution: generator_found=${!!lifestyleGeneratorPrompt}, generator_name="${lifestyleGeneratorName}", fallback_prompt_found=${!!lifestylePromptTemplate}`);
 
+    function slugify(text: string): string {
+      return text
+        .toString()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, "-")
+        .replace(/[^\w\-]+/g, "")
+        .replace(/\-\-+/g, "-")
+        .replace(/^-+/, "")
+        .replace(/-+$/, "");
+    }
+
     function normalizeAltText(value: string | null | undefined): string | null {
       const text = String(value || "").replace(/\s+/g, " ").trim();
       return text ? text.slice(0, 125) : null;
@@ -263,7 +276,7 @@ Responde APENAS com o texto alt final.`,
         // Get product
         const { data: product } = await sb
           .from("products")
-          .select("id, sku, original_title, optimized_title, image_urls, image_alt_texts, product_type, parent_product_id, category, optimized_short_description, short_description")
+          .select("id, sku, seo_slug, original_title, optimized_title, image_urls, image_alt_texts, product_type, parent_product_id, category, optimized_short_description, short_description")
           .eq("id", productId)
           .single();
 
@@ -564,15 +577,13 @@ INFORMAÇÃO DO PRODUTO:
                     console.warn(`⚠️ [lifestyle] Image exceeds 1MB (${fileSizeKB}KB) for ${productId} — WooCommerce may timeout on download`);
                   }
 
-                  const lifestyleId = `${Date.now()}_${crypto
-                    .randomUUID()
-                    .slice(0, 8)}`;
-                  const path = `${workspaceId}/${productId}/lifestyle_${lifestyleId}.webp`;
+                  const productSlug = product.seo_slug || slugify(product.optimized_title || product.original_title || product.sku || "produto");
+                  const path = `${workspaceId}/${productId}/${productSlug}-lifestyle.jpg`;
 
                   await sb.storage
                     .from("product-images")
                     .upload(path, bytes, {
-                      contentType: "image/webp",
+                      contentType: "image/jpeg",
                       upsert: true,
                     });
 
@@ -679,12 +690,12 @@ INFORMAÇÃO DO PRODUTO:
                   console.warn(`⚠️ [upscale] Image exceeds 1MB (${fileSizeKB}KB) for ${productId} image ${i} — WooCommerce may timeout on download`);
                 }
 
-                const upscaleId = `${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
-                const path = `${workspaceId}/${productId}/upscale_${upscaleId}.webp`;
+                const productSlug = product.seo_slug || slugify(product.optimized_title || product.original_title || product.sku || "produto");
+                const path = `${workspaceId}/${productId}/${productSlug}-${i + 1}.jpg`;
                 await sb.storage
                   .from("product-images")
                   .upload(path, bytes, {
-                    contentType: "image/webp",
+                    contentType: "image/jpeg",
                     upsert: true,
                   });
 
