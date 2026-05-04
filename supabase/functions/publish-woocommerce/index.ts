@@ -1841,7 +1841,7 @@ async function buildBasePayload(
     const { data: wsSettings } = await adminClient
       .from("workspace_settings")
       .select("seo_plugin")
-      .eq("workspace_id", job.workspace_id)
+      .eq("workspace_id", product.workspace_id) // Fix: use product.workspace_id instead of undefined job.workspace_id
       .maybeSingle();
     
     const seoPlugin = wsSettings?.seo_plugin || 'rankmath';
@@ -1878,6 +1878,18 @@ async function buildBasePayload(
     } else {
       console.log(`[seo-meta] Skipped (plugin: ${seoPlugin})`);
     }
+  }
+
+  // ── Certifications Meta ──
+  if (Array.isArray(product.certifications) && product.certifications.length > 0) {
+    if (!Array.isArray(wooProduct.meta_data)) wooProduct.meta_data = [];
+    
+    wooProduct.meta_data.push({
+      key: '_product_certifications',
+      value: JSON.stringify(product.certifications)
+    });
+    
+    console.log(`[certifications] Injected ${product.certifications.length} certifications`);
   }
 
   // ── Attributes (EAN, Marca, Modelo, etc.) for non-variation products ──

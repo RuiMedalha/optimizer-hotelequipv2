@@ -9773,6 +9773,7 @@ export type Database = {
           canonical_supplier_model: string | null
           category: string | null
           category_id: string | null
+          certifications: Json | null
           created_at: string
           crosssell_skus: Json | null
           faq: Json | null
@@ -9835,6 +9836,7 @@ export type Database = {
           canonical_supplier_model?: string | null
           category?: string | null
           category_id?: string | null
+          certifications?: Json | null
           created_at?: string
           crosssell_skus?: Json | null
           faq?: Json | null
@@ -9899,6 +9901,7 @@ export type Database = {
           canonical_supplier_model?: string | null
           category?: string | null
           category_id?: string | null
+          certifications?: Json | null
           created_at?: string
           crosssell_skus?: Json | null
           faq?: Json | null

@@ -94,6 +94,48 @@ function evaluateRule(product: any, rule: GateRule): RuleFailure | null {
         };
       }
       break;
+    case "faq_min_answer_length":
+      // Validate that all FAQ answers meet minimum length
+      if (Array.isArray(fieldValue) && fieldValue.length > 0) {
+        const minLength = rule.value || 50;
+        const invalidFaqs = fieldValue.filter((faq: any) => {
+          const answer = String(faq?.answer || faq?.a || "").trim();
+          return answer.length < minLength;
+        });
+        
+        if (invalidFaqs.length > 0) {
+          const shortestAnswer = invalidFaqs.reduce((min: any, faq: any) => {
+            const answerLen = String(faq?.answer || faq?.a || "").length;
+            return answerLen < (String(min?.answer || min?.a || "").length || 999) ? faq : min;
+          }, invalidFaqs[0]);
+          
+          const shortestLen = String(shortestAnswer?.answer || shortestAnswer?.a || "").length;
+          
+          return {
+            field: rule.field,
+            rule: rule.rule,
+            severity: rule.severity,
+            expected: `todas as respostas >= ${minLength} chars`,
+            actual: `${invalidFaqs.length} respostas curtas (menor: ${shortestLen} chars)`,
+            message: rule.message || `${invalidFaqs.length} FAQ(s) com respostas muito curtas`
+          };
+        }
+      }
+      break;
+    case "has_ce_certification":
+      // Validate CE certification is present
+      const certs = Array.isArray(fieldValue) ? fieldValue : [];
+      if (!certs.includes('CE')) {
+        return {
+          field: rule.field,
+          rule: rule.rule,
+          severity: rule.severity,
+          expected: "Array contém 'CE'",
+          actual: JSON.stringify(certs),
+          message: rule.message || "Certificação CE obrigatória está ausente"
+        };
+      }
+      break;
   }
   return null;
 }
@@ -119,15 +161,41 @@ function calculateSubScores(product: any): Record<string, number> {
   const filled = fields.filter(f => product[f] && String(product[f]).trim() !== "").length;
   const completenessScore = Math.round((filled / fields.length) * 100);
 
-  const overall = Math.round((
-    titleScore * 0.15 + 
-    descScore * 0.15 + 
-    seoScore * 0.1 + 
-    imageScore * 0.1 + 
-    priceScore * 0.1 + 
-    completenessScore * 0.2 +
-    (product.seo_short_description ? 0.2 : 0) * 100
-  ));
+  // FAQ Quality Score
+  const faqCount = Array.isArray(product.faq) ? product.faq.length : 0;
+  const faqScore = (() => {
+    if (faqCount === 0) return 0;
+    if (faqCount < 4) return 50;
+    if (faqCount >= 4 && faqCount <= 6) return 100;
+    if (faqCount > 6) return 80;
+    return 0;
+  })();
+  
+  // FAQ Answer Quality Score
+  const faqAnswerQuality = (() => {
+    if (faqCount === 0) return 0;
+    const answers = product.faq.map((f: any) => String(f?.answer || f?.a || "").trim());
+    const validAnswers = answers.filter((a: string) => a.length >= 50);
+    return Math.round((validAnswers.length / answers.length) * 100);
+  })();
+  
+  // Certifications Score
+  const certsCount = Array.isArray(product.certifications) ? product.certifications.length : 0;
+  const hasCE = product.certifications?.includes('CE') || false;
+  const certsScore = hasCE ? (certsCount > 1 ? 100 : 80) : 0; // CE alone = 80, CE + others = 100
+
+  const overall = Math.round(
+    (titleScore * 0.10) +
+    (descScore * 0.12) +
+    (strScore(product.seo_short_description, 160) * 0.15) +
+    (faqScore * 0.08) +
+    (faqAnswerQuality * 0.08) +
+    (certsScore * 0.07) +
+    (imageScore * 0.15) +
+    (completenessScore * 0.10) +
+    (product.brand ? 0.08 * 100 : 0) +
+    (priceScore * 0.07)
+  );
 
   return {
     title_score: titleScore,
@@ -138,6 +206,9 @@ function calculateSubScores(product: any): Record<string, number> {
     completeness_score: completenessScore,
     seo_short: strScore(product.seo_short_description, 160),
     no_html_short: product.seo_short_description && !/<[^>]+>/.test(product.seo_short_description) ? 100 : 0,
+    faq: faqScore,
+    faq_answers: faqAnswerQuality,
+    certifications: certsScore,
     schema_match_score: 0,
     overall_score: Math.min(100, overall),
   };
@@ -229,6 +300,41 @@ Deno.serve(async (req) => {
           rule: "no_html",
           severity: "warning",
           message: "optimized_short_description contém HTML — considere usar apenas texto limpo"
+        },
+        // FAQ Quality Rules
+        {
+          field: "faq",
+          rule: "min_items",
+          value: 4,
+          severity: "warning",
+          message: "Produto tem menos de 4 FAQs (recomendado: 4-6 para SEO)"
+        },
+        {
+          field: "faq",
+          rule: "faq_min_answer_length",
+          value: 50,
+          severity: "error",
+          message: "Uma ou mais respostas FAQ têm menos de 50 caracteres (muito curtas para rich results)"
+        },
+        {
+          field: "faq",
+          rule: "not_empty",
+          severity: "warning",
+          message: "Produto sem FAQs — considere gerar para melhorar SEO"
+        },
+
+        // Certification Rules
+        {
+          field: "certifications",
+          rule: "has_ce_certification",
+          severity: "error",
+          message: "Produto sem certificação CE (obrigatório para venda na UE)"
+        },
+        {
+          field: "certifications",
+          rule: "not_empty",
+          severity: "error",
+          message: "Array de certificações vazio"
         },
       ];
 
