@@ -196,6 +196,40 @@ Deno.serve(async (req) => {
         { field: "meta_description", rule: "max_length", value: 160, severity: "warning" },
         { field: "image_urls", rule: "min_items", value: 1, severity: "warning" },
         { field: "optimized_price", rule: "min_value", value: 0.01, severity: "error" },
+        // SEO Short Description Rules
+        {
+          field: "seo_short_description",
+          rule: "not_empty",
+          severity: "error",
+          message: "Campo seo_short_description é obrigatório para partilhas sociais"
+        },
+        {
+          field: "seo_short_description",
+          rule: "min_length",
+          value: 50,
+          severity: "warning",
+          message: "seo_short_description muito curta (mínimo recomendado: 50 chars)"
+        },
+        {
+          field: "seo_short_description",
+          rule: "max_length",
+          value: 160,
+          severity: "error",
+          message: "seo_short_description excede 160 caracteres (limite do Google snippet)"
+        },
+        {
+          field: "seo_short_description",
+          rule: "no_html",
+          severity: "error",
+          message: "seo_short_description não pode conter tags HTML (será exibido em og:description)"
+        },
+        // Verify optimized_short_description doesn't have HTML wrapper
+        {
+          field: "optimized_short_description",
+          rule: "no_html",
+          severity: "warning",
+          message: "optimized_short_description contém HTML — considere usar apenas texto limpo"
+        },
       ];
 
       const { data: newGate, error: createErr } = await supabase
