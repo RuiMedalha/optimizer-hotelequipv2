@@ -149,3 +149,44 @@ export function useWorkspacePublishProfiles() {
     },
   });
 }
+
+// ── SEO Settings ──
+export function useWorkspaceSeoSettings() {
+  const { activeWorkspace } = useWorkspaceContext();
+  const wsId = activeWorkspace?.id;
+
+  return useQuery({
+    queryKey: ["workspace-seo-settings", wsId],
+    enabled: !!wsId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("workspace_settings")
+        .select("seo_plugin")
+        .eq("workspace_id", wsId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useSaveWorkspaceSeoSettings() {
+  const qc = useQueryClient();
+  const { activeWorkspace } = useWorkspaceContext();
+
+  return useMutation({
+    mutationFn: async (seoPlugin: string) => {
+      const wsId = activeWorkspace?.id;
+      if (!wsId) throw new Error("Workspace não selecionado");
+      const { error } = await supabase
+        .from("workspace_settings")
+        .upsert({ workspace_id: wsId, seo_plugin: seoPlugin }, { onConflict: "workspace_id" });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["workspace-seo-settings"] });
+      toast.success("Configuração SEO guardada!");
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+}
