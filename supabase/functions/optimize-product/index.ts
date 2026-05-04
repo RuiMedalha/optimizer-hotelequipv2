@@ -4,6 +4,40 @@ import { enforceFieldLimits } from "../_shared/ai/output-guardrails.ts";
 import { formatProductOutput } from "../_shared/ai/output-formatter.ts";
 import { cleanHtmlContentWithStats } from "../_shared/text/clean-html-content.ts";
 
+/**
+ * Validates content follows natural language guidelines
+ * Logs warnings for monitoring (doesn't block generation)
+ */
+function validateNaturalLanguage(content: string, fieldName: string): void {
+  if (!content) return;
+  const warnings: string[] = [];
+  
+  // Check HORECA overuse
+  const horecaCount = (content.match(/\bHORECA\b/gi) || []).length;
+  if (horecaCount > 1) {
+    warnings.push(`"HORECA" aparece ${horecaCount} vezes (máx: 1)`);
+  }
+  
+  // Check "estabelecimentos" repetition
+  const estabelCount = (content.match(/\bestablecimentos\b/gi) || []).length;
+  if (estabelCount > 2) {
+    warnings.push(`"estabelecimentos" aparece ${estabelCount} vezes (máx: 2)`);
+  }
+  
+  // Check repetitive sentence starts
+  const thisEquipCount = (content.match(/(Este equipamento|Este produto|Esta máquina|Este expositor)/gi) || []).length;
+  if (thisEquipCount > 2) {
+    warnings.push(`${thisEquipCount} frases começam com "Este equipamento/produto..." (repetitivo)`);
+  }
+  
+  if (warnings.length > 0) {
+    console.warn(`[language-quality] ${fieldName}:`, warnings);
+  } else {
+    console.log(`[language-quality] ${fieldName} ✓`);
+  }
+}
+
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":

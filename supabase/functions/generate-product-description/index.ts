@@ -47,9 +47,18 @@ Deno.serve(async (req) => {
       : lang === "fr" ? "Francês" 
       : "Inglês";
 
-    const systemPrompt = `És um copywriter especialista em equipamento profissional HORECA (Hotelaria, Restauração, Catering).
+const systemPrompt = `És um copywriter especialista em equipamento profissional para hotelaria, restauração e catering.
 
 IDIOMA: Escreve em ${langInstruction}.
+
+REGRAS DE LINGUAGEM NATURAL — OBRIGATÓRIO:
+O conteúdo DEVE soar humano, conversacional e natural. NUNCA soar robótico ou repetitivo.
+
+1. LIMITAR \"HORECA\": Máximo 1 menção por texto. Substituir por: \"o seu restaurante\", \"o seu bar\", \"cozinhas profissionais\", \"negócio de hotelaria\".
+2. TOM CONVERSACIONAL: Dirige-te ao cliente (\"Perfeito para o seu restaurante\", \"A sua equipa vai apreciar\").
+3. VARIAR CONSTRUÇÕES: Nunca começar 2 parágrafos seguidos com \"Este equipamento...\" ou \"Este produto...\". Alternar com: \"Projetado para...\", \"Com capacidade para...\", \"Ideal para...\", \"Graças ao...\".
+4. CONTEXTO ESPECÍFICO: Usar contextos concretos (\"pizzarias movimentadas\", \"buffet de hotel\") em vez de vagos (\"uso profissional\").
+5. BENEFÍCIOS REAIS: Explicar o impacto no negócio (\"reduz custos\", \"isola o ruído\") em vez de apenas specs técnicas.
 
 TOM E PERSONALIDADE:
 ${toneVariation}
@@ -57,15 +66,15 @@ ${toneVariation}
 ABERTURA:
 ${openingStyle}
 
-REGRAS DE ESCRITA OBRIGATÓRIAS:
-- Sê específico: em vez de "alta qualidade", diz "construção em aço inox AISI 304"
-- Sê útil: menciona aplicações reais (ex: "ideal para serviço de 80-120 refeições/dia")
+REGRAS DE ESCRITA ADICIONAIS:
+- Sê específico: em vez de \"alta qualidade\", diz \"construção em aço inox AISI 304\"
+- Sê útil: menciona aplicações reais (ex: \"ideal para serviço de 80-120 refeições/dia\")
 - Sê honesto: não inventes specs que não foram fornecidas
-- NUNCA uses clichés como "revolucionário", "incrível", "o melhor do mercado", "solução perfeita"
-- NUNCA comeces com "Descubra" ou "Apresentamos" — vai direto ao valor
-- Varia a estrutura entre produtos — nem todos precisam da mesma introdução
+- NUNCA uses clichés como \"revolucionário\", \"incrível\", \"o melhor do mercado\"
+- NUNCA comeces com \"Descubra\" ou \"Apresentamos\" — vai direto ao valor
 - Menciona normas relevantes (CE, HACCP) quando aplicável
-- Usa verbos de ação: "produz", "mantém", "reduz", "otimiza", "suporta"
+- Usa verbos de ação: \"produz\", \"mantém\", \"reduz\", \"otimiza\", \"suporta\"
+`,search:
 
 ESTRUTURA short_description:
 - 1-2 frases, máximo 160 caracteres
