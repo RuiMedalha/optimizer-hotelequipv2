@@ -1333,13 +1333,11 @@ REGRAS OBRIGATÓRIAS:
 - NÃO sugiras produtos redundantes`,
           image_alt: `Gera alt text SEO para CADA UMA das imagens do produto (máx 125 chars cada).
 REGRAS OBRIGATÓRIAS:
-- Inclui keyword principal
-- Tom descritivo e direto
-- Sem nomes de marcas
 - Deves gerar EXATAMENTE 1 alt text por cada URL de imagem fornecida — sem exceção
-- Descritivo e relevante para o produto
-- Inclui keyword principal + linha
+- Usa OBRIGATORIAMENTE o título otimizado em português como base para o alt text
 - NÃO incluas a marca no alt text
+- Inclui keyword principal + linha/modelo
+- Tom descritivo e direto, sem nomes de marcas
 - Inclui ângulo/perspetiva se possível (ex: "vista frontal", "detalhe do painel")
 - Não comeces com "Imagem de" — sê direto
 - Se houver imagens originais e optimizadas do mesmo produto, diferencia os alt texts`,
