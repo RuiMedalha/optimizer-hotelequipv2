@@ -143,7 +143,7 @@ const CategoriesPage = () => {
   const corruptedCats = useMemo(() => {
     type CorruptedCat = { cat: Category; problem: "hierarchy_path" | "multi_category" | "duplicate" };
     const results: CorruptedCat[] = [];
-    const nameCount = new Map<string, Category[]>();
+    const nameParentMap = new Map<string, Category[]>();
 
     flat.forEach(c => {
       if (ignoredCorrupted.has(c.id)) return;
@@ -152,12 +152,13 @@ const CategoriesPage = () => {
       } else if (c.name.includes("|")) {
         results.push({ cat: c, problem: "multi_category" });
       }
-      const lower = c.name.toLowerCase().trim();
-      if (!nameCount.has(lower)) nameCount.set(lower, []);
-      nameCount.get(lower)!.push(c);
+      
+      const key = `${c.name.toLowerCase().trim()}_${c.parent_id || 'root'}`;
+      if (!nameParentMap.has(key)) nameParentMap.set(key, []);
+      nameParentMap.get(key)!.push(c);
     });
 
-    nameCount.forEach((cats) => {
+    nameParentMap.forEach((cats) => {
       if (cats.length > 1) {
         cats.forEach(c => {
           if (!ignoredCorrupted.has(c.id) && !results.some(r => r.cat.id === c.id)) {
