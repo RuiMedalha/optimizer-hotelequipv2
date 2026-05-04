@@ -1758,7 +1758,13 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           updateData.seo_short_description = optimized.optimized_short_description || null;
         }
         if (optimized.meta_title) updateData.meta_title = optimized.meta_title;
-        if (optimized.meta_description) updateData.meta_description = optimized.meta_description;
+        if (optimized.meta_description) {
+          updateData.meta_description = optimized.meta_description;
+          // Use meta_description as fallback for seo_short_description if not already set
+          if (!updateData.seo_short_description) {
+            updateData.seo_short_description = optimized.meta_description;
+          }
+        }
         if (optimized.seo_slug) updateData.seo_slug = optimized.seo_slug;
         if (optimized.tags) updateData.tags = optimized.tags;
 
