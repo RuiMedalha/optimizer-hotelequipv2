@@ -170,12 +170,9 @@ Responde APENAS com JSON válido, sem markdown, sem code blocks, sem bullets:
 {
   "intro": "1 parágrafo sobre o que este equipamento faz para profissionais",
   "useCases": [
-    { "context": "Nome do contexto profissional", "description": "2-3 frases sobre como usam este equipamento" },
-    { "context": "Outro contexto", "description": "..." },
-    { "context": "Terceiro contexto", "description": "..." }
+    { "context": "Nome do contexto profissional (ex: Serviço de Buffet) - em <h3>", "description": "2-3 frases sobre como usam este equipamento" }
   ],
-  "professionalTips": ["dica 1", "dica 2", "dica 3"],
-  "targetProfiles": ["perfil 1", "perfil 2", "perfil 3"]
+  "professionalTips": ["Dica Profissional: conteúdo da dica - em <h4>"]
 }
 
 IMPORTANTE: Devolve APENAS o JSON acima. Sem texto antes ou depois. Sem markdown.`;
