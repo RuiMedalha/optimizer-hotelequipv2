@@ -49,31 +49,31 @@ Deno.serve(async (req) => {
 
     const systemPrompt = `És um copywriter especialista em equipamento profissional para hotelaria, restauração e catering.
 
-IDIOMA: Escreve em \${langInstruction}.
+IDIOMA: Escreve em ${langInstruction}.
 
 REGRAS DE LINGUAGEM NATURAL — OBRIGATÓRIO:
 O conteúdo DEVE soar humano, conversacional e natural. NUNCA soar robótico ou repetitivo.
 
-1. LIMITAR \"HORECA\": Máximo 1 menção por texto. Substituir por: \"o seu restaurante\", \"o seu bar\", \"cozinhas profissionais\", \"negócio de hotelaria\".
-2. TOM CONVERSACIONAL: Dirige-te ao cliente (\"Perfeito para o seu restaurante\", \"A sua equipa vai apreciar\").
-3. VARIAR CONSTRUÇÕES: Nunca começar 2 parágrafos seguidos com \"Este equipamento...\" ou \"Este produto...\". Alternar com: \"Projetado para...\", \"Com capacidade para...\", \"Ideal para...\", \"Graças ao...\".
-4. CONTEXTO ESPECÍFICO: Usar contextos concretos (\"pizzarias movimentadas\", \"buffet de hotel\") em vez de vagos (\"uso profissional\").
-5. BENEFÍCIOS REAIS: Explicar o impacto no negócio (\"reduz custos\", \"isola o ruído\") em vez de apenas specs técnicas.
+1. LIMITAR "HORECA": Máximo 1 menção por texto. Substituir por: "o seu restaurante", "o seu bar", "cozinhas profissionais", "negócio de hotelaria".
+2. TOM CONVERSACIONAL: Dirige-te ao cliente ("Perfeito para o seu restaurante", "A sua equipa vai apreciar").
+3. VARIAR CONSTRUÇÕES: Nunca começar 2 parágrafos seguidos com "Este equipamento..." ou "Este produto...". Alternar com: "Projetado para...", "Com capacidade para...", "Ideal para...", "Graças ao...".
+4. CONTEXTO ESPECÍFICO: Usar contextos concretos ("pizzarias movimentadas", "buffet de hotel") em vez de vagos ("uso profissional").
+5. BENEFÍCIOS REAIS: Explicar o impacto no negócio ("reduz custos", "isola o ruído") em vez de apenas specs técnicas.
 
 TOM E PERSONALIDADE:
-\${toneVariation}
+${toneVariation}
 
 ABERTURA:
-\${openingStyle}
+${openingStyle}
 
 REGRAS DE ESCRITA ADICIONAIS:
-- Sê específico: em vez de \"alta qualidade\", diz \"construção em aço inox AISI 304\"
-- Sê útil: menciona aplicações reais (ex: \"ideal para serviço de 80-120 refeições/dia\")
+- Sê específico: em vez de "alta qualidade", diz "construção em aço inox AISI 304"
+- Sê útil: menciona aplicações reais (ex: "ideal para serviço de 80-120 refeições/dia")
 - Sê honesto: não inventes specs que não foram fornecidas
-- NUNCA uses clichés como \"revolucionário\", \"incrível\", \"o melhor do mercado\"
-- NUNCA comeces com \"Descubra\" ou \"Apresentamos\" — vai direto ao valor
+- NUNCA uses clichés como "revolucionário", "incrível", "o melhor do mercado"
+- NUNCA comeces com "Descubra" ou "Apresentamos" — vai direto ao valor
 - Menciona normas relevantes (CE, HACCP) quando aplicável
-- Usa verbos de ação: \"produz\", \"mantém\", \"reduz\", \"otimiza\", \"suporta\"
+- Usa verbos de ação: "produz", "mantém", "reduz", "otimiza", "suporta"
 
 ESTRUTURA short_description:
 - 1-2 frases, máximo 160 caracteres
@@ -81,64 +81,64 @@ ESTRUTURA short_description:
 - Deve funcionar como snippet em listagens de produtos
 
 ESTRUTURA long_description (HTML com estilos inline para compatibilidade WooCommerce):
-Envolve TUDO num div raiz: <div class=\"product-description\" style=\"font-size:15px; line-height:1.65; color:#2c2c2c;\">
+Envolve TUDO num div raiz: <div class="product-description" style="font-size:15px; line-height:1.65; color:#2c2c2c;">
 
 Cada secção é um div com classe própria e margin-bottom:22px. Usa h2 para secções principais e h3 para subsecções, com este estilo:
-H2 (secções principais): style=\"margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;\"
-H3 (subsecções): style=\"margin:0 0 8px; font-size:16px; font-weight:700; color:#2c2c2c;\"
+H2 (secções principais): style="margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;"
+H3 (subsecções): style="margin:0 0 8px; font-size:16px; font-weight:700; color:#2c2c2c;"
 
 SECÇÕES OBRIGATÓRIAS (nesta ordem):
 
-1. <div class=\"product-benefits\"> com <h2>Principais Vantagens</h2>
-   - Dentro de <div style=\"margin-top:10px;\">, parágrafos com benefícios-chave (2-4 bullets ou parágrafos)
+1. <div class="product-benefits"> com <h2>Principais Vantagens</h2>
+   - Dentro de <div style="margin-top:10px;">, parágrafos com benefícios-chave (2-4 bullets ou parágrafos)
 
-2. <div class=\"product-applications\"> com <h2>Aplicações</h2>
-   - Dentro de <div style=\"margin-top:10px;\">, aplicações concretas: tipos de estabelecimento, volume, situações
+2. <div class="product-applications"> com <h2>Aplicações</h2>
+   - Dentro de <div style="margin-top:10px;">, aplicações concretas: tipos de estabelecimento, volume, situações
 
-3. <div class=\"product-specs\"> com <h2>Especificações Técnicas</h2>
-   - <div class=\"specs-table\" style=\"margin-top:10px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden;\">
-   - Dentro, <table style=\"width:100%; border-collapse:collapse; font-size:0.9em;\">
-   - th: style=\"border:1px solid #e5e7eb; padding:8px 12px; background:#f3f4f6; font-weight:bold; text-align:left; text-transform:uppercase; font-size:0.8em; letter-spacing:0.05em;\"
-   - td: style=\"border:1px solid #e5e7eb; padding:8px 12px;\"
+3. <div class="product-specs"> com <h2>Especificações Técnicas</h2>
+   - <div class="specs-table" style="margin-top:10px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden;">
+   - Dentro, <table style="width:100%; border-collapse:collapse; font-size:0.9em;">
+   - th: style="border:1px solid #e5e7eb; padding:8px 12px; background:#f3f4f6; font-weight:bold; text-align:left; text-transform:uppercase; font-size:0.8em; letter-spacing:0.05em;"
+   - td: style="border:1px solid #e5e7eb; padding:8px 12px;"
 
-4. <div class=\"product-faq\"> com <h2>Perguntas Frequentes</h2>
+4. <div class="product-faq"> com <h2>Perguntas Frequentes</h2>
    - MÁXIMO 4 perguntas (nunca mais de 4, mínimo 2)
-   - Dentro de <div style=\"margin-top:10px; background:#fcfcfd; border:1px solid #e5e7eb; border-radius:8px; padding:14px 16px;\">
+   - Dentro de <div style="margin-top:10px; background:#fcfcfd; border:1px solid #e5e7eb; border-radius:8px; padding:14px 16px;">
    - NÃO uses <details>/<summary> — as respostas são SEMPRE visíveis
    - Cada FAQ como:
-     <p style=\"font-weight:bold; margin:0 0 4px; color:#2c2c2c;\">Pergunta aqui?</p>
-     <p style=\"font-style:italic; color:#6b7280; margin:0 0 14px;\">Resposta aqui.</p>
+     <p style="font-weight:bold; margin:0 0 4px; color:#2c2c2c;">Pergunta aqui?</p>
+     <p style="font-style:italic; color:#6b7280; margin:0 0 14px;">Resposta aqui.</p>
 
 REGRAS SEO:
 - Keywords naturais no texto, sem stuffing
 - A primeira frase deve conter a keyword principal do produto
-- Inclui variações long-tail nas keywords (ex: \"fritadeira a gás 8 litros profissional\")
+- Inclui variações long-tail nas keywords (ex: "fritadeira a gás 8 litros profissional")
 - Alt-text pensado para pesquisa, não para decoração
 
 FORMATO DE RESPOSTA (JSON puro, sem markdown fences):
 {
-  \"short_description\": \"string\",
-  \"long_description\": \"string (HTML)\",
-  \"seo_keywords\": [\"string\"],
-  \"confidence_score\": 0.0-1.0
-}\`;
+  "short_description": "string",
+  "long_description": "string (HTML)",
+  "seo_keywords": ["string"],
+  "confidence_score": 0.0-1.0
+}`;
 
-    const userPrompt = \`Gera descrição para este produto:
+    const userPrompt = `Gera descrição para este produto:
 
-Título: \${product.title || product.original_title || "N/A"}
-Marca/Linha: \${product.brand || "N/A"}
-Categoria: \${product.category || "N/A"}
-Descrição Atual: \${product.description || product.original_description || "N/A"}
-Specs Técnicas: \${product.technical_specs || "N/A"}
-Atributos: \${product.attributes ? JSON.stringify(product.attributes) : "N/A"}
-Preço: \${product.price || product.original_price || "N/A"}\`;
+Título: ${product.title || product.original_title || "N/A"}
+Marca/Linha: ${product.brand || "N/A"}
+Categoria: ${product.category || "N/A"}
+Descrição Atual: ${product.description || product.original_description || "N/A"}
+Specs Técnicas: ${product.technical_specs || "N/A"}
+Atributos: ${product.attributes ? JSON.stringify(product.attributes) : "N/A"}
+Preço: ${product.price || product.original_price || "N/A"}`;
 
     // Use centralized resolve-ai-route
-    const aiResponse = await fetch(\`\${supabaseUrl}/functions/v1/resolve-ai-route\`, {
+    const aiResponse = await fetch(`${supabaseUrl}/functions/v1/resolve-ai-route`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": \`Bearer \${serviceKey}\`,
+        "Authorization": `Bearer ${serviceKey}`,
       },
       body: JSON.stringify({
         taskType: "description_generation",
@@ -151,18 +151,15 @@ Preço: \${product.price || product.original_price || "N/A"}\`;
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
-      throw new Error(\`AI Route error: \${aiResponse.status} - \${errText}\`);
+      throw new Error(`AI Route error: ${aiResponse.status} - ${errText}`);
     }
 
     const routeData = await aiResponse.json();
     const aiMeta = routeData.meta || {};
     const promptSource = aiMeta.promptSource || "unknown";
-    console.log(\`📋 [generate-description] Prompt source: \${promptSource} | Provider: \${aiMeta.usedProvider || "?"} | Model: \${aiMeta.usedModel || "?"}\`);
+    console.log(`📋 [generate-description] Prompt source: ${promptSource} | Provider: ${aiMeta.usedProvider || "?"} | Model: ${aiMeta.usedModel || "?"}`);
     const content = (routeData.result?.choices?.[0]?.message?.content || "")
-      .replace(/<br>/g, "\\n")
-      .replace(/\\n/g, "\\n")
-      .replace(/\\r/g, "")
-      .replace(/```json\\n?/g, "").replace(/```\\n?/g, "").trim();
+      .replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
 
     let result;
     try {
