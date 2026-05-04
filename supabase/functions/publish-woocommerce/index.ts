@@ -1651,9 +1651,14 @@ async function enrichWithExtraContent(
       }
 
       if (wantsUsoCustom) {
-        const meta = ensureMeta();
-        meta.push({ key: "_product_conselhos", value: buildUsoProfissionalJson(usoData) });
-        console.log(`[enrichExtraContent] Uso Profissional sent to custom meta field for ${product.id}`);
+        const meta = ensureMeta() as any[];
+        const existingIdx = meta.findIndex(m => m.key === '_product_conselhos');
+        if (existingIdx === -1) {
+          meta.push({ key: "_product_conselhos", value: buildUsoProfissionalJson(usoData) });
+          console.log(`[enrichExtraContent] Uso Profissional sent to custom meta field for ${product.id}`);
+        } else {
+          console.log(`[enrichExtraContent] _product_conselhos already set, skipping legacy JSON injection`);
+        }
       }
     }
   }
@@ -1892,7 +1897,49 @@ async function buildBasePayload(
     console.log(`[certifications] Injected ${product.certifications.length} certifications`);
   }
 
-  // ── Attributes (EAN, Marca, Modelo, etc.) for non-variation products ──
+
+  // ── Professional Use Content as Editorial Review (Schema) ──
+  if (product.professional_use_content && product.professional_use_content.trim().length > 0) {
+    // Strip HTML to get clean text for Schema reviewBody
+    let cleanReview = product.professional_use_content
+      .replace(/<script[^>]*>.*?<\/script>/gis, '')  // Remove any script tags
+      .replace(/<style[^>]*>.*?<\/style>/gis, '')    // Remove style blocks
+      .replace(/<[^>]+>/g, ' ')                       // Remove all HTML tags
+      .replace(/&nbsp;/g, ' ')                        // Replace &nbsp;
+      .replace(/&[a-z]+;/gi, '')                      // Remove other HTML entities
+      .replace(/\s+/g, ' ')                           // Normalize whitespace
+      .trim();
+    
+    // Limit to reasonable length for review (1000 chars is typical for editorial reviews)
+    cleanReview = cleanReview.substring(0, 1000);
+    
+    // Only inject if we have substantive content (min 100 chars)
+    if (cleanReview.length >= 100) {
+      if (!Array.isArray(wooProduct.meta_data)) {
+        wooProduct.meta_data = [];
+      }
+      
+      // Check if already exists to avoid duplicates
+      const meta = wooProduct.meta_data as any[];
+      const existingIdx = meta.findIndex(m => m.key === '_product_conselhos');
+      if (existingIdx >= 0) {
+        meta[existingIdx].value = cleanReview;
+      } else {
+        meta.push({
+          key: '_product_conselhos',
+          value: cleanReview
+        });
+      }
+      
+      console.log(`[schema-review] Injected professional use content as editorial review (${cleanReview.length} chars)`);
+    } else {
+      console.log(`[schema-review] Skipped - content too short (${cleanReview.length} chars, min: 100)`);
+    }
+  } else {
+    console.log('[schema-review] No professional_use_content available');
+  }
+
+
   if (product.product_type !== "variable" && !product.parent_product_id) {
     let productAttrs: any[] = [];
     if (Array.isArray(product.attributes)) {
