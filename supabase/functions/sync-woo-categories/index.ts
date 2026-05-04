@@ -137,13 +137,16 @@ Deno.serve(async (req) => {
         // Create new — scoped to workspace
         const { data: newCat, error: insertErr } = await supabase.from("categories").insert({
           user_id: user.id,
-          workspace_id: workspaceId,
+          workspace_id: null, // Global categories
           woocommerce_id: wooCat.id,
           name: wooCat.name,
           slug: wooCat.slug,
           description: wooCat.description || null,
           parent_id: parentInternalId,
           image_url: wooCat.image?.src || null,
+        }, { 
+          onConflict: 'name,parent_id,workspace_id',
+          ignoreDuplicates: true 
         }).select("id").single();
 
         if (insertErr) {
