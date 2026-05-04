@@ -1550,6 +1550,43 @@ async function enrichWithExtraContent(
     // FAQ to custom field
     if (wantsFaqCustom) {
       const meta = ensureMeta();
+      meta.push({ key: "_product_faq", value: buildFaqSchemaJson(faq) });
+      console.log(`[enrichExtraContent] FAQ sent to custom meta field for ${product.id}`);
+    }
+  }
+
+  // ── SEO Short Description (clean text for og:description) ──
+  if (has("short_description") || has("meta_description")) {
+    const cleanShort = product.seo_short_description || product.optimized_short_description || product.short_description || "";
+    if (cleanShort) {
+      // Get SEO plugin config
+      const { data: wsSettings } = await adminClient
+        .from("workspace_settings")
+        .select("seo_plugin")
+        .eq("workspace_id", product.workspace_id)
+        .maybeSingle();
+
+      const seoPlugin = wsSettings?.seo_plugin || 'rankmath';
+
+      if (seoPlugin === 'rankmath') {
+        const meta = ensureMeta();
+        meta.push({ 
+          key: 'rank_math_snippet_description', 
+          value: cleanShort.substring(0, 160)
+        });
+        console.log(`[seo-short] Injected clean short_description for RankMath`);
+      } else if (seoPlugin === 'yoast') {
+        const meta = ensureMeta();
+        meta.push({ 
+          key: '_yoast_wpseo_metadesc', 
+          value: cleanShort.substring(0, 160)
+        });
+        console.log(`[seo-short] Injected clean short_description for Yoast`);
+      }
+    }
+  }
+    if (wantsFaqCustom) {
+      const meta = ensureMeta();
       meta.push({ key: "_product_faqs", value: buildFaqSchemaJson(faq) });
       meta.push({ key: "_yoast_wpseo_schema_page_type", value: "FAQPage" });
       console.log(`[enrichExtraContent] FAQ sent to custom meta field for ${product.id}`);
