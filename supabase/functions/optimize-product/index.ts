@@ -1233,44 +1233,8 @@ Usa h3 com style=\"margin:0 0 10px; font-size:18px; font-weight:700; color:#0052
 3. <div class="product-specs" style="margin-bottom:22px;"> com <h3>Especificações Técnicas</h3> (Tabela HTML)
 4. <div class="product-faq" style="margin-bottom:22px;"> com <h3>Perguntas Frequentes</h3> (EXATAMENTE 5 perguntas)`,
 
-REGRAS OBRIGATÓRIAS:
-- NÃO incluas o nome da marca no texto comercial — foca no equipamento e nas suas capacidades
-- NÃO incluas códigos EAN, códigos de barras ou referências no texto comercial
-- NÃO mistures dados técnicos no texto comercial
-- Menciona aplicações práticas (restaurante, hotel, pastelaria, bar, etc.)
-- Inclui benefícios de eficiência energética se aplicável
-- Menciona conformidade com normas (CE, HACCP) se relevante
-
-REGRA SEO — INTEGRAÇÃO NATURAL DE SINÓNIMOS NO TEXTO (CRÍTICO):
-- O Google indexa muito mais o TEXTO VISÍVEL da descrição do que tags ou meta-keywords.
-- Identifica 1-2 sinónimos PT/regionais/internacionais relevantes para o produto e integra-os de forma NATURAL e ÚTIL no corpo da descrição.
-- Locais ideais para inserir sinónimos:
-  • No primeiro ou segundo parágrafo de "Principais Vantagens" (ex: "Este exaustor profissional — também conhecido como hotte ou apanha-fumos — ...")
-  • Entre parêntesis na primeira menção do produto (ex: "O grelhador (plancha/chapa) garante...")
-  • Numa frase contextual de "Aplicações" (ex: "Ideal para cozinhas que necessitam de uma coifa potente...")
-- Mapeamento de referência (usa apenas o que se aplica ao produto):
-  • Exaustor → hotte, coifa, apanha-fumos, extractor hood
-  • Grelhador → plancha, chapa, griddle
-  • Forno combinado → combi, forno convetor
-  • Frigorífico → refrigerador, armário refrigerado
-  • Cortador → fiambreira, slicer
-  • Lava-louça → máquina de lavar loiça, dishwasher
-  • Bancada → mesa de trabalho, mesa inox
-  • Máquina de gelo → fabricador de gelo, ice maker
-- LIMITES OBRIGATÓRIOS para evitar keyword stuffing:
-  • MÁXIMO 2 sinónimos por descrição (não 5, não 10)
-  • Cada sinónimo aparece UMA SÓ VEZ no corpo
-  • A integração deve ler-se como linguagem natural — se forçada, NÃO insiras
-  • NUNCA uses listas tipo "exaustor, hotte, coifa, apanha-fumos" no texto`,
           short_description: `Gera uma descrição curta (máx 160 chars) para listagens.
-CONTEXTO: Equipamento profissional para hotelaria, restauração, cozinhas industriais e bares.
-REGRAS OBRIGATÓRIAS:
-- Resumo conciso focado no benefício principal
-- NÃO incluas o nome da marca
-- NÃO incluas códigos EAN ou referências
-- Inclui 1-2 specs chave (dimensão ou capacidade)
-- Inclui tipo de energia se aplicável
-- Tom profissional e direto`,
+CONTEÚDO NATURAL: NUNCA usar \"HORECA\". Substituir por contextos específicos.`,
           meta_title: `Gera meta title SEO (máx 60 chars).
 CONTEXTO: Equipamento profissional para hotelaria, restauração e bares.
 REGRAS OBRIGATÓRIAS:
