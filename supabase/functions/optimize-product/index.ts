@@ -1236,14 +1236,9 @@ Usa h3 com style=\"margin:0 0 10px; font-size:18px; font-weight:700; color:#0052
           short_description: `Gera uma descrição curta (máx 160 chars) para listagens.
 CONTEÚDO NATURAL: NUNCA usar \"HORECA\". Substituir por contextos específicos.`,
           meta_title: `Gera meta title SEO (máx 60 chars).
-CONTEXTO: Equipamento profissional para hotelaria, restauração e bares.
-REGRAS OBRIGATÓRIAS:
-- OBRIGATÓRIO: A focus keyword principal DEVE aparecer no meta title (ex: se focus keyword é "fogão a gás profissional", essas palavras devem estar no título)
-- Keyword principal no início ou muito perto do início
-- Inclui "Comprar" ou "Preço" para intenção comercial
-- NÃO incluas o nome da marca — foca na linha/série e tipo de equipamento
-- NÃO incluas códigos EAN ou referências
-- Termina com separador e nome da loja se couber`,
+- Keyword principal no início.
+- Inclui \"Comprar\" ou \"Preço\".
+- NÃO incluas marca, códigos EAN ou referências.`,
           meta_description: `Gera meta description SEO (140-155 chars).
 REGRAS OBRIGATÓRIAS:
 - NUNCA usar \"HORECA\". Usar: \"restaurantes\", \"hotéis\", \"bares\".
