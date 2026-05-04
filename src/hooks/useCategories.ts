@@ -67,11 +67,10 @@ export function useCreateCategory() {
     mutationFn: async (cat: { name: string; parent_id?: string | null; slug?: string; description?: string; meta_title?: string; meta_description?: string }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
-      if (!activeWorkspace) throw new Error("No active workspace");
       const { error } = await supabase.from("categories").insert({
         ...cat,
         user_id: user.id,
-        workspace_id: activeWorkspace.id,
+        workspace_id: null, // Global
         parent_id: cat.parent_id ?? null,
       });
       if (error) throw error;
