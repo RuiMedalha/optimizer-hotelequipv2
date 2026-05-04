@@ -75,24 +75,25 @@ ESTRUTURA short_description:
 ESTRUTURA long_description (HTML com estilos inline para compatibilidade WooCommerce):
 Envolve TUDO num div raiz: <div class="product-description" style="font-size:15px; line-height:1.65; color:#2c2c2c;">
 
-Cada secção é um div com classe própria e margin-bottom:22px. Usa h3 (NÃO h2) com este estilo EXATO:
-style="margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;"
+Cada secção é um div com classe própria e margin-bottom:22px. Usa h2 para secções principais e h3 para subsecções, com este estilo:
+H2 (secções principais): style="margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;"
+H3 (subsecções): style="margin:0 0 8px; font-size:16px; font-weight:700; color:#2c2c2c;"
 
 SECÇÕES OBRIGATÓRIAS (nesta ordem):
 
-1. <div class="product-benefits"> com <h3>Principais Vantagens</h3>
+1. <div class="product-benefits"> com <h2>Principais Vantagens</h2>
    - Dentro de <div style="margin-top:10px;">, parágrafos com benefícios-chave (2-4 bullets ou parágrafos)
 
-2. <div class="product-applications"> com <h3>Aplicações</h3>
+2. <div class="product-applications"> com <h2>Aplicações</h2>
    - Dentro de <div style="margin-top:10px;">, aplicações concretas: tipos de estabelecimento, volume, situações
 
-3. <div class="product-specs"> com <h3>Especificações Técnicas</h3>
+3. <div class="product-specs"> com <h2>Especificações Técnicas</h2>
    - <div class="specs-table" style="margin-top:10px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden;">
    - Dentro, <table style="width:100%; border-collapse:collapse; font-size:0.9em;">
    - th: style="border:1px solid #e5e7eb; padding:8px 12px; background:#f3f4f6; font-weight:bold; text-align:left; text-transform:uppercase; font-size:0.8em; letter-spacing:0.05em;"
    - td: style="border:1px solid #e5e7eb; padding:8px 12px;"
 
-4. <div class="product-faq"> com <h3>Perguntas Frequentes</h3>
+4. <div class="product-faq"> com <h2>Perguntas Frequentes</h2>
    - MÁXIMO 4 perguntas (nunca mais de 4, mínimo 2)
    - Dentro de <div style="margin-top:10px; background:#fcfcfd; border:1px solid #e5e7eb; border-radius:8px; padding:14px 16px;">
    - NÃO uses <details>/<summary> — as respostas são SEMPRE visíveis
