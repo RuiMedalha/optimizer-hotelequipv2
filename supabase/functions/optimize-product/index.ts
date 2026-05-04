@@ -441,6 +441,39 @@ serve(async (req) => {
     }
     console.log(`[optimize-product] Model resolution: requested="${modelKey}" → resolved="${chosenModel.model}" via provider="${chosenModel.provider}" (override: ${modelOverride || "none"}, setting: ${modelSetting?.value || "default"})`);
 
+    function detectCertifications(product: any): string[] {
+      const certs = new Set<string>(["CE"]); // Always include CE (mandatory for EU)
+      const searchText = [
+        product.original_title || "",
+        product.original_description || "",
+        product.technical_specs || "",
+        product.short_description || "",
+      ].join(" ").toUpperCase();
+
+      const patterns = {
+        "HACCP": /\bHACCP\b/i,
+        "NSF": /\bNSF\b/i,
+        "RoHS": /\bROHS\b/i,
+        "IP65": /\bIP65\b/i,
+        "IP67": /\bIP67\b/i,
+        "UL": /\bUL LISTED\b|\bUL CERTIFIED\b/i,
+        "TÜV": /\bTÜV\b|\bTUV\b/i,
+        "GS": /\bGEPRÜFTE SICHERHEIT\b|\bGS MARK\b/i,
+        "ETL": /\bETL LISTED\b/i,
+        "ISO 9001": /\bISO 9001\b/i,
+        "WRAS": /\bWRAS\b/i,
+      };
+
+      for (const [cert, pattern] of Object.entries(patterns)) {
+        if (pattern.test(searchText)) certs.add(cert);
+      }
+
+      // Sort: CE first, then alphabetically
+      return Array.from(certs).sort((a, b) =>
+        a === "CE" ? -1 : b === "CE" ? 1 : a.localeCompare(b)
+      );
+    }
+
     const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
 
     // Fetch supplier mappings from settings
