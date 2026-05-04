@@ -15,7 +15,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceKey);
 
     const {
-      workspaceId, reviewedBy, corrections, saveAsPatterns,
+      workspaceId, reviewedBy, corrections, saveAsPatterns, triggerPatternExtraction,
     } = await req.json();
 
     if (!workspaceId || !reviewedBy) throw new Error("workspaceId and reviewedBy required");
@@ -170,6 +170,24 @@ serve(async (req) => {
         }
       }
     }
+
+    // 6. Trigger global pattern extraction if requested (new intelligent system)
+    if (triggerPatternExtraction) {
+      try {
+        console.log(`🧠 Triggering intelligent pattern extraction for workspace: ${workspaceId}`);
+        await fetch(`${supabaseUrl}/functions/v1/extract-category-patterns`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({ workspaceId }),
+        });
+      } catch (err) {
+        console.error("Failed to trigger extract-category-patterns:", err);
+      }
+    }
+
 
     return new Response(JSON.stringify({
       success: true,
