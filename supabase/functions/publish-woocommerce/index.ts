@@ -411,6 +411,50 @@ Deno.serve(async (req) => {
 
 // ─── Helpers ───
 
+/**
+ * Maps generic SEO field names to plugin-specific meta_data keys
+ */
+function getSeoFieldMapping(seoPlugin: string): {
+  title: string;
+  description: string;
+  focusKeyword: string;
+  robots?: string;
+} | null {
+  if (!seoPlugin || seoPlugin === 'none') return null;
+  
+  // RankMath Pro
+  if (seoPlugin === 'rankmath') {
+    return {
+      title: 'rank_math_title',
+      description: 'rank_math_description',
+      focusKeyword: 'rank_math_focus_keyword',
+      robots: 'rank_math_robots',
+    };
+  }
+  
+  // Yoast SEO
+  if (seoPlugin === 'yoast') {
+    return {
+      title: '_yoast_wpseo_title',
+      description: '_yoast_wpseo_metadesc',
+      focusKeyword: '_yoast_wpseo_focuskw',
+    };
+  }
+  
+  // Custom plugin format: custom:prefix
+  if (seoPlugin.startsWith('custom:')) {
+    const prefix = seoPlugin.replace('custom:', '');
+    return {
+      title: `${prefix}_title`,
+      description: `${prefix}_description`,
+      focusKeyword: `${prefix}_focus_keyword`,
+    };
+  }
+  
+  console.warn(`Unknown seo_plugin value: ${seoPlugin}, skipping SEO meta injection`);
+  return null;
+}
+
 async function getWooConfig(supabase: any) {
   const { data: settings } = await supabase
     .from("settings")
