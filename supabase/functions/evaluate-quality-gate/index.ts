@@ -119,7 +119,15 @@ function calculateSubScores(product: any): Record<string, number> {
   const filled = fields.filter(f => product[f] && String(product[f]).trim() !== "").length;
   const completenessScore = Math.round((filled / fields.length) * 100);
 
-  const overall = Math.round((titleScore * 0.2 + descScore * 0.2 + seoScore * 0.15 + imageScore * 0.15 + priceScore * 0.15 + completenessScore * 0.15));
+  const overall = Math.round((
+    titleScore * 0.15 + 
+    descScore * 0.15 + 
+    seoScore * 0.1 + 
+    imageScore * 0.1 + 
+    priceScore * 0.1 + 
+    completenessScore * 0.2 +
+    (product.seo_short_description ? 0.2 : 0) * 100
+  ));
 
   return {
     title_score: titleScore,
@@ -128,8 +136,10 @@ function calculateSubScores(product: any): Record<string, number> {
     image_score: imageScore,
     price_score: priceScore,
     completeness_score: completenessScore,
-    schema_match_score: 0, // placeholder for future
-    overall_score: overall,
+    seo_short: strScore(product.seo_short_description, 160),
+    no_html_short: product.seo_short_description && !/<[^>]+>/.test(product.seo_short_description) ? 100 : 0,
+    schema_match_score: 0,
+    overall_score: Math.min(100, overall),
   };
 }
 
