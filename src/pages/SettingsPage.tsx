@@ -395,6 +395,37 @@ const SettingsPage = () => {
 
       <Separator />
 
+      {/* SEO Configuration */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">🔍 Configuração SEO (WooCommerce)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="seo-plugin">Plugin SEO Instalado</Label>
+            <Select 
+              value={seoSettings?.seo_plugin || 'rankmath'} 
+              onValueChange={(val) => saveSeoSettings.mutate(val)}
+            >
+              <SelectTrigger id="seo-plugin">
+                <SelectValue placeholder="Selecione o plugin" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="rankmath">RankMath Pro</SelectItem>
+                <SelectItem value="yoast">Yoast SEO</SelectItem>
+                <SelectItem value="none">Nenhum (não injetar meta SEO)</SelectItem>
+                <SelectItem value="custom:seo">Custom Plugin (prefixo: seo_)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Define qual plugin SEO está instalado no WooCommerce para o mapeamento automático de títulos, descrições e palavras-chave.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Separator />
+
       {/* Credits Management */}
       <Card>
         <CardHeader>
