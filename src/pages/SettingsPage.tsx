@@ -53,6 +53,8 @@ const SettingsPage = () => {
   const { activeWorkspace } = useWorkspaceContext();
   const { data: settings, isLoading } = useSettings();
   const saveSettings = useSaveSettings();
+  const { data: seoSettings } = useWorkspaceSeoSettings();
+  const saveSeoSettings = useSaveWorkspaceSeoSettings();
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const [form, setForm] = useState<Record<string, string>>({});
   const [suppliers, setSuppliers] = useState<Supplier[]>([{ name: "", prefix: "", url: "" }]);
