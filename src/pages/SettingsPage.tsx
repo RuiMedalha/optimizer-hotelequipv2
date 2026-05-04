@@ -14,6 +14,7 @@ import { Plus, Trash2, Save, Eye, EyeOff, Loader2, Zap, Send, ImageIcon, Externa
 import { Link } from "react-router-dom";
 import { Progress } from "@/components/ui/progress";
 import { useSettings, useSaveSettings } from "@/hooks/useSettings";
+import { useWorkspaceSeoSettings, useSaveWorkspaceSeoSettings } from "@/hooks/useWorkspaceSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { WOO_PUBLISH_GROUPS, DEFAULT_WOO_FIELDS, SETTING_KEY_WOO_PUBLISH_FIELDS } from "@/lib/wooPublishFields";
