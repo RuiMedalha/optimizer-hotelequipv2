@@ -33,12 +33,30 @@ export function CategoryCell({ product }: Props) {
         <PopoverTrigger asChild>
           <div className="group cursor-pointer">
             <div className="flex items-center gap-1 min-w-0">
-              <span className={cn(
-                "text-xs truncate max-w-[160px] block transition-colors",
-                product.category ? "text-foreground font-medium" : "text-muted-foreground italic"
-              )}>
-                {product.category || "Sem categoria"}
-              </span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className={cn(
+                      "text-xs truncate max-w-[160px] block transition-colors cursor-help",
+                      product.category ? "text-foreground font-medium" : "text-muted-foreground italic"
+                    )}>
+                      {product.category || "Sem categoria"}
+                    </span>
+                  </TooltipTrigger>
+                  {product.category && (
+                    <TooltipContent side="top" className="max-w-md break-words">
+                      <p className="text-xs">
+                        {product.category.split(' > ').map((part: string, i: number, arr: string[]) => (
+                          <span key={i}>
+                            <span className="font-medium">{part}</span>
+                            {i < arr.length - 1 && <span className="text-muted-foreground mx-1">→</span>}
+                          </span>
+                        ))}
+                      </p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
               <ChevronDown className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
 
