@@ -416,7 +416,7 @@ export function WooPublishModal({ open, onClose, onConfirm, productCount, variab
           <Button
             size="sm"
             onClick={handleConfirm}
-            disabled={isPending || selectedFields.size === 0 || (scheduleEnabled && !scheduleDate)}
+            disabled={isPending || selectedFields.size === 0 || (scheduleEnabled && !scheduleDate) || validation.errorCount > 0}
           >
             {isPending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Send className="w-4 h-4 mr-1" />}
             {scheduleEnabled ? "Agendar" : "Publicar"} ({selectedFields.size} campos)
