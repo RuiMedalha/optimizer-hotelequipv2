@@ -1651,9 +1651,14 @@ async function enrichWithExtraContent(
       }
 
       if (wantsUsoCustom) {
-        const meta = ensureMeta();
-        meta.push({ key: "_product_conselhos", value: buildUsoProfissionalJson(usoData) });
-        console.log(`[enrichExtraContent] Uso Profissional sent to custom meta field for ${product.id}`);
+        const meta = ensureMeta() as any[];
+        const existingIdx = meta.findIndex(m => m.key === '_product_conselhos');
+        if (existingIdx === -1) {
+          meta.push({ key: "_product_conselhos", value: buildUsoProfissionalJson(usoData) });
+          console.log(`[enrichExtraContent] Uso Profissional sent to custom meta field for ${product.id}`);
+        } else {
+          console.log(`[enrichExtraContent] _product_conselhos already set, skipping legacy JSON injection`);
+        }
       }
     }
   }
