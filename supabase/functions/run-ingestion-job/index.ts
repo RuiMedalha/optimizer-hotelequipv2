@@ -333,40 +333,36 @@ Deno.serve(async (req) => {
           let matchedAlias = null;
 
           // 1. Exact match (Case insensitive)
-          const exactMatch = existingProductsMap.get(rawSku.toUpperCase());
+          const upRawSku = rawSku.toUpperCase();
+          const exactMatch = existingProductsMap.get(upRawSku);
+          
           if (exactMatch) {
             existingProduct = exactMatch;
             matchMethod = "exact";
             confidence = 100;
           } else {
-            // 2. Alias match
-            const aliasSkuSite = aliasMap.get(normalizedSkuHoreca);
-            if (aliasSkuSite) {
-              const siteProduct = existingProductsMap.get(aliasSkuSite.toUpperCase());
-              if (siteProduct) {
-                existingProduct = siteProduct;
-                matchMethod = "exact"; // User requested 'exact' for direct site match via alias
-                confidence = 95;
-                matchedAlias = rawSku;
+            // 2. Normalized match (handles spaces, leading zeros, etc.)
+            const normRawSku = normalizeSKU(rawSku);
+            const normMatch = normalizedProductsMap.get(normRawSku);
+            
+            if (normMatch) {
+              existingProduct = normMatch;
+              matchMethod = "normalized";
+              confidence = 95;
+            } else {
+              // 3. Alias match
+              const aliasSkuSite = aliasMap.get(normalizedSkuHoreca);
+              if (aliasSkuSite) {
+                const siteProduct = existingProductsMap.get(aliasSkuSite.toUpperCase());
+                if (siteProduct) {
+                  existingProduct = siteProduct;
+                  matchMethod = "exact";
+                  confidence = 95;
+                  matchedAlias = rawSku;
+                }
               }
             }
-
-            if (!existingProduct) {
-              // 3. Normalized match
-              // Check if any existing product matches normalized SKU
-              const { data: normMatch } = await supabase
-                .from("products")
-                .select("*")
-                .eq("workspace_id", workspaceId)
-                .eq("sku", normalizedSkuHoreca)
-                .limit(1)
-                .maybeSingle();
-
-              if (normMatch) {
-                existingProduct = normMatch;
-                matchMethod = "normalized";
-                confidence = 90;
-              }
+          }
             }
           }
 
