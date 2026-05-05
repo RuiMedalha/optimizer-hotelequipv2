@@ -1566,113 +1566,87 @@ async function enrichWithExtraContent(
     }
   }
 
-  // ── Uso Profissional ──
-  const wantsUsoInDesc = has("uso_profissional_in_description");
-  const wantsUsoCustom = has("uso_profissional_custom_field");
+  // ── Uso Profissional (Conselhos) ──
+  // Always try to fetch and send, regardless of 'has' flags, if data exists
+  const { data: usoData } = await adminClient
+    .from("product_uso_profissional")
+    .select("intro, use_cases, professional_tips, target_profiles, publish_enabled, placement")
+    .eq("product_id", product.id)
+    .maybeSingle();
 
-  if (wantsUsoInDesc || wantsUsoCustom) {
-    // Fetch uso profissional data to build the JSON array the theme expects
-    const { data: usoData } = await adminClient
-      .from("product_uso_profissional")
-      .select("intro, use_cases, professional_tips, target_profiles, publish_enabled, placement")
-      .eq("product_id", product.id)
-      .maybeSingle();
+  if (usoData && usoData.publish_enabled) {
+    const wantsUsoInDesc = has("uso_profissional_in_description");
+    const wantsUsoCustom = true; // FORCE custom field for theme compatibility
 
-    if (usoData && usoData.publish_enabled) {
-      // Build HTML for description if requested
-      const usoHtml = buildUsoProfissionalHtml(usoData);
+    // Build HTML and JSON
+    const usoHtml = buildUsoProfissionalHtml(usoData);
+    const usoJson = buildUsoProfissionalJson(usoData);
+
+    if (wantsUsoInDesc) {
+      let currentDesc = String(wooProduct.description || product.optimized_description || product.original_description || "");
+      const placement = usoData.placement || "before_faq";
       
-      // Build JSON for custom field (This is what the theme uses)
-      const usoJson = buildUsoProfissionalJson(usoData);
-      // Inject in description — ONLY if explicitly selected AND custom field is NOT selected (avoid duplication)
-      // If both are selected, inject in both places
-      const shouldInjectInDesc = wantsUsoInDesc && (!wantsUsoCustom || (wantsUsoInDesc && wantsUsoCustom));
-
-      if (shouldInjectInDesc) {
-        const usoHtml = buildUsoProfissionalHtml(usoData);
-        if (usoHtml) {
-          let currentDesc = String(wooProduct.description || product.optimized_description || product.original_description || "");
-          const placement = usoData.placement || "before_faq";
-          if (placement === "before_faq" && currentDesc.includes("<!-- HOTELEQUIP:FAQ_START -->")) {
-            const faqIdx = currentDesc.indexOf("<!-- HOTELEQUIP:FAQ_START -->");
-            currentDesc = currentDesc.substring(0, faqIdx) + usoHtml + currentDesc.substring(faqIdx);
-            currentDesc = currentDesc.replace(/<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->[\s\S]*?<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->/g, "");
-            wooProduct.description = injectOrReplaceBlock(
-              currentDesc.replace(usoHtml, ""),
-              "<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->",
-              "<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->",
-              ""
-            );
-            const desc = String(wooProduct.description);
-            const faqPos = desc.indexOf("<!-- HOTELEQUIP:FAQ_START -->");
-            if (faqPos >= 0) {
-              wooProduct.description = desc.substring(0, faqPos) + usoHtml + desc.substring(faqPos);
-            } else {
-              wooProduct.description = desc + usoHtml;
-            }
-          } else {
-            wooProduct.description = injectOrReplaceBlock(
-              currentDesc,
-              "<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->",
-              "<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->",
-              usoHtml
-            );
-          }
-          console.log(`[enrichExtraContent] Uso Profissional injected in description for ${product.id} (placement: ${placement})`);
-        }
-      } else if (wantsUsoCustom && !wantsUsoInDesc) {
-        // Custom field only — strip Uso Profissional from description if present
-        if (wooProduct.description && String(wooProduct.description).includes("<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->")) {
-          wooProduct.description = injectOrReplaceBlock(
-            String(wooProduct.description),
-            "<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->",
-            "<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->",
-            ""
-          );
-          console.log(`[enrichExtraContent] Uso Profissional removed from description for ${product.id} (custom field only)`);
-        }
-      }
-
-      if (wantsUsoCustom) {
-        const meta = ensureMeta() as any[];
-        // Always overwrite/set _product_conselhos with JSON array for the theme
-        const existingIdx = meta.findIndex(m => m.key === '_product_conselhos');
-        if (existingIdx !== -1) {
-          meta[existingIdx].value = usoJson;
-        } else {
-          meta.push({ key: "_product_conselhos", value: usoJson });
-        }
-        
-        // Add _editorial_review (plain text for schema/internal use)
-        const plainReview = stripHtml(usoHtml).substring(0, 1000);
-        meta.push({ key: "_editorial_review", value: plainReview });
-
-        // Add Schema JSON-LD to description
-        const schema = {
-          "@context": "https://schema.org/",
-          "@type": "Product",
-          "name": wooProduct.name || product.optimized_title || product.original_title,
-          "review": {
-            "@type": "Review",
-            "reviewRating": {
-              "@type": "Rating",
-              "ratingValue": "5",
-              "bestRating": "5"
-            },
-            "author": {
-              "@type": "Organization",
-              "name": "HotelEquip"
-            },
-            "reviewBody": plainReview
-          }
-        };
-        const schemaScript = `\n\n<script type="application/ld+json">\n${JSON.stringify(schema, null, 2)}\n</script>`;
-        wooProduct.description = String(wooProduct.description || "") + schemaScript;
-        
-        console.log(`[enrichExtraContent] Uso Profissional JSON and Schema injected for ${product.id}`);
+      if (placement === "before_faq" && currentDesc.includes("<!-- HOTELEQUIP:FAQ_START -->")) {
+        const faqIdx = currentDesc.indexOf("<!-- HOTELEQUIP:FAQ_START -->");
+        currentDesc = currentDesc.substring(0, faqIdx) + usoHtml + currentDesc.substring(faqIdx);
+        wooProduct.description = currentDesc;
+      } else {
+        wooProduct.description = injectOrReplaceBlock(
+          currentDesc,
+          "<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->",
+          "<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->",
+          usoHtml
+        );
       }
     }
+
+    // Always send as JSON array to _product_conselhos
+    const meta = ensureMeta();
+    const existingIdx = meta.findIndex(m => m.key === '_product_conselhos');
+    if (existingIdx !== -1) {
+      meta[existingIdx].value = usoJson;
+    } else {
+      meta.push({ key: "_product_conselhos", value: usoJson });
+    }
+    
+    // Add _editorial_review (plain text for schema/internal use)
+    const plainReview = stripHtml(usoHtml).substring(0, 1000);
+    if (!meta.some(m => m.key === "_editorial_review")) {
+      meta.push({ key: "_editorial_review", value: plainReview });
+    }
+
+    // Add Schema JSON-LD to description (hidden)
+    const schema = {
+      "@context": "https://schema.org/",
+      "@type": "Product",
+      "name": wooProduct.name || product.optimized_title || product.original_title,
+      "review": {
+        "@type": "Review",
+        "reviewRating": {
+          "@type": "Rating",
+          "ratingValue": "5",
+          "bestRating": "5"
+        },
+        "author": {
+          "@type": "Organization",
+          "name": "HotelEquip"
+        },
+        "reviewBody": plainReview
+      }
+    };
+    
+    // Using a style="display:none" div to wrap the script, just in case the theme handles scripts weirdly
+    const schemaScript = `\n\n<div class="hotelequip-schema" style="display:none !important;">\n<script type="application/ld+json">\n${JSON.stringify(schema, null, 2)}\n</script>\n</div>`;
+    
+    // Ensure we don't inject it twice
+    const currentDesc = String(wooProduct.description || "");
+    if (!currentDesc.includes("application/ld+json")) {
+      wooProduct.description = currentDesc + schemaScript;
+    }
+    
+    console.log(`[enrichExtraContent] Uso Profissional sent as JSON array to _product_conselhos for ${product.id}`);
   }
+
 }
 
 async function buildBasePayload(
