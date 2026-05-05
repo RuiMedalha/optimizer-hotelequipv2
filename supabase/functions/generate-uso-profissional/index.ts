@@ -182,7 +182,7 @@ IMPORTANTE: Devolve APENAS o JSON acima. Sem texto antes ou depois. Sem markdown
     // workspace-specific rule -> global rule -> safe low-cost fallback.
     // Important: never fall back to workspace default provider here, because
     // direct-only defaults can silently bounce into a paid gateway preview model.
-    let resolvedModel = "google/gemini-2.5-flash";
+    let resolvedModel = "google/gemini-1.5-flash";
     let modelSource = "safe_fallback";
     try {
       const serviceClient = createClient(
