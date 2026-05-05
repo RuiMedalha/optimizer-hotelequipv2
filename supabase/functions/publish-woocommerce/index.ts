@@ -2382,7 +2382,10 @@ async function buildVariationPayload(
   }
 
   // Only variation-defining attributes go on the variation payload.
+  // Merge with static attributes from the parent so "Dados Técnicos" tab is full on variations too.
+  const staticAttrs = buildStaticAttributesForParent(parent, [variation]);
   let variationAttrs = buildVariationAttributes(variation, parent);
+  payload.attributes = [...variationAttrs, ...staticAttrs];
 
   // Consolidate size-like attribute names to match the parent's chosen name
   const SIZE_ATTR_NAMES_VAR = new Set(["tamanho", "capacidade", "volume", "size", "capacity"]);
