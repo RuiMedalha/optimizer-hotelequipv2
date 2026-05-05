@@ -172,11 +172,16 @@ Deno.serve(async (req) => {
       const endIndex = Math.min(startIndex + BATCH_SIZE, productIds.length);
       const batchIds = productIds.slice(startIndex, endIndex);
 
-      // Fetch products for this batch (keep original order from product_ids)
-      const { data: batchProducts } = await supabase
+      // Fetch products for this batch using adminClient for maximum reliability in background tasks
+      const { data: batchProducts, error: fetchErr } = await adminClient
         .from("products")
         .select("*")
         .in("id", batchIds);
+
+      if (fetchErr) {
+        console.error(`[batch] Failed to fetch products for batch ${startIndex}:`, fetchErr);
+        throw fetchErr;
+      }
 
       const batchById = new Map<string, any>((batchProducts || []).map((p: any) => [p.id, p]));
       const orderedBatchProducts = batchIds.map((id) => batchById.get(id)).filter(Boolean);
