@@ -2041,6 +2041,31 @@ async function buildBasePayload(
     }
   }
 
+  // ── Technical Specs (from column) ──
+  if (product.technical_specs && product.technical_specs.trim().length > 0) {
+    const specs = String(product.technical_specs).trim();
+    const meta = ensureMeta();
+    
+    // Add as custom meta for themes that use it for a "Specs" tab
+    meta.push({ key: "_product_specs", value: specs });
+    meta.push({ key: "et_custom_tab1_title", value: "Dados Técnicos" });
+    meta.push({ key: "et_custom_tab1_content", value: specs });
+    
+    // Also try to add it as a WooCommerce attribute if not already present
+    const attrs = Array.isArray(wooProduct.attributes) ? wooProduct.attributes as any[] : [];
+    const hasSpecs = attrs.some(a => ["especificações", "especificacoes", "technical specs", "dados técnicos"].includes(String(a.name).toLowerCase()));
+    
+    if (!hasSpecs) {
+      attrs.push({
+        name: "Dados Técnicos",
+        options: [specs],
+        visible: true,
+        variation: false
+      });
+      wooProduct.attributes = attrs;
+    }
+  }
+
   return wooProduct;
 }
 
