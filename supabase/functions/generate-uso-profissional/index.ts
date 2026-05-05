@@ -325,10 +325,12 @@ IMPORTANTE: Devolve APENAS o JSON acima. Sem texto antes ou depois. Sem markdown
       
       const payload: Record<string, any> = { 
         professional_use_content: htmlContent,
+        is_published: true,
+        status: 'published',
         updated_at: new Date().toISOString()
       };
 
-      console.log(`[generate-uso-profissional] Attempting to save content for product ${productId}. Content length: ${htmlContent.length}`);
+      console.log(`[generate-uso-profissional] Saving content and PUBLISHING product ${productId}.`);
       
       const { error: updateError } = await serviceClient
         .from("products")
