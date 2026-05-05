@@ -2982,7 +2982,8 @@ async function publishVariation(
   auth: string,
   has: (k: string) => boolean,
   markupPercent: number,
-  discountPercent: number
+  discountPercent: number,
+  seoPlugin: string = 'rankmath'
 ): Promise<WooResult> {
   const { data: parentRow } = await supabase
     .from("products")
