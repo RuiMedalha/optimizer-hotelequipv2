@@ -156,9 +156,8 @@ Deno.serve(async (req) => {
       const discountPercent = pricing?.discountPercent ?? 0;
 
       const productIds = job.product_ids as string[];
-      // BATCH_SIZE reduced to 5 to avoid resource exhaustion and WooCommerce API throttling
-      // with the heavy parallel processing used below.
-      const BATCH_SIZE = 5;
+      // Restored BATCH_SIZE to 10 as it was working perfectly this morning
+      const BATCH_SIZE = 10;
       const endIndex = Math.min(startIndex + BATCH_SIZE, productIds.length);
       const batchIds = productIds.slice(startIndex, endIndex);
 
@@ -1598,23 +1597,19 @@ async function enrichWithExtraContent(
   const wantsUsoCustom = has("uso_profissional_custom_field");
 
   if (wantsUsoInDesc || wantsUsoCustom) {
-    // Prefer the pre-rendered HTML content directly from the product row if available
-    let usoHtml = product.professional_use_content || "";
-    let usoData: any = null;
+    // Fetch uso profissional data to build the JSON array the theme expects
+    const { data: usoData } = await adminClient
+      .from("product_uso_profissional")
+      .select("intro, use_cases, professional_tips, target_profiles, publish_enabled, placement")
+      .eq("product_id", product.id)
+      .maybeSingle();
 
-    if (!usoHtml || wantsUsoCustom) {
-      const { data } = await adminClient
-        .from("product_uso_profissional")
-        .select("intro, use_cases, professional_tips, target_profiles, publish_enabled, placement")
-        .eq("product_id", product.id)
-        .maybeSingle();
-      usoData = data;
-      if (usoData && !usoHtml) {
-        usoHtml = buildUsoProfissionalHtml(usoData);
-      }
-    }
-
-    if (usoHtml || (usoData && usoData.publish_enabled)) {
+    if (usoData && usoData.publish_enabled) {
+      // Build HTML for description if requested
+      const usoHtml = buildUsoProfissionalHtml(usoData);
+      
+      // Build JSON for custom field (This is what the theme uses)
+      const usoJson = buildUsoProfissionalJson(usoData);
       // Inject in description — ONLY if explicitly selected AND custom field is NOT selected (avoid duplication)
       // If both are selected, inject in both places
       const shouldInjectInDesc = wantsUsoInDesc && (!wantsUsoCustom || (wantsUsoInDesc && wantsUsoCustom));
@@ -1666,13 +1661,41 @@ async function enrichWithExtraContent(
 
       if (wantsUsoCustom) {
         const meta = ensureMeta() as any[];
+        // Always overwrite/set _product_conselhos with JSON array for the theme
         const existingIdx = meta.findIndex(m => m.key === '_product_conselhos');
-        if (existingIdx === -1) {
-          meta.push({ key: "_product_conselhos", value: buildUsoProfissionalJson(usoData) });
-          console.log(`[enrichExtraContent] Uso Profissional sent to custom meta field for ${product.id}`);
+        if (existingIdx !== -1) {
+          meta[existingIdx].value = usoJson;
         } else {
-          console.log(`[enrichExtraContent] _product_conselhos already set, skipping legacy JSON injection`);
+          meta.push({ key: "_product_conselhos", value: usoJson });
         }
+        
+        // Add _editorial_review (plain text for schema/internal use)
+        const plainReview = stripHtml(usoHtml).substring(0, 1000);
+        meta.push({ key: "_editorial_review", value: plainReview });
+
+        // Add Schema JSON-LD to description
+        const schema = {
+          "@context": "https://schema.org/",
+          "@type": "Product",
+          "name": wooProduct.name || product.optimized_title || product.original_title,
+          "review": {
+            "@type": "Review",
+            "reviewRating": {
+              "@type": "Rating",
+              "ratingValue": "5",
+              "bestRating": "5"
+            },
+            "author": {
+              "@type": "Organization",
+              "name": "HotelEquip"
+            },
+            "reviewBody": plainReview
+          }
+        };
+        const schemaScript = `\n\n<script type="application/ld+json">${JSON.stringify(schema)}</script>`;
+        wooProduct.description = String(wooProduct.description || "") + schemaScript;
+        
+        console.log(`[enrichExtraContent] Uso Profissional JSON and Schema injected for ${product.id}`);
       }
     }
   }
@@ -3173,7 +3196,7 @@ async function resolveUpsellCrosssellPass(adminClient: any, job: any, userId: st
             console.warn(`Upsell WC#${wid} not found in WooCommerce, skipping.`);
           }
         }
-        if (validIds.length > 0) updates.upsell_ids = validIds;
+        if (validIds.length > 0) updates.upsell_ids = [...new Set(validIds)];
       }
     }
 
@@ -3195,7 +3218,7 @@ async function resolveUpsellCrosssellPass(adminClient: any, job: any, userId: st
             console.warn(`Crosssell WC#${wid} not found in WooCommerce, skipping.`);
           }
         }
-        if (validIds.length > 0) updates.cross_sell_ids = validIds;
+        if (validIds.length > 0) updates.cross_sell_ids = [...new Set(validIds)];
       }
     }
 
