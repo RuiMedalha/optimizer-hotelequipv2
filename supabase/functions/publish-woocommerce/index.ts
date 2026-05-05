@@ -1691,7 +1691,7 @@ async function enrichWithExtraContent(
             "reviewBody": plainReview
           }
         };
-        const schemaScript = `\n\n<script type="application/ld+json">${JSON.stringify(schema)}</script>`;
+        const schemaScript = `\n\n<script type="application/ld+json">\n${JSON.stringify(schema, null, 2)}\n</script>`;
         wooProduct.description = String(wooProduct.description || "") + schemaScript;
         
         console.log(`[enrichExtraContent] Uso Profissional JSON and Schema injected for ${product.id}`);
