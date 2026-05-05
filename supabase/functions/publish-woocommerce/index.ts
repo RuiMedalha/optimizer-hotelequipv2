@@ -1497,7 +1497,7 @@ async function enrichWithExtraContent(
   // ── FAQ ──
   const faq = Array.isArray(product.faq) ? product.faq : [];
   if (faq.length > 0) {
-    const wantsFaqCustom = has("faq_custom_field");
+    const wantsFaqCustom = true; // FORCE sending to custom field as per user request
     const wantsFaqInDesc = has("faq_in_description");
 
     // --- FAQ STRIPPING (Default: remove from description if not explicitly requested) ---
@@ -1505,11 +1505,11 @@ async function enrichWithExtraContent(
       let desc = String(wooProduct.description || product.optimized_description || product.original_description || "");
       if (desc.includes("product-faq")) {
         desc = desc.replace(/<div\s+class=["']product-faq["'][\s\S]*?<\/div>\s*<\/div>/gi, "");
-        console.log(`[enrichExtraContent] Inline FAQ div stripped by default for ${product.id}`);
       }
       wooProduct.description = desc;
     }
-    if (wantsFaqInDesc && !wantsFaqCustom) {
+
+    if (wantsFaqInDesc) {
       const faqHtml = buildFaqHtml(faq);
       if (faqHtml) {
         const currentDesc = String(wooProduct.description || product.optimized_description || product.original_description || "");
@@ -1519,55 +1519,30 @@ async function enrichWithExtraContent(
           "<!-- HOTELEQUIP:FAQ_END -->",
           faqHtml
         );
-        console.log(`[enrichExtraContent] FAQ injected in description for ${product.id}`);
       }
-    } else if (wantsFaqCustom && wantsFaqInDesc) {
-      // Both selected: still inject in description AND send to custom field
-      const faqHtml = buildFaqHtml(faq);
-      if (faqHtml) {
-        const currentDesc = String(wooProduct.description || product.optimized_description || product.original_description || "");
-        wooProduct.description = injectOrReplaceBlock(
-          currentDesc,
-          "<!-- HOTELEQUIP:FAQ_START -->",
-          "<!-- HOTELEQUIP:FAQ_END -->",
-          faqHtml
-        );
-        console.log(`[enrichExtraContent] FAQ injected in description for ${product.id}`);
-      }
-    } else if (wantsFaqCustom) {
-      // Custom field only — strip FAQ from description if present
-      let desc = String(wooProduct.description || "");
-      // Strip marker-based FAQ blocks
-      if (desc.includes("<!-- HOTELEQUIP:FAQ_START -->")) {
-        desc = injectOrReplaceBlock(desc, "<!-- HOTELEQUIP:FAQ_START -->", "<!-- HOTELEQUIP:FAQ_END -->", "");
-        console.log(`[enrichExtraContent] FAQ markers removed from description for ${product.id}`);
-      }
-      // Also strip inline product-faq divs (embedded by optimize-product)
-      if (desc.includes('class="product-faq"') || desc.includes("product-faq")) {
-        desc = desc.replace(/<div\s+class=["']product-faq["'][\s\S]*?<\/div>\s*<\/div>/gi, "");
-        console.log(`[enrichExtraContent] Inline FAQ div removed from description for ${product.id}`);
-      }
-      // Strip "Perguntas Frequentes" h3 sections that might be standalone
-      desc = desc.replace(/<h3[^>]*>Perguntas Frequentes<\/h3>[\s\S]*?(?=<h3|<div class="hotelequip|<!-- HOTELEQUIP|$)/gi, (match) => {
-        // Only strip if it looks like an FAQ section (has Q&A patterns)
-        if (match.includes("font-weight:bold") || match.includes("font-style:italic")) {
-          console.log(`[enrichExtraContent] Standalone FAQ h3 section removed from description for ${product.id}`);
-          return "";
-        }
-        return match;
-      });
-      wooProduct.description = desc.trim();
     }
 
-    // FAQ to custom field
-    if (wantsFaqCustom) {
-      const meta = ensureMeta();
-      meta.push({ key: "_product_faq", value: buildFaqSchemaJson(faq) });
-      meta.push({ key: "_product_faqs", value: buildFaqSchemaJson(faq) }); // Backward compat
-      meta.push({ key: "_yoast_wpseo_schema_page_type", value: "FAQPage" });
-      console.log(`[enrichExtraContent] FAQ sent to custom meta field for ${product.id}`);
+    // FAQ to custom field - ALWAYS send as JSON array for the theme
+    const meta = ensureMeta();
+    const faqJson = buildFaqSchemaJson(faq);
+    
+    // Check if exists to avoid duplicates
+    const faqIdx = meta.findIndex(m => m.key === "_product_faqs" || m.key === "_product_faq");
+    if (faqIdx !== -1) {
+      meta[faqIdx].value = faqJson;
+      // Ensure it's named correctly for the theme
+      meta[faqIdx].key = "_product_faqs";
+    } else {
+      meta.push({ key: "_product_faqs", value: faqJson });
     }
+    
+    // Additional SEO meta
+    if (!meta.some(m => m.key === "_yoast_wpseo_schema_page_type")) {
+      meta.push({ key: "_yoast_wpseo_schema_page_type", value: "FAQPage" });
+    }
+    console.log(`[enrichExtraContent] FAQ sent as JSON array to _product_faqs for ${product.id}`);
   }
+
 
   // ── SEO Short Description (clean text for og:description) ──
   if (has("short_description") || has("meta_description")) {
