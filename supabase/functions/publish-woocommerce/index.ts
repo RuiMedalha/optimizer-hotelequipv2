@@ -1489,9 +1489,9 @@ async function enrichWithExtraContent(
   has: (k: string) => boolean,
   seoPlugin: string = 'rankmath'
 ) {
-  const ensureMeta = (): Array<{ key: string; value: string }> => {
+  const ensureMeta = (): Array<{ key: string; value: any }> => {
     if (!Array.isArray(wooProduct.meta_data)) wooProduct.meta_data = [];
-    return wooProduct.meta_data as Array<{ key: string; value: string }>;
+    return wooProduct.meta_data as Array<{ key: string; value: any }>;
   };
 
   // ── FAQ ──
