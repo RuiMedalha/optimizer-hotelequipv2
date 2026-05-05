@@ -2041,6 +2041,32 @@ async function buildBasePayload(
     }
   }
 
+  // ── Technical Specs (from column) ──
+  if (product.technical_specs && product.technical_specs.trim().length > 0) {
+    const specs = String(product.technical_specs).trim();
+    if (!Array.isArray(wooProduct.meta_data)) wooProduct.meta_data = [];
+    const meta = wooProduct.meta_data as any[];
+    
+    // Add as custom meta for themes that use it for a "Specs" tab
+    meta.push({ key: "_product_specs", value: specs });
+    meta.push({ key: "et_custom_tab1_title", value: "Dados Técnicos" });
+    meta.push({ key: "et_custom_tab1_content", value: specs });
+    
+    // Also try to add it as a WooCommerce attribute if not already present
+    const attrs = Array.isArray(wooProduct.attributes) ? wooProduct.attributes as any[] : [];
+    const hasSpecs = attrs.some(a => ["especificações", "especificacoes", "technical specs", "dados técnicos"].includes(String(a.name).toLowerCase()));
+    
+    if (!hasSpecs) {
+      attrs.push({
+        name: "Dados Técnicos",
+        options: [specs],
+        visible: true,
+        variation: false
+      });
+      wooProduct.attributes = attrs;
+    }
+  }
+
   return wooProduct;
 }
 
@@ -2383,6 +2409,16 @@ async function buildVariationPayload(
 
   // Only variation-defining attributes go on the variation payload.
   let variationAttrs = buildVariationAttributes(variation, parent);
+  payload.attributes = variationAttrs;
+
+  // ── Technical Specs (from column) on variations too ──
+  const specs = variation.technical_specs || parent?.technical_specs;
+  if (specs && String(specs).trim().length > 0) {
+    const specsText = String(specs).trim();
+    upsertMeta("_product_specs", specsText);
+    upsertMeta("et_custom_tab1_title", "Dados Técnicos");
+    upsertMeta("et_custom_tab1_content", specsText);
+  }
 
   // Consolidate size-like attribute names to match the parent's chosen name
   const SIZE_ATTR_NAMES_VAR = new Set(["tamanho", "capacidade", "volume", "size", "capacity"]);
@@ -2545,7 +2581,9 @@ function buildStaticAttributesForParent(
       for (const attr of attrs) {
         const n = String(attr?.name || "").trim();
         if (!n) continue;
-        const isTechnical = attr?.variation === false || isTechnicalAttrName(n);
+        // Include any attribute that is NOT explicitly a variation attribute, 
+        // OR is in our technical list (Marca, EAN, etc.)
+        const isTechnical = attr?.variation === false || isTechnicalAttrName(n) || !attr?.variation;
         if (!isTechnical) continue;
 
         if (attr?.value) add(n, attr.value);
@@ -2555,8 +2593,6 @@ function buildStaticAttributesForParent(
     } else if (typeof attrs === "object") {
       for (const [name, value] of Object.entries(attrs)) {
         if (!name) continue;
-        const isTechnical = isTechnicalAttrName(name);
-        if (!isTechnical) continue;
         if (value) add(name, String(value));
       }
     }
