@@ -166,8 +166,14 @@ Descrição base: ${productDescription || "Sem descrição"}
 Atributos:
 ${attributesText}
 
-Gera conteúdo editorial de uso profissional para este produto.
-Responde APENAS com JSON válido, sem markdown, sem code blocks, sem bullets:
+Gera conteúdo editorial de uso profissional CONCISO.
+Responde APENAS com JSON válido:
+{
+  "intro": "1 parágrafo curto (máx 200 chars)",
+  "useCases": [{ "context": "Nome do contexto", "description": "1 frase técnica" }],
+  "professionalTips": ["Dica curta"]
+}
+IMPORTANTE: Sem markdown.`;
 {
   "intro": "1 parágrafo sobre o que este equipamento faz para profissionais",
   "useCases": [
@@ -182,7 +188,7 @@ IMPORTANTE: Devolve APENAS o JSON acima. Sem texto antes ou depois. Sem markdown
     // workspace-specific rule -> global rule -> safe low-cost fallback.
     // Important: never fall back to workspace default provider here, because
     // direct-only defaults can silently bounce into a paid gateway preview model.
-    let resolvedModel = "google/gemini-2.5-flash";
+    let resolvedModel = "google/gemini-1.5-flash";
     let modelSource = "safe_fallback";
     try {
       const serviceClient = createClient(
@@ -325,10 +331,12 @@ IMPORTANTE: Devolve APENAS o JSON acima. Sem texto antes ou depois. Sem markdown
       
       const payload: Record<string, any> = { 
         professional_use_content: htmlContent,
+        is_published: true,
+        status: 'published',
         updated_at: new Date().toISOString()
       };
 
-      console.log(`[generate-uso-profissional] Attempting to save content for product ${productId}. Content length: ${htmlContent.length}`);
+      console.log(`[generate-uso-profissional] Saving content and PUBLISHING product ${productId}.`);
       
       const { error: updateError } = await serviceClient
         .from("products")
