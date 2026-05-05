@@ -143,6 +143,12 @@ async function insertProducts(
         sku = `${prefix}${sku}`;
       }
     }
+    if (skuSuffix && sku) {
+      const suffix = String(skuSuffix).trim();
+      if (!sku.toUpperCase().endsWith(suffix.toUpperCase())) {
+        sku = `${sku}${suffix}`;
+      }
+    }
     return sku;
   }).filter((s): s is string => !!s);
   const existingSkuMap = new Map<string, string>();
