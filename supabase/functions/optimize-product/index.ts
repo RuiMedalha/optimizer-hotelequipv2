@@ -657,22 +657,25 @@ serve(async (req) => {
 
       if (mode === "upsell") {
         // Upsell: same type, same or higher line, bigger/better
-        if (current.type && candidate.type === current.type) { score += 30; reasons.push("mesmo tipo"); }
+        if (current.type && candidate.type === current.type) { score += 40; reasons.push("mesmo tipo"); }
         if (current.line && candidate.line) {
-          if (candidate.line === current.line) { score += 15; reasons.push("mesma linha"); }
-          else if (parseInt(candidate.line) > parseInt(current.line)) { score += 25; reasons.push(`linha superior (${candidate.line})`); }
+          if (candidate.line === current.line) { score += 20; reasons.push("mesma linha"); }
+          else if (parseInt(candidate.line) > parseInt(current.line)) { score += 30; reasons.push(`linha superior (${candidate.line})`); }
         }
         if (current.energy && candidate.energy === current.energy) { score += 10; reasons.push("mesma energia"); }
         if (current.capacity && candidate.capacity && candidate.capacity > current.capacity) {
-          score += 20; reasons.push(`maior capacidade (${candidate.capacity})`);
+          score += 25; reasons.push(`maior capacidade (${candidate.capacity})`);
         }
-        if (candidate.price > current.price && candidate.price <= current.price * 2.5) {
-          score += 10; reasons.push("preço superior");
+        if (candidate.price > current.price && candidate.price <= current.price * 3) {
+          score += 15; reasons.push("preço superior");
         }
-        // Same category boost
-        if (current.category && candidate.category && 
-            candidate.category.split(">")[0]?.trim() === current.category.split(">")[0]?.trim()) {
-          score += 10; reasons.push("mesma categoria");
+        // Same category boost (more aggressive)
+        if (current.category && candidate.category) {
+          if (candidate.category === current.category) {
+            score += 30; reasons.push("mesma categoria exata");
+          } else if (candidate.category.split(">")[0]?.trim() === current.category.split(">")[0]?.trim()) {
+            score += 15; reasons.push("mesma categoria principal");
+          }
         }
         // For accessories: upsell the machine they work with
         const accessoryToMachine: Record<string, string[]> = {
@@ -703,7 +706,7 @@ serve(async (req) => {
           score -= 15; // penalize same type for cross-sell
         }
         if (current.line && candidate.line === current.line) {
-          score += 25; reasons.push("mesma linha");
+          score += 35; reasons.push("mesma linha (cross-sell)");
         }
         if (current.energy && candidate.energy === current.energy) {
           score += 5; reasons.push("mesma energia");
@@ -744,6 +747,10 @@ serve(async (req) => {
             score += 30; reasons.push(`acessório compatível (${candidate.type})`);
           }
         }
+        // Same category boost for cross-sell
+        if (current.category && candidate.category && candidate.category === current.category) {
+          score += 15; reasons.push("mesma categoria (complementar)");
+        }
         // Same dimensions boost (fits same workspace)
         if (current.dimensions && candidate.dimensions === current.dimensions) {
           score += 10; reasons.push("mesmas dimensões");
@@ -767,7 +774,7 @@ serve(async (req) => {
         .from("products")
         .select("sku, original_title, optimized_title, original_description, category, original_price")
         .order("created_at", { ascending: false })
-        .limit(1000);
+        .limit(2000);
 
       if (allProducts && allProducts.length > 1) {
         allProductAttrs = allProducts.filter((p: any) => p.sku).map(extractAttrs);

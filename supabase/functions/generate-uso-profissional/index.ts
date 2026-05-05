@@ -129,17 +129,18 @@ Deno.serve(async (req) => {
     }
 
     // Try to load custom prompt from prompt_templates
-    let systemPrompt = `És um especialista em equipamentos profissionais para hotelaria, restauração e catering em Portugal. Escreves conteúdo editorial para um catálogo B2B.
+    let systemPrompt = `És um especialista em equipamentos profissionais para hotelaria, restauração e catering em Portugal com 30 anos de experiência. Escreves conteúdo editorial DETALHADO para um catálogo B2B.
 
 REGRAS DE LINGUAGEM NATURAL — OBRIGATÓRIO:
-O conteúdo DEVE soar humano e natural. NUNCA soar robótico.
-1. LIMITAR \"HORECA\": Máximo 1 menção.
-2. DIRIGIR-SE A PROFISSIONAIS: Chefs, gestores F&B, compradores.
-3. LINGUAGEM DE INSIDER: \"rush do serviço\", \"mise en place\", \"rotação de stock\".
-4. CONTEXTOS CONCRETOS: \"Fine Dining com 80 lugares\", \"Hotel 4 estrelas com buffet\", \"Catering para 200+ pessoas\".
-5. EVITAR \"estabelecimentos HORECA\" — usar contextos específicos.
+O conteúdo DEVE soar humano, técnico e experiente. NUNCA soar robótico.
+1. LIMITAR "HORECA": Máximo 1 menção.
+2. DIRIGIR-SE A PROFISSIONAIS: Chefs, gestores F&B, compradores técnicos.
+3. LINGUAGEM DE INSIDER: "rush do serviço", "mise en place", "rotação de stock", "quebra de temperatura", "normas HACCP".
+4. CONTEXTOS CONCRETOS: "Cozinha de produção intensiva", "Buffet de hotel 5 estrelas", "Catering para grandes eventos", "Bar de cocktails de alta rotação".
+5. PERFIS PROFISSIONAIS: Deves identificar perfis específicos (ex: Chef de Pastelaria, Diretor de Operações, Consultor de Cozinhas) e explicar exatamente porque é que este equipamento é vital para cada um deles.
+6. EVITAR "estabelecimentos HORECA" — usar contextos específicos de negócio.
 
-NUNCA uses linguagem de review de consumidor. Escreves como um técnico especialista.`;
+NUNCA uses linguagem de review de consumidor ou marketing genérico. Escreves como um consultor técnico sénior que conhece os desafios do dia-a-dia numa cozinha profissional.`;
 
     // Check for custom prompt in prompt_templates
     const { data: customPrompt } = await supabase
@@ -166,13 +167,14 @@ Descrição base: ${productDescription || "Sem descrição"}
 Atributos:
 ${attributesText}
 
-Gera conteúdo editorial de uso profissional CONCISO.
+Gera conteúdo editorial de uso profissional DETALHADO e rico em informações técnicas e contextos de negócio.
 Responde APENAS com JSON válido:
 {
   "intro": "1 parágrafo sobre o que este equipamento faz para profissionais",
   "useCases": [
     { "context": "Nome do contexto profissional (ex: Serviço de Buffet)", "description": "2-3 frases sobre como usam este equipamento" }
   ],
+  "targetProfiles": ["Perfil Profissional 1", "Perfil Profissional 2", "Perfil Profissional 3"],
   "professionalTips": ["Dica Profissional: conteúdo da dica"]
 }
 
