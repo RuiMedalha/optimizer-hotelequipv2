@@ -2041,29 +2041,39 @@ async function buildBasePayload(
     }
   }
 
-  // ── Technical Specs (from column) ──
-  if (product.technical_specs && product.technical_specs.trim().length > 0) {
-    const specs = String(product.technical_specs).trim();
-    if (!Array.isArray(wooProduct.meta_data)) wooProduct.meta_data = [];
-    const meta = wooProduct.meta_data as any[];
+  // ── Technical Specs (Marca, Modelo, EAN) ──
+  // Mirroring the exact logic from the working morning version
+  if (product.product_type !== "variable" && !product.parent_product_id) {
+    let productAttrs: any[] = [];
+    if (Array.isArray(product.attributes)) {
+      productAttrs = [...product.attributes];
+    } else if (product.attributes && typeof product.attributes === "object") {
+      productAttrs = Object.entries(product.attributes).map(([name, value]) => ({
+        name,
+        value: String(value)
+      }));
+    }
+
+    // Marca, Modelo, EAN selection
+    const technicalFields: Array<{ name: string; value: string }> = [];
     
-    // Add as custom meta for themes that use it for a "Specs" tab
-    meta.push({ key: "_product_specs", value: specs });
-    meta.push({ key: "et_custom_tab1_title", value: "Dados Técnicos" });
-    meta.push({ key: "et_custom_tab1_content", value: specs });
+    const brand = product.brand || productAttrs.find(a => ["marca", "brand"].includes(String(a.name).toLowerCase()))?.value;
+    if (brand) technicalFields.push({ name: "Marca", value: String(brand) });
     
-    // Also try to add it as a WooCommerce attribute if not already present
-    const attrs = Array.isArray(wooProduct.attributes) ? wooProduct.attributes as any[] : [];
-    const hasSpecs = attrs.some(a => ["especificações", "especificacoes", "technical specs", "dados técnicos"].includes(String(a.name).toLowerCase()));
+    const model = product.model || productAttrs.find(a => ["modelo", "model"].includes(String(a.name).toLowerCase()))?.value;
+    if (model) technicalFields.push({ name: "Modelo", value: String(model) });
     
-    if (!hasSpecs) {
-      attrs.push({
-        name: "Dados Técnicos",
-        options: [specs],
-        visible: true,
-        variation: false
-      });
-      wooProduct.attributes = attrs;
+    const ean = productAttrs.find(a => ["ean", "ean13", "gtin", "barcode"].includes(String(a.name).toLowerCase()))?.value;
+    if (ean) technicalFields.push({ name: "EAN", value: String(ean) });
+
+    if (technicalFields.length > 0) {
+      const specsHtml = `<table style="width:100%; border-collapse:collapse;">${technicalFields.map(f => `<tr><td style="padding:8px; border:1px solid #eee;"><strong>${f.name}</strong></td><td style="padding:8px; border:1px solid #eee;">${f.value}</td></tr>`).join("")}</table>`;
+      
+      if (!Array.isArray(wooProduct.meta_data)) wooProduct.meta_data = [];
+      const meta = wooProduct.meta_data as any[];
+      meta.push({ key: "_product_specs", value: specsHtml });
+      meta.push({ key: "et_custom_tab1_title", value: "Dados Técnicos" });
+      meta.push({ key: "et_custom_tab1_content", value: specsHtml });
     }
   }
 
@@ -2411,13 +2421,24 @@ async function buildVariationPayload(
   let variationAttrs = buildVariationAttributes(variation, parent);
   payload.attributes = variationAttrs;
 
-  // ── Technical Specs (from column) on variations too ──
-  const specs = variation.technical_specs || parent?.technical_specs;
-  if (specs && String(specs).trim().length > 0) {
-    const specsText = String(specs).trim();
-    upsertMeta("_product_specs", specsText);
+  // ── Technical Specs (Marca, Modelo, EAN) on variations too ──
+  const technicalFields: Array<{ name: string; value: string }> = [];
+  
+  const brand = parent?.brand || Array.isArray(parent?.attributes) ? parent.attributes.find((a: any) => ["marca", "brand"].includes(String(a.name).toLowerCase()))?.value : null;
+  if (brand) technicalFields.push({ name: "Marca", value: String(brand) });
+  
+  const model = parent?.model || Array.isArray(parent?.attributes) ? parent.attributes.find((a: any) => ["modelo", "model"].includes(String(a.name).toLowerCase()))?.value : null;
+  if (model) technicalFields.push({ name: "Modelo", value: String(model) });
+  
+  const ean = Array.isArray(variation.attributes) ? variation.attributes.find((a: any) => ["ean", "ean13", "gtin", "barcode"].includes(String(a.name).toLowerCase()))?.value : 
+              (Array.isArray(parent?.attributes) ? parent.attributes.find((a: any) => ["ean", "ean13", "gtin", "barcode"].includes(String(a.name).toLowerCase()))?.value : null);
+  if (ean) technicalFields.push({ name: "EAN", value: String(ean) });
+
+  if (technicalFields.length > 0) {
+    const specsHtml = `<table style="width:100%; border-collapse:collapse;">${technicalFields.map(f => `<tr><td style="padding:8px; border:1px solid #eee;"><strong>${f.name}</strong></td><td style="padding:8px; border:1px solid #eee;">${f.value}</td></tr>`).join("")}</table>`;
+    upsertMeta("_product_specs", specsHtml);
     upsertMeta("et_custom_tab1_title", "Dados Técnicos");
-    upsertMeta("et_custom_tab1_content", specsText);
+    upsertMeta("et_custom_tab1_content", specsHtml);
   }
 
   // Consolidate size-like attribute names to match the parent's chosen name
@@ -2581,9 +2602,7 @@ function buildStaticAttributesForParent(
       for (const attr of attrs) {
         const n = String(attr?.name || "").trim();
         if (!n) continue;
-        // Include any attribute that is NOT explicitly a variation attribute, 
-        // OR is in our technical list (Marca, EAN, etc.)
-        const isTechnical = attr?.variation === false || isTechnicalAttrName(n) || !attr?.variation;
+        const isTechnical = attr?.variation === false || isTechnicalAttrName(n);
         if (!isTechnical) continue;
 
         if (attr?.value) add(n, attr.value);
@@ -2593,6 +2612,8 @@ function buildStaticAttributesForParent(
     } else if (typeof attrs === "object") {
       for (const [name, value] of Object.entries(attrs)) {
         if (!name) continue;
+        const isTechnical = isTechnicalAttrName(name);
+        if (!isTechnical) continue;
         if (value) add(name, String(value));
       }
     }
