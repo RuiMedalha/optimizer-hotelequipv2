@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
       const discountPercent = pricing?.discountPercent ?? 0;
 
       const productIds = job.product_ids as string[];
-      // Increased BATCH_SIZE from 3 to 10 for faster classic publishing (parallel requests)
+      // Increased BATCH_SIZE for faster classic publishing (parallel requests)
       const BATCH_SIZE = 20;
       const endIndex = Math.min(startIndex + BATCH_SIZE, productIds.length);
       const batchIds = productIds.slice(startIndex, endIndex);
@@ -192,7 +192,7 @@ Deno.serve(async (req) => {
         }).eq("id", jobId);
       }
 
-      // Process products in PARALLEL (concurrency = BATCH_SIZE = 3)
+      // Process products in PARALLEL (concurrency = BATCH_SIZE)
       const processOne = async (product: any): Promise<{ result: WooResult; itemStartedAt: string; durationMs: number }> => {
         const itemStartedAt = new Date().toISOString();
         const itemStartMs = Date.now();
@@ -263,7 +263,7 @@ Deno.serve(async (req) => {
       };
 
       if (!cancelled && orderedBatchProducts.length > 0) {
-        // Run the entire batch concurrently (3 at a time, since BATCH_SIZE = 3)
+        // Run the entire batch concurrently (concurrency = BATCH_SIZE)
         const batchResults = await Promise.all(orderedBatchProducts.map(processOne));
 
         // Preserve original order in results
