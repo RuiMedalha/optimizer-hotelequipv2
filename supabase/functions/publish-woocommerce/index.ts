@@ -1531,16 +1531,30 @@ async function enrichWithExtraContent(
   // ── FAQ ──
   const faq = Array.isArray(product.faq) ? product.faq : [];
   if (faq.length > 0) {
-    const wantsFaqCustom = true; // FORCE sending to custom field as per user request
     const wantsFaqInDesc = has("faq_in_description");
 
     // --- FAQ STRIPPING (Default: remove from description if not explicitly requested) ---
+    // Improved regex to handle nested divs and common patterns from the AI generator
     if (!wantsFaqInDesc) {
       let desc = String(wooProduct.description || product.optimized_description || product.original_description || "");
+      
+      // Pattern 1: Wrapped in <div class="product-faq"> (most common from generator)
+      // Handles nested content by looking for the closing div of that specific block
       if (desc.includes("product-faq")) {
         desc = desc.replace(/<div\s+class=["']product-faq["'][\s\S]*?<\/div>\s*<\/div>/gi, "");
       }
-      wooProduct.description = desc;
+      
+      // Pattern 2: Our own injected markers
+      if (desc.includes("<!-- HOTELEQUIP:FAQ_START -->")) {
+        desc = desc.replace(/<!-- HOTELEQUIP:FAQ_START -->[\s\S]*?<!-- HOTELEQUIP:FAQ_END -->/gi, "");
+      }
+
+      // Pattern 3: Just the <h2>Perguntas Frequentes</h2> and following paragraphs (emergency fallback)
+      if (desc.includes("Perguntas Frequentes") && !wantsFaqInDesc) {
+         desc = desc.replace(/<h[23][^>]*>Perguntas Frequentes<\/h[23]>[\s\S]*?(?=<h[23]|<\/div>|$)/gi, "");
+      }
+
+      wooProduct.description = desc.trim();
     }
 
     if (wantsFaqInDesc) {
@@ -1556,25 +1570,34 @@ async function enrichWithExtraContent(
       }
     }
 
-    // FAQ to custom field - ALWAYS send as JSON array for the theme
+    // FAQ to custom field - ALWAYS send for theme compatibility
     const meta = ensureMeta();
     const faqJson = buildFaqSchemaJson(faq);
     
-    // Check if exists to avoid duplicates
+    // 1. Specific repeater for some plugins/themes
     const faqIdx = meta.findIndex(m => m.key === "_product_faqs" || m.key === "_product_faq");
     if (faqIdx !== -1) {
       meta[faqIdx].value = faqJson;
-      // Ensure it's named correctly for the theme
       meta[faqIdx].key = "_product_faqs";
     } else {
       meta.push({ key: "_product_faqs", value: faqJson });
+    }
+
+    // 2. Custom Tab for themes like XStore / Electra
+    const tabIdx = meta.findIndex(m => m.key === "et_custom_tab2_content");
+    const faqHtml = buildFaqHtml(faq); // Use HTML version for the tab content
+    if (tabIdx !== -1) {
+      meta[tabIdx].value = faqHtml;
+    } else {
+      meta.push({ key: "et_custom_tab2_title", value: "Perguntas Frequentes" });
+      meta.push({ key: "et_custom_tab2_content", value: faqHtml });
     }
     
     // Additional SEO meta
     if (!meta.some(m => m.key === "_yoast_wpseo_schema_page_type")) {
       meta.push({ key: "_yoast_wpseo_schema_page_type", value: "FAQPage" });
     }
-    console.log(`[enrichExtraContent] FAQ sent as JSON array to _product_faqs for ${product.id}`);
+    console.log(`[enrichExtraContent] FAQ sent to _product_faqs and et_custom_tab2 for ${product.id}`);
   }
 
 
