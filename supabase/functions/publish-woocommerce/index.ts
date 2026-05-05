@@ -14,24 +14,31 @@ async function selfInvokeWithRetry(authHeader: string, jobId: string, startIndex
   const payload = JSON.stringify({ jobId, startIndex });
   for (let attempt = 1; attempt <= SELF_INVOKE_RETRIES; attempt++) {
     try {
+      console.log(`[selfInvoke] Triggering next batch for job ${jobId} (index ${startIndex}), attempt ${attempt}`);
       const response = await fetch(`${SUPABASE_URL}/functions/v1/publish-woocommerce`, {
         method: "POST",
         headers: { Authorization: authHeader, "Content-Type": "application/json" },
         body: payload,
       });
-      if (response.ok) return true;
+
+      if (response.ok) {
+        console.log(`[selfInvoke] Successfully triggered next batch for ${jobId}`);
+        return true;
+      }
+
       const isRetryable = response.status === 429 || response.status >= 500;
       if (!isRetryable) {
         const body = await response.text();
-        console.error(`Self-invoke non-retryable error: ${response.status} ${body}`);
+        console.error(`[selfInvoke] Non-retryable error: ${response.status} ${body}`);
         return false;
       }
-      const delayMs = Math.min(1000 * 2 ** (attempt - 1), 8000);
-      console.warn(`Self-invoke retry ${attempt}/${SELF_INVOKE_RETRIES} in ${delayMs}ms`);
+      
+      const delayMs = Math.min(2000 * 2 ** (attempt - 1), 15000);
+      console.warn(`[selfInvoke] Retryable error ${response.status}, retrying in ${delayMs}ms`);
       await sleep(delayMs);
     } catch (err: unknown) {
-      const delayMs = Math.min(1000 * 2 ** (attempt - 1), 8000);
-      console.warn(`Self-invoke exception retry ${attempt}/${SELF_INVOKE_RETRIES} in ${delayMs}ms`, err);
+      const delayMs = Math.min(2000 * 2 ** (attempt - 1), 15000);
+      console.warn(`[selfInvoke] Exception, retrying in ${delayMs}ms:`, err);
       await sleep(delayMs);
     }
   }
