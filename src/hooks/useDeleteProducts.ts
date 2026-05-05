@@ -7,14 +7,19 @@ export function useDeleteProducts() {
 
   return useMutation({
     mutationFn: async (ids: string[]) => {
-      const batchSize = 500;
+      const batchSize = 100; // Reduzido de 500 para evitar timeout
       for (let i = 0; i < ids.length; i += batchSize) {
         const batch = ids.slice(i, i + batchSize);
+        console.log(`Eliminando lote de ${batch.length} produtos... (${i}/${ids.length})`);
         const { error } = await supabase
           .from("products")
           .delete()
           .in("id", batch);
         if (error) throw error;
+        // Pequena pausa para o banco respirar se for uma exclusão muito grande
+        if (ids.length > 500) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
       }
     },
     onSuccess: (_, ids) => {
