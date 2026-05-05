@@ -1208,13 +1208,15 @@ IMPORTANTE: Otimiza o conteúdo BASE que será propagado para todas as variaçõ
         // Build field-specific instructions using per-field prompts
         // Default prompts match the frontend defaults in useFieldPrompts.ts
         const DEFAULT_FIELD_PROMPTS: Record<string, string> = {
-          title: `Gera um título otimizado para SEO (50-60 chars).
+          title: `Gera um título otimizado para SEO (50-60 chars) em Português de Portugal (PT-PT).
 REGRAS OBRIGATÓRIAS:
-- NUNCA incluas \"HORECA\" no título.
+- NUNCA incluas "HORECA" no título.
 - Foco: Tipo de Produto + Característica Distintiva + Dimensão/Capacidade.
-- Usar termo específico se necessário: \"Profissional\", \"Industrial\", \"Comercial\".
-- NÃO incluas marca, códigos EAN, referências ou SKUs no título.
-- Inclui linha/série se aplicável (ex: \"Linha 700\").
+- Usar termo específico se necessário: "Profissional", "Industrial", "Comercial".
+- NÃO incluas marca ou códigos EAN no título.
+- PRESERVA a referência técnica/modelo se for a forma principal como o produto é conhecido (ex: "CHST400B"), mas integra-a de forma natural no fim.
+- NÃO inventes especificações.
+- Inclui linha/série se aplicável (ex: "Linha 700").
 - Inclui tipo de energia se aplicável (Gás, Elétrico).`,
           description: `Gera uma descrição otimizada (HTML) que soe humana e natural.
 REGRAS DE LINGUAGEM NATURAL — OBRIGATÓRIO:
