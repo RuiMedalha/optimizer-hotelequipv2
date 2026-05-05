@@ -2127,7 +2127,32 @@ const DIMENSION_ATTR_NAMES = new Set([
   "dimensões (lxpxa)", "dimensões (cxlxa)", "dim", "measures",
 ]);
 
-const DIMENSION_VALUE_PATTERN = /(\d+(?:[.,]\d+)?\s*(?:x|×)\s*\d+(?:[.,]\d+)?(?:\s*(?:x|×)\s*\d+(?:[.,]\d+)?)?\s*(?:cm|mm|m))/i;
+const DIMENSION_VALUE_PATTERN = /(\d+(?:[.,]\d+)?\s*(?:x|×)\s*\d+(?:[.,]\d+)?(?:\s*(?:x|×)\s*\d+(?:[.,]\d+)?)?\s*(?:cm|mm|m|gr|kg))/i;
+
+function extractDimensions(product: any, attributes?: any[]): string | null {
+  if (Array.isArray(attributes)) {
+    const fromAttrs = extractDimensionFromAttrs(attributes);
+    if (fromAttrs) return fromAttrs;
+  }
+  
+  const sources = [
+    product.optimized_description,
+    product.original_description,
+    product.technical_specs,
+    product.optimized_short_description,
+    product.short_description
+  ];
+  
+  for (const source of sources) {
+    const raw = String(source || "");
+    if (!raw) continue;
+    const fromTable = extractDimensionFromHtmlTable(raw);
+    if (fromTable) return fromTable;
+    const fromText = extractDimensionFromText(raw);
+    if (fromText) return fromText;
+  }
+  return null;
+}
 
 function isDimensionAttrName(name: string): boolean {
   const n = String(name || "").toLowerCase().trim();
