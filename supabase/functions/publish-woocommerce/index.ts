@@ -84,7 +84,8 @@ Deno.serve(async (req) => {
         .eq("status", "active")
         .maybeSingle();
       if (memberCheck) {
-        const rank = { owner: 4, admin: 3, editor: 2, viewer: 1 }[memberCheck.role] || 0;
+        const roles: Record<string, number> = { owner: 4, admin: 3, editor: 2, viewer: 1 };
+        const rank = roles[memberCheck.role as string] || 0;
         if (rank < 3) {
           return new Response(JSON.stringify({ error: "Sem permissão para publicar neste workspace (mínimo: admin)" }), {
             status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
