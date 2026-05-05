@@ -1425,8 +1425,8 @@ function buildUsoProfissionalHtml(data: any): string {
 }
 
 // ── Uso Profissional JSON for custom field (_product_conselhos repeater) ──
-function buildUsoProfissionalJson(data: any): string {
-  if (!data) return "[]";
+function buildUsoProfissionalJson(data: any): any[] {
+  if (!data) return [];
   const repeater: Array<{ title: string; description: string }> = [];
 
   // Add intro as first item if present
@@ -1467,7 +1467,7 @@ function buildUsoProfissionalJson(data: any): string {
     }
   }
 
-  return JSON.stringify(repeater);
+  return repeater;
 }
 
 // ── Inject or replace a block in description using HTML markers ──
