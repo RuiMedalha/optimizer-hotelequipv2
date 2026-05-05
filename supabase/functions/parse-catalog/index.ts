@@ -482,6 +482,10 @@ function buildProductData(p: Record<string, unknown>, onlyMapped: boolean, mappe
     }
   } else {
     for (const fn of Object.values(fieldMap)) fn();
+    // Explicitly set these to ensure they go into columns
+    if (brandVal) data.brand = brandVal;
+    if (modeloVal) data.model = modeloVal;
+    if (eanVal) data.ean = eanVal;
   }
 
   if (attributes.length > 0) data.attributes = attributes;
