@@ -1342,14 +1342,13 @@ function buildFaqHtml(faq: any[]): string {
   return `<!-- HOTELEQUIP:FAQ_START --><div class="hotelequip-faq" style="margin-top:24px;"><h3 style="color:#00526d;font-size:18px;margin-bottom:12px;">Perguntas Frequentes</h3>${items.join("")}</div><!-- HOTELEQUIP:FAQ_END -->`;
 }
 
-// ── FAQ JSON for custom field (Yoast/RankMath Schema) ──
-function buildFaqSchemaJson(faq: any[]): string {
-  if (!Array.isArray(faq) || faq.length === 0) return "[]";
-  const entries = faq.slice(0, 4).map((item: any) => ({
-    question: typeof item === "string" ? item : (item?.question || item?.q || ""),
-    answer: typeof item === "string" ? "" : (item?.answer || item?.a || ""),
-  })).filter(e => e.question);
-  return JSON.stringify(entries);
+// ── FAQ JSON for custom field (Theme compatibility) ──
+function buildFaqSchemaJson(faq: any[]): any[] {
+  if (!Array.isArray(faq) || faq.length === 0) return [];
+  return faq.slice(0, 4).map((item: any) => ({
+    title: typeof item === "string" ? item : (item?.question || item?.q || ""),
+    description: typeof item === "string" ? "" : (item?.answer || item?.a || ""),
+  })).filter(e => e.title);
 }
 
 // ── Uso Profissional HTML builder ──
