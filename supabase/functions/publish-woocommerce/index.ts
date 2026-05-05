@@ -2624,7 +2624,7 @@ async function publishSingleProduct(
   }
 
   // ── FAQ & Uso Profissional Content Routing ──
-  await enrichWithExtraContent(wooProduct, enrichedProduct, supabase, adminClient, has);
+  await enrichWithExtraContent(wooProduct, enrichedProduct, supabase, adminClient, has, seoPlugin);
 
   // ── SEO Lifecycle integration ──
   // Check if product has a lifecycle record and enrich WooCommerce payload accordingly
