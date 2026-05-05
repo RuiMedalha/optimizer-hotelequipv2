@@ -2072,26 +2072,6 @@ async function buildBasePayload(
     if (weightMatch) {
       wooProduct.weight = weightMatch[1].replace(',', '.');
     }
-  }
-
-
-    // Add brand meta for simple products too (XStore compatibility)
-    if (Array.isArray(product.attributes)) {
-      for (const attr of product.attributes) {
-        const n = String(attr?.name || "").toLowerCase().trim();
-        if (n === "marca" || n === "brand") {
-          const brandVal = String(attr?.value || attr?.options?.[0] || "").trim();
-          if (brandVal) {
-            const existingMeta = (wooProduct.meta_data as any[]) || [];
-            existingMeta.push({ key: "_brand", value: brandVal });
-            existingMeta.push({ key: "xstore_brand", value: brandVal });
-            existingMeta.push({ key: "brand_id", value: brandVal });
-            wooProduct.meta_data = existingMeta;
-          }
-          break;
-        }
-      }
-    }
 
     // ── Technical Specs (Marca, Modelo, EAN) for Simple Products ──
     const technicalFields: Array<{ name: string; value: string }> = [];
