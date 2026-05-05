@@ -127,6 +127,7 @@ const ProductsPage = () => {
   );
   const publishWoo = usePublishWooCommerce();
   const { activePublishJob, isCreating: isCreatingPublish, createPublishJob, cancelPublishJob, dismissPublishJob } = usePublishJob();
+  const [logsOpen, setLogsOpen] = useState(false);
   const deleteProducts = useDeleteProducts();
   const updateProduct = useUpdateProduct();
   const detectVariations = useDetectVariations();
