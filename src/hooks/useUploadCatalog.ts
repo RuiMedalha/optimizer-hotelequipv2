@@ -636,6 +636,8 @@ export function useUploadCatalog() {
           isUpdateMode ? uploadedFile.updateFields : undefined,
           workflowRunId,
           uploadedFile.skuPrefix,
+          uploadedFile.skuSuffix,
+          uploadedFile.modelSuffix,
           uploadedFile.defaultBrand,
           uploadedFile.autoModelFromSku
         );
