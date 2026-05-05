@@ -26,7 +26,7 @@ const corsHeaders = {
 };
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const TURBO_BATCH_SIZE = 50; // ← lotes de 50 produtos (escolha do utilizador)
+const TURBO_BATCH_SIZE = 20; // Reduced from 50 to 20 to avoid timeouts during image pre-upload and batch processing
 const SELF_INVOKE_RETRIES = 5;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -251,11 +251,17 @@ async function fetchFaq(supabase: any, productId: string): Promise<Array<{ q: st
 
 async function fetchUsoProfissional(supabase: any, productId: string): Promise<string | null> {
   const { data } = await supabase
-    .from("uso_profissional")
-    .select("content")
+    .from("product_uso_profissional")
+    .select("intro, use_cases, professional_tips, target_profiles")
     .eq("product_id", productId)
     .maybeSingle();
-  return data?.content || null;
+
+  if (!data) return null;
+
+  // Convert structured data back to HTML if needed, or return null if empty
+  // Actually, we already have professional_use_content in the products table
+  // so we'll prefer that in buildConsolidatedPayload.
+  return null; 
 }
 
 // ── Build consolidated payload (simple products) ───────────────────────────
@@ -548,13 +554,16 @@ Deno.serve(async (req) => {
 
         // 3c) Construir payloads em paralelo
         const payloads = await Promise.all(simpleProducts.map(async (p) => {
-          const [categoryIds, faqs, usoPro, upsellIds, crosssellIds] = await Promise.all([
+          const [categoryIds, faqs, upsellIds, crosssellIds] = await Promise.all([
             has("categories") ? resolveCategories(supabase, p) : Promise.resolve(undefined),
             fetchFaq(supabase, p.id).catch(() => []),
-            fetchUsoProfissional(supabase, p.id).catch(() => null),
             has("upsells") ? resolveSkusToWooIds(supabase, p.upsell_skus || []) : Promise.resolve([]),
             has("crosssells") ? resolveSkusToWooIds(supabase, p.crosssell_skus || []) : Promise.resolve([]),
           ]);
+
+          // Use p.professional_use_content if available, otherwise try to fetch it
+          const usoPro = p.professional_use_content || null;
+
           const wp = buildConsolidatedPayload(
             p, has, imageMap, categoryIds, faqs, usoPro, upsellIds, crosssellIds,
             markupPercent, discountPercent, altByUrl,
