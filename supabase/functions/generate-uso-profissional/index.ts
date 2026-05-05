@@ -166,7 +166,7 @@ Descrição base: ${productDescription || "Sem descrição"}
 Atributos:
 ${attributesText}
 
-Gera conteúdo editorial de uso profissional CONCISO.
+Gera conteúdo editorial de uso profissional DETALHADO e rico em informações técnicas e contextos de negócio.
 Responde APENAS com JSON válido:
 {
   "intro": "1 parágrafo sobre o que este equipamento faz para profissionais",
