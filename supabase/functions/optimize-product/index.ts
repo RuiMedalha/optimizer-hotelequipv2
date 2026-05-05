@@ -747,6 +747,10 @@ serve(async (req) => {
             score += 30; reasons.push(`acessório compatível (${candidate.type})`);
           }
         }
+        // Same category boost for cross-sell
+        if (current.category && candidate.category && candidate.category === current.category) {
+          score += 15; reasons.push("mesma categoria (complementar)");
+        }
         // Same dimensions boost (fits same workspace)
         if (current.dimensions && candidate.dimensions === current.dimensions) {
           score += 10; reasons.push("mesmas dimensões");
