@@ -124,6 +124,8 @@ Deno.serve(async (req) => {
       sku: "sku",
       category: "category",
       brand: "brand",
+      model: "model",
+      ean: "ean",
       original_price: "original_price",
       price: "original_price",
       sale_price: "sale_price",
