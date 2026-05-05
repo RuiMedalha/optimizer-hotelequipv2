@@ -2599,19 +2599,20 @@ async function publishSingleProduct(
   auth: string,
   has: (k: string) => boolean,
   markupPercent: number,
-  discountPercent: number
+  discountPercent: number,
+  seoPlugin: string = 'rankmath'
 ): Promise<WooResult> {
   const enrichedProduct = has("images") ? await enrichProductImages(product, supabase, { skipOriginals: has("skip_original_images"), skipLifestyle: has("skip_lifestyle_images") }) : product;
 
   if (enrichedProduct.product_type === "variable") {
-    return await publishVariableProduct(enrichedProduct, supabase, adminClient, baseUrl, auth, has, markupPercent, discountPercent);
+    return await publishVariableProduct(enrichedProduct, supabase, adminClient, baseUrl, auth, has, markupPercent, discountPercent, seoPlugin);
   }
 
   if (enrichedProduct.parent_product_id) {
-    return await publishVariation(enrichedProduct, supabase, adminClient, baseUrl, auth, has, markupPercent, discountPercent);
+    return await publishVariation(enrichedProduct, supabase, adminClient, baseUrl, auth, has, markupPercent, discountPercent, seoPlugin);
   }
 
-  const wooProduct = await buildBasePayload(enrichedProduct, supabase, baseUrl, auth, has, markupPercent, discountPercent);
+  const wooProduct = await buildBasePayload(enrichedProduct, supabase, baseUrl, auth, has, markupPercent, discountPercent, seoPlugin);
 
   // If product is discontinued, force it to be a draft with 0 stock in WooCommerce
   if (enrichedProduct.is_discontinued) {
