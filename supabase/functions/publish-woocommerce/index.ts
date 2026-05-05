@@ -1791,7 +1791,12 @@ async function buildBasePayload(
   }
 
   if (has("price")) {
-    let basePrice = parseFloat(product.optimized_price || product.original_price || "0") || 0;
+    const parsePrice = (v: any) => {
+      if (v == null || v === "") return 0;
+      const s = String(v).replace(/\s/g, "").replace(",", ".");
+      return parseFloat(s) || 0;
+    };
+    let basePrice = parsePrice(product.optimized_price || product.original_price);
     if (markupPercent > 0) basePrice = basePrice * (1 + markupPercent / 100);
     wooProduct.regular_price = basePrice.toFixed(2);
 
