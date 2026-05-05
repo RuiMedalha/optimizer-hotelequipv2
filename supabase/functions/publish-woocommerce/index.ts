@@ -1855,7 +1855,7 @@ async function buildBasePayload(
       
       // Merge with existing meta_data
       if (!Array.isArray(wooProduct.meta_data)) wooProduct.meta_data = [];
-      wooProduct.meta_data.push(...seoMeta);
+      (wooProduct.meta_data as any[]).push(...seoMeta);
       
       console.log(`[seo-meta] Injected ${seoMeta.length} fields for plugin: ${seoPlugin}`);
     } else {
@@ -1867,10 +1867,13 @@ async function buildBasePayload(
   if (Array.isArray(product.certifications) && product.certifications.length > 0) {
     if (!Array.isArray(wooProduct.meta_data)) wooProduct.meta_data = [];
     
-    wooProduct.meta_data.push({
+    (wooProduct.meta_data as any[]).push({
       key: '_product_certifications',
       value: JSON.stringify(product.certifications)
     });
+    
+    console.log(`[certifications] Injected ${product.certifications.length} certifications`);
+  }
     
     console.log(`[certifications] Injected ${product.certifications.length} certifications`);
   }
