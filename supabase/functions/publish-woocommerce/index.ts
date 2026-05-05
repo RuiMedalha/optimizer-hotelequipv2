@@ -1342,14 +1342,13 @@ function buildFaqHtml(faq: any[]): string {
   return `<!-- HOTELEQUIP:FAQ_START --><div class="hotelequip-faq" style="margin-top:24px;"><h3 style="color:#00526d;font-size:18px;margin-bottom:12px;">Perguntas Frequentes</h3>${items.join("")}</div><!-- HOTELEQUIP:FAQ_END -->`;
 }
 
-// ── FAQ JSON for custom field (Yoast/RankMath Schema) ──
-function buildFaqSchemaJson(faq: any[]): string {
-  if (!Array.isArray(faq) || faq.length === 0) return "[]";
-  const entries = faq.slice(0, 4).map((item: any) => ({
-    question: typeof item === "string" ? item : (item?.question || item?.q || ""),
-    answer: typeof item === "string" ? "" : (item?.answer || item?.a || ""),
-  })).filter(e => e.question);
-  return JSON.stringify(entries);
+// ── FAQ JSON for custom field (Theme compatibility) ──
+function buildFaqSchemaJson(faq: any[]): any[] {
+  if (!Array.isArray(faq) || faq.length === 0) return [];
+  return faq.slice(0, 4).map((item: any) => ({
+    title: typeof item === "string" ? item : (item?.question || item?.q || ""),
+    description: typeof item === "string" ? "" : (item?.answer || item?.a || ""),
+  })).filter(e => e.title);
 }
 
 // ── Uso Profissional HTML builder ──
@@ -1426,8 +1425,8 @@ function buildUsoProfissionalHtml(data: any): string {
 }
 
 // ── Uso Profissional JSON for custom field (_product_conselhos repeater) ──
-function buildUsoProfissionalJson(data: any): string {
-  if (!data) return "[]";
+function buildUsoProfissionalJson(data: any): any[] {
+  if (!data) return [];
   const repeater: Array<{ title: string; description: string }> = [];
 
   // Add intro as first item if present
@@ -1468,7 +1467,7 @@ function buildUsoProfissionalJson(data: any): string {
     }
   }
 
-  return JSON.stringify(repeater);
+  return repeater;
 }
 
 // ── Inject or replace a block in description using HTML markers ──
@@ -1490,9 +1489,9 @@ async function enrichWithExtraContent(
   has: (k: string) => boolean,
   seoPlugin: string = 'rankmath'
 ) {
-  const ensureMeta = (): Array<{ key: string; value: string }> => {
+  const ensureMeta = (): Array<{ key: string; value: any }> => {
     if (!Array.isArray(wooProduct.meta_data)) wooProduct.meta_data = [];
-    return wooProduct.meta_data as Array<{ key: string; value: string }>;
+    return wooProduct.meta_data as Array<{ key: string; value: any }>;
   };
 
   // ── FAQ ──
@@ -1692,7 +1691,7 @@ async function enrichWithExtraContent(
             "reviewBody": plainReview
           }
         };
-        const schemaScript = `\n\n<script type="application/ld+json">${JSON.stringify(schema)}</script>`;
+        const schemaScript = `\n\n<script type="application/ld+json">\n${JSON.stringify(schema, null, 2)}\n</script>`;
         wooProduct.description = String(wooProduct.description || "") + schemaScript;
         
         console.log(`[enrichExtraContent] Uso Profissional JSON and Schema injected for ${product.id}`);
@@ -2735,11 +2734,11 @@ async function publishSingleProduct(
 
   if (has("upsells")) {
     const upsellIds = await resolveSkusToWooIds(supabase, adminClient, baseUrl, auth, enrichedProduct.upsell_skus || []);
-    if (upsellIds.length > 0) wooProduct.upsell_ids = upsellIds;
+    if (upsellIds.length > 0) wooProduct.upsell_ids = [...new Set(upsellIds)];
   }
   if (has("crosssells")) {
     const crosssellIds = await resolveSkusToWooIds(supabase, adminClient, baseUrl, auth, enrichedProduct.crosssell_skus || []);
-    if (crosssellIds.length > 0) wooProduct.cross_sell_ids = crosssellIds;
+    if (crosssellIds.length > 0) wooProduct.cross_sell_ids = [...new Set(crosssellIds)];
   }
 
   if (Object.keys(wooProduct).length === 0) {
@@ -2937,11 +2936,11 @@ async function publishVariableProduct(
 
   if (has("upsells")) {
     const upsellIds = await resolveSkusToWooIds(supabase, adminClient, baseUrl, auth, parent.upsell_skus || []);
-    if (upsellIds.length > 0) parentPayload.upsell_ids = upsellIds;
+    if (upsellIds.length > 0) parentPayload.upsell_ids = [...new Set(upsellIds)];
   }
   if (has("crosssells")) {
     const crosssellIds = await resolveSkusToWooIds(supabase, adminClient, baseUrl, auth, parent.crosssell_skus || []);
-    if (crosssellIds.length > 0) parentPayload.cross_sell_ids = crosssellIds;
+    if (crosssellIds.length > 0) parentPayload.cross_sell_ids = [...new Set(crosssellIds)];
   }
 
   // Variable parents must not have prices; prices live on variations
