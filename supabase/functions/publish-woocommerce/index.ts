@@ -1617,6 +1617,39 @@ async function enrichWithExtraContent(
     }
 
     // Add Schema JSON-LD to RankMath meta_data
+    if (seoPlugin === 'rankmath') {
+      const schema = {
+        "@context": "https://schema.org/",
+        "@type": "Product",
+        "name": wooProduct.name || product.optimized_title || product.original_title,
+        "review": {
+          "@type": "Review",
+          "reviewRating": {
+            "@type": "Rating",
+            "ratingValue": "5",
+            "bestRating": "5"
+          },
+          "author": {
+            "@type": "Organization",
+            "name": "HotelEquip"
+          },
+          "reviewBody": plainReview
+        }
+      };
+      
+      const meta = ensureMeta();
+      // Remove any existing rank_math_schema_Product to avoid duplicates
+      const existingSchemaIdx = meta.findIndex(m => m.key === 'rank_math_schema_Product');
+      if (existingSchemaIdx !== -1) {
+        meta[existingSchemaIdx].value = JSON.stringify(schema);
+      } else {
+        meta.push({ 
+          key: 'rank_math_schema_Product', 
+          value: JSON.stringify(schema)
+        });
+      }
+      console.log(`[enrichExtraContent] Injected RankMath Product Schema with editorial review`);
+    }
 
     
     console.log(`[enrichExtraContent] Uso Profissional sent as JSON array to _product_conselhos for ${product.id}`);
