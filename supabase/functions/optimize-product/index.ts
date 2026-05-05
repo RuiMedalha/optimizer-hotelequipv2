@@ -770,7 +770,7 @@ serve(async (req) => {
         .from("products")
         .select("sku, original_title, optimized_title, original_description, category, original_price")
         .order("created_at", { ascending: false })
-        .limit(1000);
+        .limit(2000);
 
       if (allProducts && allProducts.length > 1) {
         allProductAttrs = allProducts.filter((p: any) => p.sku).map(extractAttrs);
