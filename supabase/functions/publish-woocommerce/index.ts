@@ -2936,11 +2936,11 @@ async function publishVariableProduct(
 
   if (has("upsells")) {
     const upsellIds = await resolveSkusToWooIds(supabase, adminClient, baseUrl, auth, parent.upsell_skus || []);
-    if (upsellIds.length > 0) parentPayload.upsell_ids = upsellIds;
+    if (upsellIds.length > 0) parentPayload.upsell_ids = [...new Set(upsellIds)];
   }
   if (has("crosssells")) {
     const crosssellIds = await resolveSkusToWooIds(supabase, adminClient, baseUrl, auth, parent.crosssell_skus || []);
-    if (crosssellIds.length > 0) parentPayload.cross_sell_ids = crosssellIds;
+    if (crosssellIds.length > 0) parentPayload.cross_sell_ids = [...new Set(crosssellIds)];
   }
 
   // Variable parents must not have prices; prices live on variations
