@@ -120,6 +120,8 @@ async function insertProducts(
   updateFields?: string[],
   workflowRunId?: string,
   skuPrefix?: string,
+  skuSuffix?: string,
+  modelSuffix?: string,
   defaultBrand?: string,
   autoModelFromSku?: boolean
 ) {
