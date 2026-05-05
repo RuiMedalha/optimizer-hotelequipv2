@@ -15023,6 +15023,13 @@ export type Database = {
       }
       is_approved: { Args: { _user_id: string }; Returns: boolean }
       is_workspace_owner: { Args: { _workspace_id: string }; Returns: boolean }
+      mark_stuck_publish_jobs_failed: {
+        Args: never
+        Returns: {
+          job_id: string
+          marked_failed: boolean
+        }[]
+      }
       search_knowledge:
         | {
             Args: { _limit?: number; _query: string }

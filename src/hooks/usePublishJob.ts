@@ -118,16 +118,18 @@ export function usePublishJob() {
     checkActiveJobs();
   }, []);
 
-  // Watchdog: re-invoke stalled jobs
+  // Watchdog: re-invoke stalled jobs (but never if all products processed)
   useEffect(() => {
     if (!activePublishJob || (activePublishJob.status !== "processing" && activePublishJob.status !== "queued")) return;
-    if (activePublishJob.processed_products >= activePublishJob.total_products) return;
+    if (activePublishJob.total_products > 0 && activePublishJob.processed_products >= activePublishJob.total_products) return;
 
     const interval = setInterval(async () => {
       if (!activePublishJob || wakeupInFlightRef.current) return;
+      // Re-check completion guard inside interval
+      if (activePublishJob.total_products > 0 && activePublishJob.processed_products >= activePublishJob.total_products) return;
 
       const ageMs = Date.now() - new Date(activePublishJob.updated_at).getTime();
-      if (ageMs <= 60_000) return;
+      if (ageMs <= 120_000) return; // 2 min, more conservative
 
       wakeupInFlightRef.current = true;
       try {
