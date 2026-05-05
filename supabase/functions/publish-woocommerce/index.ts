@@ -2457,6 +2457,13 @@ async function buildVariationPayload(
     payload.sku = variation.sku || undefined;
   }
 
+  if (has("stock") && variation.stock !== undefined && variation.stock !== null) {
+    payload.manage_stock = true;
+    const qty = parseInt(String(variation.stock), 10);
+    payload.stock_quantity = qty;
+    payload.stock_status = qty > 0 ? "instock" : "outofstock";
+  }
+
   if (has("images")) {
     const urls: string[] = Array.isArray(variation.image_urls) ? variation.image_urls : [];
     if (urls.length > 0) {
@@ -2467,26 +2474,41 @@ async function buildVariationPayload(
 
   // Only variation-defining attributes go on the variation payload.
   let variationAttrs = buildVariationAttributes(variation, parent);
-  payload.attributes = variationAttrs;
-
+  
   // ── Technical Specs (Marca, Modelo, EAN) on variations too ──
-  const technicalFields: Array<{ name: string; value: string }> = [];
-  
-  const brand = parent?.brand || Array.isArray(parent?.attributes) ? parent.attributes.find((a: any) => ["marca", "brand"].includes(String(a.name).toLowerCase()))?.value : null;
-  if (brand) technicalFields.push({ name: "Marca", value: String(brand) });
-  
-  const model = parent?.model || Array.isArray(parent?.attributes) ? parent.attributes.find((a: any) => ["modelo", "model"].includes(String(a.name).toLowerCase()))?.value : null;
-  if (model) technicalFields.push({ name: "Modelo", value: String(model) });
-  
-  const ean = Array.isArray(variation.attributes) ? variation.attributes.find((a: any) => ["ean", "ean13", "gtin", "barcode"].includes(String(a.name).toLowerCase()))?.value : 
-              (Array.isArray(parent?.attributes) ? parent.attributes.find((a: any) => ["ean", "ean13", "gtin", "barcode"].includes(String(a.name).toLowerCase()))?.value : null);
-  if (ean) technicalFields.push({ name: "EAN", value: String(ean) });
+  if (has("attributes")) {
+    const technicalFields: Array<{ name: string; value: string }> = [];
+    
+    const brand = parent?.brand || (Array.isArray(parent?.attributes) ? parent.attributes.find((a: any) => ["marca", "brand"].includes(String(a.name).toLowerCase()))?.value : null);
+    if (brand) technicalFields.push({ name: "Marca", value: String(brand) });
+    
+    const model = parent?.model || (Array.isArray(parent?.attributes) ? parent.attributes.find((a: any) => ["modelo", "model"].includes(String(a.name).toLowerCase()))?.value : null);
+    if (model) technicalFields.push({ name: "Modelo", value: String(model) });
+    
+    const ean = Array.isArray(variation.attributes) ? variation.attributes.find((a: any) => ["ean", "ean13", "gtin", "barcode"].includes(String(a.name).toLowerCase()))?.value : 
+                (Array.isArray(parent?.attributes) ? parent.attributes.find((a: any) => ["ean", "ean13", "gtin", "barcode"].includes(String(a.name).toLowerCase()))?.value : null);
+    if (ean) technicalFields.push({ name: "EAN", value: String(ean) });
 
-  if (technicalFields.length > 0) {
-    const specsHtml = `<table style="width:100%; border-collapse:collapse;">${technicalFields.map(f => `<tr><td style="padding:8px; border:1px solid #eee;"><strong>${f.name}</strong></td><td style="padding:8px; border:1px solid #eee;">${f.value}</td></tr>`).join("")}</table>`;
-    upsertMeta("_product_specs", specsHtml);
-    upsertMeta("et_custom_tab1_title", "Dados Técnicos");
-    upsertMeta("et_custom_tab1_content", specsHtml);
+    if (technicalFields.length > 0) {
+      const specsHtml = `<table style="width:100%; border-collapse:collapse;">${technicalFields.map(f => `<tr><td style="padding:8px; border:1px solid #eee;"><strong>${f.name}</strong></td><td style="padding:8px; border:1px solid #eee;">${f.value}</td></tr>`).join("")}</table>`;
+      upsertMeta("_product_specs", specsHtml);
+      upsertMeta("et_custom_tab1_title", "Dados Técnicos");
+      upsertMeta("et_custom_tab1_content", specsHtml);
+    }
+
+    // Variation-specific dimensions and weight
+    const dims = extractDimensions(variation, Array.isArray(variation.attributes) ? variation.attributes : []);
+    if (dims) {
+      const d = dims.toLowerCase().split('x').map(s => parseFloat(s.trim()));
+      if (d.length === 3 && !isNaN(d[0]) && !isNaN(d[1]) && !isNaN(d[2])) {
+        payload.dimensions = { length: String(d[0]), width: String(d[1]), height: String(d[2]) };
+      }
+    }
+    const allVarContent = [variation.optimized_description, variation.original_description, variation.technical_specs].filter(Boolean).join("\n");
+    const weightMatch = allVarContent.match(/(\d+[,.]?\d*)\s*(kg|kg\.|kgs)/i);
+    if (weightMatch) {
+      payload.weight = weightMatch[1].replace(',', '.');
+    }
   }
 
   // Consolidate size-like attribute names to match the parent's chosen name
