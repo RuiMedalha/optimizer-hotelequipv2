@@ -2044,7 +2044,8 @@ async function buildBasePayload(
   // ── Technical Specs (from column) ──
   if (product.technical_specs && product.technical_specs.trim().length > 0) {
     const specs = String(product.technical_specs).trim();
-    const meta = ensureMeta();
+    if (!Array.isArray(wooProduct.meta_data)) wooProduct.meta_data = [];
+    const meta = wooProduct.meta_data as any[];
     
     // Add as custom meta for themes that use it for a "Specs" tab
     meta.push({ key: "_product_specs", value: specs });
