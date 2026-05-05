@@ -1701,8 +1701,9 @@ async function buildBasePayload(
 
   if (has("stock") && product.stock !== undefined && product.stock !== null) {
     wooProduct.manage_stock = true;
-    wooProduct.stock_quantity = parseInt(String(product.stock), 10);
-    wooProduct.stock_status = wooProduct.stock_quantity > 0 ? "instock" : "outofstock";
+    const qty = parseInt(String(product.stock), 10);
+    wooProduct.stock_quantity = qty;
+    wooProduct.stock_status = qty > 0 ? "instock" : "outofstock";
   }
 
   // IMPORTANT: Never overwrite the WooCommerce slug/permalink.
