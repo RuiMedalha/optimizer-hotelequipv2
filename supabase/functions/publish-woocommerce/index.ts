@@ -1876,9 +1876,6 @@ async function buildBasePayload(
     
     console.log(`[certifications] Injected ${product.certifications.length} certifications`);
   }
-    
-    console.log(`[certifications] Injected ${product.certifications.length} certifications`);
-  }
 
 
   // ── Professional Use Content removed from here as it is handled in enrichWithExtraContent ──
