@@ -403,9 +403,9 @@ function buildProductData(p: Record<string, unknown>, onlyMapped: boolean, mappe
   }
 
   // Collect extra technical attributes (Marca, EAN, Modelo) into the attributes array
-  let brandVal = toStr(p.brand, 200);
-  const eanVal = toStr(p.ean, 100);
-  let modeloVal = toStr(p.modelo, 200);
+  let brandVal = toStr(p.brand || p.Marca, 200);
+  const eanVal = toStr(p.ean || p.EAN, 100);
+  let modeloVal = toStr(p.model || p.modelo || p.Modelo, 200);
 
   // Apply default brand if none found
   if (!brandVal && defaultBrand) {
