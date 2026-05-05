@@ -173,6 +173,7 @@ Responde APENAS com JSON válido:
   "useCases": [
     { "context": "Nome do contexto profissional (ex: Serviço de Buffet)", "description": "2-3 frases sobre como usam este equipamento" }
   ],
+  "targetProfiles": ["Perfil Profissional 1", "Perfil Profissional 2", "Perfil Profissional 3"],
   "professionalTips": ["Dica Profissional: conteúdo da dica"]
 }
 
