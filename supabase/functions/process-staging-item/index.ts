@@ -57,20 +57,20 @@ Deno.serve(async (req) => {
       if (!effectiveProductId) {
         const { data: existingProd } = await supabase
           .from("products")
-          .select("id")
+          .select("id, brand, model, attributes, original_title, original_description, original_price")
           .eq("workspace_id", staging.workspace_id)
           .eq("sku", sku)
           .maybeSingle();
         
         if (existingProd) {
           effectiveProductId = existingProd.id;
-          await supabase.from("sync_staging").update({ existing_product_id: effectiveProductId }).eq("id", id);
+          // Não atualizamos o staging aqui porque vamos deletá-lo no final
         }
       }
 
       const is_discontinued = rawData.is_discontinued === true || staging.change_type === 'discontinued';
 
-      // BUSCAR CONFIGURAÇÃO DO JOB (Mapeado corretamente do campo ingestion_job_id)
+      // BUSCAR CONFIGURAÇÃO DO JOB
       const { data: job } = await supabase
         .from("ingestion_jobs")
         .select("config, id")
@@ -82,11 +82,30 @@ Deno.serve(async (req) => {
       const skuPrefix = jobConfig.skuPrefix || "";
       const useSkuAsModel = jobConfig.autoModelFromSku === true;
 
-      // Calcular Modelo: se configurado para usar SKU, remove o prefixo. 
-      // Caso contrário, usa o modelo do fornecedor ou o SKU original (sku_supplier).
       let calculatedModel = rawData.model || staging.sku_supplier || sku;
       if (useSkuAsModel && skuPrefix && String(sku).startsWith(skuPrefix)) {
         calculatedModel = String(sku).slice(skuPrefix.length);
+      }
+
+      // VALIDAÇÃO DE CAMPOS CRÍTICOS (conforme solicitado pelo usuário)
+      const { data: existingProductData } = effectiveProductId ? 
+        await supabase.from("products").select("*").eq("id", effectiveProductId).single() : { data: null };
+
+      const missingFields = [];
+      if (!sku) missingFields.push('SKU');
+      if (!defaultBrand && !rawData.brand && !existingProductData?.brand) missingFields.push('Marca');
+      
+      const sTitle = cleanSupplierValue(rawData.original_title ?? rawData.supplier_title ?? rawData.title);
+      if (!sTitle && !existingProductData?.original_title) missingFields.push('Título');
+
+      if (missingFields.length > 0) {
+        const errorMsg = `Não é possível importar produto - campos em falta: ${missingFields.join(', ')}`;
+        await supabase.from("sync_staging").update({ 
+          status: 'error', 
+          review_notes: errorMsg,
+          updated_at: new Date().toISOString() 
+        }).eq("id", id);
+        throw new Error(errorMsg);
       }
 
       if (is_discontinued) {
@@ -115,10 +134,10 @@ Deno.serve(async (req) => {
             is_discontinued: true,
             stock: 0,
             origin: 'supplier',
-            brand: defaultBrand,
+            brand: rawData.brand || defaultBrand,
             model: calculatedModel,
-            supplier_title: cleanSupplierValue(rawData.original_title ?? rawData.supplier_title ?? rawData.title),
-            original_title: cleanSupplierValue(rawData.original_title ?? rawData.supplier_title ?? rawData.title),
+            supplier_title: sTitle,
+            original_title: sTitle,
             supplier_description: cleanSupplierValue(rawData.original_description ?? rawData.supplier_description ?? rawData.description),
             original_description: cleanSupplierValue(rawData.original_description ?? rawData.supplier_description ?? rawData.description)
           };
@@ -140,49 +159,29 @@ Deno.serve(async (req) => {
           'supplier_title', 'supplier_description', 'supplier_short_description', 'model', 'attributes'
         ];
 
-        const cleanData: Record<string, any> = {};
+        const mergeData: Record<string, any> = {};
         
         // Mapear preços
         const price = cleanSupplierValue(rawData.original_price ?? rawData.price ?? rawData.Preço ?? rawData.Publico);
-        if (price !== undefined) cleanData.original_price = price;
+        if (price !== undefined) mergeData.original_price = price;
 
-        // Limpeza geral de colunas
+        // Limpeza e mapeamento geral
         Object.keys(rawData).forEach(key => {
-          // Não copiar brand e model do rawData, pois são controlados pelo Job
           if (productColumns.includes(key) && !['image_urls', 'original_title', 'original_description', 'brand', 'model'].includes(key)) {
             const val = cleanSupplierValue(rawData[key]);
-            if (val !== undefined) cleanData[key] = val;
+            if (val !== undefined) mergeData[key] = val;
           }
         });
 
-        // REGRAS DE TÍTULO E DESCRIÇÃO: Preencher ambos (original e supplier) para novos produtos
-        const sTitle = cleanSupplierValue(rawData.original_title ?? rawData.supplier_title ?? rawData.title);
         const sDesc = cleanSupplierValue(rawData.original_description ?? rawData.supplier_description ?? rawData.description);
         
         if (sTitle !== undefined) {
-          cleanData.supplier_title = sTitle;
-          cleanData.original_title = sTitle;
+          mergeData.supplier_title = sTitle;
+          mergeData.original_title = sTitle;
         }
         if (sDesc !== undefined) {
-          cleanData.supplier_description = sDesc;
-          cleanData.original_description = sDesc;
-        }
-
-        // Forçar Marca e Modelo do Job
-        cleanData.brand = defaultBrand;
-        cleanData.model = calculatedModel;
-
-        // TRATAMENTO DE EAN (Extrair de attributes se necessário)
-        const ean = cleanSupplierValue(rawData.ean ?? rawData.EAN);
-        if (ean) {
-          const attributes = Array.isArray(cleanData.attributes) ? cleanData.attributes : [];
-          const eanIndex = attributes.findIndex((a: any) => a.name?.toLowerCase() === 'ean');
-          if (eanIndex > -1) {
-            attributes[eanIndex].value = ean;
-          } else {
-            attributes.push({ name: 'EAN', value: ean });
-          }
-          cleanData.attributes = attributes;
+          mergeData.supplier_description = sDesc;
+          mergeData.original_description = sDesc;
         }
 
         // REORDENAÇÃO DE IMAGENS
@@ -191,55 +190,70 @@ Deno.serve(async (req) => {
 
         if (deltaImgs.length > 0) {
           const combinedImgs = [...new Set([...deltaImgs, ...siteImgs])];
-          cleanData.image_urls = combinedImgs;
+          mergeData.image_urls = combinedImgs;
         } else if (siteImgs.length > 0) {
-          cleanData.image_urls = siteImgs;
+          mergeData.image_urls = siteImgs;
         }
 
-        // REGRAS DE MARCA E MODELO
-        if (effectiveProductId) {
-          const { data: existingProd } = await supabase
-            .from("products")
-            .select("brand, model")
-            .eq("id", effectiveProductId)
-            .single();
-          
-          if (!existingProd?.brand && defaultBrand) {
-            cleanData.brand = defaultBrand;
-          }
+        if (effectiveProductId && existingProductData) {
+          // Lógica de MERGE: preservar campos existentes se os novos forem vazios
+          const finalUpdateData = {
+            brand: rawData.brand || defaultBrand || existingProductData.brand,
+            model: calculatedModel || existingProductData.model,
+            attributes: rawData.attributes || existingProductData.attributes,
+            original_title: sTitle || existingProductData.original_title,
+            original_description: sDesc || existingProductData.original_description,
+            original_price: price || existingProductData.original_price,
+            image_urls: mergeData.image_urls || existingProductData.image_urls,
+            updated_at: new Date().toISOString()
+          };
 
-          if (!existingProd?.model) {
-            cleanData.model = calculatedModel;
-          }
+          // Adicionar outros campos que foram mapeados mas não estão no merge básico
+          Object.keys(mergeData).forEach(key => {
+            if (mergeData[key] !== undefined && finalUpdateData[key] === undefined) {
+              finalUpdateData[key] = mergeData[key];
+            }
+          });
 
           const { error: updateErr } = await supabase
             .from("products")
-            .update({ ...cleanData, updated_at: new Date().toISOString() })
+            .update(finalUpdateData)
             .eq("id", effectiveProductId);
           if (updateErr) throw updateErr;
+          
+          console.log(`[reconciliation] Updated existing product ${sku}`);
         } else {
           const { data: ws } = await supabase.from("workspaces").select("user_id").eq("id", staging.workspace_id).single();
           if (!ws?.user_id) throw new Error("Workspace owner not found");
 
           const insertData = {
-            ...cleanData,
+            ...mergeData,
             sku: sku,
             workspace_id: staging.workspace_id,
             user_id: ws.user_id,
             status: 'pending',
             workflow_state: 'draft',
             origin: 'supplier',
-            brand: defaultBrand,
+            brand: rawData.brand || defaultBrand,
             model: calculatedModel,
             is_discontinued: false
           };
 
           const { error: insertErr } = await supabase.from("products").insert(insertData);
           if (insertErr) throw insertErr;
+          
+          console.log(`[reconciliation] Created new product ${sku}`);
         }
       }
 
-      await supabase.from("sync_staging").update({ status: 'approved', updated_at: new Date().toISOString() }).eq("id", id);
+      // LIMPEZA: Remover do staging após sucesso
+      const { error: deleteErr } = await supabase.from("sync_staging").delete().eq("id", id);
+      if (deleteErr) {
+        console.error("Erro ao remover do staging:", deleteErr);
+        // Se falhar o delete, marcamos como aprovado para evitar loops, mas o produto já foi importado
+        await supabase.from("sync_staging").update({ status: 'approved', updated_at: new Date().toISOString() }).eq("id", id);
+      }
+      
       return new Response(JSON.stringify({ success: true, action: 'approved' }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
