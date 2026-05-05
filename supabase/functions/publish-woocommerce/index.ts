@@ -1982,7 +1982,8 @@ async function buildBasePayload(
 
 
 
-  if (product.product_type !== "variable" && !product.parent_product_id) {
+  // ── Attributes (Marca, Modelo, Specs) ──
+  if (has("attributes")) {
     let productAttrs: any[] = [];
     if (Array.isArray(product.attributes)) {
       productAttrs = [...product.attributes];
@@ -1994,7 +1995,6 @@ async function buildBasePayload(
       }));
     }
 
-    
     // Inject Marca and Modelo from top-level columns if they are missing from attributes
     const hasMarca = productAttrs.some(a => {
       const n = String(a?.name || "").toLowerCase().trim();
@@ -2033,6 +2033,29 @@ async function buildBasePayload(
         wooProduct.attributes = attrPayload;
       }
     }
+
+    // Extraction for technical dimensions and weight
+    const allContent = [
+      product.optimized_description,
+      product.original_description,
+      product.technical_specs,
+      product.optimized_short_description,
+      product.short_description
+    ].filter(Boolean).join("\n");
+
+    const dimensions = extractDimensions(product, productAttrs);
+    if (dimensions) {
+      const d = dimensions.toLowerCase().split('x').map(s => parseFloat(s.trim()));
+      if (d.length === 3 && !isNaN(d[0]) && !isNaN(d[1]) && !isNaN(d[2])) {
+        wooProduct.dimensions = { length: String(d[0]), width: String(d[1]), height: String(d[2]) };
+      }
+    }
+
+    const weightMatch = allContent.match(/(\d+[,.]?\d*)\s*(kg|kg\.|kgs)/i);
+    if (weightMatch) {
+      wooProduct.weight = weightMatch[1].replace(',', '.');
+    }
+  }
 
 
     // Add brand meta for simple products too (XStore compatibility)
