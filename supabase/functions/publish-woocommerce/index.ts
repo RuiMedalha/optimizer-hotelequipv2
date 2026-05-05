@@ -1611,39 +1611,13 @@ async function enrichWithExtraContent(
     }
     
     // Add _editorial_review (plain text for schema/internal use)
-    const plainReview = stripHtml(usoHtml).substring(0, 1000);
+    const plainReview = stripHtml(usoHtml);
     if (!meta.some(m => m.key === "_editorial_review")) {
       meta.push({ key: "_editorial_review", value: plainReview });
     }
 
-    // Add Schema JSON-LD to description (hidden)
-    const schema = {
-      "@context": "https://schema.org/",
-      "@type": "Product",
-      "name": wooProduct.name || product.optimized_title || product.original_title,
-      "review": {
-        "@type": "Review",
-        "reviewRating": {
-          "@type": "Rating",
-          "ratingValue": "5",
-          "bestRating": "5"
-        },
-        "author": {
-          "@type": "Organization",
-          "name": "HotelEquip"
-        },
-        "reviewBody": plainReview
-      }
-    };
-    
-    // Using a style="display:none" div to wrap the script, just in case the theme handles scripts weirdly
-    const schemaScript = `\n\n<div class="hotelequip-schema" style="display:none !important;">\n<script type="application/ld+json">\n${JSON.stringify(schema, null, 2)}\n</script>\n</div>`;
-    
-    // Ensure we don't inject it twice
-    const currentDesc = String(wooProduct.description || "");
-    if (!currentDesc.includes("application/ld+json")) {
-      wooProduct.description = currentDesc + schemaScript;
-    }
+    // Add Schema JSON-LD to RankMath meta_data
+
     
     console.log(`[enrichExtraContent] Uso Profissional sent as JSON array to _product_conselhos for ${product.id}`);
   }
