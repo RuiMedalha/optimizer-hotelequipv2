@@ -1524,6 +1524,9 @@ const ProductsPage = () => {
                     {publishStats.skipped} ignorados
                   </Badge>
                 )}
+                <Button size="sm" variant="outline" onClick={() => setLogsOpen(true)} className="h-7 px-2 text-xs">
+                  <List className="w-3 h-3 mr-1" /> Ver logs
+                </Button>
                 <Button size="sm" variant="destructive" onClick={cancelPublishJob} className="h-7 px-2 text-xs">
                   <Ban className="w-3 h-3 mr-1" /> Cancelar
                 </Button>
