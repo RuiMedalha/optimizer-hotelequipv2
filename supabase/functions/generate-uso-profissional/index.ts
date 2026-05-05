@@ -323,21 +323,51 @@ IMPORTANTE: Devolve APENAS o JSON acima. Sem texto antes ou depois. Sem markdown
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
       );
       
+      const payload: Record<string, any> = { 
+        professional_use_content: htmlContent,
+        updated_at: new Date().toISOString()
+      };
+
+      console.log(`[generate-uso-profissional] Attempting to save content for product ${productId}. Content length: ${htmlContent.length}`);
+      
       const { error: updateError } = await serviceClient
         .from("products")
-        .update({ 
-          professional_use_content: htmlContent,
-          updated_at: new Date().toISOString()
-        })
+        .update(payload)
         .eq("id", productId);
         
       if (updateError) {
         console.error("[generate-uso-profissional] Failed to update product table:", updateError);
       } else {
-        console.log(`[generate-uso-profissional] Saved with autoria for product ${productId}`);
+        console.log(`[generate-uso-profissional] Successfully saved professional_use_content to products table for product ${productId}`);
+        
+        // Also ensure it's saved to product_uso_profissional for the UI state
+        const usoPayload = {
+          product_id: productId,
+          workspace_id: workspaceId,
+          intro: result.intro,
+          use_cases: result.useCases,
+          professional_tips: result.professionalTips,
+          target_profiles: result.targetProfiles,
+          publish_enabled: true,
+          placement: "before_faq",
+          routing_in_description: true,
+          routing_in_custom_field: false,
+          generated_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+
+        const { error: usoError } = await serviceClient
+          .from("product_uso_profissional")
+          .upsert(usoPayload, { onConflict: "product_id,workspace_id" });
+
+        if (usoError) {
+          console.error("[generate-uso-profissional] Failed to update product_uso_profissional table:", usoError);
+        } else {
+          console.log(`[generate-uso-profissional] Successfully updated product_uso_profissional table for product ${productId}`);
+        }
       }
     } catch (dbErr) {
-      console.error("[generate-uso-profissional] Database error:", dbErr);
+      console.error("[generate-uso-profissional] Database operation exception:", dbErr);
     }
 
     return new Response(JSON.stringify({ ...result, html: htmlContent }), {
