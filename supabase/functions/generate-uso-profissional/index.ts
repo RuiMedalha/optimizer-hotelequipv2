@@ -173,7 +173,7 @@ Responde APENAS com JSON válido:
   "useCases": [{ "context": "Nome do contexto", "description": "1 frase técnica" }],
   "professionalTips": ["Dica curta"]
 }
-IMPORTANTE: Sem markdown.`;
+IMPORTANTE: Sem markdown.
 {
   "intro": "1 parágrafo sobre o que este equipamento faz para profissionais",
   "useCases": [
