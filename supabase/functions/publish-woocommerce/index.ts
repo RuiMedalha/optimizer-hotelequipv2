@@ -2421,13 +2421,24 @@ async function buildVariationPayload(
   let variationAttrs = buildVariationAttributes(variation, parent);
   payload.attributes = variationAttrs;
 
-  // ── Technical Specs (from column) on variations too ──
-  const specs = variation.technical_specs || parent?.technical_specs;
-  if (specs && String(specs).trim().length > 0) {
-    const specsText = String(specs).trim();
-    upsertMeta("_product_specs", specsText);
+  // ── Technical Specs (Marca, Modelo, EAN) on variations too ──
+  const technicalFields: Array<{ name: string; value: string }> = [];
+  
+  const brand = parent?.brand || Array.isArray(parent?.attributes) ? parent.attributes.find((a: any) => ["marca", "brand"].includes(String(a.name).toLowerCase()))?.value : null;
+  if (brand) technicalFields.push({ name: "Marca", value: String(brand) });
+  
+  const model = parent?.model || Array.isArray(parent?.attributes) ? parent.attributes.find((a: any) => ["modelo", "model"].includes(String(a.name).toLowerCase()))?.value : null;
+  if (model) technicalFields.push({ name: "Modelo", value: String(model) });
+  
+  const ean = Array.isArray(variation.attributes) ? variation.attributes.find((a: any) => ["ean", "ean13", "gtin", "barcode"].includes(String(a.name).toLowerCase()))?.value : 
+              (Array.isArray(parent?.attributes) ? parent.attributes.find((a: any) => ["ean", "ean13", "gtin", "barcode"].includes(String(a.name).toLowerCase()))?.value : null);
+  if (ean) technicalFields.push({ name: "EAN", value: String(ean) });
+
+  if (technicalFields.length > 0) {
+    const specsHtml = `<table style="width:100%; border-collapse:collapse;">${technicalFields.map(f => `<tr><td style="padding:8px; border:1px solid #eee;"><strong>${f.name}</strong></td><td style="padding:8px; border:1px solid #eee;">${f.value}</td></tr>`).join("")}</table>`;
+    upsertMeta("_product_specs", specsHtml);
     upsertMeta("et_custom_tab1_title", "Dados Técnicos");
-    upsertMeta("et_custom_tab1_content", specsText);
+    upsertMeta("et_custom_tab1_content", specsHtml);
   }
 
   // Consolidate size-like attribute names to match the parent's chosen name
