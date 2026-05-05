@@ -1827,14 +1827,6 @@ async function buildBasePayload(
 
   // ── SEO Meta (RankMath / Yoast / Custom) ──
   if (has("meta_title") || has("meta_description") || has("focus_keyword")) {
-    // Get workspace SEO plugin config (default: rankmath)
-    const { data: wsSettings } = await adminClient
-      .from("workspace_settings")
-      .select("seo_plugin")
-      .eq("workspace_id", product.workspace_id) // Fix: use product.workspace_id instead of undefined job.workspace_id
-      .maybeSingle();
-    
-    const seoPlugin = wsSettings?.seo_plugin || 'rankmath';
     const fieldMap = getSeoFieldMapping(seoPlugin);
     
     if (fieldMap) {
