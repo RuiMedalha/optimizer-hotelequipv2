@@ -267,22 +267,26 @@ Deno.serve(async (req) => {
     const allSkus = Array.from(skuGroups.keys());
     // Use an RPC or a sophisticated query to handle case-insensitive matching for the whole batch
     // For simplicity and safety with 50 items, we'll fetch products where SKU is in the list
-    // and also do a secondary check if needed, but usually SKUs should be normalized.
-    // Batch fetch existing products to avoid 1000 limit and ensure matching works for all 1137+ products
+    // Fetch ALL products in the workspace for matching to handle variants and normalized SKUs
+    // Using cache to avoid repeating this for every batch invocation if possible, 
+    // but for now, ensuring we get a broader set for matching.
     const existingProductsList: any[] = [];
-    for (let i = 0; i < allSkus.length; i += 100) {
-      const skuBatch = allSkus.slice(i, i + 100);
-      const { data: batchData } = await supabase
-        .from("products")
-        .select("*")
-        .eq("workspace_id", workspaceId)
-        .in("sku", skuBatch);
-      if (batchData) existingProductsList.push(...batchData);
-    }
+    const { data: allWorkspaceProducts } = await supabase
+      .from("products")
+      .select("id, sku, ean, model, brand, original_title")
+      .eq("workspace_id", workspaceId);
+    
+    if (allWorkspaceProducts) existingProductsList.push(...allWorkspaceProducts);
 
     const existingProductsMap = new Map<string, any>();
+    const normalizedProductsMap = new Map<string, any>();
+    
     existingProductsList?.forEach(p => {
-      if (p.sku) existingProductsMap.set(p.sku.toUpperCase(), p);
+      if (p.sku) {
+        const upSku = p.sku.toUpperCase();
+        existingProductsMap.set(upSku, p);
+        normalizedProductsMap.set(normalizeSKU(upSku), p);
+      }
     });
 
     // To handle case-insensitivity for those not found by exact match:
