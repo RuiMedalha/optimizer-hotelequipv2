@@ -363,8 +363,7 @@ Deno.serve(async (req) => {
               }
             }
           }
-            }
-          }
+
 
           const status = confidence >= 80 ? "pending" : "flagged";
 
