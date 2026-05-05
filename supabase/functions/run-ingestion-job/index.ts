@@ -8,8 +8,8 @@ const corsHeaders = {
 const normalizeSKU = (sku: string): string => {
   if (!sku) return "";
   let normalized = sku.trim().toUpperCase();
-  // Tratar / e \ como equivalentes ao hífen
-  normalized = normalized.replace(/[/\\]/g, "-");
+  // Remover espaços extras e hífens múltiplos
+  normalized = normalized.replace(/\s+/g, "").replace(/-+/g, "-");
   // Tratar zeros à esquerda (001 -> 1)
   normalized = normalized.replace(/^0+/, "");
   return normalized || "0";
