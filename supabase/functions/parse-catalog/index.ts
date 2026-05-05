@@ -369,7 +369,7 @@ async function processBatch(batchData: any, userId: string) {
   await insertProducts(products, columnMapping, userId, workspaceId, fileName);
 }
 
-function buildProductData(p: Record<string, unknown>, onlyMapped: boolean, mappedFieldKeys: Set<string>, hasMapping: boolean, skuPrefix?: string, defaultBrand?: string, autoModelFromSku?: boolean) {
+function buildProductData(p: Record<string, unknown>, onlyMapped: boolean, mappedFieldKeys: Set<string>, hasMapping: boolean, skuPrefix?: string, skuSuffix?: string, modelSuffix?: string, defaultBrand?: string, autoModelFromSku?: boolean) {
   const data: Record<string, unknown> = {};
   const attributes: any[] = [];
   for (let a = 1; a <= 3; a++) {
