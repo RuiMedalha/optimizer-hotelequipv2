@@ -502,34 +502,54 @@ class WooNotFoundError extends Error {
   }
 }
 
-async function wooFetch(baseUrl: string, auth: string, endpoint: string, method: string, body?: Record<string, unknown>) {
-  const resp = await fetch(`${baseUrl}/wp-json/wc/v3${endpoint}`, {
-    method,
-    headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/json" },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!resp.ok) {
-    const errBody = await resp.text();
-    if (resp.status === 404) {
-      throw new WooNotFoundError(endpoint);
-    }
+async function wooFetch(baseUrl: string, auth: string, endpoint: string, method: string, body?: Record<string, unknown>, retries = 3) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const parsed = JSON.parse(errBody);
-      // Treat "invalid_id" (stale/non-existent WC IDs from other sites) as not-found
-      if (parsed.code === "woocommerce_rest_product_invalid_id") {
-        console.warn(`WooCommerce invalid_id at ${endpoint}, treating as not-found (stale ID from another site?)`);
-        throw new WooNotFoundError(endpoint);
+      const resp = await fetch(`${baseUrl}/wp-json/wc/v3${endpoint}`, {
+        method,
+        headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/json" },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+
+      if (!resp.ok) {
+        const errBody = await resp.text();
+        
+        // Handle retryable status codes (5xx, 429)
+        const isRetryable = (resp.status === 429 || resp.status >= 500) && attempt < retries;
+        if (isRetryable) {
+          const delay = Math.min(1000 * 2 ** attempt, 8000);
+          console.warn(`[wooFetch] Retryable error ${resp.status} on ${endpoint}, retrying in ${delay}ms (attempt ${attempt + 1}/${retries})`);
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+
+        if (resp.status === 404) {
+          throw new WooNotFoundError(endpoint);
+        }
+        
+        try {
+          const parsed = JSON.parse(errBody);
+          if (parsed.code === "woocommerce_rest_product_invalid_id") {
+            console.warn(`WooCommerce invalid_id at ${endpoint}, treating as not-found (stale ID from another site?)`);
+            throw new WooNotFoundError(endpoint);
+          }
+          if (parsed.code === "product_invalid_sku" && parsed.data?.resource_id) {
+            throw new WooSkuConflictError(parsed.data.resource_id, `SKU conflict: existing ID ${parsed.data.resource_id}`);
+          }
+        } catch (e: unknown) {
+          if (e instanceof WooNotFoundError || e instanceof WooSkuConflictError) throw e;
+        }
+        throw new Error(`WooCommerce ${resp.status}: ${errBody.substring(0, 300)}`);
       }
-      if (parsed.code === "product_invalid_sku" && parsed.data?.resource_id) {
-        throw new WooSkuConflictError(parsed.data.resource_id, `SKU conflict: existing ID ${parsed.data.resource_id}`);
-      }
-    } catch (e: unknown) {
-      if (e instanceof WooNotFoundError) throw e;
-      if (e instanceof WooSkuConflictError) throw e;
+      return await resp.json();
+    } catch (err: unknown) {
+      if (err instanceof WooNotFoundError || err instanceof WooSkuConflictError) throw err;
+      if (attempt === retries) throw err;
+      const delay = Math.min(1000 * 2 ** attempt, 8000);
+      console.warn(`[wooFetch] Exception on ${endpoint}, retrying in ${delay}ms (attempt ${attempt + 1}/${retries}):`, err);
+      await new Promise(r => setTimeout(r, delay));
     }
-    throw new Error(`WooCommerce ${resp.status}: ${errBody.substring(0, 300)}`);
   }
-  return resp.json();
 }
 
 // ── Brand/Attribute auto-creation cache (per request) ──
@@ -3130,73 +3150,52 @@ async function resolveUpsellCrosssellPass(adminClient: any, job: any, userId: st
 
   if (!products || products.length === 0) return;
 
-  for (const product of products) {
-    const upsellSkus = product.upsell_skus || [];
-    const crosssellSkus = product.crosssell_skus || [];
-    if (upsellSkus.length === 0 && crosssellSkus.length === 0) continue;
-    if (product.parent_product_id) continue;
+  const CONCURRENCY = 5; // Process 5 products at a time for upsells
+  for (let i = 0; i < products.length; i += CONCURRENCY) {
+    const batch = products.slice(i, i + CONCURRENCY);
+    await Promise.all(batch.map(async (product: any) => {
+      const upsellSkus = product.upsell_skus || [];
+      const crosssellSkus = product.crosssell_skus || [];
+      if (upsellSkus.length === 0 && crosssellSkus.length === 0) return;
+      if (product.parent_product_id) return;
 
-    const updates: Record<string, unknown> = {};
+      const updates: Record<string, unknown> = {};
 
-    if (upsellSkus.length > 0) {
-      const skuList = upsellSkus.map((s: any) => typeof s === "string" ? s : s.sku).filter(Boolean);
-      const { data: found } = await adminClient
-        .from("products")
-        .select("woocommerce_id")
-        .in("sku", skuList)
-        .not("woocommerce_id", "is", null);
-      const ids = (found || []).map((f: any) => f.woocommerce_id).filter(Boolean);
-      if (ids.length > 0) {
-        // Validate IDs exist in WooCommerce before sending
-        const validIds: number[] = [];
-        for (const wid of ids) {
-          try {
-            await wooFetch(baseUrl, auth, `/products/${wid}`, "GET");
-            validIds.push(wid);
-          } catch {
-            console.warn(`Upsell WC#${wid} not found in WooCommerce, skipping.`);
+      if (upsellSkus.length > 0) {
+        const skuList = upsellSkus.map((s: any) => typeof s === "string" ? s : s.sku).filter(Boolean);
+        const { data: found } = await adminClient
+          .from("products")
+          .select("woocommerce_id")
+          .in("sku", skuList)
+          .not("woocommerce_id", "is", null);
+        const ids = (found || []).map((f: any) => f.woocommerce_id).filter(Boolean);
+        if (ids.length > 0) updates.upsell_ids = [...new Set(ids)];
+      }
+
+      if (crosssellSkus.length > 0) {
+        const skuList = crosssellSkus.map((s: any) => typeof s === "string" ? s : s.sku).filter(Boolean);
+        const { data: found } = await adminClient
+          .from("products")
+          .select("woocommerce_id")
+          .in("sku", skuList)
+          .not("woocommerce_id", "is", null);
+        const ids = (found || []).map((f: any) => f.woocommerce_id).filter(Boolean);
+        if (ids.length > 0) updates.cross_sell_ids = [...new Set(ids)];
+      }
+
+      if (Object.keys(updates).length > 0) {
+        try {
+          // Skip redundant GET - just try PUT and handle errors
+          await wooFetch(baseUrl, auth, `/products/${product.woocommerce_id}`, "PUT", updates);
+          console.log(`✅ Updated upsell/crosssell for WC#${product.woocommerce_id}`);
+        } catch (e: unknown) {
+          console.warn(`Skipped upsell/crosssell for WC#${product.woocommerce_id}:`, (e as Error).message || e);
+          if (e instanceof WooNotFoundError || ((e as Error).message || "").includes("invalid_id")) {
+            await adminClient.from("products").update({ woocommerce_id: null }).eq("id", product.id);
+            console.warn(`🧹 Cleared stale woocommerce_id for product ${product.id}`);
           }
         }
-        if (validIds.length > 0) updates.upsell_ids = [...new Set(validIds)];
       }
-    }
-
-    if (crosssellSkus.length > 0) {
-      const skuList = crosssellSkus.map((s: any) => typeof s === "string" ? s : s.sku).filter(Boolean);
-      const { data: found } = await adminClient
-        .from("products")
-        .select("woocommerce_id")
-        .in("sku", skuList)
-        .not("woocommerce_id", "is", null);
-      const ids = (found || []).map((f: any) => f.woocommerce_id).filter(Boolean);
-      if (ids.length > 0) {
-        const validIds: number[] = [];
-        for (const wid of ids) {
-          try {
-            await wooFetch(baseUrl, auth, `/products/${wid}`, "GET");
-            validIds.push(wid);
-          } catch {
-            console.warn(`Crosssell WC#${wid} not found in WooCommerce, skipping.`);
-          }
-        }
-        if (validIds.length > 0) updates.cross_sell_ids = [...new Set(validIds)];
-      }
-    }
-
-    if (Object.keys(updates).length > 0) {
-      try {
-        // Validate the target product itself exists before updating
-        await wooFetch(baseUrl, auth, `/products/${product.woocommerce_id}`, "GET");
-        await wooFetch(baseUrl, auth, `/products/${product.woocommerce_id}`, "PUT", updates);
-        console.log(`✅ Updated upsell/crosssell for WC#${product.woocommerce_id}`);
-      } catch (e: unknown) {
-        console.warn(`Skipped upsell/crosssell for WC#${product.woocommerce_id} (product may not exist on WooCommerce):`, (e as Error).message || e);
-        // Clear stale woocommerce_id if product doesn't exist
-        if (e instanceof WooNotFoundError || ((e as Error).message || "").includes("invalid_id")) {
-          await adminClient.from("products").update({ woocommerce_id: null }).eq("id", product.id);
-          console.warn(`🧹 Cleared stale woocommerce_id for product ${product.id} (WC#${product.woocommerce_id})`);
-        }
-      }
-    }
+    }));
   }
 }
