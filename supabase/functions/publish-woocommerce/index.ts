@@ -1434,7 +1434,9 @@ function buildUsoProfissionalHtml(data: any): string {
   if (tips.length > 0) {
     const items = tips
       .map((t: any) => {
-        const text = typeof t === "string" ? t : (t?.tip || t?.text || "");
+        let text = typeof t === "string" ? t : (t?.tip || t?.text || "");
+        // Remove "Dica Profissional:" prefix if present
+        text = text.replace(/^(Dica Profissional|Professional Tip):\s*/i, "");
         return text ? `<li style="margin-bottom:0.25em;">${text}</li>` : "";
       })
       .filter(Boolean);
