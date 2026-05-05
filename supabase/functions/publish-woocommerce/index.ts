@@ -502,34 +502,54 @@ class WooNotFoundError extends Error {
   }
 }
 
-async function wooFetch(baseUrl: string, auth: string, endpoint: string, method: string, body?: Record<string, unknown>) {
-  const resp = await fetch(`${baseUrl}/wp-json/wc/v3${endpoint}`, {
-    method,
-    headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/json" },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!resp.ok) {
-    const errBody = await resp.text();
-    if (resp.status === 404) {
-      throw new WooNotFoundError(endpoint);
-    }
+async function wooFetch(baseUrl: string, auth: string, endpoint: string, method: string, body?: Record<string, unknown>, retries = 3) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const parsed = JSON.parse(errBody);
-      // Treat "invalid_id" (stale/non-existent WC IDs from other sites) as not-found
-      if (parsed.code === "woocommerce_rest_product_invalid_id") {
-        console.warn(`WooCommerce invalid_id at ${endpoint}, treating as not-found (stale ID from another site?)`);
-        throw new WooNotFoundError(endpoint);
+      const resp = await fetch(`${baseUrl}/wp-json/wc/v3${endpoint}`, {
+        method,
+        headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/json" },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+
+      if (!resp.ok) {
+        const errBody = await resp.text();
+        
+        // Handle retryable status codes (5xx, 429)
+        const isRetryable = (resp.status === 429 || resp.status >= 500) && attempt < retries;
+        if (isRetryable) {
+          const delay = Math.min(1000 * 2 ** attempt, 8000);
+          console.warn(`[wooFetch] Retryable error ${resp.status} on ${endpoint}, retrying in ${delay}ms (attempt ${attempt + 1}/${retries})`);
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+
+        if (resp.status === 404) {
+          throw new WooNotFoundError(endpoint);
+        }
+        
+        try {
+          const parsed = JSON.parse(errBody);
+          if (parsed.code === "woocommerce_rest_product_invalid_id") {
+            console.warn(`WooCommerce invalid_id at ${endpoint}, treating as not-found (stale ID from another site?)`);
+            throw new WooNotFoundError(endpoint);
+          }
+          if (parsed.code === "product_invalid_sku" && parsed.data?.resource_id) {
+            throw new WooSkuConflictError(parsed.data.resource_id, `SKU conflict: existing ID ${parsed.data.resource_id}`);
+          }
+        } catch (e: unknown) {
+          if (e instanceof WooNotFoundError || e instanceof WooSkuConflictError) throw e;
+        }
+        throw new Error(`WooCommerce ${resp.status}: ${errBody.substring(0, 300)}`);
       }
-      if (parsed.code === "product_invalid_sku" && parsed.data?.resource_id) {
-        throw new WooSkuConflictError(parsed.data.resource_id, `SKU conflict: existing ID ${parsed.data.resource_id}`);
-      }
-    } catch (e: unknown) {
-      if (e instanceof WooNotFoundError) throw e;
-      if (e instanceof WooSkuConflictError) throw e;
+      return await resp.json();
+    } catch (err: unknown) {
+      if (err instanceof WooNotFoundError || err instanceof WooSkuConflictError) throw err;
+      if (attempt === retries) throw err;
+      const delay = Math.min(1000 * 2 ** attempt, 8000);
+      console.warn(`[wooFetch] Exception on ${endpoint}, retrying in ${delay}ms (attempt ${attempt + 1}/${retries}):`, err);
+      await new Promise(r => setTimeout(r, delay));
     }
-    throw new Error(`WooCommerce ${resp.status}: ${errBody.substring(0, 300)}`);
   }
-  return resp.json();
 }
 
 // ── Brand/Attribute auto-creation cache (per request) ──
