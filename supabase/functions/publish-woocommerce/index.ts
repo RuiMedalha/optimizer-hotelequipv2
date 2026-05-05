@@ -2766,7 +2766,8 @@ async function publishVariableProduct(
   auth: string,
   has: (k: string) => boolean,
   markupPercent: number,
-  discountPercent: number
+  discountPercent: number,
+  seoPlugin: string = 'rankmath'
 ): Promise<WooResult> {
   const { data: rawChildren } = await supabase
     .from("products")
