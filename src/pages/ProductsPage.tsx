@@ -2773,6 +2773,11 @@ const ProductsPage = () => {
         onOpenChange={setShowCategoryReview}
         products={(allProductsLight ?? []) as any}
       />
+      <PublishLogsModal
+        jobId={activePublishJob?.id ?? null}
+        open={logsOpen}
+        onOpenChange={setLogsOpen}
+      />
     </div>
   );
 };
