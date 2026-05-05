@@ -467,9 +467,10 @@ function buildProductData(p: Record<string, unknown>, onlyMapped: boolean, mappe
     seo_slug: () => { data.seo_slug = toStr(p.seo_slug, 200); },
     weight: () => { /* handled in technical_specs */ },
     woocommerce_id: () => { data.woocommerce_id = p.woocommerce_id ? parseInt(String(p.woocommerce_id), 10) || null : null; },
-    brand: () => { /* handled above as attribute */ },
-    ean: () => { /* handled above as attribute */ },
-    modelo: () => { /* handled above as attribute */ },
+    brand: () => { data.brand = brandVal; },
+    ean: () => { data.ean = eanVal; },
+    model: () => { data.model = modeloVal; },
+    modelo: () => { data.model = modeloVal; },
   };
 
   if (onlyMapped && hasMapping) {
