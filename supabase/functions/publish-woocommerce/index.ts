@@ -2548,7 +2548,9 @@ function buildStaticAttributesForParent(
       for (const attr of attrs) {
         const n = String(attr?.name || "").trim();
         if (!n) continue;
-        const isTechnical = attr?.variation === false || isTechnicalAttrName(n);
+        // Include any attribute that is NOT explicitly a variation attribute, 
+        // OR is in our technical list (Marca, EAN, etc.)
+        const isTechnical = attr?.variation === false || isTechnicalAttrName(n) || !attr?.variation;
         if (!isTechnical) continue;
 
         if (attr?.value) add(n, attr.value);
@@ -2558,8 +2560,6 @@ function buildStaticAttributesForParent(
     } else if (typeof attrs === "object") {
       for (const [name, value] of Object.entries(attrs)) {
         if (!name) continue;
-        const isTechnical = isTechnicalAttrName(name);
-        if (!isTechnical) continue;
         if (value) add(name, String(value));
       }
     }
