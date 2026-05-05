@@ -2789,7 +2789,7 @@ async function publishVariableProduct(
   parentPayload.type = "variable";
 
   // ── FAQ & Uso Profissional Content Routing for variable parent ──
-  await enrichWithExtraContent(parentPayload, parent, supabase, adminClient, has);
+  await enrichWithExtraContent(parentPayload, parent, supabase, adminClient, has, seoPlugin);
 
   // If the parent has no images, aggregate unique images from children for the gallery
   if (has("images") && (!parent.image_urls || parent.image_urls.length === 0) && children.length > 0) {
