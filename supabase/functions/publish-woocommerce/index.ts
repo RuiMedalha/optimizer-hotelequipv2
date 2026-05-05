@@ -2785,7 +2785,7 @@ async function publishVariableProduct(
 
   console.log(`[publish-variable] Parent ${parent.id} has ${children.length} children, image_urls=${JSON.stringify(parent.image_urls)}, title=${parent.optimized_title}`);
 
-  const parentPayload = await buildBasePayload(parent, supabase, baseUrl, auth, has, markupPercent, discountPercent);
+  const parentPayload = await buildBasePayload(parent, supabase, baseUrl, auth, has, markupPercent, discountPercent, seoPlugin);
   parentPayload.type = "variable";
 
   // ── FAQ & Uso Profissional Content Routing for variable parent ──
