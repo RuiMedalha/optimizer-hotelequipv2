@@ -166,8 +166,14 @@ Descrição base: ${productDescription || "Sem descrição"}
 Atributos:
 ${attributesText}
 
-Gera conteúdo editorial de uso profissional para este produto.
-Responde APENAS com JSON válido, sem markdown, sem code blocks, sem bullets:
+Gera conteúdo editorial de uso profissional CONCISO.
+Responde APENAS com JSON válido:
+{
+  "intro": "1 parágrafo curto (máx 200 chars)",
+  "useCases": [{ "context": "Nome do contexto", "description": "1 frase técnica" }],
+  "professionalTips": ["Dica curta"]
+}
+IMPORTANTE: Sem markdown.`;
 {
   "intro": "1 parágrafo sobre o que este equipamento faz para profissionais",
   "useCases": [
