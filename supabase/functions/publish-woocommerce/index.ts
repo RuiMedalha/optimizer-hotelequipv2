@@ -1954,6 +1954,7 @@ async function buildBasePayload(
 
   // ── Technical Specs (Marca, Modelo, EAN) ──
   // Mirroring the exact logic from the working morning version
+  // ── Technical Specs (Marca, Modelo, EAN) ──
   if (product.product_type !== "variable" && !product.parent_product_id) {
     let productAttrs: any[] = [];
     if (Array.isArray(product.attributes)) {
@@ -1968,25 +1969,38 @@ async function buildBasePayload(
     // Marca, Modelo, EAN selection
     const technicalFields: Array<{ name: string; value: string }> = [];
     
-    const brand = product.brand || productAttrs.find(a => ["marca", "brand"].includes(String(a.name).toLowerCase()))?.value;
+    // Brand
+    const brand = product.brand || productAttrs.find(a => ["marca", "brand"].includes(String(a.name || "").toLowerCase()))?.value;
     if (brand) technicalFields.push({ name: "Marca", value: String(brand) });
     
-    const model = product.model || productAttrs.find(a => ["modelo", "model"].includes(String(a.name).toLowerCase()))?.value;
+    // Model
+    const model = product.model || productAttrs.find(a => ["modelo", "model"].includes(String(a.name || "").toLowerCase()))?.value;
     if (model) technicalFields.push({ name: "Modelo", value: String(model) });
     
-    const ean = productAttrs.find(a => ["ean", "ean13", "gtin", "barcode"].includes(String(a.name).toLowerCase()))?.value;
+    // EAN
+    const ean = product.ean || productAttrs.find(a => ["ean", "ean13", "gtin", "barcode"].includes(String(a.name || "").toLowerCase()))?.value;
     if (ean) technicalFields.push({ name: "EAN", value: String(ean) });
 
     if (technicalFields.length > 0) {
-      const specsHtml = `<table style="width:100%; border-collapse:collapse;">${technicalFields.map(f => `<tr><td style="padding:8px; border:1px solid #eee;"><strong>${f.name}</strong></td><td style="padding:8px; border:1px solid #eee;">${f.value}</td></tr>`).join("")}</table>`;
+      const specsHtml = `<table style="width:100%; border-collapse:collapse; margin-bottom: 20px;">${technicalFields.map(f => `<tr><td style="padding:10px; border:1px solid #eee; width: 30%; background-color: #f9f9f9;"><strong>${f.name}</strong></td><td style="padding:10px; border:1px solid #eee;">${f.value}</td></tr>`).join("")}</table>`;
       
-      if (!Array.isArray(wooProduct.meta_data)) wooProduct.meta_data = [];
-      const meta = wooProduct.meta_data as any[];
-      meta.push({ key: "_product_specs", value: specsHtml });
+      const meta = ensureMeta();
+      
+      // XStore / et-core meta keys for custom tabs
+      meta.push({ key: "_product_specs", value: specsHtml }); // Internal marker
+      
+      // et_custom_tab1 is often used for "Dados Técnicos"
       meta.push({ key: "et_custom_tab1_title", value: "Dados Técnicos" });
       meta.push({ key: "et_custom_tab1_content", value: specsHtml });
+      
+      // Also set with underscore prefix as some versions of the plugin expect private meta
+      meta.push({ key: "_et_custom_tab1_title", value: "Dados Técnicos" });
+      meta.push({ key: "_et_custom_tab1_content", value: specsHtml });
+      
+      console.log(`[buildBasePayload] Injected Technical Specs tab for ${product.id} (${technicalFields.length} fields)`);
     }
   }
+
 
   return wooProduct;
 }
