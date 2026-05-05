@@ -300,50 +300,60 @@ Deno.serve(async (req) => {
         }
       };
 
-      if (!cancelled && orderedBatchProducts.length > 0) {
-        // Run the entire batch concurrently (concurrency = BATCH_SIZE)
-        const batchResults = await Promise.all(orderedBatchProducts.map(processOne));
+      let batchResults: Array<{ result: WooResult; itemStartedAt: string; durationMs: number }> = [];
+      try {
+        if (!cancelled && orderedBatchProducts.length > 0) {
+          // Run the entire batch concurrently (concurrency = BATCH_SIZE)
+          batchResults = await Promise.all(orderedBatchProducts.map(processOne));
 
-        // Preserve original order in results
-        for (const { result } of batchResults) {
-          existingResults.push(result);
+          // Preserve original order in results
+          for (const { result } of batchResults) {
+            existingResults.push(result);
+          }
+
+          const newFailed = batchResults.filter((r) => r.result.status === "error").length;
+          const { error: batchUpdErr } = await adminClient.from("publish_jobs").update({
+            processed_products: startIndex + orderedBatchProducts.length,
+            failed_products: (job.failed_products || 0) + newFailed,
+            results: existingResults,
+            updated_at: new Date().toISOString(),
+          }).eq("id", jobId);
+
+          if (batchUpdErr) {
+            console.error(`[batch] Failed to update job progress:`, batchUpdErr);
+          }
         }
-
-        const newFailed = batchResults.filter((r) => r.result.status === "error").length;
-        await adminClient.from("publish_jobs").update({
-          processed_products: startIndex + orderedBatchProducts.length,
-          failed_products: (job.failed_products || 0) + newFailed,
-          results: existingResults,
-        }).eq("id", jobId);
+      } catch (batchErr) {
+        console.error(`[batch] Fatal error during batch processing:`, batchErr);
       }
 
-      // Update total processed
-      const totalProcessedNow = endIndex;
+      // Final batch checkpoint to ensure processed_products is correct
+      const totalProcessedNow = Math.min(startIndex + orderedBatchProducts.length, productIds.length);
       await adminClient.from("publish_jobs").update({
         processed_products: totalProcessedNow,
         results: existingResults,
+        updated_at: new Date().toISOString(),
       }).eq("id", jobId);
 
       // If more products to process, self-invoke with retry
-      if (endIndex < productIds.length) {
+      if (totalProcessedNow < productIds.length) {
         const { data: checkJob } = await adminClient
           .from("publish_jobs")
           .select("status")
           .eq("id", jobId)
           .single();
-        if (checkJob?.status !== "cancelled") {
-          // Fire-and-forget the next batch via background task to avoid the
-          // 150s idle timeout — the parent invocation must return immediately.
-          // EdgeRuntime.waitUntil keeps the runtime alive until the promise settles.
+          
+        if (checkJob?.status !== "cancelled" && checkJob?.status !== "failed") {
+          // Fire-and-forget the next batch via background task
           // @ts-ignore -- EdgeRuntime is provided by the Supabase Edge runtime
-          EdgeRuntime.waitUntil(selfInvokeWithRetry(authHeader!, jobId, endIndex));
+          EdgeRuntime.waitUntil(selfInvokeWithRetry(authHeader!, jobId, totalProcessedNow));
         }
       } else {
         // Job complete
         await finalizeJob(adminClient, jobId, { ...job, results: existingResults }, user.id);
       }
 
-      return new Response(JSON.stringify({ status: "processing", jobId }), {
+      return new Response(JSON.stringify({ status: "processing", jobId, processed: totalProcessedNow }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
