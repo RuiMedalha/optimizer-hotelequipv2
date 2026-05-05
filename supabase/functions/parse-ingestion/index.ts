@@ -68,6 +68,8 @@ Deno.serve(async (req) => {
           mergeStrategy: strategy,
           duplicateDetectionFields: dupFields,
           skuPrefix: skuPrefix || null,
+          skuSuffix: skuSuffix || null,
+          modelSuffix: modelSuffix || null,
           defaultBrand: defaultBrand || null,
           autoModelFromSku: autoModelFromSku || false,
           sourceLanguage: sourceLanguage || "auto",
