@@ -1755,9 +1755,7 @@ async function enrichWithExtraContent(
     }
 
     
-    console.log(`[enrichExtraContent] Uso Profissional sent as JSON array to _product_conselhos for ${product.id}`);
   }
-
 }
 
 async function buildBasePayload(
