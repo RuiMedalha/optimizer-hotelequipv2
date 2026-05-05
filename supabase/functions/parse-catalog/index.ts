@@ -415,15 +415,27 @@ function buildProductData(p: Record<string, unknown>, onlyMapped: boolean, mappe
   // Apply auto model from SKU if enabled
   if (autoModelFromSku && !modeloVal && p.sku) {
     const sku = String(p.sku).trim();
+    let baseModel = sku;
     if (skuPrefix) {
       const prefix = String(skuPrefix).trim();
       if (sku.toUpperCase().startsWith(prefix.toUpperCase())) {
-        modeloVal = sku.substring(prefix.length);
-      } else {
-        modeloVal = sku;
+        baseModel = sku.substring(prefix.length);
       }
-    } else {
-      modeloVal = sku;
+    }
+    if (skuSuffix) {
+      const suffix = String(skuSuffix).trim();
+      if (baseModel.toUpperCase().endsWith(suffix.toUpperCase())) {
+        baseModel = baseModel.substring(0, baseModel.length - suffix.length);
+      }
+    }
+    modeloVal = baseModel;
+  }
+
+  // Apply model suffix
+  if (modelSuffix && modeloVal) {
+    const suffix = String(modelSuffix).trim();
+    if (!String(modeloVal).toUpperCase().endsWith(suffix.toUpperCase())) {
+      modeloVal = `${modeloVal}${suffix}`;
     }
   }
 
