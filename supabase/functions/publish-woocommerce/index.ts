@@ -1545,15 +1545,6 @@ async function enrichWithExtraContent(
   if (has("short_description") || has("meta_description")) {
     const cleanShort = product.seo_short_description || product.optimized_short_description || product.short_description || "";
     if (cleanShort) {
-      // Get SEO plugin config
-      const { data: wsSettings } = await adminClient
-        .from("workspace_settings")
-        .select("seo_plugin")
-        .eq("workspace_id", product.workspace_id)
-        .maybeSingle();
-
-      const seoPlugin = wsSettings?.seo_plugin || 'rankmath';
-
       if (seoPlugin === 'rankmath') {
         const meta = ensureMeta();
         meta.push({ 
