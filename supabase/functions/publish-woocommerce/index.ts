@@ -1655,7 +1655,8 @@ async function buildBasePayload(
   auth: string,
   has: (k: string) => boolean,
   markupPercent: number,
-  discountPercent: number
+  discountPercent: number,
+  seoPlugin: string = 'rankmath'
 ): Promise<Record<string, unknown>> {
   const wooProduct: Record<string, unknown> = {};
 
