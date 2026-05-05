@@ -104,6 +104,9 @@ Deno.serve(async (req) => {
     // ── MODE: Continue an existing job ──
     if (body.jobId && body.startIndex !== undefined) {
       const { jobId, startIndex } = body;
+      
+      // Update updated_at to prevent timeout cleanup
+      await adminClient.from("publish_jobs").update({ updated_at: new Date().toISOString() }).eq("id", jobId);
 
       const { data: job, error: jobErr } = await adminClient
         .from("publish_jobs")
@@ -422,6 +425,22 @@ Deno.serve(async (req) => {
     });
   } catch (e: unknown) {
     const msg = e instanceof Error ? (e as Error).message : "Erro desconhecido";
+    console.error(`[Fatal Error] ${msg}`);
+    
+    // Attempt to mark job as failed if jobId is known
+    try {
+      const body = await req.clone().json().catch(() => ({}));
+      if (body.jobId) {
+        await adminClient.from("publish_jobs").update({
+          status: "failed",
+          error_message: `Erro fatal: ${msg}`,
+          completed_at: new Date().toISOString()
+        }).eq("id", body.jobId);
+      }
+    } catch (err) {
+      console.error("Failed to update job status on error:", err);
+    }
+
     return new Response(JSON.stringify({ error: msg }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
