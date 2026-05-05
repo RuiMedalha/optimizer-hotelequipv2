@@ -232,6 +232,8 @@ export function useParseIngestion() {
       mode?: string;
       sourceId?: string;
       skuPrefix?: string;
+      skuSuffix?: string;
+      modelSuffix?: string;
       sourceLanguage?: string;
       role?: string;
       supplierId?: string;

@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
     if (authError || !user) throw new Error("Unauthorized");
 
     const body = await req.json();
-    const { workspaceId, sourceId, data, masterData, fileName, sourceType, fieldMappings, mergeStrategy, duplicateDetectionFields, groupingConfig, mode, skuPrefix, sourceLanguage, role, supplierId, defaultBrand, autoModelFromSku } = body;
+    const { workspaceId, sourceId, data, masterData, fileName, sourceType, fieldMappings, mergeStrategy, duplicateDetectionFields, groupingConfig, mode, skuPrefix, skuSuffix, modelSuffix, sourceLanguage, role, supplierId, defaultBrand, autoModelFromSku } = body;
 
     if (!workspaceId) throw new Error("workspaceId required");
     if (!data && !fileName) throw new Error("data or fileName required");
@@ -68,6 +68,8 @@ Deno.serve(async (req) => {
           mergeStrategy: strategy,
           duplicateDetectionFields: dupFields,
           skuPrefix: skuPrefix || null,
+          skuSuffix: skuSuffix || null,
+          modelSuffix: modelSuffix || null,
           defaultBrand: defaultBrand || null,
           autoModelFromSku: autoModelFromSku || false,
           sourceLanguage: sourceLanguage || "auto",
@@ -111,7 +113,7 @@ Deno.serve(async (req) => {
         Object.assign(mapped, row);
       }
 
-      // ─── Apply SKU Prefix & Auto Model ───
+      // ─── Apply SKU Prefix/Suffix & Auto Model ───
       const targetSkuKey = Object.entries(mappings).find(([_, v]) => v === "sku")?.[1] || "sku";
       let sku = mapped[targetSkuKey];
       let prePrefixSku = sku; // Original supplier SKU
@@ -119,16 +121,30 @@ Deno.serve(async (req) => {
       if (skuPrefix && sku) {
         const prefixStr = String(skuPrefix).trim();
         const skuStr = String(sku).trim();
-        
-        // RULE: Always add prefix without checking if it already exists
         mapped[targetSkuKey] = `${prefixStr}${skuStr}`;
         sku = mapped[targetSkuKey];
       }
 
+      if (skuSuffix && sku) {
+        const suffixStr = String(skuSuffix).trim();
+        const skuStr = String(sku).trim();
+        mapped[targetSkuKey] = `${skuStr}${suffixStr}`;
+        sku = mapped[targetSkuKey];
+      }
+
       if (autoModelFromSku && sku) {
-        // RULE: Model is ALWAYS the original supplier SKU (pre-prefix)
+        // RULE: Model is ALWAYS the original supplier SKU (pre-prefix/suffix)
         const targetModelKey = Object.entries(mappings).find(([_, v]) => v === "model")?.[1] || "model";
         mapped[targetModelKey] = prePrefixSku;
+      }
+
+      // ─── Apply Model Suffix ───
+      if (modelSuffix) {
+        const targetModelKey = Object.entries(mappings).find(([_, v]) => v === "model")?.[1] || "model";
+        let model = mapped[targetModelKey];
+        if (model) {
+          mapped[targetModelKey] = `${String(model).trim()}${String(modelSuffix).trim()}`;
+        }
       }
 
       // ─── Apply Default Brand ───

@@ -40,7 +40,7 @@ serve(async (req) => {
     const userId = user.id;
 
     const body = await req.json();
-    const { filePath, fileName, columnMapping, sheetName, parseKnowledge, workspaceId, fileId, parsedRows, _batch, updateMode, updateFields, workflowRunId, skuPrefix, defaultBrand, autoModelFromSku } = body;
+    const { filePath, fileName, columnMapping, sheetName, parseKnowledge, workspaceId, fileId, parsedRows, _batch, updateMode, updateFields, workflowRunId, skuPrefix, skuSuffix, modelSuffix, defaultBrand, autoModelFromSku } = body;
 
     // ─── Batch continuation mode (for large inserts) ───
     if (_batch) {
@@ -76,7 +76,7 @@ serve(async (req) => {
     // ─── Product parsing with pre-parsed rows from frontend ───
     if (parsedRows && Array.isArray(parsedRows)) {
       // Frontend already parsed the Excel — just insert into DB
-      const result = await insertProducts(parsedRows, columnMapping, userId, workspaceId, fileName, updateMode, updateFields, workflowRunId, skuPrefix, defaultBrand, autoModelFromSku);
+      const result = await insertProducts(parsedRows, columnMapping, userId, workspaceId, fileName, updateMode, updateFields, workflowRunId, skuPrefix, skuSuffix, modelSuffix, defaultBrand, autoModelFromSku);
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -120,6 +120,8 @@ async function insertProducts(
   updateFields?: string[],
   workflowRunId?: string,
   skuPrefix?: string,
+  skuSuffix?: string,
+  modelSuffix?: string,
   defaultBrand?: string,
   autoModelFromSku?: boolean
 ) {
@@ -139,6 +141,12 @@ async function insertProducts(
       const prefix = String(skuPrefix).trim();
       if (!sku.toUpperCase().startsWith(prefix.toUpperCase())) {
         sku = `${prefix}${sku}`;
+      }
+    }
+    if (skuSuffix && sku) {
+      const suffix = String(skuSuffix).trim();
+      if (!sku.toUpperCase().endsWith(suffix.toUpperCase())) {
+        sku = `${sku}${suffix}`;
       }
     }
     return sku;
@@ -201,7 +209,7 @@ async function insertProducts(
       if (existingId) {
         if (updateMode && updateFields && updateFields.length > 0) {
           // ── Update Mode: only overwrite specified fields ──
-          const newData = buildProductData(p, false, mappedFieldKeys, hasMapping, skuPrefix, defaultBrand, autoModelFromSku);
+          const newData = buildProductData(p, false, mappedFieldKeys, hasMapping, skuPrefix, skuSuffix, modelSuffix, defaultBrand, autoModelFromSku);
           const updateData: Record<string, unknown> = {};
           
           // Map updateFields to DB column names
@@ -234,7 +242,7 @@ async function insertProducts(
         } else {
           // ── Intelligent Merge: fill empty fields, combine arrays, pick best value ──
           const existing = existingFullMap.get(sku!) || {};
-          const mergeData = buildMergedProductData(p, existing, mappedFieldKeys, hasMapping, fileName, skuPrefix, defaultBrand, autoModelFromSku);
+          const mergeData = buildMergedProductData(p, existing, mappedFieldKeys, hasMapping, fileName, skuPrefix, skuSuffix, modelSuffix, defaultBrand, autoModelFromSku);
           if (Object.keys(mergeData).length > 0) {
             toUpdate.push({ id: existingId, data: mergeData, product: p });
           } else {
@@ -247,7 +255,7 @@ async function insertProducts(
           skipped++;
           continue;
         }
-        const productData = buildProductData(p, false, mappedFieldKeys, hasMapping, skuPrefix, defaultBrand, autoModelFromSku);
+        const productData = buildProductData(p, false, mappedFieldKeys, hasMapping, skuPrefix, skuSuffix, modelSuffix, defaultBrand, autoModelFromSku);
         productData.user_id = userId;
         productData.workspace_id = workspaceId || null;
         productData.source_file = fileName;
@@ -361,7 +369,7 @@ async function processBatch(batchData: any, userId: string) {
   await insertProducts(products, columnMapping, userId, workspaceId, fileName);
 }
 
-function buildProductData(p: Record<string, unknown>, onlyMapped: boolean, mappedFieldKeys: Set<string>, hasMapping: boolean, skuPrefix?: string, defaultBrand?: string, autoModelFromSku?: boolean) {
+function buildProductData(p: Record<string, unknown>, onlyMapped: boolean, mappedFieldKeys: Set<string>, hasMapping: boolean, skuPrefix?: string, skuSuffix?: string, modelSuffix?: string, defaultBrand?: string, autoModelFromSku?: boolean) {
   const data: Record<string, unknown> = {};
   const attributes: any[] = [];
   for (let a = 1; a <= 3; a++) {
@@ -395,9 +403,9 @@ function buildProductData(p: Record<string, unknown>, onlyMapped: boolean, mappe
   }
 
   // Collect extra technical attributes (Marca, EAN, Modelo) into the attributes array
-  let brandVal = toStr(p.brand, 200);
-  const eanVal = toStr(p.ean, 100);
-  let modeloVal = toStr(p.modelo, 200);
+  let brandVal = toStr(p.brand || p.Marca, 200);
+  const eanVal = toStr(p.ean || p.EAN, 100);
+  let modeloVal = toStr(p.model || p.modelo || p.Modelo, 200);
 
   // Apply default brand if none found
   if (!brandVal && defaultBrand) {
@@ -407,15 +415,27 @@ function buildProductData(p: Record<string, unknown>, onlyMapped: boolean, mappe
   // Apply auto model from SKU if enabled
   if (autoModelFromSku && !modeloVal && p.sku) {
     const sku = String(p.sku).trim();
+    let baseModel = sku;
     if (skuPrefix) {
       const prefix = String(skuPrefix).trim();
       if (sku.toUpperCase().startsWith(prefix.toUpperCase())) {
-        modeloVal = sku.substring(prefix.length);
-      } else {
-        modeloVal = sku;
+        baseModel = sku.substring(prefix.length);
       }
-    } else {
-      modeloVal = sku;
+    }
+    if (skuSuffix) {
+      const suffix = String(skuSuffix).trim();
+      if (baseModel.toUpperCase().endsWith(suffix.toUpperCase())) {
+        baseModel = baseModel.substring(0, baseModel.length - suffix.length);
+      }
+    }
+    modeloVal = baseModel;
+  }
+
+  // Apply model suffix
+  if (modelSuffix && modeloVal) {
+    const suffix = String(modelSuffix).trim();
+    if (!String(modeloVal).toUpperCase().endsWith(suffix.toUpperCase())) {
+      modeloVal = `${modeloVal}${suffix}`;
     }
   }
 
@@ -447,9 +467,10 @@ function buildProductData(p: Record<string, unknown>, onlyMapped: boolean, mappe
     seo_slug: () => { data.seo_slug = toStr(p.seo_slug, 200); },
     weight: () => { /* handled in technical_specs */ },
     woocommerce_id: () => { data.woocommerce_id = p.woocommerce_id ? parseInt(String(p.woocommerce_id), 10) || null : null; },
-    brand: () => { /* handled above as attribute */ },
-    ean: () => { /* handled above as attribute */ },
-    modelo: () => { /* handled above as attribute */ },
+    brand: () => { data.brand = brandVal; },
+    ean: () => { data.ean = eanVal; },
+    model: () => { data.model = modeloVal; },
+    modelo: () => { data.model = modeloVal; },
   };
 
   if (onlyMapped && hasMapping) {
@@ -461,6 +482,10 @@ function buildProductData(p: Record<string, unknown>, onlyMapped: boolean, mappe
     }
   } else {
     for (const fn of Object.values(fieldMap)) fn();
+    // Explicitly set these to ensure they go into columns
+    if (brandVal) data.brand = brandVal;
+    if (modeloVal) data.model = modeloVal;
+    if (eanVal) data.ean = eanVal;
   }
 
   if (attributes.length > 0) data.attributes = attributes;

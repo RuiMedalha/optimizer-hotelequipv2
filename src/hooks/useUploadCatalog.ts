@@ -28,6 +28,8 @@ export interface UploadedFile {
   columnMapping?: ColumnMapping;
   updateFields?: string[];
   skuPrefix?: string;
+  skuSuffix?: string;
+  modelSuffix?: string;
   defaultBrand?: string;
   autoModelFromSku?: boolean;
 }
@@ -61,7 +63,7 @@ export const DEFAULT_PRODUCT_FIELDS: ProductField[] = [
   { key: "woocommerce_id", label: "WooCommerce ID", required: false },
   { key: "brand", label: "Marca / Brand", required: false },
   { key: "ean", label: "EAN / GTIN", required: false },
-  { key: "modelo", label: "Modelo", required: false },
+  { key: "model", label: "Modelo", required: false },
 ];
 
 // Keep PRODUCT_FIELDS for backward compat
@@ -271,6 +273,8 @@ async function sendParsedRowsInBatches(
   updateFields?: string[],
   workflowRunId?: string,
   skuPrefix?: string,
+  skuSuffix?: string,
+  modelSuffix?: string,
   defaultBrand?: string,
   autoModelFromSku?: boolean
 ): Promise<{ count: number; updated: number; total: number; skipped: number; errors: string[] }> {
@@ -296,6 +300,8 @@ async function sendParsedRowsInBatches(
             updateFields: updateFields || undefined,
             workflowRunId: workflowRunId || undefined,
             skuPrefix: skuPrefix || undefined,
+            skuSuffix: skuSuffix || undefined,
+            modelSuffix: modelSuffix || undefined,
             defaultBrand: defaultBrand || undefined,
             autoModelFromSku: autoModelFromSku || undefined,
           },
@@ -630,6 +636,8 @@ export function useUploadCatalog() {
           isUpdateMode ? uploadedFile.updateFields : undefined,
           workflowRunId,
           uploadedFile.skuPrefix,
+          uploadedFile.skuSuffix,
+          uploadedFile.modelSuffix,
           uploadedFile.defaultBrand,
           uploadedFile.autoModelFromSku
         );

@@ -124,6 +124,10 @@ Deno.serve(async (req) => {
       sku: "sku",
       category: "category",
       brand: "brand",
+      marca: "brand",
+      model: "model",
+      modelo: "model",
+      ean: "ean",
       original_price: "original_price",
       price: "original_price",
       sale_price: "sale_price",
@@ -142,7 +146,7 @@ Deno.serve(async (req) => {
     const schemaKeys = new Set([
       "sku", "original_title", "optimized_title", "original_description", "optimized_description",
       "original_price", "optimized_price", "sale_price", "optimized_sale_price",
-      "category", "brand", "tags", "meta_title", "meta_description", "seo_slug",
+      "category", "brand", "model", "tags", "meta_title", "meta_description", "seo_slug",
       "short_description", "optimized_short_description", "technical_specs",
       "image_urls", "product_type", "stock", "supplier_ref", "ean"
     ]);
@@ -381,6 +385,8 @@ Deno.serve(async (req) => {
                    ...mergedData,
                    category: mergedData.category || mergedData.Categoria,
                    brand: mergedData.brand || mergedData.Marca,
+                   model: mergedData.model || mergedData.Modelo,
+                   ean: mergedData.ean || mergedData.EAN,
                    original_description: mergedData.original_description || mergedData.Descrição
                 },
                 site_data: existingProduct || null,
