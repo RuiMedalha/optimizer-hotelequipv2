@@ -169,17 +169,11 @@ ${attributesText}
 Gera conteúdo editorial de uso profissional CONCISO.
 Responde APENAS com JSON válido:
 {
-  "intro": "1 parágrafo curto (máx 200 chars)",
-  "useCases": [{ "context": "Nome do contexto", "description": "1 frase técnica" }],
-  "professionalTips": ["Dica curta"]
-}
-IMPORTANTE: Sem markdown.`;
-{
   "intro": "1 parágrafo sobre o que este equipamento faz para profissionais",
   "useCases": [
-    { "context": "Nome do contexto profissional (ex: Serviço de Buffet) - em <h3>", "description": "2-3 frases sobre como usam este equipamento" }
+    { "context": "Nome do contexto profissional (ex: Serviço de Buffet)", "description": "2-3 frases sobre como usam este equipamento" }
   ],
-  "professionalTips": ["Dica Profissional: conteúdo da dica - em <h4>"]
+  "professionalTips": ["Dica Profissional: conteúdo da dica"]
 }
 
 IMPORTANTE: Devolve APENAS o JSON acima. Sem texto antes ou depois. Sem markdown.`;
