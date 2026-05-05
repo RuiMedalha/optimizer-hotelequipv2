@@ -1256,7 +1256,7 @@ async function resolveImageRef(
 
   if (/^\d+$/.test(trimmed)) {
     img.id = parseInt(trimmed, 10);
-    if (hasAlt && altText) img.alt = altText;
+    if (hasAlt && altText) (img as any).alt = altText;
     return img;
   }
 
@@ -1265,7 +1265,7 @@ async function resolveImageRef(
       const cached = imageCache.get(trimmed);
       if (cached) {
         const result = { ...cached, position };
-        if (hasAlt && altText) result.alt = altText;
+        if (hasAlt && altText) (result as any).alt = altText;
         return result;
       }
 
@@ -1274,7 +1274,7 @@ async function resolveImageRef(
         const entry: Record<string, unknown> = { id: mediaId };
         imageCache.set(trimmed, entry);
         img.id = mediaId;
-        if (hasAlt && altText) img.alt = altText;
+        if (hasAlt && altText) (img as any).alt = altText;
         console.log(`✅ Supabase image uploaded to WP Media: ${trimmed} → ID ${mediaId}`);
         return img;
       }
@@ -1282,7 +1282,7 @@ async function resolveImageRef(
     }
 
     img.src = trimmed;
-    if (hasAlt && altText) img.alt = altText;
+    if (hasAlt && altText) (img as any).alt = altText;
     return img;
   }
 
@@ -1290,7 +1290,7 @@ async function resolveImageRef(
     const cached = imageCache.get(trimmed);
     if (cached) {
       const result = { ...cached, position };
-      if (hasAlt && altText) result.alt = altText;
+      if (hasAlt && altText) (result as any).alt = altText;
       return result;
     }
 
