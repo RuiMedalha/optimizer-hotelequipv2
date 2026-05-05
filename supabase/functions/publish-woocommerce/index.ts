@@ -1497,7 +1497,7 @@ async function enrichWithExtraContent(
   // ── FAQ ──
   const faq = Array.isArray(product.faq) ? product.faq : [];
   if (faq.length > 0) {
-    const wantsFaqCustom = has("faq_custom_field");
+    const wantsFaqCustom = true; // FORCE sending to custom field as per user request
     const wantsFaqInDesc = has("faq_in_description");
 
     // --- FAQ STRIPPING (Default: remove from description if not explicitly requested) ---
@@ -1505,11 +1505,11 @@ async function enrichWithExtraContent(
       let desc = String(wooProduct.description || product.optimized_description || product.original_description || "");
       if (desc.includes("product-faq")) {
         desc = desc.replace(/<div\s+class=["']product-faq["'][\s\S]*?<\/div>\s*<\/div>/gi, "");
-        console.log(`[enrichExtraContent] Inline FAQ div stripped by default for ${product.id}`);
       }
       wooProduct.description = desc;
     }
-    if (wantsFaqInDesc && !wantsFaqCustom) {
+
+    if (wantsFaqInDesc) {
       const faqHtml = buildFaqHtml(faq);
       if (faqHtml) {
         const currentDesc = String(wooProduct.description || product.optimized_description || product.original_description || "");
@@ -1519,55 +1519,30 @@ async function enrichWithExtraContent(
           "<!-- HOTELEQUIP:FAQ_END -->",
           faqHtml
         );
-        console.log(`[enrichExtraContent] FAQ injected in description for ${product.id}`);
       }
-    } else if (wantsFaqCustom && wantsFaqInDesc) {
-      // Both selected: still inject in description AND send to custom field
-      const faqHtml = buildFaqHtml(faq);
-      if (faqHtml) {
-        const currentDesc = String(wooProduct.description || product.optimized_description || product.original_description || "");
-        wooProduct.description = injectOrReplaceBlock(
-          currentDesc,
-          "<!-- HOTELEQUIP:FAQ_START -->",
-          "<!-- HOTELEQUIP:FAQ_END -->",
-          faqHtml
-        );
-        console.log(`[enrichExtraContent] FAQ injected in description for ${product.id}`);
-      }
-    } else if (wantsFaqCustom) {
-      // Custom field only — strip FAQ from description if present
-      let desc = String(wooProduct.description || "");
-      // Strip marker-based FAQ blocks
-      if (desc.includes("<!-- HOTELEQUIP:FAQ_START -->")) {
-        desc = injectOrReplaceBlock(desc, "<!-- HOTELEQUIP:FAQ_START -->", "<!-- HOTELEQUIP:FAQ_END -->", "");
-        console.log(`[enrichExtraContent] FAQ markers removed from description for ${product.id}`);
-      }
-      // Also strip inline product-faq divs (embedded by optimize-product)
-      if (desc.includes('class="product-faq"') || desc.includes("product-faq")) {
-        desc = desc.replace(/<div\s+class=["']product-faq["'][\s\S]*?<\/div>\s*<\/div>/gi, "");
-        console.log(`[enrichExtraContent] Inline FAQ div removed from description for ${product.id}`);
-      }
-      // Strip "Perguntas Frequentes" h3 sections that might be standalone
-      desc = desc.replace(/<h3[^>]*>Perguntas Frequentes<\/h3>[\s\S]*?(?=<h3|<div class="hotelequip|<!-- HOTELEQUIP|$)/gi, (match) => {
-        // Only strip if it looks like an FAQ section (has Q&A patterns)
-        if (match.includes("font-weight:bold") || match.includes("font-style:italic")) {
-          console.log(`[enrichExtraContent] Standalone FAQ h3 section removed from description for ${product.id}`);
-          return "";
-        }
-        return match;
-      });
-      wooProduct.description = desc.trim();
     }
 
-    // FAQ to custom field
-    if (wantsFaqCustom) {
-      const meta = ensureMeta();
-      meta.push({ key: "_product_faq", value: buildFaqSchemaJson(faq) });
-      meta.push({ key: "_product_faqs", value: buildFaqSchemaJson(faq) }); // Backward compat
-      meta.push({ key: "_yoast_wpseo_schema_page_type", value: "FAQPage" });
-      console.log(`[enrichExtraContent] FAQ sent to custom meta field for ${product.id}`);
+    // FAQ to custom field - ALWAYS send as JSON array for the theme
+    const meta = ensureMeta();
+    const faqJson = buildFaqSchemaJson(faq);
+    
+    // Check if exists to avoid duplicates
+    const faqIdx = meta.findIndex(m => m.key === "_product_faqs" || m.key === "_product_faq");
+    if (faqIdx !== -1) {
+      meta[faqIdx].value = faqJson;
+      // Ensure it's named correctly for the theme
+      meta[faqIdx].key = "_product_faqs";
+    } else {
+      meta.push({ key: "_product_faqs", value: faqJson });
     }
+    
+    // Additional SEO meta
+    if (!meta.some(m => m.key === "_yoast_wpseo_schema_page_type")) {
+      meta.push({ key: "_yoast_wpseo_schema_page_type", value: "FAQPage" });
+    }
+    console.log(`[enrichExtraContent] FAQ sent as JSON array to _product_faqs for ${product.id}`);
   }
+
 
   // ── SEO Short Description (clean text for og:description) ──
   if (has("short_description") || has("meta_description")) {
@@ -1591,113 +1566,87 @@ async function enrichWithExtraContent(
     }
   }
 
-  // ── Uso Profissional ──
-  const wantsUsoInDesc = has("uso_profissional_in_description");
-  const wantsUsoCustom = has("uso_profissional_custom_field");
+  // ── Uso Profissional (Conselhos) ──
+  // Always try to fetch and send, regardless of 'has' flags, if data exists
+  const { data: usoData } = await adminClient
+    .from("product_uso_profissional")
+    .select("intro, use_cases, professional_tips, target_profiles, publish_enabled, placement")
+    .eq("product_id", product.id)
+    .maybeSingle();
 
-  if (wantsUsoInDesc || wantsUsoCustom) {
-    // Fetch uso profissional data to build the JSON array the theme expects
-    const { data: usoData } = await adminClient
-      .from("product_uso_profissional")
-      .select("intro, use_cases, professional_tips, target_profiles, publish_enabled, placement")
-      .eq("product_id", product.id)
-      .maybeSingle();
+  if (usoData && usoData.publish_enabled) {
+    const wantsUsoInDesc = has("uso_profissional_in_description");
+    const wantsUsoCustom = true; // FORCE custom field for theme compatibility
 
-    if (usoData && usoData.publish_enabled) {
-      // Build HTML for description if requested
-      const usoHtml = buildUsoProfissionalHtml(usoData);
+    // Build HTML and JSON
+    const usoHtml = buildUsoProfissionalHtml(usoData);
+    const usoJson = buildUsoProfissionalJson(usoData);
+
+    if (wantsUsoInDesc) {
+      let currentDesc = String(wooProduct.description || product.optimized_description || product.original_description || "");
+      const placement = usoData.placement || "before_faq";
       
-      // Build JSON for custom field (This is what the theme uses)
-      const usoJson = buildUsoProfissionalJson(usoData);
-      // Inject in description — ONLY if explicitly selected AND custom field is NOT selected (avoid duplication)
-      // If both are selected, inject in both places
-      const shouldInjectInDesc = wantsUsoInDesc && (!wantsUsoCustom || (wantsUsoInDesc && wantsUsoCustom));
-
-      if (shouldInjectInDesc) {
-        const usoHtml = buildUsoProfissionalHtml(usoData);
-        if (usoHtml) {
-          let currentDesc = String(wooProduct.description || product.optimized_description || product.original_description || "");
-          const placement = usoData.placement || "before_faq";
-          if (placement === "before_faq" && currentDesc.includes("<!-- HOTELEQUIP:FAQ_START -->")) {
-            const faqIdx = currentDesc.indexOf("<!-- HOTELEQUIP:FAQ_START -->");
-            currentDesc = currentDesc.substring(0, faqIdx) + usoHtml + currentDesc.substring(faqIdx);
-            currentDesc = currentDesc.replace(/<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->[\s\S]*?<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->/g, "");
-            wooProduct.description = injectOrReplaceBlock(
-              currentDesc.replace(usoHtml, ""),
-              "<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->",
-              "<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->",
-              ""
-            );
-            const desc = String(wooProduct.description);
-            const faqPos = desc.indexOf("<!-- HOTELEQUIP:FAQ_START -->");
-            if (faqPos >= 0) {
-              wooProduct.description = desc.substring(0, faqPos) + usoHtml + desc.substring(faqPos);
-            } else {
-              wooProduct.description = desc + usoHtml;
-            }
-          } else {
-            wooProduct.description = injectOrReplaceBlock(
-              currentDesc,
-              "<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->",
-              "<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->",
-              usoHtml
-            );
-          }
-          console.log(`[enrichExtraContent] Uso Profissional injected in description for ${product.id} (placement: ${placement})`);
-        }
-      } else if (wantsUsoCustom && !wantsUsoInDesc) {
-        // Custom field only — strip Uso Profissional from description if present
-        if (wooProduct.description && String(wooProduct.description).includes("<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->")) {
-          wooProduct.description = injectOrReplaceBlock(
-            String(wooProduct.description),
-            "<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->",
-            "<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->",
-            ""
-          );
-          console.log(`[enrichExtraContent] Uso Profissional removed from description for ${product.id} (custom field only)`);
-        }
-      }
-
-      if (wantsUsoCustom) {
-        const meta = ensureMeta() as any[];
-        // Always overwrite/set _product_conselhos with JSON array for the theme
-        const existingIdx = meta.findIndex(m => m.key === '_product_conselhos');
-        if (existingIdx !== -1) {
-          meta[existingIdx].value = usoJson;
-        } else {
-          meta.push({ key: "_product_conselhos", value: usoJson });
-        }
-        
-        // Add _editorial_review (plain text for schema/internal use)
-        const plainReview = stripHtml(usoHtml).substring(0, 1000);
-        meta.push({ key: "_editorial_review", value: plainReview });
-
-        // Add Schema JSON-LD to description
-        const schema = {
-          "@context": "https://schema.org/",
-          "@type": "Product",
-          "name": wooProduct.name || product.optimized_title || product.original_title,
-          "review": {
-            "@type": "Review",
-            "reviewRating": {
-              "@type": "Rating",
-              "ratingValue": "5",
-              "bestRating": "5"
-            },
-            "author": {
-              "@type": "Organization",
-              "name": "HotelEquip"
-            },
-            "reviewBody": plainReview
-          }
-        };
-        const schemaScript = `\n\n<script type="application/ld+json">\n${JSON.stringify(schema, null, 2)}\n</script>`;
-        wooProduct.description = String(wooProduct.description || "") + schemaScript;
-        
-        console.log(`[enrichExtraContent] Uso Profissional JSON and Schema injected for ${product.id}`);
+      if (placement === "before_faq" && currentDesc.includes("<!-- HOTELEQUIP:FAQ_START -->")) {
+        const faqIdx = currentDesc.indexOf("<!-- HOTELEQUIP:FAQ_START -->");
+        currentDesc = currentDesc.substring(0, faqIdx) + usoHtml + currentDesc.substring(faqIdx);
+        wooProduct.description = currentDesc;
+      } else {
+        wooProduct.description = injectOrReplaceBlock(
+          currentDesc,
+          "<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->",
+          "<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->",
+          usoHtml
+        );
       }
     }
+
+    // Always send as JSON array to _product_conselhos
+    const meta = ensureMeta();
+    const existingIdx = meta.findIndex(m => m.key === '_product_conselhos');
+    if (existingIdx !== -1) {
+      meta[existingIdx].value = usoJson;
+    } else {
+      meta.push({ key: "_product_conselhos", value: usoJson });
+    }
+    
+    // Add _editorial_review (plain text for schema/internal use)
+    const plainReview = stripHtml(usoHtml).substring(0, 1000);
+    if (!meta.some(m => m.key === "_editorial_review")) {
+      meta.push({ key: "_editorial_review", value: plainReview });
+    }
+
+    // Add Schema JSON-LD to description (hidden)
+    const schema = {
+      "@context": "https://schema.org/",
+      "@type": "Product",
+      "name": wooProduct.name || product.optimized_title || product.original_title,
+      "review": {
+        "@type": "Review",
+        "reviewRating": {
+          "@type": "Rating",
+          "ratingValue": "5",
+          "bestRating": "5"
+        },
+        "author": {
+          "@type": "Organization",
+          "name": "HotelEquip"
+        },
+        "reviewBody": plainReview
+      }
+    };
+    
+    // Using a style="display:none" div to wrap the script, just in case the theme handles scripts weirdly
+    const schemaScript = `\n\n<div class="hotelequip-schema" style="display:none !important;">\n<script type="application/ld+json">\n${JSON.stringify(schema, null, 2)}\n</script>\n</div>`;
+    
+    // Ensure we don't inject it twice
+    const currentDesc = String(wooProduct.description || "");
+    if (!currentDesc.includes("application/ld+json")) {
+      wooProduct.description = currentDesc + schemaScript;
+    }
+    
+    console.log(`[enrichExtraContent] Uso Profissional sent as JSON array to _product_conselhos for ${product.id}`);
   }
+
 }
 
 async function buildBasePayload(
@@ -1927,46 +1876,8 @@ async function buildBasePayload(
   }
 
 
-  // ── Professional Use Content as Editorial Review (Schema) ──
-  if (product.professional_use_content && product.professional_use_content.trim().length > 0) {
-    // Strip HTML to get clean text for Schema reviewBody
-    let cleanReview = product.professional_use_content
-      .replace(/<script[^>]*>.*?<\/script>/gis, '')  // Remove any script tags
-      .replace(/<style[^>]*>.*?<\/style>/gis, '')    // Remove style blocks
-      .replace(/<[^>]+>/g, ' ')                       // Remove all HTML tags
-      .replace(/&nbsp;/g, ' ')                        // Replace &nbsp;
-      .replace(/&[a-z]+;/gi, '')                      // Remove other HTML entities
-      .replace(/\s+/g, ' ')                           // Normalize whitespace
-      .trim();
-    
-    // Limit to reasonable length for review (1000 chars is typical for editorial reviews)
-    cleanReview = cleanReview.substring(0, 1000);
-    
-    // Only inject if we have substantive content (min 100 chars)
-    if (cleanReview.length >= 100) {
-      if (!Array.isArray(wooProduct.meta_data)) {
-        wooProduct.meta_data = [];
-      }
-      
-      // Check if already exists to avoid duplicates
-      const meta = wooProduct.meta_data as any[];
-      const existingIdx = meta.findIndex(m => m.key === '_product_conselhos');
-      if (existingIdx >= 0) {
-        meta[existingIdx].value = cleanReview;
-      } else {
-        meta.push({
-          key: '_product_conselhos',
-          value: cleanReview
-        });
-      }
-      
-      console.log(`[schema-review] Injected professional use content as editorial review (${cleanReview.length} chars)`);
-    } else {
-      console.log(`[schema-review] Skipped - content too short (${cleanReview.length} chars, min: 100)`);
-    }
-  } else {
-    console.log('[schema-review] No professional_use_content available');
-  }
+  // ── Professional Use Content removed from here as it is handled in enrichWithExtraContent ──
+
 
 
   if (product.product_type !== "variable" && !product.parent_product_id) {
@@ -2043,7 +1954,7 @@ async function buildBasePayload(
 
   // ── Technical Specs (Marca, Modelo, EAN) ──
   // Mirroring the exact logic from the working morning version
-  if (product.product_type !== "variable" && !product.parent_product_id) {
+  if (!product.parent_product_id) {
     let productAttrs: any[] = [];
     if (Array.isArray(product.attributes)) {
       productAttrs = [...product.attributes];
@@ -2057,25 +1968,39 @@ async function buildBasePayload(
     // Marca, Modelo, EAN selection
     const technicalFields: Array<{ name: string; value: string }> = [];
     
-    const brand = product.brand || productAttrs.find(a => ["marca", "brand"].includes(String(a.name).toLowerCase()))?.value;
+    // Brand
+    const brand = product.brand || productAttrs.find(a => ["marca", "brand"].includes(String(a.name || "").toLowerCase()))?.value;
     if (brand) technicalFields.push({ name: "Marca", value: String(brand) });
     
-    const model = product.model || productAttrs.find(a => ["modelo", "model"].includes(String(a.name).toLowerCase()))?.value;
+    // Model
+    const model = product.model || productAttrs.find(a => ["modelo", "model"].includes(String(a.name || "").toLowerCase()))?.value;
     if (model) technicalFields.push({ name: "Modelo", value: String(model) });
     
-    const ean = productAttrs.find(a => ["ean", "ean13", "gtin", "barcode"].includes(String(a.name).toLowerCase()))?.value;
+    // EAN
+    const ean = product.ean || productAttrs.find(a => ["ean", "ean13", "gtin", "barcode"].includes(String(a.name || "").toLowerCase()))?.value;
     if (ean) technicalFields.push({ name: "EAN", value: String(ean) });
 
     if (technicalFields.length > 0) {
-      const specsHtml = `<table style="width:100%; border-collapse:collapse;">${technicalFields.map(f => `<tr><td style="padding:8px; border:1px solid #eee;"><strong>${f.name}</strong></td><td style="padding:8px; border:1px solid #eee;">${f.value}</td></tr>`).join("")}</table>`;
+      const specsHtml = `<table style="width:100%; border-collapse:collapse; margin-bottom: 20px;">${technicalFields.map(f => `<tr><td style="padding:10px; border:1px solid #eee; width: 30%; background-color: #f9f9f9;"><strong>${f.name}</strong></td><td style="padding:10px; border:1px solid #eee;">${f.value}</td></tr>`).join("")}</table>`;
       
-      if (!Array.isArray(wooProduct.meta_data)) wooProduct.meta_data = [];
-      const meta = wooProduct.meta_data as any[];
-      meta.push({ key: "_product_specs", value: specsHtml });
+      const meta = ensureMeta();
+      
+      // XStore / et-core meta keys for custom tabs
+      meta.push({ key: "_product_specs", value: specsHtml }); // Internal marker
+      
+      // et_custom_tab1 is often used for "Dados Técnicos"
       meta.push({ key: "et_custom_tab1_title", value: "Dados Técnicos" });
       meta.push({ key: "et_custom_tab1_content", value: specsHtml });
+      
+      // Also set with underscore prefix as some versions of the plugin expect private meta
+      meta.push({ key: "_et_custom_tab1_title", value: "Dados Técnicos" });
+      meta.push({ key: "_et_custom_tab1_content", value: specsHtml });
+      
+      console.log(`[buildBasePayload] Injected Technical Specs tab for ${product.id} (${technicalFields.length} fields)`);
     }
   }
+
+
 
   return wooProduct;
 }
