@@ -49,20 +49,22 @@ export const WOO_PUBLISH_GROUPS: WooPublishGroup[] = [
   },
   {
     key: "pricing",
-    label: "Preço",
+    label: "Preço & Stock",
     icon: "💰",
     fields: [
       { key: "price", label: "Preço Regular", group: "pricing" },
       { key: "sale_price", label: "Preço Promocional", group: "pricing" },
+      { key: "stock", label: "Stock / Inventário", group: "pricing", description: "Envia a quantidade em stock para o WooCommerce" },
     ],
   },
   {
     key: "taxonomy",
-    label: "Taxonomias",
+    label: "Taxonomias & Specs",
     icon: "🏷️",
     fields: [
       { key: "categories", label: "Categorias", group: "taxonomy" },
       { key: "tags", label: "Tags", group: "taxonomy" },
+      { key: "attributes", label: "Atributos Técnicos", group: "taxonomy", description: "Sincroniza Marca, Modelo e outras especificações" },
     ],
   },
   {
