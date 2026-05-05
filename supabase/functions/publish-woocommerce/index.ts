@@ -1954,8 +1954,7 @@ async function buildBasePayload(
 
   // ── Technical Specs (Marca, Modelo, EAN) ──
   // Mirroring the exact logic from the working morning version
-  // ── Technical Specs (Marca, Modelo, EAN) ──
-  if (product.product_type !== "variable" && !product.parent_product_id) {
+  if (!product.parent_product_id) {
     let productAttrs: any[] = [];
     if (Array.isArray(product.attributes)) {
       productAttrs = [...product.attributes];
@@ -2000,6 +1999,7 @@ async function buildBasePayload(
       console.log(`[buildBasePayload] Injected Technical Specs tab for ${product.id} (${technicalFields.length} fields)`);
     }
   }
+
 
 
   return wooProduct;
