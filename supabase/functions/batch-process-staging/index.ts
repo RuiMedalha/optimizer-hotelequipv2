@@ -51,15 +51,23 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Resolução do ID do produto se estiver em falta
+        // Resolução do ID do produto
         let effectiveProductId = staging.existing_product_id;
-        if (!effectiveProductId) {
-          const { data: p } = await supabase.from("products").select("id").eq("workspace_id", workspaceId).eq("sku", sku).maybeSingle();
-          if (p) effectiveProductId = p.id;
+        let existingProductData = null;
+        
+        const { data: p } = await supabase
+          .from("products")
+          .select("id, brand, model, attributes, original_title, original_description, original_price")
+          .eq("workspace_id", workspaceId)
+          .eq("sku", sku)
+          .maybeSingle();
+        
+        if (p) {
+          effectiveProductId = p.id;
+          existingProductData = p;
         }
 
         if (action === 'draft_discontinued') {
-          // REGRA 1: Minimalista para descontinuados
           if (effectiveProductId) {
             await supabase.from("products").update({
               is_discontinued: true,
@@ -67,8 +75,7 @@ Deno.serve(async (req) => {
               workflow_state: 'draft',
               updated_at: new Date().toISOString()
             }).eq("id", effectiveProductId);
-          } else {
-            // Se for descontinuado e não existir, criar como descontinuado
+          } else if (ws?.user_id) {
             await supabase.from("products").insert({
               sku: sku,
               workspace_id: workspaceId,
@@ -81,40 +88,63 @@ Deno.serve(async (req) => {
             });
           }
           
-          await supabase.from("sync_staging").update({ status: 'approved', existing_product_id: effectiveProductId }).eq("id", staging.id);
+          await supabase.from("sync_staging").delete().eq("id", staging.id);
           processedCount++;
         } 
-        else if (action === 'create_drafts' && !effectiveProductId && ws?.user_id) {
-          // BUSCAR MARCA PADRÃO
+        else if (action === 'create_drafts' && ws?.user_id) {
+          // BUSCAR CONFIGURAÇÃO DO JOB
           const { data: job } = await supabase
             .from("ingestion_jobs")
-            .select("default_brand")
-            .eq("id", staging.job_id)
+            .select("config, id")
+            .eq("id", staging.ingestion_job_id)
             .single();
 
-          const sTitle = cleanSupplierValue(rawData.supplier_title ?? rawData.title ?? rawData.Nome ?? rawData.Nombre);
+          const jobConfig = job?.config || {};
+          const defaultBrand = jobConfig.defaultBrand || null;
+          
+          const sTitle = cleanSupplierValue(rawData.original_title ?? rawData.supplier_title ?? rawData.title);
+          const sDesc = cleanSupplierValue(rawData.original_description ?? rawData.supplier_description ?? rawData.description);
           const price = cleanSupplierValue(rawData.original_price ?? rawData.price ?? rawData.Preço ?? rawData.Publico);
 
-          const productToInsert = {
-            sku: sku,
-            workspace_id: workspaceId,
-            user_id: ws.user_id,
-            workflow_state: 'draft',
-            status: 'pending',
-            origin: 'supplier',
-            brand: job?.default_brand,
-            model: staging.sku_supplier || sku,
-            supplier_title: sTitle,
-            original_price: price,
-            original_title: null,
-            is_discontinued: false
-          };
-
-          const { error: insErr } = await supabase.from("products").insert(productToInsert);
-          if (!insErr) {
-            await supabase.from("sync_staging").update({ status: 'approved' }).eq("id", staging.id);
-            processedCount++;
+          // Validação básica
+          if (!sTitle && !existingProductData?.original_title) {
+            await supabase.from("sync_staging").update({ status: 'error', review_notes: 'Título em falta' }).eq("id", staging.id);
+            continue;
           }
+
+          if (effectiveProductId && existingProductData) {
+            // UPDATE com MERGE
+            await supabase.from("products").update({
+              brand: rawData.brand || defaultBrand || existingProductData.brand,
+              model: rawData.model || staging.sku_supplier || existingProductData.model,
+              attributes: rawData.attributes || existingProductData.attributes,
+              original_title: sTitle || existingProductData.original_title,
+              original_description: sDesc || existingProductData.original_description,
+              original_price: price || existingProductData.original_price,
+              updated_at: new Date().toISOString()
+            }).eq("id", effectiveProductId);
+          } else {
+            // INSERT novo
+            const productToInsert = {
+              sku: sku,
+              workspace_id: workspaceId,
+              user_id: ws.user_id,
+              workflow_state: 'draft',
+              status: 'pending',
+              origin: 'supplier',
+              brand: rawData.brand || defaultBrand,
+              model: rawData.model || staging.sku_supplier || sku,
+              supplier_title: sTitle,
+              original_title: sTitle,
+              original_description: sDesc,
+              original_price: price,
+              is_discontinued: false
+            };
+            await supabase.from("products").insert(productToInsert);
+          }
+
+          await supabase.from("sync_staging").delete().eq("id", staging.id);
+          processedCount++;
         }
         else if ((action === 'approve_prices' || action === 'approve_prices_only') && effectiveProductId) {
           const newPrice = cleanSupplierValue(rawData.price || rawData.original_price || rawData.Preço || rawData.Publico);
@@ -124,7 +154,7 @@ Deno.serve(async (req) => {
               updated_at: new Date().toISOString()
             }).eq("id", effectiveProductId);
           }
-          await supabase.from("sync_staging").update({ status: 'approved', existing_product_id: effectiveProductId }).eq("id", staging.id);
+          await supabase.from("sync_staging").delete().eq("id", staging.id);
           processedCount++;
         }
       } catch (err) {
