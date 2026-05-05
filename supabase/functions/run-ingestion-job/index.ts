@@ -386,6 +386,7 @@ Deno.serve(async (req) => {
                    category: mergedData.category || mergedData.Categoria,
                    brand: mergedData.brand || mergedData.Marca,
                    model: mergedData.model || mergedData.Modelo,
+                   ean: mergedData.ean || mergedData.EAN,
                    original_description: mergedData.original_description || mergedData.Descrição
                 },
                 site_data: existingProduct || null,
