@@ -1953,11 +1953,15 @@ async function buildBasePayload(
         seoMeta.push({ key: fieldMap.description, value: product.meta_description });
       }
       
-      if (has("focus_keyword") && (product.focus_keyword || product.seo_keywords?.[0])) {
-        seoMeta.push({ 
-          key: fieldMap.focusKeyword, 
-          value: product.focus_keyword || (Array.isArray(product.seo_keywords) ? product.seo_keywords[0] : "") 
-        });
+      if (has("focus_keyword")) {
+        const kw = product.focus_keyword || product.seo_keywords;
+        const kwStr = Array.isArray(kw) ? kw.filter(Boolean).join(", ") : String(kw || "");
+        if (kwStr) {
+          seoMeta.push({ 
+            key: fieldMap.focusKeyword, 
+            value: kwStr
+          });
+        }
       }
       
       // RankMath-specific: robots meta (serialized PHP array)
