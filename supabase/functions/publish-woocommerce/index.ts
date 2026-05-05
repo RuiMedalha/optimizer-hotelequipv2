@@ -1484,10 +1484,11 @@ function buildUsoProfissionalJson(data: any): any[] {
   // Add professional tips
   if (Array.isArray(data.professional_tips)) {
     for (const tip of data.professional_tips) {
-      if (typeof tip === "string") {
-        repeater.push({ title: "Dica Profissional", description: tip });
-      } else if (tip && typeof tip === "object") {
-        repeater.push({ title: String(tip.title || tip.name || "Dica Profissional"), description: String(tip.description || tip.text || "") });
+      let text = typeof tip === "string" ? tip : (tip?.description || tip?.text || "");
+      // Remove "Dica Profissional:" prefix if present
+      text = text.replace(/^(Dica Profissional|Professional Tip):\s*/i, "");
+      if (text) {
+        repeater.push({ title: "Dica Profissional", description: text });
       }
     }
   }
