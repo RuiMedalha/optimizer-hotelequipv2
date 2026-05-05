@@ -1373,10 +1373,16 @@ function buildFaqHtml(faq: any[]): string {
 // ── FAQ JSON for custom field (Theme compatibility) ──
 function buildFaqSchemaJson(faq: any[]): any[] {
   if (!Array.isArray(faq) || faq.length === 0) return [];
-  return faq.slice(0, 4).map((item: any) => ({
-    title: typeof item === "string" ? item : (item?.question || item?.q || ""),
-    description: typeof item === "string" ? "" : (item?.answer || item?.a || ""),
-  })).filter(e => e.title);
+  return faq.slice(0, 10).map((item: any) => {
+    const q = typeof item === "string" ? item : (item?.question || item?.q || "");
+    const a = typeof item === "string" ? "" : (item?.answer || item?.a || "");
+    return {
+      title: q, // Legacy/fallback
+      description: a, // Legacy/fallback
+      question: q, // Standard for many repeater plugins
+      answer: a, // Standard for many repeater plugins
+    };
+  }).filter(e => e.question);
 }
 
 // ── Uso Profissional HTML builder ──
