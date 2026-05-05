@@ -706,7 +706,7 @@ serve(async (req) => {
           score -= 15; // penalize same type for cross-sell
         }
         if (current.line && candidate.line === current.line) {
-          score += 25; reasons.push("mesma linha");
+          score += 35; reasons.push("mesma linha (cross-sell)");
         }
         if (current.energy && candidate.energy === current.energy) {
           score += 5; reasons.push("mesma energia");
