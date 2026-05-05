@@ -209,15 +209,25 @@ Deno.serve(async (req) => {
 
       const forcePublish = !!(job.pricing as any)?.forcePublish;
 
-      // Update current product name to indicate parallel processing
+      // Update status to processing and set the indicator BEFORE starting parallel execution
       if (!cancelled && orderedBatchProducts.length > 0) {
-        const firstName = orderedBatchProducts[0].optimized_title || orderedBatchProducts[0].original_title || orderedBatchProducts[0].sku || orderedBatchProducts[0].id.slice(0, 8);
+        const first = orderedBatchProducts[0];
+        const firstName = first.optimized_title || first.original_title || first.sku || first.id.slice(0, 8);
         const indicator = orderedBatchProducts.length > 1 ? `${firstName} (+${orderedBatchProducts.length - 1} em paralelo)` : firstName;
-        await adminClient.from("publish_jobs").update({
+        
+        console.log(`[batch] Starting batch at index ${startIndex} (${orderedBatchProducts.length} items). Current item: ${firstName}`);
+        
+        const { error: updErr } = await adminClient.from("publish_jobs").update({
           current_product_name: indicator,
           status: "processing",
           started_at: job.started_at || new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         }).eq("id", jobId);
+
+        if (updErr) {
+          console.error(`[batch] Failed to update job status to processing:`, updErr);
+          // Non-fatal, continue with the batch
+        }
       }
 
       // Process products in PARALLEL (concurrency = BATCH_SIZE)
