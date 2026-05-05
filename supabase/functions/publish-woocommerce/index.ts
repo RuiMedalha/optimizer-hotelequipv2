@@ -3094,6 +3094,18 @@ async function publishVariation(
 }
 
 async function finalizeJob(adminClient: any, jobId: string, job: any, userId: string) {
+  // Check if job was cancelled before final update
+  const { data: currentJob } = await adminClient
+    .from("publish_jobs")
+    .select("status")
+    .eq("id", jobId)
+    .single();
+
+  if (currentJob?.status === "cancelled") {
+    console.log(`[finalizeJob] Job ${jobId} was cancelled, skipping final completion update.`);
+    return;
+  }
+
   const results = (job.results || []) as WooResult[];
   const published = results.filter((r: WooResult) => r.status === "created" || r.status === "updated").length;
   const errors = results.filter((r: WooResult) => r.status === "error").length;
