@@ -137,6 +137,18 @@ Deno.serve(async (req) => {
       }
 
       const { baseUrl, auth } = wooConfig;
+      
+      // Get workspace SEO settings once per batch to avoid redundant DB calls
+      let seoPlugin = 'rankmath';
+      if (job.workspace_id) {
+        const { data: wsSettings } = await adminClient
+          .from("workspace_settings")
+          .select("seo_plugin")
+          .eq("workspace_id", job.workspace_id)
+          .maybeSingle();
+        if (wsSettings?.seo_plugin) seoPlugin = wsSettings.seo_plugin;
+      }
+
       const fields = job.publish_fields && Array.isArray(job.publish_fields) && job.publish_fields.length > 0 ? new Set(job.publish_fields) : null;
       const has = (key: string) => !fields || fields.has(key);
       const pricing = job.pricing || {};
@@ -144,8 +156,9 @@ Deno.serve(async (req) => {
       const discountPercent = pricing?.discountPercent ?? 0;
 
       const productIds = job.product_ids as string[];
-      // Increased BATCH_SIZE for faster classic publishing (parallel requests)
-      const BATCH_SIZE = 20;
+      // BATCH_SIZE reduced to 5 to avoid resource exhaustion and WooCommerce API throttling
+      // with the heavy parallel processing used below.
+      const BATCH_SIZE = 5;
       const endIndex = Math.min(startIndex + BATCH_SIZE, productIds.length);
       const batchIds = productIds.slice(startIndex, endIndex);
 
@@ -229,7 +242,7 @@ Deno.serve(async (req) => {
 
         try {
           const result = await publishSingleProduct(
-            product, supabase, adminClient, baseUrl, auth, has, markupPercent, discountPercent
+            product, supabase, adminClient, baseUrl, auth, has, markupPercent, discountPercent, seoPlugin
           );
           await adminClient.from("publish_job_items").insert({
             job_id: jobId,
@@ -1476,6 +1489,7 @@ async function enrichWithExtraContent(
   supabase: any,
   adminClient: any,
   has: (k: string) => boolean,
+  seoPlugin: string = 'rankmath'
 ) {
   const ensureMeta = (): Array<{ key: string; value: string }> => {
     if (!Array.isArray(wooProduct.meta_data)) wooProduct.meta_data = [];
@@ -1561,15 +1575,6 @@ async function enrichWithExtraContent(
   if (has("short_description") || has("meta_description")) {
     const cleanShort = product.seo_short_description || product.optimized_short_description || product.short_description || "";
     if (cleanShort) {
-      // Get SEO plugin config
-      const { data: wsSettings } = await adminClient
-        .from("workspace_settings")
-        .select("seo_plugin")
-        .eq("workspace_id", product.workspace_id)
-        .maybeSingle();
-
-      const seoPlugin = wsSettings?.seo_plugin || 'rankmath';
-
       if (seoPlugin === 'rankmath') {
         const meta = ensureMeta();
         meta.push({ 
@@ -1680,7 +1685,8 @@ async function buildBasePayload(
   auth: string,
   has: (k: string) => boolean,
   markupPercent: number,
-  discountPercent: number
+  discountPercent: number,
+  seoPlugin: string = 'rankmath'
 ): Promise<Record<string, unknown>> {
   const wooProduct: Record<string, unknown> = {};
 
@@ -1851,14 +1857,6 @@ async function buildBasePayload(
 
   // ── SEO Meta (RankMath / Yoast / Custom) ──
   if (has("meta_title") || has("meta_description") || has("focus_keyword")) {
-    // Get workspace SEO plugin config (default: rankmath)
-    const { data: wsSettings } = await adminClient
-      .from("workspace_settings")
-      .select("seo_plugin")
-      .eq("workspace_id", product.workspace_id) // Fix: use product.workspace_id instead of undefined job.workspace_id
-      .maybeSingle();
-    
-    const seoPlugin = wsSettings?.seo_plugin || 'rankmath';
     const fieldMap = getSeoFieldMapping(seoPlugin);
     
     if (fieldMap) {
@@ -2616,19 +2614,20 @@ async function publishSingleProduct(
   auth: string,
   has: (k: string) => boolean,
   markupPercent: number,
-  discountPercent: number
+  discountPercent: number,
+  seoPlugin: string = 'rankmath'
 ): Promise<WooResult> {
   const enrichedProduct = has("images") ? await enrichProductImages(product, supabase, { skipOriginals: has("skip_original_images"), skipLifestyle: has("skip_lifestyle_images") }) : product;
 
   if (enrichedProduct.product_type === "variable") {
-    return await publishVariableProduct(enrichedProduct, supabase, adminClient, baseUrl, auth, has, markupPercent, discountPercent);
+    return await publishVariableProduct(enrichedProduct, supabase, adminClient, baseUrl, auth, has, markupPercent, discountPercent, seoPlugin);
   }
 
   if (enrichedProduct.parent_product_id) {
-    return await publishVariation(enrichedProduct, supabase, adminClient, baseUrl, auth, has, markupPercent, discountPercent);
+    return await publishVariation(enrichedProduct, supabase, adminClient, baseUrl, auth, has, markupPercent, discountPercent, seoPlugin);
   }
 
-  const wooProduct = await buildBasePayload(enrichedProduct, supabase, baseUrl, auth, has, markupPercent, discountPercent);
+  const wooProduct = await buildBasePayload(enrichedProduct, supabase, baseUrl, auth, has, markupPercent, discountPercent, seoPlugin);
 
   // If product is discontinued, force it to be a draft with 0 stock in WooCommerce
   if (enrichedProduct.is_discontinued) {
@@ -2640,7 +2639,7 @@ async function publishSingleProduct(
   }
 
   // ── FAQ & Uso Profissional Content Routing ──
-  await enrichWithExtraContent(wooProduct, enrichedProduct, supabase, adminClient, has);
+  await enrichWithExtraContent(wooProduct, enrichedProduct, supabase, adminClient, has, seoPlugin);
 
   // ── SEO Lifecycle integration ──
   // Check if product has a lifecycle record and enrich WooCommerce payload accordingly
@@ -2797,7 +2796,8 @@ async function publishVariableProduct(
   auth: string,
   has: (k: string) => boolean,
   markupPercent: number,
-  discountPercent: number
+  discountPercent: number,
+  seoPlugin: string = 'rankmath'
 ): Promise<WooResult> {
   const { data: rawChildren } = await supabase
     .from("products")
@@ -2815,11 +2815,11 @@ async function publishVariableProduct(
 
   console.log(`[publish-variable] Parent ${parent.id} has ${children.length} children, image_urls=${JSON.stringify(parent.image_urls)}, title=${parent.optimized_title}`);
 
-  const parentPayload = await buildBasePayload(parent, supabase, baseUrl, auth, has, markupPercent, discountPercent);
+  const parentPayload = await buildBasePayload(parent, supabase, baseUrl, auth, has, markupPercent, discountPercent, seoPlugin);
   parentPayload.type = "variable";
 
   // ── FAQ & Uso Profissional Content Routing for variable parent ──
-  await enrichWithExtraContent(parentPayload, parent, supabase, adminClient, has);
+  await enrichWithExtraContent(parentPayload, parent, supabase, adminClient, has, seoPlugin);
 
   // If the parent has no images, aggregate unique images from children for the gallery
   if (has("images") && (!parent.image_urls || parent.image_urls.length === 0) && children.length > 0) {
@@ -3012,7 +3012,8 @@ async function publishVariation(
   auth: string,
   has: (k: string) => boolean,
   markupPercent: number,
-  discountPercent: number
+  discountPercent: number,
+  seoPlugin: string = 'rankmath'
 ): Promise<WooResult> {
   const { data: parentRow } = await supabase
     .from("products")
