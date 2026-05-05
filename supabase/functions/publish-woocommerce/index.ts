@@ -1459,6 +1459,7 @@ async function enrichWithExtraContent(
   supabase: any,
   adminClient: any,
   has: (k: string) => boolean,
+  seoPlugin: string = 'rankmath'
 ) {
   const ensureMeta = (): Array<{ key: string; value: string }> => {
     if (!Array.isArray(wooProduct.meta_data)) wooProduct.meta_data = [];
