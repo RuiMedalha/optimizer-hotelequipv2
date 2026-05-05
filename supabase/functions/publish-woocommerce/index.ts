@@ -1593,14 +1593,23 @@ async function enrichWithExtraContent(
   const wantsUsoCustom = has("uso_profissional_custom_field");
 
   if (wantsUsoInDesc || wantsUsoCustom) {
-    // Fetch uso profissional data
-    const { data: usoData } = await adminClient
-      .from("product_uso_profissional")
-      .select("intro, use_cases, professional_tips, target_profiles, publish_enabled, placement")
-      .eq("product_id", product.id)
-      .maybeSingle();
+    // Prefer the pre-rendered HTML content directly from the product row if available
+    let usoHtml = product.professional_use_content || "";
+    let usoData: any = null;
 
-    if (usoData && usoData.publish_enabled) {
+    if (!usoHtml || wantsUsoCustom) {
+      const { data } = await adminClient
+        .from("product_uso_profissional")
+        .select("intro, use_cases, professional_tips, target_profiles, publish_enabled, placement")
+        .eq("product_id", product.id)
+        .maybeSingle();
+      usoData = data;
+      if (usoData && !usoHtml) {
+        usoHtml = buildUsoProfissionalHtml(usoData);
+      }
+    }
+
+    if (usoHtml || (usoData && usoData.publish_enabled)) {
       // Inject in description — ONLY if explicitly selected AND custom field is NOT selected (avoid duplication)
       // If both are selected, inject in both places
       const shouldInjectInDesc = wantsUsoInDesc && (!wantsUsoCustom || (wantsUsoInDesc && wantsUsoCustom));
