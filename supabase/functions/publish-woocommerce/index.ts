@@ -84,7 +84,8 @@ Deno.serve(async (req) => {
         .eq("status", "active")
         .maybeSingle();
       if (memberCheck) {
-        const rank = { owner: 4, admin: 3, editor: 2, viewer: 1 }[memberCheck.role] || 0;
+        const roles: Record<string, number> = { owner: 4, admin: 3, editor: 2, viewer: 1 };
+        const rank = roles[memberCheck.role as string] || 0;
         if (rank < 3) {
           return new Response(JSON.stringify({ error: "Sem permissão para publicar neste workspace (mínimo: admin)" }), {
             status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -1255,7 +1256,7 @@ async function resolveImageRef(
 
   if (/^\d+$/.test(trimmed)) {
     img.id = parseInt(trimmed, 10);
-    if (hasAlt && altText) img.alt = altText;
+    if (hasAlt && altText) (img as any).alt = altText;
     return img;
   }
 
@@ -1264,7 +1265,7 @@ async function resolveImageRef(
       const cached = imageCache.get(trimmed);
       if (cached) {
         const result = { ...cached, position };
-        if (hasAlt && altText) result.alt = altText;
+        if (hasAlt && altText) (result as any).alt = altText;
         return result;
       }
 
@@ -1273,7 +1274,7 @@ async function resolveImageRef(
         const entry: Record<string, unknown> = { id: mediaId };
         imageCache.set(trimmed, entry);
         img.id = mediaId;
-        if (hasAlt && altText) img.alt = altText;
+        if (hasAlt && altText) (img as any).alt = altText;
         console.log(`✅ Supabase image uploaded to WP Media: ${trimmed} → ID ${mediaId}`);
         return img;
       }
@@ -1281,7 +1282,7 @@ async function resolveImageRef(
     }
 
     img.src = trimmed;
-    if (hasAlt && altText) img.alt = altText;
+    if (hasAlt && altText) (img as any).alt = altText;
     return img;
   }
 
@@ -1289,7 +1290,7 @@ async function resolveImageRef(
     const cached = imageCache.get(trimmed);
     if (cached) {
       const result = { ...cached, position };
-      if (hasAlt && altText) result.alt = altText;
+      if (hasAlt && altText) (result as any).alt = altText;
       return result;
     }
 
@@ -1700,8 +1701,9 @@ async function buildBasePayload(
 
   if (has("stock") && product.stock !== undefined && product.stock !== null) {
     wooProduct.manage_stock = true;
-    wooProduct.stock_quantity = parseInt(String(product.stock), 10);
-    wooProduct.stock_status = wooProduct.stock_quantity > 0 ? "instock" : "outofstock";
+    const qty = parseInt(String(product.stock), 10);
+    wooProduct.stock_quantity = qty;
+    wooProduct.stock_status = qty > 0 ? "instock" : "outofstock";
   }
 
   // IMPORTANT: Never overwrite the WooCommerce slug/permalink.
@@ -1855,7 +1857,7 @@ async function buildBasePayload(
       
       // Merge with existing meta_data
       if (!Array.isArray(wooProduct.meta_data)) wooProduct.meta_data = [];
-      wooProduct.meta_data.push(...seoMeta);
+      (wooProduct.meta_data as any[]).push(...seoMeta);
       
       console.log(`[seo-meta] Injected ${seoMeta.length} fields for plugin: ${seoPlugin}`);
     } else {
@@ -1867,7 +1869,7 @@ async function buildBasePayload(
   if (Array.isArray(product.certifications) && product.certifications.length > 0) {
     if (!Array.isArray(wooProduct.meta_data)) wooProduct.meta_data = [];
     
-    wooProduct.meta_data.push({
+    (wooProduct.meta_data as any[]).push({
       key: '_product_certifications',
       value: JSON.stringify(product.certifications)
     });
@@ -1940,7 +1942,7 @@ async function buildBasePayload(
         if (n === "marca" || n === "brand") {
           const brandVal = String(attr?.value || attr?.options?.[0] || "").trim();
           if (brandVal) {
-            const existingMeta = Array.isArray(wooProduct.meta_data) ? wooProduct.meta_data as any[] : [];
+            const existingMeta = (wooProduct.meta_data as any[]) || [];
             existingMeta.push({ key: "_brand", value: brandVal });
             existingMeta.push({ key: "xstore_brand", value: brandVal });
             existingMeta.push({ key: "brand_id", value: brandVal });
@@ -1950,57 +1952,28 @@ async function buildBasePayload(
         }
       }
     }
-  }
 
-  // ── Technical Specs (Marca, Modelo, EAN) ──
-  // Mirroring the exact logic from the working morning version
-  if (!product.parent_product_id) {
-    let productAttrs: any[] = [];
-    if (Array.isArray(product.attributes)) {
-      productAttrs = [...product.attributes];
-    } else if (product.attributes && typeof product.attributes === "object") {
-      productAttrs = Object.entries(product.attributes).map(([name, value]) => ({
-        name,
-        value: String(value)
-      }));
-    }
-
-    // Marca, Modelo, EAN selection
+    // ── Technical Specs (Marca, Modelo, EAN) for Simple Products ──
     const technicalFields: Array<{ name: string; value: string }> = [];
-    
-    // Brand
-    const brand = product.brand || productAttrs.find(a => ["marca", "brand"].includes(String(a.name || "").toLowerCase()))?.value;
+    const brand = product.brand || (Array.isArray(product.attributes) ? product.attributes.find((a: any) => ["marca", "brand"].includes(String(a.name).toLowerCase()))?.value : null);
     if (brand) technicalFields.push({ name: "Marca", value: String(brand) });
     
-    // Model
-    const model = product.model || productAttrs.find(a => ["modelo", "model"].includes(String(a.name || "").toLowerCase()))?.value;
+    const model = product.model || (Array.isArray(product.attributes) ? product.attributes.find((a: any) => ["modelo", "model"].includes(String(a.name).toLowerCase()))?.value : null);
     if (model) technicalFields.push({ name: "Modelo", value: String(model) });
     
-    // EAN
-    const ean = product.ean || productAttrs.find(a => ["ean", "ean13", "gtin", "barcode"].includes(String(a.name || "").toLowerCase()))?.value;
-    if (ean) technicalFields.push({ name: "EAN", value: String(ean) });
+    const ean = product.sku || (Array.isArray(product.attributes) ? product.attributes.find((a: any) => ["ean", "ean13", "gtin", "barcode"].includes(String(a.name).toLowerCase()))?.value : null);
+    if (ean && /^\d{8,14}$/.test(String(ean))) technicalFields.push({ name: "EAN", value: String(ean) });
 
     if (technicalFields.length > 0) {
-      const specsHtml = `<table style="width:100%; border-collapse:collapse; margin-bottom: 20px;">${technicalFields.map(f => `<tr><td style="padding:10px; border:1px solid #eee; width: 30%; background-color: #f9f9f9;"><strong>${f.name}</strong></td><td style="padding:10px; border:1px solid #eee;">${f.value}</td></tr>`).join("")}</table>`;
+      const specsHtml = `<table style="width:100%; border-collapse:collapse;">${technicalFields.map(f => `<tr><td style="padding:8px; border:1px solid #eee;"><strong>${f.name}</strong></td><td style="padding:8px; border:1px solid #eee;">${f.value}</td></tr>`).join("")}</table>`;
       
-      const meta = ensureMeta();
-      
-      // XStore / et-core meta keys for custom tabs
-      meta.push({ key: "_product_specs", value: specsHtml }); // Internal marker
-      
-      // et_custom_tab1 is often used for "Dados Técnicos"
-      meta.push({ key: "et_custom_tab1_title", value: "Dados Técnicos" });
-      meta.push({ key: "et_custom_tab1_content", value: specsHtml });
-      
-      // Also set with underscore prefix as some versions of the plugin expect private meta
-      meta.push({ key: "_et_custom_tab1_title", value: "Dados Técnicos" });
-      meta.push({ key: "_et_custom_tab1_content", value: specsHtml });
-      
-      console.log(`[buildBasePayload] Injected Technical Specs tab for ${product.id} (${technicalFields.length} fields)`);
+      const existingMeta = (wooProduct.meta_data as any[]) || [];
+      existingMeta.push({ key: "_product_specs", value: specsHtml });
+      existingMeta.push({ key: "et_custom_tab1_title", value: "Dados Técnicos" });
+      existingMeta.push({ key: "et_custom_tab1_content", value: specsHtml });
+      wooProduct.meta_data = existingMeta;
     }
   }
-
-
 
   return wooProduct;
 }
