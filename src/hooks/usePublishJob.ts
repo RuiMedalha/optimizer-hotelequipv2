@@ -82,41 +82,61 @@ export function usePublishJob() {
     };
   }, [activePublishJob?.id, activePublishJob?.status]);
 
-  // Check for active jobs on mount
-  useEffect(() => {
-    const checkActiveJobs = async () => {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) return;
+  // Check for active jobs on mount and periodically as a fallback to realtime
+  const checkActiveJobs = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-      const { data } = await supabase
-        .from("publish_jobs")
-        .select("*")
-        .eq("user_id", user.user.id)
-        .in("status", ["queued", "processing", "scheduled"])
-        .order("created_at", { ascending: false })
-        .limit(1);
+    const { data, error } = await supabase
+      .from("publish_jobs")
+      .select("*")
+      .eq("user_id", user.id)
+      .in("status", ["queued", "processing", "scheduled", "completed"]) // Include completed to catch transitions
+      .order("created_at", { ascending: false })
+      .limit(1);
 
-      if (data && data.length > 0) {
-        const job = data[0] as any;
-        
-        // Final safeguard: if DB says it's 100% but status is still processing/queued, 
-        // it might be a stale job from a crash. Don't show it as active.
-        if (job.processed_products >= job.total_products && job.total_products > 0 && job.status !== "scheduled") {
-          return;
+    if (error) {
+      logger.error("Erro ao verificar jobs ativos:", error);
+      return;
+    }
+
+    if (data && data.length > 0) {
+      const job = data[0] as any;
+      
+      // If we already have this job and it's completed in DB, update local state
+      if (activePublishJob?.id === job.id) {
+        if (job.status !== activePublishJob.status || job.processed_products !== activePublishJob.processed_products) {
+          setActivePublishJob(job);
         }
-
-        setActivePublishJob(job);
-
-        // Auto-trigger queued jobs that haven't started (e.g. from scheduled)
-        if (job.status === "queued" && !job.started_at) {
-          invokeEdgeFunction("publish-woocommerce", {
-            body: { jobId: job.id, startIndex: 0 },
-          }).catch((err) => logger.error("Auto-trigger publish falhou:", err));
+      } else {
+        // Only set as active if it's truly active or very recently completed
+        const isActuallyActive = ["queued", "processing", "scheduled"].includes(job.status);
+        const isRecentCompletion = job.status === "completed" && (Date.now() - new Date(job.updated_at).getTime() < 30000);
+        
+        if (isActuallyActive || isRecentCompletion) {
+          // Final safeguard for stale processing jobs
+          if (job.status === "processing" && job.processed_products >= job.total_products && job.total_products > 0) {
+            // This is actually completed but DB says processing (likely a crash)
+            return;
+          }
+          setActivePublishJob(job);
         }
       }
-    };
+
+      // Auto-trigger queued jobs that haven't started
+      if (job.status === "queued" && !job.started_at) {
+        invokeEdgeFunction("publish-woocommerce", {
+          body: { jobId: job.id, startIndex: 0 },
+        }).catch((err) => logger.error("Auto-trigger publish falhou:", err));
+      }
+    }
+  }, [activePublishJob?.id, activePublishJob?.status, activePublishJob?.processed_products]);
+
+  useEffect(() => {
     checkActiveJobs();
-  }, []);
+    const interval = setInterval(checkActiveJobs, 10000); // Poll every 10s as fallback
+    return () => clearInterval(interval);
+  }, [checkActiveJobs]);
 
   // Watchdog: re-invoke stalled jobs (but never if all products processed)
   useEffect(() => {

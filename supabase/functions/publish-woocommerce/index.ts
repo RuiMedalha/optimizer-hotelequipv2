@@ -172,11 +172,16 @@ Deno.serve(async (req) => {
       const endIndex = Math.min(startIndex + BATCH_SIZE, productIds.length);
       const batchIds = productIds.slice(startIndex, endIndex);
 
-      // Fetch products for this batch (keep original order from product_ids)
-      const { data: batchProducts } = await supabase
+      // Fetch products for this batch using adminClient for maximum reliability in background tasks
+      const { data: batchProducts, error: fetchErr } = await adminClient
         .from("products")
         .select("*")
         .in("id", batchIds);
+
+      if (fetchErr) {
+        console.error(`[batch] Failed to fetch products for batch ${startIndex}:`, fetchErr);
+        throw fetchErr;
+      }
 
       const batchById = new Map<string, any>((batchProducts || []).map((p: any) => [p.id, p]));
       const orderedBatchProducts = batchIds.map((id) => batchById.get(id)).filter(Boolean);
@@ -204,15 +209,25 @@ Deno.serve(async (req) => {
 
       const forcePublish = !!(job.pricing as any)?.forcePublish;
 
-      // Update current product name to indicate parallel processing
+      // Update status to processing and set the indicator BEFORE starting parallel execution
       if (!cancelled && orderedBatchProducts.length > 0) {
-        const firstName = orderedBatchProducts[0].optimized_title || orderedBatchProducts[0].original_title || orderedBatchProducts[0].sku || orderedBatchProducts[0].id.slice(0, 8);
+        const first = orderedBatchProducts[0];
+        const firstName = first.optimized_title || first.original_title || first.sku || first.id.slice(0, 8);
         const indicator = orderedBatchProducts.length > 1 ? `${firstName} (+${orderedBatchProducts.length - 1} em paralelo)` : firstName;
-        await adminClient.from("publish_jobs").update({
+        
+        console.log(`[batch] Starting batch at index ${startIndex} (${orderedBatchProducts.length} items). Current item: ${firstName}`);
+        
+        const { error: updErr } = await adminClient.from("publish_jobs").update({
           current_product_name: indicator,
           status: "processing",
           started_at: job.started_at || new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         }).eq("id", jobId);
+
+        if (updErr) {
+          console.error(`[batch] Failed to update job status to processing:`, updErr);
+          // Non-fatal, continue with the batch
+        }
       }
 
       // Process products in PARALLEL (concurrency = BATCH_SIZE)
@@ -285,50 +300,60 @@ Deno.serve(async (req) => {
         }
       };
 
-      if (!cancelled && orderedBatchProducts.length > 0) {
-        // Run the entire batch concurrently (concurrency = BATCH_SIZE)
-        const batchResults = await Promise.all(orderedBatchProducts.map(processOne));
+      let batchResults: Array<{ result: WooResult; itemStartedAt: string; durationMs: number }> = [];
+      try {
+        if (!cancelled && orderedBatchProducts.length > 0) {
+          // Run the entire batch concurrently (concurrency = BATCH_SIZE)
+          batchResults = await Promise.all(orderedBatchProducts.map(processOne));
 
-        // Preserve original order in results
-        for (const { result } of batchResults) {
-          existingResults.push(result);
+          // Preserve original order in results
+          for (const { result } of batchResults) {
+            existingResults.push(result);
+          }
+
+          const newFailed = batchResults.filter((r) => r.result.status === "error").length;
+          const { error: batchUpdErr } = await adminClient.from("publish_jobs").update({
+            processed_products: startIndex + orderedBatchProducts.length,
+            failed_products: (job.failed_products || 0) + newFailed,
+            results: existingResults,
+            updated_at: new Date().toISOString(),
+          }).eq("id", jobId);
+
+          if (batchUpdErr) {
+            console.error(`[batch] Failed to update job progress:`, batchUpdErr);
+          }
         }
-
-        const newFailed = batchResults.filter((r) => r.result.status === "error").length;
-        await adminClient.from("publish_jobs").update({
-          processed_products: startIndex + orderedBatchProducts.length,
-          failed_products: (job.failed_products || 0) + newFailed,
-          results: existingResults,
-        }).eq("id", jobId);
+      } catch (batchErr) {
+        console.error(`[batch] Fatal error during batch processing:`, batchErr);
       }
 
-      // Update total processed
-      const totalProcessedNow = endIndex;
+      // Final batch checkpoint to ensure processed_products is correct
+      const totalProcessedNow = Math.min(startIndex + orderedBatchProducts.length, productIds.length);
       await adminClient.from("publish_jobs").update({
         processed_products: totalProcessedNow,
         results: existingResults,
+        updated_at: new Date().toISOString(),
       }).eq("id", jobId);
 
       // If more products to process, self-invoke with retry
-      if (endIndex < productIds.length) {
+      if (totalProcessedNow < productIds.length) {
         const { data: checkJob } = await adminClient
           .from("publish_jobs")
           .select("status")
           .eq("id", jobId)
           .single();
-        if (checkJob?.status !== "cancelled") {
-          // Fire-and-forget the next batch via background task to avoid the
-          // 150s idle timeout — the parent invocation must return immediately.
-          // EdgeRuntime.waitUntil keeps the runtime alive until the promise settles.
+          
+        if (checkJob?.status !== "cancelled" && checkJob?.status !== "failed") {
+          // Fire-and-forget the next batch via background task
           // @ts-ignore -- EdgeRuntime is provided by the Supabase Edge runtime
-          EdgeRuntime.waitUntil(selfInvokeWithRetry(authHeader!, jobId, endIndex));
+          EdgeRuntime.waitUntil(selfInvokeWithRetry(authHeader!, jobId, totalProcessedNow));
         }
       } else {
         // Job complete
         await finalizeJob(adminClient, jobId, { ...job, results: existingResults }, user.id);
       }
 
-      return new Response(JSON.stringify({ status: "processing", jobId }), {
+      return new Response(JSON.stringify({ status: "processing", jobId, processed: totalProcessedNow }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -1730,9 +1755,7 @@ async function enrichWithExtraContent(
     }
 
     
-    console.log(`[enrichExtraContent] Uso Profissional sent as JSON array to _product_conselhos for ${product.id}`);
   }
-
 }
 
 async function buildBasePayload(
@@ -1766,7 +1789,12 @@ async function buildBasePayload(
   }
 
   if (has("price")) {
-    let basePrice = parseFloat(product.optimized_price || product.original_price || "0") || 0;
+    const parsePrice = (v: any) => {
+      if (v == null || v === "") return 0;
+      const s = String(v).replace(/\s/g, "").replace(",", ".");
+      return parseFloat(s) || 0;
+    };
+    let basePrice = parsePrice(product.optimized_price || product.original_price);
     if (markupPercent > 0) basePrice = basePrice * (1 + markupPercent / 100);
     wooProduct.regular_price = basePrice.toFixed(2);
 
@@ -1928,11 +1956,15 @@ async function buildBasePayload(
         seoMeta.push({ key: fieldMap.description, value: product.meta_description });
       }
       
-      if (has("focus_keyword") && (product.focus_keyword || product.seo_keywords?.[0])) {
-        seoMeta.push({ 
-          key: fieldMap.focusKeyword, 
-          value: product.focus_keyword || (Array.isArray(product.seo_keywords) ? product.seo_keywords[0] : "") 
-        });
+      if (has("focus_keyword")) {
+        const kw = product.focus_keyword || product.seo_keywords;
+        const kwStr = Array.isArray(kw) ? kw.filter(Boolean).join(", ") : String(kw || "");
+        if (kwStr) {
+          seoMeta.push({ 
+            key: fieldMap.focusKeyword, 
+            value: kwStr
+          });
+        }
       }
       
       // RankMath-specific: robots meta (serialized PHP array)
@@ -1967,7 +1999,8 @@ async function buildBasePayload(
 
 
 
-  if (product.product_type !== "variable" && !product.parent_product_id) {
+  // ── Attributes (Marca, Modelo, Specs) ──
+  if (has("attributes")) {
     let productAttrs: any[] = [];
     if (Array.isArray(product.attributes)) {
       productAttrs = [...product.attributes];
@@ -1979,7 +2012,6 @@ async function buildBasePayload(
       }));
     }
 
-    
     // Inject Marca and Modelo from top-level columns if they are missing from attributes
     const hasMarca = productAttrs.some(a => {
       const n = String(a?.name || "").toLowerCase().trim();
@@ -2019,23 +2051,26 @@ async function buildBasePayload(
       }
     }
 
+    // Extraction for technical dimensions and weight
+    const allContent = [
+      product.optimized_description,
+      product.original_description,
+      product.technical_specs,
+      product.optimized_short_description,
+      product.short_description
+    ].filter(Boolean).join("\n");
 
-    // Add brand meta for simple products too (XStore compatibility)
-    if (Array.isArray(product.attributes)) {
-      for (const attr of product.attributes) {
-        const n = String(attr?.name || "").toLowerCase().trim();
-        if (n === "marca" || n === "brand") {
-          const brandVal = String(attr?.value || attr?.options?.[0] || "").trim();
-          if (brandVal) {
-            const existingMeta = (wooProduct.meta_data as any[]) || [];
-            existingMeta.push({ key: "_brand", value: brandVal });
-            existingMeta.push({ key: "xstore_brand", value: brandVal });
-            existingMeta.push({ key: "brand_id", value: brandVal });
-            wooProduct.meta_data = existingMeta;
-          }
-          break;
-        }
+    const dimensions = extractDimensions(product, productAttrs);
+    if (dimensions) {
+      const d = dimensions.toLowerCase().split('x').map(s => parseFloat(s.trim()));
+      if (d.length === 3 && !isNaN(d[0]) && !isNaN(d[1]) && !isNaN(d[2])) {
+        wooProduct.dimensions = { length: String(d[0]), width: String(d[1]), height: String(d[2]) };
       }
+    }
+
+    const weightMatch = allContent.match(/(\d+[,.]?\d*)\s*(kg|kg\.|kgs)/i);
+    if (weightMatch) {
+      wooProduct.weight = weightMatch[1].replace(',', '.');
     }
 
     // ── Technical Specs (Marca, Modelo, EAN) for Simple Products ──
@@ -2089,7 +2124,32 @@ const DIMENSION_ATTR_NAMES = new Set([
   "dimensões (lxpxa)", "dimensões (cxlxa)", "dim", "measures",
 ]);
 
-const DIMENSION_VALUE_PATTERN = /(\d+(?:[.,]\d+)?\s*(?:x|×)\s*\d+(?:[.,]\d+)?(?:\s*(?:x|×)\s*\d+(?:[.,]\d+)?)?\s*(?:cm|mm|m))/i;
+const DIMENSION_VALUE_PATTERN = /(\d+(?:[.,]\d+)?\s*(?:x|×)\s*\d+(?:[.,]\d+)?(?:\s*(?:x|×)\s*\d+(?:[.,]\d+)?)?\s*(?:cm|mm|m|gr|kg))/i;
+
+function extractDimensions(product: any, attributes?: any[]): string | null {
+  if (Array.isArray(attributes)) {
+    const fromAttrs = extractDimensionFromAttrs(attributes);
+    if (fromAttrs) return fromAttrs;
+  }
+  
+  const sources = [
+    product.optimized_description,
+    product.original_description,
+    product.technical_specs,
+    product.optimized_short_description,
+    product.short_description
+  ];
+  
+  for (const source of sources) {
+    const raw = String(source || "");
+    if (!raw) continue;
+    const fromTable = extractDimensionFromHtmlTable(raw);
+    if (fromTable) return fromTable;
+    const fromText = extractDimensionFromText(raw);
+    if (fromText) return fromText;
+  }
+  return null;
+}
 
 function isDimensionAttrName(name: string): boolean {
   const n = String(name || "").toLowerCase().trim();
@@ -2374,7 +2434,12 @@ async function buildVariationPayload(
   }
 
   if (has("price")) {
-    let basePrice = parseFloat(variation.optimized_price || variation.original_price || "0") || 0;
+    const parsePrice = (v: any) => {
+      if (v == null || v === "") return 0;
+      const s = String(v).replace(/\s/g, "").replace(",", ".");
+      return parseFloat(s) || 0;
+    };
+    let basePrice = parsePrice(variation.optimized_price || variation.original_price);
     if (markupPercent > 0) basePrice = basePrice * (1 + markupPercent / 100);
     payload.regular_price = basePrice.toFixed(2);
 
@@ -2392,6 +2457,13 @@ async function buildVariationPayload(
     payload.sku = variation.sku || undefined;
   }
 
+  if (has("stock") && variation.stock !== undefined && variation.stock !== null) {
+    payload.manage_stock = true;
+    const qty = parseInt(String(variation.stock), 10);
+    payload.stock_quantity = qty;
+    payload.stock_status = qty > 0 ? "instock" : "outofstock";
+  }
+
   if (has("images")) {
     const urls: string[] = Array.isArray(variation.image_urls) ? variation.image_urls : [];
     if (urls.length > 0) {
@@ -2402,26 +2474,41 @@ async function buildVariationPayload(
 
   // Only variation-defining attributes go on the variation payload.
   let variationAttrs = buildVariationAttributes(variation, parent);
-  payload.attributes = variationAttrs;
-
+  
   // ── Technical Specs (Marca, Modelo, EAN) on variations too ──
-  const technicalFields: Array<{ name: string; value: string }> = [];
-  
-  const brand = parent?.brand || Array.isArray(parent?.attributes) ? parent.attributes.find((a: any) => ["marca", "brand"].includes(String(a.name).toLowerCase()))?.value : null;
-  if (brand) technicalFields.push({ name: "Marca", value: String(brand) });
-  
-  const model = parent?.model || Array.isArray(parent?.attributes) ? parent.attributes.find((a: any) => ["modelo", "model"].includes(String(a.name).toLowerCase()))?.value : null;
-  if (model) technicalFields.push({ name: "Modelo", value: String(model) });
-  
-  const ean = Array.isArray(variation.attributes) ? variation.attributes.find((a: any) => ["ean", "ean13", "gtin", "barcode"].includes(String(a.name).toLowerCase()))?.value : 
-              (Array.isArray(parent?.attributes) ? parent.attributes.find((a: any) => ["ean", "ean13", "gtin", "barcode"].includes(String(a.name).toLowerCase()))?.value : null);
-  if (ean) technicalFields.push({ name: "EAN", value: String(ean) });
+  if (has("attributes")) {
+    const technicalFields: Array<{ name: string; value: string }> = [];
+    
+    const brand = parent?.brand || (Array.isArray(parent?.attributes) ? parent.attributes.find((a: any) => ["marca", "brand"].includes(String(a.name).toLowerCase()))?.value : null);
+    if (brand) technicalFields.push({ name: "Marca", value: String(brand) });
+    
+    const model = parent?.model || (Array.isArray(parent?.attributes) ? parent.attributes.find((a: any) => ["modelo", "model"].includes(String(a.name).toLowerCase()))?.value : null);
+    if (model) technicalFields.push({ name: "Modelo", value: String(model) });
+    
+    const ean = Array.isArray(variation.attributes) ? variation.attributes.find((a: any) => ["ean", "ean13", "gtin", "barcode"].includes(String(a.name).toLowerCase()))?.value : 
+                (Array.isArray(parent?.attributes) ? parent.attributes.find((a: any) => ["ean", "ean13", "gtin", "barcode"].includes(String(a.name).toLowerCase()))?.value : null);
+    if (ean) technicalFields.push({ name: "EAN", value: String(ean) });
 
-  if (technicalFields.length > 0) {
-    const specsHtml = `<table style="width:100%; border-collapse:collapse;">${technicalFields.map(f => `<tr><td style="padding:8px; border:1px solid #eee;"><strong>${f.name}</strong></td><td style="padding:8px; border:1px solid #eee;">${f.value}</td></tr>`).join("")}</table>`;
-    upsertMeta("_product_specs", specsHtml);
-    upsertMeta("et_custom_tab1_title", "Dados Técnicos");
-    upsertMeta("et_custom_tab1_content", specsHtml);
+    if (technicalFields.length > 0) {
+      const specsHtml = `<table style="width:100%; border-collapse:collapse;">${technicalFields.map(f => `<tr><td style="padding:8px; border:1px solid #eee;"><strong>${f.name}</strong></td><td style="padding:8px; border:1px solid #eee;">${f.value}</td></tr>`).join("")}</table>`;
+      upsertMeta("_product_specs", specsHtml);
+      upsertMeta("et_custom_tab1_title", "Dados Técnicos");
+      upsertMeta("et_custom_tab1_content", specsHtml);
+    }
+
+    // Variation-specific dimensions and weight
+    const dims = extractDimensions(variation, Array.isArray(variation.attributes) ? variation.attributes : []);
+    if (dims) {
+      const d = dims.toLowerCase().split('x').map(s => parseFloat(s.trim()));
+      if (d.length === 3 && !isNaN(d[0]) && !isNaN(d[1]) && !isNaN(d[2])) {
+        payload.dimensions = { length: String(d[0]), width: String(d[1]), height: String(d[2]) };
+      }
+    }
+    const allVarContent = [variation.optimized_description, variation.original_description, variation.technical_specs].filter(Boolean).join("\n");
+    const weightMatch = allVarContent.match(/(\d+[,.]?\d*)\s*(kg|kg\.|kgs)/i);
+    if (weightMatch) {
+      payload.weight = weightMatch[1].replace(',', '.');
+    }
   }
 
   // Consolidate size-like attribute names to match the parent's chosen name
