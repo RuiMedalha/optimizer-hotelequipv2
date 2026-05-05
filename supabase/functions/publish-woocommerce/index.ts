@@ -2734,11 +2734,11 @@ async function publishSingleProduct(
 
   if (has("upsells")) {
     const upsellIds = await resolveSkusToWooIds(supabase, adminClient, baseUrl, auth, enrichedProduct.upsell_skus || []);
-    if (upsellIds.length > 0) wooProduct.upsell_ids = upsellIds;
+    if (upsellIds.length > 0) wooProduct.upsell_ids = [...new Set(upsellIds)];
   }
   if (has("crosssells")) {
     const crosssellIds = await resolveSkusToWooIds(supabase, adminClient, baseUrl, auth, enrichedProduct.crosssell_skus || []);
-    if (crosssellIds.length > 0) wooProduct.cross_sell_ids = crosssellIds;
+    if (crosssellIds.length > 0) wooProduct.cross_sell_ids = [...new Set(crosssellIds)];
   }
 
   if (Object.keys(wooProduct).length === 0) {
