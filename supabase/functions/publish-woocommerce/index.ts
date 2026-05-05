@@ -137,6 +137,18 @@ Deno.serve(async (req) => {
       }
 
       const { baseUrl, auth } = wooConfig;
+      
+      // Get workspace SEO settings once per batch to avoid redundant DB calls
+      let seoPlugin = 'rankmath';
+      if (job.workspace_id) {
+        const { data: wsSettings } = await adminClient
+          .from("workspace_settings")
+          .select("seo_plugin")
+          .eq("workspace_id", job.workspace_id)
+          .maybeSingle();
+        if (wsSettings?.seo_plugin) seoPlugin = wsSettings.seo_plugin;
+      }
+
       const fields = job.publish_fields && Array.isArray(job.publish_fields) && job.publish_fields.length > 0 ? new Set(job.publish_fields) : null;
       const has = (key: string) => !fields || fields.has(key);
       const pricing = job.pricing || {};
@@ -144,8 +156,9 @@ Deno.serve(async (req) => {
       const discountPercent = pricing?.discountPercent ?? 0;
 
       const productIds = job.product_ids as string[];
-      // Increased BATCH_SIZE for faster classic publishing (parallel requests)
-      const BATCH_SIZE = 20;
+      // BATCH_SIZE reduced to 5 to avoid resource exhaustion and WooCommerce API throttling
+      // with the heavy parallel processing used below.
+      const BATCH_SIZE = 5;
       const endIndex = Math.min(startIndex + BATCH_SIZE, productIds.length);
       const batchIds = productIds.slice(startIndex, endIndex);
 
