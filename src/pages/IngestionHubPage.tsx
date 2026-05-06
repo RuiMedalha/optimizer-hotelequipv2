@@ -943,6 +943,26 @@ const IngestionHubPage = () => {
                   <Button variant="ghost" size="sm" onClick={resetForm}><X className="w-4 h-4 mr-1" /> Cancelar</Button>
                 </div>
               </div>
+              {specialFields?.priceFields?.length > 1 && (
+                <SpecialFieldsPicker
+                  priceFields={specialFields.priceFields}
+                  onSelectPrice={(key) => {
+                    setSelectedPriceField(key);
+                    // Update the field mapping to use selected price field
+                    setFieldMappings(prev => ({
+                      ...prev,
+                      [key]: 'original_price',
+                      // Remove old price mapping if different field was selected
+                      ...Object.fromEntries(
+                        specialFields.priceFields
+                          .filter((f: any) => f.key !== key)
+                          .map((f: any) => [f.key, ''])
+                      )
+                    }));
+                  }}
+                  selectedPrice={selectedPriceField}
+                />
+              )}
 
               {/* Auto-detection panel */}
               <SupplierAutoDetectionPanel
