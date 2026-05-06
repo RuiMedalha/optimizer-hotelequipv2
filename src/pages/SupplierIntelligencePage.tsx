@@ -487,3 +487,95 @@ export default function SupplierIntelligencePage() {
     </div>
   );
 }
+
+// AI Prompt Generator Modal
+const AiPromptModal = ({ 
+  isOpen, 
+  onClose, 
+  prompt, 
+  onApply, 
+  supplierId 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  prompt: string; 
+  onApply: (config: any) => void;
+  supplierId?: string;
+}) => {
+  const [response, setResponse] = useState("");
+  const [parsedConfig, setParsedConfig] = useState<any>(null);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(prompt);
+    toast.success("Prompt copiado para a área de transferência.");
+  };
+
+  const validateAndParse = () => {
+    try {
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : response;
+      const config = JSON.parse(jsonStr);
+      setParsedConfig(config);
+      toast.success("JSON validado com sucesso.");
+    } catch (e) {
+      toast.error("JSON inválido.");
+    }
+  };
+
+  const saveToSupplier = async () => {
+    if (!supplierId || !parsedConfig) return;
+    try {
+      const { error } = await supabase
+        .from("supplier_profiles")
+        .update({ connector_config: parsedConfig })
+        .eq("id", supplierId);
+      if (error) throw error;
+      toast.success("Configuração guardada.");
+      onApply(parsedConfig);
+      onClose();
+    } catch (e: any) {
+      toast.error(`Erro: ${e.message}`);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Wand2 className="w-5 h-5 text-primary" />
+            Gerar Configuração com IA
+          </DialogTitle>
+        </DialogHeader>
+        <div className="flex-1 overflow-y-auto space-y-4 py-4">
+          <div className="space-y-2">
+            <Label className="text-xs font-bold uppercase">1. Copia o Prompt</Label>
+            <div className="relative">
+              <ScrollArea className="h-32 border rounded p-2 text-[10px] font-mono">
+                <pre>{prompt}</pre>
+              </ScrollArea>
+              <Button size="sm" variant="secondary" className="absolute top-1 right-1 h-6" onClick={handleCopy}>Copiar</Button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs font-bold uppercase">2. Cola o JSON</Label>
+            <Textarea className="h-32 font-mono text-[10px]" value={response} onChange={e => setResponse(e.target.value)} />
+          </div>
+          {parsedConfig && (
+            <div className="p-2 bg-green-500/10 border border-green-500/20 rounded text-[10px]">
+              ✓ JSON válido detectado
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Fechar</Button>
+          {!parsedConfig ? (
+            <Button onClick={validateAndParse}>Validar</Button>
+          ) : (
+            <Button onClick={saveToSupplier}>Guardar</Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
