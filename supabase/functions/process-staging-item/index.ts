@@ -5,6 +5,25 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const normalizeSKU = (sku: string): string => {
+  if (!sku) return "";
+  let normalized = sku.trim().toUpperCase();
+  // Replace slashes with hyphens
+  normalized = normalized.replace(/[/\\]/g, "-");
+  // Collapse multiple hyphens
+  normalized = normalized.replace(/-+/g, "-");
+  // Remove leading zeros from numeric-only segments
+  normalized = normalized.split('-').map(part => {
+    if (/^\d+$/.test(part)) {
+      const stripped = part.replace(/^0+/, "");
+      return stripped === "" ? "0" : stripped;
+    }
+    return part;
+  }).join('-');
+  
+  return normalized || "0";
+};
+
 // Helper function to clean data according to Rule 2
 const cleanSupplierValue = (val: any) => {
   if (val === null || val === undefined) return undefined;
