@@ -513,11 +513,12 @@ const IngestionHubPage = () => {
   };
 
   const handleLiveRun = async () => {
-    if (!parsedData) return;
+    const dataToProcess = transformedData.length > 0 ? transformedData : parsedData;
+    if (!dataToProcess) return;
 
     try {
       const result = await parseIngestion.mutateAsync({
-        data: parsedData,
+        data: dataToProcess,
         fileName,
         sourceType: fileName.endsWith(".csv") ? "csv" : fileName.endsWith(".json") ? "json" : "xlsx",
         fieldMappings,
@@ -547,7 +548,7 @@ const IngestionHubPage = () => {
         }
       }).eq("id", result.jobId);
 
-      toast.info(`A iniciar processamento de ${parsedData.length} produtos...`);
+      toast.info(`A iniciar processamento de ${dataToProcess.length} produtos...`);
       await runJob.mutateAsync(result.jobId);
 
       triggerAutoDraftAfterIngestion(result.jobId);
@@ -556,15 +557,16 @@ const IngestionHubPage = () => {
   };
 
   const triggerAutoDraftAfterIngestion = (jobId: string) => {
-    if (!parsedData || !parsedHeaders.length) return;
+    const dataToProcess = transformedData.length > 0 ? transformedData : parsedData;
+    if (!dataToProcess || !parsedHeaders.length) return;
     const ext = fileName.split(".").pop()?.toLowerCase() || "xlsx";
     triggerAutoDraftFromIngestion.mutate({
       ingestion_job_id: jobId,
       file_name: fileName,
       headers: parsedHeaders,
-      sample_data: parsedData.length > 100 
-        ? [...parsedData.slice(0, 50), ...parsedData.slice(-50)] 
-        : parsedData,
+      sample_data: dataToProcess.length > 100 
+        ? [...dataToProcess.slice(0, 50), ...dataToProcess.slice(-50)] 
+        : dataToProcess,
       source_type: ext,
     });
   };
