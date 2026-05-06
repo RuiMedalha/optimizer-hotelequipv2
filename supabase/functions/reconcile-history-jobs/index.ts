@@ -8,8 +8,19 @@ const corsHeaders = {
 const normalizeSKU = (sku: string): string => {
   if (!sku) return "";
   let normalized = sku.trim().toUpperCase();
+  // Replace slashes with hyphens
   normalized = normalized.replace(/[/\\]/g, "-");
-  normalized = normalized.replace(/^0+/, "");
+  // Collapse multiple hyphens
+  normalized = normalized.replace(/-+/g, "-");
+  // Remove leading zeros from numeric-only segments
+  normalized = normalized.split('-').map(part => {
+    if (/^\d+$/.test(part)) {
+      const stripped = part.replace(/^0+/, "");
+      return stripped === "" ? "0" : stripped;
+    }
+    return part;
+  }).join('-');
+  
   return normalized || "0";
 };
 
