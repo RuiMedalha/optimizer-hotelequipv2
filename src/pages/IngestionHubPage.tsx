@@ -316,6 +316,14 @@ const IngestionHubPage = () => {
         if (!defaultBrand && detResult.detection?.supplier_name) {
           setDefaultBrand(detResult.detection.supplier_name);
         }
+
+        // Fetch supplier profile for connector config
+        const { data: profile } = await supabase
+          .from("supplier_profiles")
+          .select("*")
+          .eq("id", detResult.matched_supplier_id)
+          .single();
+        if (profile) setDetectedSupplier(profile);
       }
 
       // 2. Infer column mapping
