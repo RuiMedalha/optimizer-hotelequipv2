@@ -8,19 +8,10 @@ const corsHeaders = {
 const normalizeSKU = (sku: string): string => {
   if (!sku) return "";
   let normalized = sku.trim().toUpperCase();
-  // Replace slashes with hyphens
   normalized = normalized.replace(/[/\\]/g, "-");
-  // Collapse multiple hyphens
+  normalized = normalized.replace(/\s+/g, "");
   normalized = normalized.replace(/-+/g, "-");
-  // Remove leading zeros from numeric-only segments
-  normalized = normalized.split('-').map(part => {
-    if (/^\d+$/.test(part)) {
-      const stripped = part.replace(/^0+/, "");
-      return stripped === "" ? "0" : stripped;
-    }
-    return part;
-  }).join('-');
-  
+  normalized = normalized.replace(/^-|-$/g, "");
   return normalized || "0";
 };
 
@@ -59,6 +50,13 @@ Deno.serve(async (req) => {
     let processedCount = 0;
     const { data: ws } = await supabase.from("workspaces").select("user_id").eq("id", workspaceId).single();
 
+    const uniqueJobIds = [...new Set(stagingRecords.map((s: any) => s.ingestion_job_id).filter(Boolean))];
+    const { data: jobsData } = await supabase
+      .from("ingestion_jobs")
+      .select("id, config")
+      .in("id", uniqueJobIds);
+    const jobConfigMap = new Map((jobsData || []).map((j: any) => [j.id, j.config || {}]));
+
     for (const staging of stagingRecords) {
       try {
         const rawData = staging.proposed_changes || staging.supplier_data || {};
@@ -70,14 +68,7 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // BUSCAR CONFIGURAÇÃO DO JOB (Bug 2)
-        const { data: job } = await supabase
-          .from("ingestion_jobs")
-          .select("config, id")
-          .eq("id", staging.ingestion_job_id)
-          .single();
-
-        const jobConfig = job?.config || {};
+        const jobConfig = jobConfigMap.get(staging.ingestion_job_id) || {};
         const defaultBrand = jobConfig.defaultBrand || null;
         const skuPrefix = jobConfig.skuPrefix || "";
         const skuSuffix = jobConfig.skuSuffix || "";
@@ -143,14 +134,7 @@ Deno.serve(async (req) => {
           processedCount++;
         }
         else if (action === 'create_drafts' && ws?.user_id) {
-          // BUSCAR CONFIGURAÇÃO DO JOB
-          const { data: job } = await supabase
-            .from("ingestion_jobs")
-            .select("config, id")
-            .eq("id", staging.ingestion_job_id)
-            .single();
-
-          const jobConfig = job?.config || {};
+          const jobConfig = jobConfigMap.get(staging.ingestion_job_id) || {};
           const defaultBrand = jobConfig.defaultBrand || null;
           
           const sTitle = cleanSupplierValue(rawData.original_title ?? rawData.supplier_title ?? rawData.title);

@@ -8,19 +8,10 @@ const corsHeaders = {
 const normalizeSKU = (sku: string): string => {
   if (!sku) return "";
   let normalized = sku.trim().toUpperCase();
-  // Replace slashes with hyphens
   normalized = normalized.replace(/[/\\]/g, "-");
-  // Collapse multiple hyphens
+  normalized = normalized.replace(/\s+/g, "");
   normalized = normalized.replace(/-+/g, "-");
-  // Remove leading zeros from numeric-only segments
-  normalized = normalized.split('-').map(part => {
-    if (/^\d+$/.test(part)) {
-      const stripped = part.replace(/^0+/, "");
-      return stripped === "" ? "0" : stripped;
-    }
-    return part;
-  }).join('-');
-  
+  normalized = normalized.replace(/^-|-$/g, "");
   return normalized || "0";
 };
 
@@ -164,12 +155,26 @@ Deno.serve(async (req) => {
 
     // 4. Fetch all workspace products for secondary lookup (Bug 4)
     console.log(`Fetching all products for workspace: ${finalWorkspaceId}`);
-    const { data: workspaceProducts, error: prodErr } = await supabase
-      .from("products")
-      .select("id, sku, brand, model, original_title, original_description, original_price, image_urls, attributes")
-      .eq("workspace_id", finalWorkspaceId);
-    
-    if (prodErr) throw prodErr;
+    let workspaceProducts: any[] = [];
+    let hasMoreWsProducts = true;
+    let wsProductOffset = 0;
+    const WS_PAGE_SIZE = 1000;
+
+    while (hasMoreWsProducts) {
+      const { data: wsPage, error: wsErr } = await supabase
+        .from("products")
+        .select("id, sku, brand, model, original_title, original_description, original_price, image_urls, attributes")
+        .eq("workspace_id", finalWorkspaceId)
+        .range(wsProductOffset, wsProductOffset + WS_PAGE_SIZE - 1);
+      if (wsErr) throw wsErr;
+      if (wsPage && wsPage.length > 0) {
+        workspaceProducts = [...workspaceProducts, ...wsPage];
+        wsProductOffset += WS_PAGE_SIZE;
+        if (wsPage.length < WS_PAGE_SIZE) hasMoreWsProducts = false;
+      } else {
+        hasMoreWsProducts = false;
+      }
+    }
     
     const productSkuMap = new Map<string, any>();
     workspaceProducts?.forEach(p => {
