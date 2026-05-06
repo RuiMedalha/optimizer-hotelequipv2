@@ -136,6 +136,15 @@ const IngestionHubPage = () => {
   const [reconcileDeltaId, setReconcileDeltaId] = useState<string | null>(null);
   const [isProcessingReconciliation, setIsProcessingReconciliation] = useState(false);
 
+  // Connector state
+  const [detectedXmlFormat, setDetectedXmlFormat] = useState<string | null>(null);
+  const [transformedData, setTransformedData] = useState<any[]>([]);
+  const [connectorApplied, setConnectorApplied] = useState(false);
+  const [showAiPromptModal, setShowAiPromptModal] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiResponse, setAiResponse] = useState("");
+  const [detectedSupplier, setDetectedSupplier] = useState<any>(null);
+
   // Auto-select latest master and delta if not set
   useEffect(() => {
     if (!jobs) return;
