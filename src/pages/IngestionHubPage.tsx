@@ -1,17 +1,23 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import Papa from 'papaparse';
-import { Upload, FileSpreadsheet, Play, Eye, Loader2, CheckCircle, AlertCircle, Clock, ArrowRight, X, Database, Webhook, Zap, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RefreshCw, Plus, Check, FileText, Search, Trash2, History } from "lucide-react";
+import { 
+  Upload, FileSpreadsheet, Play, Eye, Loader2, CheckCircle, AlertCircle, 
+  Clock, ArrowRight, X, Database, Webhook, Zap, ChevronLeft, ChevronRight, 
+  ChevronsLeft, ChevronsRight, RefreshCw, Plus, Check, FileText, Search, 
+  Trash2, History, Wand2, Copy, Save, FileCode
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useIngestionJobs, useIngestionJobItems, useParseIngestion, useRunIngestionJob, usePendingStagingItems, type IngestionJob } from "@/hooks/useIngestion";
 import { ReconciliationTab } from "@/components/supplier/ReconciliationTab";
@@ -28,6 +34,13 @@ import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { 
+  parseXml, 
+  applyConnectorTransformations, 
+  generateAiPrompt, 
+  type ConnectorConfig, 
+  type XmlFormat 
+} from "@/lib/supplierConnector";
 
 const PRODUCT_FIELDS = [
   { key: "sku", label: "SKU" },
