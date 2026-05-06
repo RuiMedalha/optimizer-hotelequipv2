@@ -947,7 +947,7 @@ const IngestionHubPage = () => {
                   detection={currentDetection}
                   inference={currentInference}
                   draft={null}
-                  parsedData={parsedData}
+                  parsedData={transformedData.length > 0 ? transformedData : parsedData}
                   fieldMappings={fieldMappings}
                   onConfirmImport={handleLiveRun}
                   onCorrectMapping={() => setShowReview(false)}
