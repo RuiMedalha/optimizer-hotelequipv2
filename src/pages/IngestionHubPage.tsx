@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useIngestionJobs, useIngestionJobItems, useParseIngestion, useRunIngestionJob, usePendingStagingItems, type IngestionJob } from "@/hooks/useIngestion";
 import { ReconciliationTab } from "@/components/supplier/ReconciliationTab";
+import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 
 import { usePlaybookEngine } from "@/hooks/usePlaybookEngine";
 import { useUploadedFiles } from "@/hooks/useUploadedFiles";
