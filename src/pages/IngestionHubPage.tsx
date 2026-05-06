@@ -409,6 +409,17 @@ const IngestionHubPage = () => {
         if (config.sku_prefix) setSkuPrefix(config.sku_prefix);
         if (config.default_brand) setDefaultBrand(config.default_brand);
         
+        // Detect special fields for user selection
+        const { detectSpecialFields } = await import('@/lib/supplierConnector');
+        const special = detectSpecialFields(parsedData, 
+          Object.keys(parsedData[0] || {}).filter(k => !k.startsWith('_'))
+        );
+        setSpecialFields(special);
+        // Auto-select the first price field as default
+        if (special.priceFields.length > 0) {
+          setSelectedPriceField(special.priceFields[0].key);
+        }
+
         toast.success(`Conector ${detectedSupplier.supplier_name} aplicado com sucesso.`);
       } catch (err: any) {
         console.error("Error applying connector:", err);
