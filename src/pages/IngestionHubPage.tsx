@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useIngestionJobs, useIngestionJobItems, useParseIngestion, useRunIngestionJob, usePendingStagingItems, type IngestionJob } from "@/hooks/useIngestion";
 import { ReconciliationTab } from "@/components/supplier/ReconciliationTab";
+import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 
 import { usePlaybookEngine } from "@/hooks/usePlaybookEngine";
 import { useUploadedFiles } from "@/hooks/useUploadedFiles";
@@ -83,6 +84,8 @@ const statusLabels: Record<string, { label: string; color: string }> = {
 };
 
 const IngestionHubPage = () => {
+  const { activeWorkspace } = useWorkspaceContext();
+  const workspaceId = activeWorkspace?.id;
   const { data: jobs, isLoading, refetch: refetchJobs } = useIngestionJobs();
   const { data: pendingStagingData, refetch: refetchStaging } = usePendingStagingItems();
   const hasPendingStaging = (pendingStagingData?.totalCount || 0) > 0 || (jobs?.some(j => j.role === 'supplier_delta'));
@@ -447,6 +450,28 @@ const IngestionHubPage = () => {
         setFileName(`feed_csv_${new Date().toISOString().slice(0,10)}.csv`);
       }
       toast.success(`Feed carregado: ${data.totalRows} produtos`);
+
+      // Try to match supplier by feed URL
+      const { data: suppliers } = await supabase
+        .from('supplier_profiles')
+        .select('id, supplier_name, connector_config, feed_url_xml, feed_url_csv')
+        .eq('workspace_id', workspaceId);
+      
+      if (suppliers) {
+        const matched = suppliers.find((s: any) => {
+          const urlBase = feedUrl.split('?')[0];
+          return (
+            (s.feed_url_xml && s.feed_url_xml.split('?')[0] === urlBase) ||
+            (s.feed_url_csv && s.feed_url_csv.split('?')[0] === urlBase) ||
+            (s.feed_url_xml && feedUrl.includes(s.feed_url_xml.split('?')[0])) ||
+            (s.feed_url_csv && feedUrl.includes(s.feed_url_csv.split('?')[0]))
+          );
+        });
+        if (matched) {
+          setDetectedSupplier(matched);
+          toast.success(`Fornecedor ${matched.supplier_name} detectado automaticamente`);
+        }
+      }
     } catch (e: any) {
       toast.error(`Erro ao carregar feed: ${e.message}`);
     } finally {
@@ -621,7 +646,7 @@ const IngestionHubPage = () => {
         body: {
           masterJobId: reconcileMasterId,
           deltaJobId: reconcileDeltaId,
-          workspaceId: (jobs?.[0] as any)?.workspace_id
+          workspaceId: workspaceId
         }
       });
 
