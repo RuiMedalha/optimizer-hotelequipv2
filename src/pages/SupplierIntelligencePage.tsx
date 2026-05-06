@@ -14,7 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Building2, Globe, CheckCircle, AlertCircle, Clock, ArrowLeft, Brain, Search, Network, BarChart3, ArrowRight, Wand2, Copy, Save, Check } from "lucide-react";
+import { Plus, Building2, Globe, CheckCircle, AlertCircle, Clock, ArrowLeft, Brain, Search, Network, BarChart3, ArrowRight, Wand2, Copy, Save, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { 
   generateAiPrompt, 
@@ -46,8 +46,10 @@ function SupplierDetail({ supplier, onBack }: { supplier: any; onBack: () => voi
   const [connectorTestResult, setConnectorTestResult] = useState<any[]>([]);
   const [showAiPromptModal, setShowAiPromptModal] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
+  const [testingUrl, setTestingUrl] = useState(false);
 
   const handleTestUrl = (format: 'xml' | 'csv') => async () => {
+    setTestingUrl(true);
     try {
       const { data, error } = await supabase.functions.invoke('fetch-supplier-feed', {
         body: { supplierId: supplier.id, workspaceId: wsId, format }
@@ -57,6 +59,8 @@ function SupplierDetail({ supplier, onBack }: { supplier: any; onBack: () => voi
       toast.success(`Feed carregado: ${data.totalRows} produtos`);
     } catch (e: any) {
       toast.error(`Erro ao testar URL: ${e.message}`);
+    } finally {
+      setTestingUrl(false);
     }
   };
 
@@ -149,6 +153,109 @@ function SupplierDetail({ supplier, onBack }: { supplier: any; onBack: () => voi
           <TabsTrigger value="learning">Learning</TabsTrigger>
           <TabsTrigger value="benchmarks">Benchmarks</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="feed">
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">URLs do Feed</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Feed XML</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={feedUrlXml}
+                      onChange={e => setFeedUrlXml(e.target.value)}
+                      placeholder="https://feedapi.supplier.com/feed.xml?Key=..."
+                      className="flex-1"
+                    />
+                    <Button variant="outline" onClick={handleTestUrl('xml')} disabled={!feedUrlXml || testingUrl}>
+                      {testingUrl ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Testar'}
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Feed CSV</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={feedUrlCsv}
+                      onChange={e => setFeedUrlCsv(e.target.value)}
+                      placeholder="https://feedapi.supplier.com/feed.csv?Key=..."
+                      className="flex-1"
+                    />
+                    <Button variant="outline" onClick={handleTestUrl('csv')} disabled={!feedUrlCsv || testingUrl}>
+                      {testingUrl ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Testar'}
+                    </Button>
+                  </div>
+                </div>
+                {feedTestResult && (
+                  <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg text-sm">
+                    <p className="font-medium text-green-400">✓ {feedTestResult.totalRows} produtos — formato: {feedTestResult.xmlFormat || feedTestResult.format}</p>
+                    <pre className="mt-2 text-xs overflow-auto max-h-32 text-muted-foreground">
+                      {JSON.stringify(feedTestResult.rows?.[0], null, 2)?.substring(0, 500)}
+                    </pre>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm flex items-center justify-between">
+                  Connector Config
+                  <Select onValueChange={handlePresetSelect}>
+                    <SelectTrigger className="w-56">
+                      <SelectValue placeholder="Aplicar Preset..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="tefcold_xml">Tefcold (XML proprietário)</SelectItem>
+                      <SelectItem value="fricosmos_xml">Fricosmos / Google Merchant (XML)</SelectItem>
+                      <SelectItem value="fricosmos_excel_prices">Fricosmos (Excel — só preços)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Textarea
+                  value={connectorConfigText}
+                  onChange={e => { setConnectorConfigText(e.target.value); setConfigError(null); }}
+                  placeholder='{ "file_format": "xml", "sku_prefix": "TF", ... }'
+                  className="font-mono text-xs min-h-64"
+                />
+                {configError && <p className="text-sm text-red-400">{configError}</p>}
+                <div className="flex gap-2 flex-wrap">
+                  <Button variant="outline" onClick={handleValidateConfig}>Validar JSON</Button>
+                  <Button variant="outline" onClick={handleTestConnector} disabled={!feedTestResult}>Testar Connector</Button>
+                  {feedTestResult && (
+                    <Button variant="outline" onClick={() => {
+                      const rows = feedTestResult.rows || feedTestResult.allRows || [];
+                      const headers = rows[0] ? Object.keys(rows[0]).filter((k: string) => !k.startsWith('_')) : [];
+                      const prompt = generateAiPrompt(rows, headers, feedTestResult.format, feedTestResult.xmlFormat);
+                      setAiPrompt(prompt);
+                      setShowAiPromptModal(true);
+                    }}>
+                      <Wand2 className="w-4 h-4 mr-2" />
+                      Gerar Prompt para IA
+                    </Button>
+                  )}
+                  <Button onClick={handleSaveConnector}>
+                    <Save className="w-4 h-4 mr-2" />
+                    Guardar
+                  </Button>
+                </div>
+                {connectorTestResult.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Preview (3 produtos transformados):</p>
+                    <pre className="text-xs bg-muted p-3 rounded overflow-auto max-h-48">
+                      {JSON.stringify(connectorTestResult, null, 2)}
+                    </pre>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
         <TabsContent value="schemas">
           <Card><CardHeader><CardTitle className="text-sm">Estruturas Detetadas</CardTitle></CardHeader><CardContent>
