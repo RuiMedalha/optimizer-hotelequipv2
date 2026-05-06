@@ -5,6 +5,25 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const normalizeSKU = (sku: string): string => {
+  if (!sku) return "";
+  let normalized = sku.trim().toUpperCase();
+  // Replace slashes with hyphens
+  normalized = normalized.replace(/[/\\]/g, "-");
+  // Collapse multiple hyphens
+  normalized = normalized.replace(/-+/g, "-");
+  // Remove leading zeros from numeric-only segments
+  normalized = normalized.split('-').map(part => {
+    if (/^\d+$/.test(part)) {
+      const stripped = part.replace(/^0+/, "");
+      return stripped === "" ? "0" : stripped;
+    }
+    return part;
+  }).join('-');
+  
+  return normalized || "0";
+};
+
 // Helper function to clean data according to Rule 2
 const cleanSupplierValue = (val: any) => {
   if (val === null || val === undefined) return undefined;
@@ -54,22 +73,7 @@ Deno.serve(async (req) => {
 
       // Tentar encontrar o ID do produto se estiver em falta no staging
       let effectiveProductId = staging.existing_product_id;
-      if (!effectiveProductId) {
-        const { data: existingProd } = await supabase
-          .from("products")
-          .select("id, brand, model, attributes, original_title, original_description, original_price")
-          .eq("workspace_id", staging.workspace_id)
-          .eq("sku", sku)
-          .maybeSingle();
-        
-        if (existingProd) {
-          effectiveProductId = existingProd.id;
-          // Não atualizamos o staging aqui porque vamos deletá-lo no final
-        }
-      }
-
-      const is_discontinued = rawData.is_discontinued === true || staging.change_type === 'discontinued';
-
+      
       // BUSCAR CONFIGURAÇÃO DO JOB
       const { data: job } = await supabase
         .from("ingestion_jobs")
@@ -80,12 +84,40 @@ Deno.serve(async (req) => {
       const jobConfig = job?.config || {};
       const defaultBrand = jobConfig.defaultBrand || null;
       const skuPrefix = jobConfig.skuPrefix || "";
+      const skuSuffix = jobConfig.skuSuffix || "";
       const useSkuAsModel = jobConfig.autoModelFromSku === true;
+
+      if (!effectiveProductId) {
+        // Fallback matching logic (Bug 2)
+        const normalizedSkuSupplier = normalizeSKU(sku);
+        const variantsToTry = [
+          sku, // Exact match first
+          normalizedSkuSupplier, // Normalized exact
+        ];
+        
+        if (skuPrefix) variantsToTry.push(skuPrefix + normalizedSkuSupplier);
+        if (skuSuffix) variantsToTry.push(normalizedSkuSupplier + skuSuffix);
+        if (skuPrefix && skuSuffix) variantsToTry.push(skuPrefix + normalizedSkuSupplier + skuSuffix);
+
+        const { data: existingProds } = await supabase
+          .from("products")
+          .select("id, sku, brand, model, attributes, original_title, original_description, original_price")
+          .eq("workspace_id", staging.workspace_id)
+          .in("sku", variantsToTry);
+        
+        if (existingProds && existingProds.length > 0) {
+          // If multiple found (rare), prioritize exact match
+          const bestMatch = existingProds.find(p => p.sku === sku) || existingProds[0];
+          effectiveProductId = bestMatch.id;
+        }
+      }
 
       let calculatedModel = rawData.model || staging.sku_supplier || sku;
       if (useSkuAsModel && skuPrefix && String(sku).startsWith(skuPrefix)) {
         calculatedModel = String(sku).slice(skuPrefix.length);
       }
+
+      const is_discontinued = rawData.is_discontinued === true || staging.change_type === 'discontinued';
 
       // VALIDAÇÃO DE CAMPOS CRÍTICOS (conforme solicitado pelo usuário)
       const { data: existingProductData } = effectiveProductId ? 
@@ -113,6 +145,7 @@ Deno.serve(async (req) => {
           const { error: updateErr } = await supabase
             .from("products")
             .update({ 
+              status: 'discontinued',
               is_discontinued: true,
               stock: 0,
               workflow_state: 'draft',
@@ -129,7 +162,7 @@ Deno.serve(async (req) => {
             sku: sku,
             workspace_id: staging.workspace_id,
             user_id: ws.user_id,
-            status: 'pending',
+            status: 'discontinued',
             workflow_state: 'draft',
             is_discontinued: true,
             stock: 0,

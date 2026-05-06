@@ -8,8 +8,19 @@ const corsHeaders = {
 const normalizeSKU = (sku: string): string => {
   if (!sku) return "";
   let normalized = sku.trim().toUpperCase();
+  // Replace slashes with hyphens
   normalized = normalized.replace(/[/\\]/g, "-");
-  normalized = normalized.replace(/^0+/, "");
+  // Collapse multiple hyphens
+  normalized = normalized.replace(/-+/g, "-");
+  // Remove leading zeros from numeric-only segments
+  normalized = normalized.split('-').map(part => {
+    if (/^\d+$/.test(part)) {
+      const stripped = part.replace(/^0+/, "");
+      return stripped === "" ? "0" : stripped;
+    }
+    return part;
+  }).join('-');
+  
   return normalized || "0";
 };
 
@@ -141,13 +152,34 @@ Deno.serve(async (req) => {
       const source = item.source_data || {};
       const rawSku = mapped.sku || source.sku || mapped.Codigo || source.Codigo || mapped.Ref || source.Ref || "";
       const sku = normalizeSKU(rawSku);
-      if (sku) masterMap.set(sku, item);
+      if (sku) {
+        masterMap.set(sku, item);
+        // Also map with prefix/suffix if present in job config (Bug 2)
+        const config = deltaJob?.config || {};
+        if (config.skuPrefix) masterMap.set(config.skuPrefix + sku, item);
+        if (config.skuSuffix) masterMap.set(sku + config.skuSuffix, item);
+        if (config.skuPrefix && config.skuSuffix) masterMap.set(config.skuPrefix + sku + config.skuSuffix, item);
+      }
     });
 
-    // 4. Clear old staging for this delta job
+    // 4. Fetch all workspace products for secondary lookup (Bug 4)
+    console.log(`Fetching all products for workspace: ${finalWorkspaceId}`);
+    const { data: workspaceProducts, error: prodErr } = await supabase
+      .from("products")
+      .select("id, sku, brand, model, original_title, original_description, original_price, image_urls, attributes")
+      .eq("workspace_id", finalWorkspaceId);
+    
+    if (prodErr) throw prodErr;
+    
+    const productSkuMap = new Map<string, any>();
+    workspaceProducts?.forEach(p => {
+      if (p.sku) productSkuMap.set(normalizeSKU(p.sku), p);
+    });
+
+    // 5. Clear old staging for this delta job
     await supabase.from("sync_staging").delete().eq("ingestion_job_id", deltaJobId);
 
-    // 5. Process Delta against Master
+    // 6. Process Delta against Master/Products
     const stagingRecords = [];
     const processedSkusInDelta = new Set<string>();
 
@@ -157,12 +189,41 @@ Deno.serve(async (req) => {
       
       const rawSku = mappedData.sku || sourceData.sku || mappedData.Codigo || sourceData.Codigo || mappedData.Ref || sourceData.Ref || "";
       const normalizedSku = normalizeSKU(rawSku);
+      const skuPrefix = config.skuPrefix || "";
+      const skuSuffix = config.skuSuffix || "";
       
       if (normalizedSku) {
         processedSkusInDelta.add(normalizedSku);
       }
 
-      const masterItem = normalizedSku ? masterMap.get(normalizedSku) : null;
+      let masterItem = normalizedSku ? masterMap.get(normalizedSku) : null;
+      
+      // Secondary lookup against products table (Bug 4)
+      let existingProduct = null;
+      if (normalizedSku) {
+        existingProduct = productSkuMap.get(normalizedSku) || 
+                          (skuPrefix ? productSkuMap.get(skuPrefix + normalizedSku) : null) ||
+                          (skuSuffix ? productSkuMap.get(normalizedSku + skuSuffix) : null) ||
+                          (skuPrefix && skuSuffix ? productSkuMap.get(skuPrefix + normalizedSku + skuSuffix) : null);
+      }
+
+      // If no master job item found, but product exists, simulate a master item
+      if (!masterItem && existingProduct) {
+        masterItem = {
+          product_id: existingProduct.id,
+          mapped_data: {
+            sku: existingProduct.sku,
+            brand: existingProduct.brand,
+            model: existingProduct.model,
+            original_title: existingProduct.original_title,
+            original_description: existingProduct.original_description,
+            original_price: existingProduct.original_price,
+            image_urls: existingProduct.image_urls,
+            attributes: existingProduct.attributes
+          }
+        };
+      }
+
       const masterMapped = masterItem?.mapped_data || masterItem?.source_data || {};
 
       let changeType = "new_product";
