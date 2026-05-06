@@ -93,6 +93,24 @@ Deno.serve(async (req) => {
   try {
     const { supplierId, workspaceId, format, feedUrl: directUrl } = await req.json();
     
+    // If direct URL provided, handle immediately without DB lookup
+    if (directUrl) {
+      const response = await fetch(directUrl);
+      if (!response.ok) throw new Error(`Feed fetch failed: ${response.status}`);
+      const text = await response.text();
+      if (format === 'csv' && !text.trimStart().startsWith('<')) {
+        return new Response(JSON.stringify({ format: 'csv', rawText: text, totalRows: text.split('\n').length - 1 }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      const xmlFmt = detectXmlFormat(text);
+      let rows: any[] = [];
+      if (xmlFmt === 'tefcold') rows = parseTefcoldXml(text);
+      else if (xmlFmt === 'google_merchant') rows = parseGoogleMerchantXml(text);
+      else throw new Error('Formato XML não reconhecido. Suporta: Tefcold (<SHOP>) e Google Merchant (xmlns:g).');
+      return new Response(JSON.stringify({ format: 'xml', xmlFormat: xmlFmt, rows: rows.slice(0, 5), allRows: rows, totalRows: rows.length }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -105,23 +123,6 @@ Deno.serve(async (req) => {
       .single();
       
     if (error || !supplier) throw new Error("Supplier not found");
-    
-    if (directUrl) {
-      // Use URL directly without looking up supplier
-      const response = await fetch(directUrl);
-      if (!response.ok) throw new Error(`Feed fetch failed: ${response.status}`);
-      const text = await response.text();
-      const xmlFmt = detectXmlFormat(text);
-      let rows: any[] = [];
-      if (xmlFmt === 'tefcold') rows = parseTefcoldXml(text);
-      else if (xmlFmt === 'google_merchant') rows = parseGoogleMerchantXml(text);
-      else if (format === 'csv') {
-        return new Response(JSON.stringify({ format: 'csv', rawText: text, totalRows: text.split('\n').length - 1 }), 
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      } else throw new Error('Formato não reconhecido');
-      return new Response(JSON.stringify({ format: 'xml', xmlFormat: xmlFmt, rows: rows.slice(0,5), allRows: rows, totalRows: rows.length }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
 
     const url = format === 'csv' ? supplier.feed_url_csv : supplier.feed_url_xml;
     if (!url) throw new Error(`No ${format} feed URL configured for this supplier`);
