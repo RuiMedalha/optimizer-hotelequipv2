@@ -1,17 +1,23 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import Papa from 'papaparse';
-import { Upload, FileSpreadsheet, Play, Eye, Loader2, CheckCircle, AlertCircle, Clock, ArrowRight, X, Database, Webhook, Zap, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RefreshCw, Plus, Check, FileText, Search, Trash2, History } from "lucide-react";
+import { 
+  Upload, FileSpreadsheet, Play, Eye, Loader2, CheckCircle, AlertCircle, 
+  Clock, ArrowRight, X, Database, Webhook, Zap, ChevronLeft, ChevronRight, 
+  ChevronsLeft, ChevronsRight, RefreshCw, Plus, Check, FileText, Search, 
+  Trash2, History, Wand2, Copy, Save, FileCode
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useIngestionJobs, useIngestionJobItems, useParseIngestion, useRunIngestionJob, usePendingStagingItems, type IngestionJob } from "@/hooks/useIngestion";
 import { ReconciliationTab } from "@/components/supplier/ReconciliationTab";
@@ -28,6 +34,13 @@ import { format } from "date-fns";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { 
+  parseXml, 
+  applyConnectorTransformations, 
+  generateAiPrompt, 
+  type ConnectorConfig, 
+  type XmlFormat 
+} from "@/lib/supplierConnector";
 
 const PRODUCT_FIELDS = [
   { key: "sku", label: "SKU" },
@@ -123,6 +136,15 @@ const IngestionHubPage = () => {
   const [reconcileDeltaId, setReconcileDeltaId] = useState<string | null>(null);
   const [isProcessingReconciliation, setIsProcessingReconciliation] = useState(false);
 
+  // Connector state
+  const [detectedXmlFormat, setDetectedXmlFormat] = useState<string | null>(null);
+  const [transformedData, setTransformedData] = useState<any[]>([]);
+  const [connectorApplied, setConnectorApplied] = useState(false);
+  const [showAiPromptModal, setShowAiPromptModal] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiResponse, setAiResponse] = useState("");
+  const [detectedSupplier, setDetectedSupplier] = useState<any>(null);
+
   // Auto-select latest master and delta if not set
   useEffect(() => {
     if (!jobs) return;
@@ -149,6 +171,10 @@ const IngestionHubPage = () => {
     setCurrentDetection(null);
     setCurrentInference(null);
     setShowReview(false);
+    setConnectorApplied(false);
+    setTransformedData([]);
+    setDetectedXmlFormat(null);
+    setDetectedSupplier(null);
     const ext = file.name.split(".").pop()?.toLowerCase();
 
     let headers: string[] = [];
@@ -290,6 +316,14 @@ const IngestionHubPage = () => {
         if (!defaultBrand && detResult.detection?.supplier_name) {
           setDefaultBrand(detResult.detection.supplier_name);
         }
+
+        // Fetch supplier profile for connector config
+        const { data: profile } = await supabase
+          .from("supplier_profiles")
+          .select("*")
+          .eq("id", detResult.matched_supplier_id)
+          .single();
+        if (profile) setDetectedSupplier(profile);
       }
 
       // 2. Infer column mapping
@@ -331,7 +365,41 @@ const IngestionHubPage = () => {
       });
       setFieldMappings(autoMap);
     }
-  }, [autoDetect, inferMapping, generateDraft]);
+  }, [autoDetect, inferMapping, generateDraft, defaultBrand]);
+
+  // When supplier is detected with connector_config, auto-apply transformations
+  useEffect(() => {
+    if (
+      detectedSupplier?.connector_config &&
+      Object.keys(detectedSupplier.connector_config).length > 0 &&
+      parsedData && parsedData.length > 0
+    ) {
+      const config = detectedSupplier.connector_config as any;
+      const fileFormat = detectedXmlFormat ? 'xml' : 
+                         (fileName.endsWith('.xlsx') || fileName.endsWith('.xls') ? 'excel' : 'csv');
+      
+      try {
+        const transformed = applyConnectorTransformations(parsedData, config, fileFormat);
+        setTransformedData(transformed);
+        setConnectorApplied(true);
+        
+        // When connector is applied, the mapping should be simplified
+        if (config.column_mapping) {
+          const simplifiedMapping: Record<string, string> = {};
+          // Only map fields that are actually in the output
+          Object.values(config.column_mapping).forEach((val: any) => {
+            if (typeof val === 'string') simplifiedMapping[val] = val;
+          });
+          // setFieldMappings(simplifiedMapping); // Not strictly needed if we use transformedData for preview
+        }
+        
+        toast.success(`Conector ${detectedSupplier.supplier_name} aplicado com sucesso.`);
+      } catch (err: any) {
+        console.error("Error applying connector:", err);
+        toast.error(`Erro ao aplicar conector: ${err.message}`);
+      }
+    }
+  }, [detectedSupplier, parsedData, detectedXmlFormat, fileName]);
 
 
   const onDrop = useCallback((e: React.DragEvent) => {
@@ -1866,5 +1934,134 @@ function ItemDetailDialog({
     </Dialog>
   );
 }
+
+// AI Prompt Generator Modal
+const AiPromptModal = ({ 
+  isOpen, 
+  onClose, 
+  prompt, 
+  onApply, 
+  supplierId 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  prompt: string; 
+  onApply: (config: any) => void;
+  supplierId?: string;
+}) => {
+  const [response, setResponse] = useState("");
+  const [parsedConfig, setParsedConfig] = useState<any>(null);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(prompt);
+    toast.success("Prompt copiado para a área de transferência.");
+  };
+
+  const validateAndParse = () => {
+    try {
+      // Find JSON block if AI included text around it
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : response;
+      const config = JSON.parse(jsonStr);
+      setParsedConfig(config);
+      toast.success("JSON validado com sucesso.");
+    } catch (e) {
+      toast.error("JSON inválido. Certifica-te que copiaste apenas o objeto JSON da resposta da IA.");
+    }
+  };
+
+  const saveToSupplier = async () => {
+    if (!supplierId || !parsedConfig) return;
+    try {
+      const { error } = await supabase
+        .from("supplier_profiles")
+        .update({ connector_config: parsedConfig })
+        .eq("id", supplierId);
+      if (error) throw error;
+      toast.success("Configuração guardada no perfil do fornecedor.");
+      onApply(parsedConfig);
+      onClose();
+    } catch (e: any) {
+      toast.error(`Erro ao guardar: ${e.message}`);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Wand2 className="w-5 h-5 text-primary" />
+            Gerar Configuração de Conector com IA
+          </DialogTitle>
+        </DialogHeader>
+        
+        <div className="flex-1 overflow-y-auto space-y-6 py-4">
+          <div className="space-y-2">
+            <Label className="text-xs font-bold uppercase text-muted-foreground">1. Copia este Prompt e envia para o ChatGPT/Claude</Label>
+            <div className="relative">
+              <ScrollArea className="h-48 w-full border rounded-md bg-muted/50 p-3 font-mono text-[10px]">
+                <pre className="whitespace-pre-wrap">{prompt}</pre>
+              </ScrollArea>
+              <Button size="sm" variant="secondary" className="absolute top-2 right-2 h-7 gap-1" onClick={handleCopy}>
+                <Copy className="w-3 h-3" /> Copiar
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs font-bold uppercase text-muted-foreground">2. Cola aqui a resposta da IA (apenas o JSON)</Label>
+            <Textarea 
+              className="h-48 font-mono text-xs" 
+              placeholder='{ "file_format": "xml", ... }'
+              value={response}
+              onChange={(e) => setResponse(e.target.value)}
+            />
+          </div>
+
+          {parsedConfig && (
+            <div className="space-y-2 p-3 bg-green-500/5 border border-green-500/20 rounded-md">
+              <Label className="text-xs font-bold text-green-600 flex items-center gap-1">
+                <Check className="w-3 h-3" /> Configuração Detectada
+              </Label>
+              <div className="grid grid-cols-2 gap-4 text-[10px]">
+                <div>
+                  <span className="text-muted-foreground">Formato:</span> {parsedConfig.file_format}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Prefixo SKU:</span> {parsedConfig.sku_prefix || "—"}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Mapeamentos:</span> {Object.keys(parsedConfig.column_mapping || {}).length}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Ignorados:</span> {parsedConfig.ignore_fields?.length || 0}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          {!parsedConfig ? (
+            <Button onClick={validateAndParse} disabled={!response.trim()}>Validar Resposta</Button>
+          ) : (
+            <>
+              <Button variant="secondary" onClick={() => { onApply(parsedConfig); onClose(); }}>
+                Testar Apenas
+              </Button>
+              {supplierId && (
+                <Button onClick={saveToSupplier}>
+                  <Save className="w-4 h-4 mr-2" /> Guardar no Fornecedor
+                </Button>
+              )}
+            </>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 export default IngestionHubPage;
