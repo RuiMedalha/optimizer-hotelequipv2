@@ -802,17 +802,18 @@ async function ensureBrandTaxonomy(baseUrl: string, auth: string, brandName: str
   }
 }
 
-function ensureBrandMeta(target: Record<string, unknown>, brandValue: string) {
+function ensureBrandMeta(target: Record<string, unknown>, brandValue: string, brandId?: number | null) {
   if (!brandValue) return;
-  const existingMeta = Array.isArray(target.meta_data) ? target.meta_data as Array<{ key: string; value: string }> : [];
-  const upsert = (key: string, value: string) => {
+  const existingMeta = Array.isArray(target.meta_data) ? target.meta_data as Array<{ key: string; value: any }> : [];
+  const upsert = (key: string, value: any) => {
     const idx = existingMeta.findIndex((m) => String(m?.key || "") === key);
     if (idx >= 0) existingMeta[idx] = { key, value };
     else existingMeta.push({ key, value });
   };
   upsert("_brand", brandValue);
   upsert("xstore_brand", brandValue);
-  upsert("brand_id", brandValue);
+  // Se tivermos o ID numérico da taxonomy, usamos ele; caso contrário usamos a string
+  upsert("brand_id", brandId || brandValue);
   target.meta_data = existingMeta;
 }
 
