@@ -8,11 +8,21 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Plus, Building2, Globe, CheckCircle, AlertCircle, Clock, ArrowLeft, Brain, Search, Network, BarChart3, ArrowRight } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Plus, Building2, Globe, CheckCircle, AlertCircle, Clock, ArrowLeft, Brain, Search, Network, BarChart3, ArrowRight, Wand2, Copy, Save, Check } from "lucide-react";
 import { toast } from "sonner";
+import { 
+  generateAiPrompt, 
+  applyConnectorTransformations, 
+  CONNECTOR_PRESETS,
+  type ConnectorConfig,
+  type XmlFormat
+} from '@/lib/supplierConnector';
 
 import { SupplierHealthCards } from "@/components/supplier/SupplierHealthCards";
 import { SupplierTable } from "@/components/supplier/SupplierTable";
