@@ -636,7 +636,7 @@ const IngestionHubPage = () => {
         }
       }).eq("id", result.jobId);
 
-      toast.info(`A iniciar processamento de ${dataToProcess.length} produtos...`);
+      toast.info(`A iniciar processamento de ${finalData.length} produtos...`);
       await runJob.mutateAsync(result.jobId);
 
       triggerAutoDraftAfterIngestion(result.jobId);
