@@ -157,8 +157,20 @@ const GOOGLE_MERCHANT_PRIORITY_PARAMS = [
 ];
 
 function parsePriceCommaDecimal(val: string): number | null {
-  // Handles "1.000,00" (dot=thousands, comma=decimal) and "510,00"
-  const cleaned = String(val).replace(/\./g, '').replace(',', '.');
+  if (!val) return null;
+  const str = String(val).trim();
+  // Handle format "1.000,00" (dot=thousands, comma=decimal)
+  // and "510,00" (comma=decimal only)
+  let cleaned: string;
+  if (str.includes(',') && str.includes('.')) {
+    // Has both — dot is thousands separator, comma is decimal
+    cleaned = str.replace(/\./g, '').replace(',', '.');
+  } else if (str.includes(',')) {
+    // Only comma — it's the decimal separator
+    cleaned = str.replace(',', '.');
+  } else {
+    cleaned = str;
+  }
   const parsed = parseFloat(cleaned);
   return isNaN(parsed) || parsed <= 0 ? null : parsed;
 }
@@ -318,6 +330,14 @@ function applyToRow(
       result.attributes = { ...(result.attributes || {}), ...attributes };
     }
     if (technical_specs && !result.technical_specs) result.technical_specs = technical_specs;
+  }
+  
+  // Ensure string fields are never objects
+  const stringFields = ['original_title', 'short_description', 'original_description', 'ean', 'brand', 'model', 'category', 'sku'];
+  for (const field of stringFields) {
+    if (result[field] && typeof result[field] === 'object') {
+      result[field] = JSON.stringify(result[field]);
+    }
   }
   
   // 7. DESCRIPTION2 bullets → HTML

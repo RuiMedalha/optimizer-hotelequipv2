@@ -454,7 +454,7 @@ const IngestionHubPage = () => {
             document.querySelector('[data-mapping-section]')?.scrollIntoView({ behavior: 'smooth' });
           }, 300);
           
-          if (config.sku_prefix) setSkuPrefix(config.sku_prefix);
+          // if (config.sku_prefix) setSkuPrefix(config.sku_prefix); // Removed: connector already handles prefix
           if (config.default_brand) setDefaultBrand(config.default_brand);
           
           // Detect special fields for user selection
