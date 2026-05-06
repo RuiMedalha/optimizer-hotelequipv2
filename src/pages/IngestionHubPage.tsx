@@ -404,8 +404,6 @@ const IngestionHubPage = () => {
           });
           setFieldMappings(autoMappings);
         }
-
-        // Set prefixes and defaults from connector config
         if (config.sku_prefix) setSkuPrefix(config.sku_prefix);
         if (config.default_brand) setDefaultBrand(config.default_brand);
         
