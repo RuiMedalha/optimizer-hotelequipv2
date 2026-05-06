@@ -1342,6 +1342,24 @@ const IngestionHubPage = () => {
         onClose={() => setDetailJob(null)} 
         handleRemapJob={handleRemapJob}
       />
+
+      <AiPromptModal
+        isOpen={showAiPromptModal}
+        onClose={() => setShowAiPromptModal(false)}
+        prompt={aiPrompt}
+        onApply={(config) => {
+          if (!parsedData) return;
+          const fmt = detectedXmlFormat ? 'xml' : 
+                      (fileName.endsWith('.xlsx') || fileName.endsWith('.xls') ? 'excel' : 'csv');
+          setTransformedData(applyConnectorTransformations(
+            parsedData, 
+            config, 
+            fmt as any
+          ));
+          setConnectorApplied(true);
+        }}
+        supplierId={detectedSupplier?.id}
+      />
     </div>
   );
 };
