@@ -826,6 +826,12 @@ const IngestionHubPage = () => {
                 detection={currentDetection}
                 isDetecting={autoDetect.isPending}
               />
+              {connectorApplied && detectedSupplier && (
+                <div className="mt-4 flex items-center gap-2 px-4 py-2 bg-green-500/10 border border-green-500/30 rounded-lg text-sm text-green-400">
+                  <CheckCircle className="w-4 h-4" />
+                  Connector {detectedSupplier.supplier_name} aplicado automaticamente — dados processados e prontos para mapeamento
+                </div>
+              )}
 
               {/* Smart inference with review toggle */}
               {showReview ? (
