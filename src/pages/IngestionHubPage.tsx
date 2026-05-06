@@ -2172,12 +2172,37 @@ const AiPromptModal = ({
             <Button onClick={validateAndParse} disabled={!response.trim()}>Validar Resposta</Button>
           ) : (
             <>
-              <Button variant="secondary" onClick={() => { onApply(parsedConfig); onClose(); }}>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  if (!parsedConfig) {
+                    toast.error('Cola primeiro a resposta da IA e clica Validar');
+                    return;
+                  }
+                  onApply(parsedConfig);
+                  onClose();
+                }}
+              >
                 Testar Apenas
               </Button>
-              {supplierId && (
-                <Button onClick={saveToSupplier}>
-                  <Save className="w-4 h-4 mr-2" /> Guardar no Fornecedor
+              {supplierId && parsedConfig && (
+                <Button
+                  onClick={async () => {
+                    try {
+                      const { error } = await supabase
+                        .from('supplier_profiles')
+                        .update({ connector_config: parsedConfig })
+                        .eq('id', supplierId);
+                      if (error) throw error;
+                      toast.success('Connector guardado no fornecedor. Será aplicado automaticamente nas próximas importações.');
+                      onApply(parsedConfig);
+                      onClose();
+                    } catch (e: any) {
+                      toast.error(`Erro ao guardar: ${e.message}`);
+                    }
+                  }}
+                >
+                  <Save className="w-4 h-4 mr-2" /> Guardar no Fornecedor e Aplicar
                 </Button>
               )}
             </>
