@@ -339,6 +339,16 @@ function applyToRow(
     result.brand = config.default_brand;
   }
   
+  // Combine PRODUCTNAME + PRODUCT as title if original_title not set
+  if (!result.original_title && (row.PRODUCTNAME || row['g:title'])) {
+    result.original_title = row.PRODUCTNAME || row['g:title'];
+  }
+
+  // Ensure model is set from PRODUCTNAME
+  if (!result.model && row.PRODUCTNAME) {
+    result.model = row.PRODUCTNAME;
+  }
+  
   return result;
 }
 

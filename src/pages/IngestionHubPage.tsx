@@ -389,21 +389,21 @@ const IngestionHubPage = () => {
         setTransformedData(transformed);
         setConnectorApplied(true);
         
+        // Update headers to match the transformed data keys
+        const transformedHeaders = Object.keys(transformed[0] || {})
+          .filter(k => !k.startsWith('_'));
+        setParsedHeaders(transformedHeaders);
+
+        // Auto-set field mappings so each transformed field maps to itself
+        const selfMappings: Record<string, string> = {};
+        transformedHeaders.forEach(h => { selfMappings[h] = h; });
+        setFieldMappings(selfMappings);
+
         // Scroll to mapping section after connector applied
         setTimeout(() => {
           document.querySelector('[data-mapping-section]')?.scrollIntoView({ behavior: 'smooth' });
         }, 300);
         
-        // Auto-set field mappings from connector column_mapping
-        if (config.column_mapping) {
-          const autoMappings: Record<string, string> = {};
-          Object.entries(config.column_mapping).forEach(([src, dst]: [string, any]) => {
-            if (typeof dst === 'string' && !dst.includes('.')) {
-              autoMappings[src] = dst;
-            }
-          });
-          setFieldMappings(autoMappings);
-        }
         if (config.sku_prefix) setSkuPrefix(config.sku_prefix);
         if (config.default_brand) setDefaultBrand(config.default_brand);
         
