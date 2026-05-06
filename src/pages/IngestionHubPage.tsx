@@ -646,7 +646,7 @@ const IngestionHubPage = () => {
         body: {
           masterJobId: reconcileMasterId,
           deltaJobId: reconcileDeltaId,
-          workspaceId: (jobs?.[0] as any)?.workspace_id
+          workspaceId: workspaceId
         }
       });
 
