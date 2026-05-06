@@ -2009,53 +2009,6 @@ function ItemDetailDialog({
 
   const hasPending = Object.keys(pendingAdds).length > 0;
 
-const SpecialFieldsPicker = ({
-  priceFields,
-  onSelectPrice,
-  selectedPrice,
-}: {
-  priceFields: Array<{ key: string; label: string; sample: string }>;
-  onSelectPrice: (key: string) => void;
-  selectedPrice: string;
-}) => {
-  if (!priceFields.length) return null;
-  
-  return (
-    <Card className="border-amber-500/30 bg-amber-500/5">
-      <CardContent className="pt-4 space-y-3">
-        <div className="flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-amber-400" />
-          <p className="text-sm font-medium text-amber-400">
-            Foram detectados {priceFields.length} campos de preço — escolhe qual usar como preço de venda
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {priceFields.map(f => (
-            <button
-              key={f.key}
-              onClick={() => onSelectPrice(f.key)}
-              className={cn(
-                "px-3 py-2 rounded-lg border text-sm transition-all",
-                selectedPrice === f.key
-                  ? "border-primary bg-primary/10 text-primary font-medium"
-                  : "border-border hover:border-primary/50"
-              )}
-            >
-              <span className="font-mono font-medium">{f.label}</span>
-              <span className="ml-2 text-muted-foreground">{f.sample}</span>
-            </button>
-          ))}
-        </div>
-        {selectedPrice && (
-          <p className="text-xs text-muted-foreground">
-            ✓ Preço de venda: <strong>{selectedPrice}</strong>
-          </p>
-        )}
-      </CardContent>
-    </Card>
-  );
-};
-
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
