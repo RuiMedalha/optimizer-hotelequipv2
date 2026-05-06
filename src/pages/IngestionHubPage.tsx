@@ -485,11 +485,12 @@ const IngestionHubPage = () => {
   };
 
   const handleDryRun = async () => {
-    if (!parsedData) return;
+    const dataToProcess = transformedData.length > 0 ? transformedData : parsedData;
+    if (!dataToProcess) return;
     
     try {
       const result = await parseIngestion.mutateAsync({
-        data: parsedData,
+        data: dataToProcess,
         fileName,
         sourceType: fileName.endsWith(".csv") ? "csv" : fileName.endsWith(".json") ? "json" : "xlsx",
         fieldMappings,
