@@ -1935,4 +1935,133 @@ function ItemDetailDialog({
   );
 }
 
+// AI Prompt Generator Modal
+const AiPromptModal = ({ 
+  isOpen, 
+  onClose, 
+  prompt, 
+  onApply, 
+  supplierId 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  prompt: string; 
+  onApply: (config: any) => void;
+  supplierId?: string;
+}) => {
+  const [response, setResponse] = useState("");
+  const [parsedConfig, setParsedConfig] = useState<any>(null);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(prompt);
+    toast.success("Prompt copiado para a área de transferência.");
+  };
+
+  const validateAndParse = () => {
+    try {
+      // Find JSON block if AI included text around it
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : response;
+      const config = JSON.parse(jsonStr);
+      setParsedConfig(config);
+      toast.success("JSON validado com sucesso.");
+    } catch (e) {
+      toast.error("JSON inválido. Certifica-te que copiaste apenas o objeto JSON da resposta da IA.");
+    }
+  };
+
+  const saveToSupplier = async () => {
+    if (!supplierId || !parsedConfig) return;
+    try {
+      const { error } = await supabase
+        .from("supplier_profiles")
+        .update({ connector_config: parsedConfig })
+        .eq("id", supplierId);
+      if (error) throw error;
+      toast.success("Configuração guardada no perfil do fornecedor.");
+      onApply(parsedConfig);
+      onClose();
+    } catch (e: any) {
+      toast.error(`Erro ao guardar: ${e.message}`);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Wand2 className="w-5 h-5 text-primary" />
+            Gerar Configuração de Conector com IA
+          </DialogTitle>
+        </DialogHeader>
+        
+        <div className="flex-1 overflow-y-auto space-y-6 py-4">
+          <div className="space-y-2">
+            <Label className="text-xs font-bold uppercase text-muted-foreground">1. Copia este Prompt e envia para o ChatGPT/Claude</Label>
+            <div className="relative">
+              <ScrollArea className="h-48 w-full border rounded-md bg-muted/50 p-3 font-mono text-[10px]">
+                <pre className="whitespace-pre-wrap">{prompt}</pre>
+              </ScrollArea>
+              <Button size="sm" variant="secondary" className="absolute top-2 right-2 h-7 gap-1" onClick={handleCopy}>
+                <Copy className="w-3 h-3" /> Copiar
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs font-bold uppercase text-muted-foreground">2. Cola aqui a resposta da IA (apenas o JSON)</Label>
+            <Textarea 
+              className="h-48 font-mono text-xs" 
+              placeholder='{ "file_format": "xml", ... }'
+              value={response}
+              onChange={(e) => setResponse(e.target.value)}
+            />
+          </div>
+
+          {parsedConfig && (
+            <div className="space-y-2 p-3 bg-green-500/5 border border-green-500/20 rounded-md">
+              <Label className="text-xs font-bold text-green-600 flex items-center gap-1">
+                <Check className="w-3 h-3" /> Configuração Detectada
+              </Label>
+              <div className="grid grid-cols-2 gap-4 text-[10px]">
+                <div>
+                  <span className="text-muted-foreground">Formato:</span> {parsedConfig.file_format}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Prefixo SKU:</span> {parsedConfig.sku_prefix || "—"}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Mapeamentos:</span> {Object.keys(parsedConfig.column_mapping || {}).length}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Ignorados:</span> {parsedConfig.ignore_fields?.length || 0}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          {!parsedConfig ? (
+            <Button onClick={validateAndParse} disabled={!response.trim()}>Validar Resposta</Button>
+          ) : (
+            <>
+              <Button variant="secondary" onClick={() => { onApply(parsedConfig); onClose(); }}>
+                Testar Apenas
+              </Button>
+              {supplierId && (
+                <Button onClick={saveToSupplier}>
+                  <Save className="w-4 h-4 mr-2" /> Guardar no Fornecedor
+                </Button>
+              )}
+            </>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 export default IngestionHubPage;
