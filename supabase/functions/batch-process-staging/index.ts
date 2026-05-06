@@ -70,25 +70,56 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // BUSCAR CONFIGURAÇÃO DO JOB (Bug 2)
+        const { data: job } = await supabase
+          .from("ingestion_jobs")
+          .select("config, id")
+          .eq("id", staging.ingestion_job_id)
+          .single();
+
+        const jobConfig = job?.config || {};
+        const defaultBrand = jobConfig.defaultBrand || null;
+        const skuPrefix = jobConfig.skuPrefix || "";
+        const skuSuffix = jobConfig.skuSuffix || "";
+
         // Resolução do ID do produto
         let effectiveProductId = staging.existing_product_id;
         let existingProductData = null;
         
-        const { data: p } = await supabase
-          .from("products")
-          .select("id, brand, model, attributes, original_title, original_description, original_price")
-          .eq("workspace_id", workspaceId)
-          .eq("sku", sku)
-          .maybeSingle();
-        
-        if (p) {
-          effectiveProductId = p.id;
+        if (!effectiveProductId) {
+          const normalizedSkuSupplier = normalizeSKU(sku);
+          const variantsToTry = [
+            sku,
+            normalizedSkuSupplier
+          ];
+          if (skuPrefix) variantsToTry.push(skuPrefix + normalizedSkuSupplier);
+          if (skuSuffix) variantsToTry.push(normalizedSkuSupplier + skuSuffix);
+          if (skuPrefix && skuSuffix) variantsToTry.push(skuPrefix + normalizedSkuSupplier + skuSuffix);
+
+          const { data: prods } = await supabase
+            .from("products")
+            .select("id, sku, brand, model, attributes, original_title, original_description, original_price")
+            .eq("workspace_id", workspaceId)
+            .in("sku", variantsToTry);
+          
+          if (prods && prods.length > 0) {
+            const bestMatch = prods.find(p => p.sku === sku) || prods[0];
+            effectiveProductId = bestMatch.id;
+            existingProductData = bestMatch;
+          }
+        } else {
+           const { data: p } = await supabase
+            .from("products")
+            .select("id, sku, brand, model, attributes, original_title, original_description, original_price")
+            .eq("id", effectiveProductId)
+            .single();
           existingProductData = p;
         }
 
         if (action === 'draft_discontinued') {
           if (effectiveProductId) {
             await supabase.from("products").update({
+              status: 'discontinued',
               is_discontinued: true,
               stock: 0,
               workflow_state: 'draft',
@@ -99,6 +130,7 @@ Deno.serve(async (req) => {
               sku: sku,
               workspace_id: workspaceId,
               user_id: ws.user_id,
+              status: 'discontinued',
               workflow_state: 'draft',
               is_discontinued: true,
               stock: 0,
@@ -109,7 +141,7 @@ Deno.serve(async (req) => {
           
           await supabase.from("sync_staging").delete().eq("id", staging.id);
           processedCount++;
-        } 
+        }
         else if (action === 'create_drafts' && ws?.user_id) {
           // BUSCAR CONFIGURAÇÃO DO JOB
           const { data: job } = await supabase
