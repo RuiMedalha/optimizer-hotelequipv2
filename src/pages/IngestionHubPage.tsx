@@ -377,55 +377,59 @@ const IngestionHubPage = () => {
 
   // When supplier is detected with connector_config, auto-apply transformations
   useEffect(() => {
-    if (
-      detectedSupplier?.connector_config &&
-      Object.keys(detectedSupplier.connector_config).length > 0 &&
-      parsedData && parsedData.length > 0
-    ) {
-      const config = detectedSupplier.connector_config as any;
-      const fileFormat = detectedXmlFormat ? 'xml' : 
-                         (fileName.endsWith('.xlsx') || fileName.endsWith('.xls') ? 'excel' : 'csv');
-      
-      try {
-        const transformed = applyConnectorTransformations(parsedData, config, fileFormat);
-        setTransformedData(transformed);
-        setConnectorApplied(true);
+    const applyConnector = async () => {
+      if (
+        detectedSupplier?.connector_config &&
+        Object.keys(detectedSupplier.connector_config).length > 0 &&
+        parsedData && parsedData.length > 0
+      ) {
+        const config = detectedSupplier.connector_config as any;
+        const fileFormat = detectedXmlFormat ? 'xml' : 
+                           (fileName.endsWith('.xlsx') || fileName.endsWith('.xls') ? 'excel' : 'csv');
         
-        // Update headers to match the transformed data keys
-        const transformedHeaders = Object.keys(transformed[0] || {})
-          .filter(k => !k.startsWith('_'));
-        setParsedHeaders(transformedHeaders);
+        try {
+          const transformed = applyConnectorTransformations(parsedData, config, fileFormat);
+          setTransformedData(transformed);
+          setConnectorApplied(true);
+          
+          // Update headers to match the transformed data keys
+          const transformedHeaders = Object.keys(transformed[0] || {})
+            .filter(k => !k.startsWith('_'));
+          setParsedHeaders(transformedHeaders);
 
-        // Auto-set field mappings so each transformed field maps to itself
-        const selfMappings: Record<string, string> = {};
-        transformedHeaders.forEach(h => { selfMappings[h] = h; });
-        setFieldMappings(selfMappings);
+          // Auto-set field mappings so each transformed field maps to itself
+          const selfMappings: Record<string, string> = {};
+          transformedHeaders.forEach(h => { selfMappings[h] = h; });
+          setFieldMappings(selfMappings);
 
-        // Scroll to mapping section after connector applied
-        setTimeout(() => {
-          document.querySelector('[data-mapping-section]')?.scrollIntoView({ behavior: 'smooth' });
-        }, 300);
-        
-        if (config.sku_prefix) setSkuPrefix(config.sku_prefix);
-        if (config.default_brand) setDefaultBrand(config.default_brand);
-        
-        // Detect special fields for user selection
-        const { detectSpecialFields } = await import('@/lib/supplierConnector');
-        const special = detectSpecialFields(parsedData, 
-          Object.keys(parsedData[0] || {}).filter(k => !k.startsWith('_'))
-        );
-        setSpecialFields(special);
-        // Auto-select the first price field as default
-        if (special.priceFields.length > 0) {
-          setSelectedPriceField(special.priceFields[0].key);
+          // Scroll to mapping section after connector applied
+          setTimeout(() => {
+            document.querySelector('[data-mapping-section]')?.scrollIntoView({ behavior: 'smooth' });
+          }, 300);
+          
+          if (config.sku_prefix) setSkuPrefix(config.sku_prefix);
+          if (config.default_brand) setDefaultBrand(config.default_brand);
+          
+          // Detect special fields for user selection
+          const { detectSpecialFields } = await import('@/lib/supplierConnector');
+          const special = detectSpecialFields(parsedData, 
+            Object.keys(parsedData[0] || {}).filter(k => !k.startsWith('_'))
+          );
+          setSpecialFields(special);
+          // Auto-select the first price field as default
+          if (special.priceFields.length > 0) {
+            setSelectedPriceField(special.priceFields[0].key);
+          }
+
+          toast.success(`Conector ${detectedSupplier.supplier_name} aplicado com sucesso.`);
+        } catch (err: any) {
+          console.error("Error applying connector:", err);
+          toast.error(`Erro ao aplicar conector: ${err.message}`);
         }
-
-        toast.success(`Conector ${detectedSupplier.supplier_name} aplicado com sucesso.`);
-      } catch (err: any) {
-        console.error("Error applying connector:", err);
-        toast.error(`Erro ao aplicar conector: ${err.message}`);
       }
-    }
+    };
+
+    applyConnector();
   }, [detectedSupplier, parsedData, detectedXmlFormat, fileName]);
 
 
