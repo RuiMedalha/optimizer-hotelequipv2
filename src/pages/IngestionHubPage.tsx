@@ -365,7 +365,41 @@ const IngestionHubPage = () => {
       });
       setFieldMappings(autoMap);
     }
-  }, [autoDetect, inferMapping, generateDraft]);
+  }, [autoDetect, inferMapping, generateDraft, defaultBrand]);
+
+  // When supplier is detected with connector_config, auto-apply transformations
+  useEffect(() => {
+    if (
+      detectedSupplier?.connector_config &&
+      Object.keys(detectedSupplier.connector_config).length > 0 &&
+      parsedData && parsedData.length > 0
+    ) {
+      const config = detectedSupplier.connector_config as any;
+      const fileFormat = detectedXmlFormat ? 'xml' : 
+                         (fileName.endsWith('.xlsx') || fileName.endsWith('.xls') ? 'excel' : 'csv');
+      
+      try {
+        const transformed = applyConnectorTransformations(parsedData, config, fileFormat);
+        setTransformedData(transformed);
+        setConnectorApplied(true);
+        
+        // When connector is applied, the mapping should be simplified
+        if (config.column_mapping) {
+          const simplifiedMapping: Record<string, string> = {};
+          // Only map fields that are actually in the output
+          Object.values(config.column_mapping).forEach((val: any) => {
+            if (typeof val === 'string') simplifiedMapping[val] = val;
+          });
+          // setFieldMappings(simplifiedMapping); // Not strictly needed if we use transformedData for preview
+        }
+        
+        toast.success(`Conector ${detectedSupplier.supplier_name} aplicado com sucesso.`);
+      } catch (err: any) {
+        console.error("Error applying connector:", err);
+        toast.error(`Erro ao aplicar conector: ${err.message}`);
+      }
+    }
+  }, [detectedSupplier, parsedData, detectedXmlFormat, fileName]);
 
 
   const onDrop = useCallback((e: React.DragEvent) => {
