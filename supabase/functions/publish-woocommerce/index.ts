@@ -3168,7 +3168,9 @@ async function publishVariableProduct(
     if (attrId) {
       await ensureWooBrandTerm(baseUrl, auth, attrId, brandValVar);
     }
-    await assignBrandToProductTaxonomies(baseUrl, auth, brandValVar, parentPayload);
+    const taxonomyId = await assignBrandToProductTaxonomies(baseUrl, auth, brandValVar, parentPayload);
+    // Refresh meta with numeric ID if available
+    ensureBrandMeta(parentPayload, brandValVar, taxonomyId);
   }
 
   let existingParentWooId = parent.woocommerce_id;
