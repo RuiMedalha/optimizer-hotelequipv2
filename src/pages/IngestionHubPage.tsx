@@ -549,10 +549,23 @@ const IngestionHubPage = () => {
   const handleDryRun = async () => {
     const dataToProcess = transformedData.length > 0 ? transformedData : parsedData;
     if (!dataToProcess) return;
-    
+
+    // Apply selected price field override
+    const finalData = selectedPriceField ? dataToProcess.map(row => ({
+      ...row,
+      original_price: row[selectedPriceField] !== undefined 
+        ? (() => {
+            const raw = String(row[selectedPriceField] || '');
+            const cleaned = raw.replace(/\./g, '').replace(',', '.');
+            const parsed = parseFloat(cleaned);
+            return isNaN(parsed) || parsed <= 0 ? row.original_price : parsed;
+          })()
+        : row.original_price
+    })) : dataToProcess;
+
     try {
       const result = await parseIngestion.mutateAsync({
-        data: dataToProcess,
+        data: finalData,
         fileName,
         sourceType: fileName.endsWith(".csv") ? "csv" : fileName.endsWith(".json") ? "json" : "xlsx",
         fieldMappings,
