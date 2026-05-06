@@ -12818,9 +12818,14 @@ export type Database = {
       supplier_profiles: {
         Row: {
           base_url: string | null
+          connector_config: Json | null
           country_code: string | null
           created_at: string | null
           default_currency: string | null
+          feed_auth_config: Json | null
+          feed_last_sync_at: string | null
+          feed_url_csv: string | null
+          feed_url_xml: string | null
           id: string
           is_active: boolean | null
           search_url_template: string | null
@@ -12832,9 +12837,14 @@ export type Database = {
         }
         Insert: {
           base_url?: string | null
+          connector_config?: Json | null
           country_code?: string | null
           created_at?: string | null
           default_currency?: string | null
+          feed_auth_config?: Json | null
+          feed_last_sync_at?: string | null
+          feed_url_csv?: string | null
+          feed_url_xml?: string | null
           id?: string
           is_active?: boolean | null
           search_url_template?: string | null
@@ -12846,9 +12856,14 @@ export type Database = {
         }
         Update: {
           base_url?: string | null
+          connector_config?: Json | null
           country_code?: string | null
           created_at?: string | null
           default_currency?: string | null
+          feed_auth_config?: Json | null
+          feed_last_sync_at?: string | null
+          feed_url_csv?: string | null
+          feed_url_xml?: string | null
           id?: string
           is_active?: boolean | null
           search_url_template?: string | null
