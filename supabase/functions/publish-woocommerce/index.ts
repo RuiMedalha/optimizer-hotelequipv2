@@ -2934,7 +2934,31 @@ async function publishSingleProduct(
     })
     .eq("id", enrichedProduct.id);
 
+  // Cache-bust: força WooCommerce a recalcular meta/transients após PUT/POST via REST.
+  await wooCacheRefresh(baseUrl, auth, wooData.id);
+
   return { id: enrichedProduct.id, status: action, woocommerce_id: wooData.id };
+}
+
+async function wooCacheRefresh(baseUrl: string, auth: string, productId: number | string): Promise<void> {
+  if (!productId) return;
+  try {
+    const resp = await fetch(`${baseUrl}/wp-json/wc/v3/products/${productId}`, {
+      method: "PUT",
+      headers: {
+        Authorization: auth,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ status: "publish" }),
+    });
+    if (!resp.ok) {
+      console.warn(`[wooCacheRefresh] WC#${productId} cache refresh returned ${resp.status}`);
+    } else {
+      console.log(`[wooCacheRefresh] WC#${productId} cache refreshed`);
+    }
+  } catch (e) {
+    console.warn(`[wooCacheRefresh] WC#${productId} failed:`, (e as Error).message);
+  }
 }
 
 async function publishVariableProduct(
@@ -3149,6 +3173,9 @@ async function publishVariableProduct(
       workflow_state: "published" as any 
     })
     .eq("id", parent.id);
+
+  // Cache-bust no parent variável para forçar refresh de meta/transients.
+  await wooCacheRefresh(baseUrl, auth, parentWooId);
 
   return { id: parent.id, status: parentAction, woocommerce_id: parentWooId };
 }
