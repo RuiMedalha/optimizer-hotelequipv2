@@ -146,10 +146,14 @@ Deno.serve(async (req) => {
       if (sku) {
         masterMap.set(sku, item);
         // Also map with prefix/suffix if present in job config (Bug 2)
-        const config = deltaJob?.config || {};
-        if (config.skuPrefix) masterMap.set(config.skuPrefix + sku, item);
-        if (config.skuSuffix) masterMap.set(sku + config.skuSuffix, item);
-        if (config.skuPrefix && config.skuSuffix) masterMap.set(config.skuPrefix + sku + config.skuSuffix, item);
+        const skuPrefix = config.skuPrefix || "";
+        const skuSuffix = config.skuSuffix || "";
+        const alreadyHasPrefix = skuPrefix && sku.startsWith(skuPrefix);
+        const alreadyHasSuffix = skuSuffix && sku.endsWith(skuSuffix);
+
+        if (!alreadyHasPrefix && skuPrefix) masterMap.set(skuPrefix + sku, item);
+        if (!alreadyHasSuffix && skuSuffix) masterMap.set(sku + skuSuffix, item);
+        if (!alreadyHasPrefix && !alreadyHasSuffix && skuPrefix && skuSuffix) masterMap.set(skuPrefix + sku + skuSuffix, item);
       }
     });
 
@@ -206,10 +210,13 @@ Deno.serve(async (req) => {
       // Secondary lookup against products table (Bug 4)
       let existingProduct = null;
       if (normalizedSku) {
+        const alreadyHasPrefix = skuPrefix && normalizedSku.startsWith(skuPrefix);
+        const alreadyHasSuffix = skuSuffix && normalizedSku.endsWith(skuSuffix);
+
         existingProduct = productSkuMap.get(normalizedSku) || 
-                          (skuPrefix ? productSkuMap.get(skuPrefix + normalizedSku) : null) ||
-                          (skuSuffix ? productSkuMap.get(normalizedSku + skuSuffix) : null) ||
-                          (skuPrefix && skuSuffix ? productSkuMap.get(skuPrefix + normalizedSku + skuSuffix) : null);
+                          (!alreadyHasPrefix && skuPrefix ? productSkuMap.get(skuPrefix + normalizedSku) : null) ||
+                          (!alreadyHasSuffix && skuSuffix ? productSkuMap.get(normalizedSku + skuSuffix) : null) ||
+                          (!alreadyHasPrefix && !alreadyHasSuffix && skuPrefix && skuSuffix ? productSkuMap.get(skuPrefix + normalizedSku + skuSuffix) : null);
       }
 
       // If no master job item found, but product exists, simulate a master item
