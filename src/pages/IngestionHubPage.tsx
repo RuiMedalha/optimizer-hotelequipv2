@@ -156,16 +156,15 @@ const IngestionHubPage = () => {
 
     if (ext === "csv") {
       const text = await file.text();
-      const lines = text.split("\n").filter(l => l.trim());
-      if (lines.length === 0) return;
-      const sep = lines[0].includes(";") ? ";" : ",";
-      headers = lines[0].split(sep).map(h => h.trim().replace(/^"|"$/g, ""));
-      rows = lines.slice(1).map(line => {
-        const vals = line.split(sep).map(v => v.trim().replace(/^"|"$/g, ""));
-        const obj: Record<string, string> = {};
-        headers.forEach((h, i) => { obj[h] = vals[i] || ""; });
-        return obj;
+      const result = Papa.parse(text, {
+        header: true,
+        skipEmptyLines: true,
+        dynamicTyping: false,
+        delimiter: '', // auto-detect: handles both comma and semicolon
       });
+
+      headers = result.meta.fields || [];
+      rows = result.data as Record<string, string>[];
     } else if (ext === "xlsx" || ext === "xls") {
       const buffer = await file.arrayBuffer();
       const wb = XLSX.read(buffer);
