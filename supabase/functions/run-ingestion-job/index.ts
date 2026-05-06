@@ -8,10 +8,10 @@ const corsHeaders = {
 const normalizeSKU = (sku: string): string => {
   if (!sku) return "";
   let normalized = sku.trim().toUpperCase();
-  // Remover espaços extras e hífens múltiplos
-  normalized = normalized.replace(/\s+/g, "").replace(/-+/g, "-");
-  // Tratar zeros à esquerda (001 -> 1)
-  normalized = normalized.replace(/^0+/, "");
+  normalized = normalized.replace(/[/\\]/g, "-");
+  normalized = normalized.replace(/\s+/g, "");
+  normalized = normalized.replace(/-+/g, "-");
+  normalized = normalized.replace(/^-|-$/g, "");
   return normalized || "0";
 };
 
@@ -271,12 +271,27 @@ Deno.serve(async (req) => {
     // Using cache to avoid repeating this for every batch invocation if possible, 
     // but for now, ensuring we get a broader set for matching.
     const existingProductsList: any[] = [];
-    const { data: allWorkspaceProducts } = await supabase
-      .from("products")
-      .select("id, sku, ean, model, brand, original_title")
-      .eq("workspace_id", workspaceId);
-    
-    if (allWorkspaceProducts) existingProductsList.push(...allWorkspaceProducts);
+    let allWorkspaceProducts: any[] = [];
+    let hasMoreProducts = true;
+    let productOffset = 0;
+    const PRODUCT_PAGE_SIZE = 1000;
+
+    while (hasMoreProducts) {
+      const { data: productPage, error: prodErr } = await supabase
+        .from("products")
+        .select("id, sku, ean, model, brand, original_title")
+        .eq("workspace_id", workspaceId)
+        .range(productOffset, productOffset + PRODUCT_PAGE_SIZE - 1);
+      if (prodErr) throw prodErr;
+      if (productPage && productPage.length > 0) {
+        allWorkspaceProducts = [...allWorkspaceProducts, ...productPage];
+        productOffset += PRODUCT_PAGE_SIZE;
+        if (productPage.length < PRODUCT_PAGE_SIZE) hasMoreProducts = false;
+      } else {
+        hasMoreProducts = false;
+      }
+    }
+    if (allWorkspaceProducts.length > 0) existingProductsList.push(...allWorkspaceProducts);
 
     const existingProductsMap = new Map<string, any>();
     const normalizedProductsMap = new Map<string, any>();
@@ -427,19 +442,36 @@ Deno.serve(async (req) => {
               productId = existingId;
               updated++;
             } else {
-              const { data: newProd, error: insertErr } = await supabase
+              const { data: existingAfterCheck } = await supabase
                 .from("products")
-                .insert({
-                  ...mergedData,
-                  workspace_id: workspaceId,
-                  user_id: user.id,
-                  status: 'pending'
-                })
                 .select("id")
-                .single();
-              if (insertErr) throw insertErr;
-              productId = newProd.id;
-              imported++;
+                .eq("workspace_id", workspaceId)
+                .eq("sku", mergedData.sku)
+                .maybeSingle();
+
+              if (existingAfterCheck) {
+                const { error: updateErr } = await supabase
+                  .from("products")
+                  .update({ ...mergedData, updated_at: new Date().toISOString() })
+                  .eq("id", existingAfterCheck.id);
+                if (updateErr) throw updateErr;
+                productId = existingAfterCheck.id;
+                updated++;
+              } else {
+                const { data: newProd, error: insertErr } = await supabase
+                  .from("products")
+                  .insert({
+                    ...mergedData,
+                    workspace_id: workspaceId,
+                    user_id: user.id,
+                    status: 'pending'
+                  })
+                  .select("id")
+                  .single();
+                if (insertErr) throw insertErr;
+                productId = newProd.id;
+                imported++;
+              }
             }
           }
 
