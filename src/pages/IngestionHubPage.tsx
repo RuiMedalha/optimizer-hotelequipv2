@@ -150,6 +150,8 @@ const IngestionHubPage = () => {
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [detectedSupplier, setDetectedSupplier] = useState<any>(null);
+  const [specialFields, setSpecialFields] = useState<any>(null);
+  const [selectedPriceField, setSelectedPriceField] = useState<string>('');
 
   // Auto-select latest master and delta if not set
   useEffect(() => {
