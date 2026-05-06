@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { supplierId, format } = await req.json();
+    const { supplierId, workspaceId, format, feedUrl: directUrl } = await req.json();
     
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -106,6 +106,23 @@ Deno.serve(async (req) => {
       
     if (error || !supplier) throw new Error("Supplier not found");
     
+    if (directUrl) {
+      // Use URL directly without looking up supplier
+      const response = await fetch(directUrl);
+      if (!response.ok) throw new Error(`Feed fetch failed: ${response.status}`);
+      const text = await response.text();
+      const xmlFmt = detectXmlFormat(text);
+      let rows: any[] = [];
+      if (xmlFmt === 'tefcold') rows = parseTefcoldXml(text);
+      else if (xmlFmt === 'google_merchant') rows = parseGoogleMerchantXml(text);
+      else if (format === 'csv') {
+        return new Response(JSON.stringify({ format: 'csv', rawText: text, totalRows: text.split('\n').length - 1 }), 
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      } else throw new Error('Formato não reconhecido');
+      return new Response(JSON.stringify({ format: 'xml', xmlFormat: xmlFmt, rows: rows.slice(0,5), allRows: rows, totalRows: rows.length }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
     const url = format === 'csv' ? supplier.feed_url_csv : supplier.feed_url_xml;
     if (!url) throw new Error(`No ${format} feed URL configured for this supplier`);
     
