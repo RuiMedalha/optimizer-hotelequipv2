@@ -386,6 +386,11 @@ const IngestionHubPage = () => {
         setTransformedData(transformed);
         setConnectorApplied(true);
         
+        // Scroll to mapping section after connector applied
+        setTimeout(() => {
+          document.querySelector('[data-mapping-section]')?.scrollIntoView({ behavior: 'smooth' });
+        }, 300);
+        
         // When connector is applied, the mapping should be simplified
         if (config.column_mapping) {
           const simplifiedMapping: Record<string, string> = {};
