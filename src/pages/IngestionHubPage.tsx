@@ -394,15 +394,20 @@ const IngestionHubPage = () => {
           document.querySelector('[data-mapping-section]')?.scrollIntoView({ behavior: 'smooth' });
         }, 300);
         
-        // When connector is applied, the mapping should be simplified
+        // Auto-set field mappings from connector column_mapping
         if (config.column_mapping) {
-          const simplifiedMapping: Record<string, string> = {};
-          // Only map fields that are actually in the output
-          Object.values(config.column_mapping).forEach((val: any) => {
-            if (typeof val === 'string') simplifiedMapping[val] = val;
+          const autoMappings: Record<string, string> = {};
+          Object.entries(config.column_mapping).forEach(([src, dst]: [string, any]) => {
+            if (typeof dst === 'string' && !dst.includes('.')) {
+              autoMappings[src] = dst;
+            }
           });
-          // setFieldMappings(simplifiedMapping); // Not strictly needed if we use transformedData for preview
+          setFieldMappings(autoMappings);
         }
+
+        // Set prefixes and defaults from connector config
+        if (config.sku_prefix) setSkuPrefix(config.sku_prefix);
+        if (config.default_brand) setDefaultBrand(config.default_brand);
         
         toast.success(`Conector ${detectedSupplier.supplier_name} aplicado com sucesso.`);
       } catch (err: any) {
@@ -480,11 +485,12 @@ const IngestionHubPage = () => {
   };
 
   const handleDryRun = async () => {
-    if (!parsedData) return;
+    const dataToProcess = transformedData.length > 0 ? transformedData : parsedData;
+    if (!dataToProcess) return;
     
     try {
       const result = await parseIngestion.mutateAsync({
-        data: parsedData,
+        data: dataToProcess,
         fileName,
         sourceType: fileName.endsWith(".csv") ? "csv" : fileName.endsWith(".json") ? "json" : "xlsx",
         fieldMappings,
@@ -507,11 +513,12 @@ const IngestionHubPage = () => {
   };
 
   const handleLiveRun = async () => {
-    if (!parsedData) return;
+    const dataToProcess = transformedData.length > 0 ? transformedData : parsedData;
+    if (!dataToProcess) return;
 
     try {
       const result = await parseIngestion.mutateAsync({
-        data: parsedData,
+        data: dataToProcess,
         fileName,
         sourceType: fileName.endsWith(".csv") ? "csv" : fileName.endsWith(".json") ? "json" : "xlsx",
         fieldMappings,
@@ -541,7 +548,7 @@ const IngestionHubPage = () => {
         }
       }).eq("id", result.jobId);
 
-      toast.info(`A iniciar processamento de ${parsedData.length} produtos...`);
+      toast.info(`A iniciar processamento de ${dataToProcess.length} produtos...`);
       await runJob.mutateAsync(result.jobId);
 
       triggerAutoDraftAfterIngestion(result.jobId);
@@ -550,15 +557,16 @@ const IngestionHubPage = () => {
   };
 
   const triggerAutoDraftAfterIngestion = (jobId: string) => {
-    if (!parsedData || !parsedHeaders.length) return;
+    const dataToProcess = transformedData.length > 0 ? transformedData : parsedData;
+    if (!dataToProcess || !parsedHeaders.length) return;
     const ext = fileName.split(".").pop()?.toLowerCase() || "xlsx";
     triggerAutoDraftFromIngestion.mutate({
       ingestion_job_id: jobId,
       file_name: fileName,
       headers: parsedHeaders,
-      sample_data: parsedData.length > 100 
-        ? [...parsedData.slice(0, 50), ...parsedData.slice(-50)] 
-        : parsedData,
+      sample_data: dataToProcess.length > 100 
+        ? [...dataToProcess.slice(0, 50), ...dataToProcess.slice(-50)] 
+        : dataToProcess,
       source_type: ext,
     });
   };
@@ -939,7 +947,7 @@ const IngestionHubPage = () => {
                   detection={currentDetection}
                   inference={currentInference}
                   draft={null}
-                  parsedData={parsedData}
+                  parsedData={transformedData.length > 0 ? transformedData : parsedData}
                   fieldMappings={fieldMappings}
                   onConfirmImport={handleLiveRun}
                   onCorrectMapping={() => setShowReview(false)}
@@ -1051,7 +1059,7 @@ const IngestionHubPage = () => {
                     <SmartColumnInferencePreview
                       inference={currentInference}
                       headers={parsedHeaders}
-                      sampleData={parsedData || []}
+                      sampleData={(transformedData.length > 0 ? transformedData : parsedData) || []}
                       fieldMappings={fieldMappings}
                       onMappingChange={setFieldMappings}
                     />
