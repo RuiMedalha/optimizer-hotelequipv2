@@ -1083,6 +1083,29 @@ const IngestionHubPage = () => {
                       {(parseIngestion.isPending || runJob.isPending) ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Play className="w-4 h-4 mr-1" />}
                       Importar Agora
                     </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const dataToUse = (transformedData && transformedData.length > 0) 
+                          ? transformedData 
+                          : (parsedData || []);
+                        const fmt: any = detectedXmlFormat ? 'xml' 
+                          : (fileName?.endsWith('.xlsx') || fileName?.endsWith('.xls') ? 'excel' : 'csv');
+                        const prompt = generateAiPrompt(
+                          dataToUse,
+                          parsedHeaders || [],
+                          fmt,
+                          detectedXmlFormat as any
+                        );
+                        setAiPrompt(prompt);
+                        setShowAiPromptModal(true);
+                      }}
+                      disabled={!parsedData || parsedData.length === 0}
+                    >
+                      <Wand2 className="w-4 h-4 mr-2" />
+                      Gerar Prompt para IA
+                    </Button>
                     <Button variant="ghost" onClick={() => setShowCorrections(!showCorrections)}>
                       Correções
                     </Button>
