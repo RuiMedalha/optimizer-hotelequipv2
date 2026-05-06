@@ -128,6 +128,7 @@ Deno.serve(async (req) => {
       model: "model",
       modelo: "model",
       ean: "ean",
+      woocommerce_id: "woocommerce_id",
       original_price: "original_price",
       price: "original_price",
       sale_price: "sale_price",
@@ -148,7 +149,7 @@ Deno.serve(async (req) => {
       "original_price", "optimized_price", "sale_price", "optimized_sale_price",
       "category", "brand", "model", "tags", "meta_title", "meta_description", "seo_slug",
       "short_description", "optimized_short_description", "technical_specs",
-      "image_urls", "product_type", "stock", "supplier_ref", "ean"
+      "image_urls", "product_type", "stock", "supplier_ref", "ean", "woocommerce_id"
     ]);
 
     function buildProductData(mapped: Record<string, any>, isRawData = false): Record<string, any> {
@@ -200,6 +201,11 @@ Deno.serve(async (req) => {
       if (productData.original_price !== undefined) productData.original_price = parsePrice(productData.original_price);
       if (productData.sale_price !== undefined) productData.sale_price = parsePrice(productData.sale_price);
       if (productData.stock !== undefined) productData.stock = parseInt(String(productData.stock).replace(/\D/g, ""), 10) || 0;
+
+      if (productData.woocommerce_id !== undefined) {
+        const wooId = parseInt(String(productData.woocommerce_id), 10);
+        productData.woocommerce_id = isNaN(wooId) || wooId <= 0 ? null : wooId;
+      }
 
       // Fallbacks for title/description if missing
       if (!productData.original_title) {
@@ -279,7 +285,7 @@ Deno.serve(async (req) => {
     while (hasMoreProducts) {
       const { data: productPage, error: prodErr } = await supabase
         .from("products")
-        .select("id, sku, model, brand, original_title")
+        .select("id, sku, ean, woocommerce_id, model, brand, original_title")
         .eq("workspace_id", workspaceId)
         .range(productOffset, productOffset + PRODUCT_PAGE_SIZE - 1);
       if (prodErr) throw prodErr;
@@ -301,6 +307,13 @@ Deno.serve(async (req) => {
         const upSku = p.sku.toUpperCase();
         existingProductsMap.set(upSku, p);
         normalizedProductsMap.set(normalizeSKU(upSku), p);
+      }
+    });
+
+    const eanProductMap = new Map<string, any>();
+    existingProductsList.forEach(p => {
+      if (p.ean && String(p.ean).trim()) {
+        eanProductMap.set(String(p.ean).trim(), p);
       }
     });
 
@@ -377,6 +390,16 @@ Deno.serve(async (req) => {
                 }
               }
             }
+
+            if (!existingProduct && mergedData.ean && String(mergedData.ean).trim()) {
+              const eanMatch = eanProductMap.get(String(mergedData.ean).trim());
+              if (eanMatch) {
+                existingProduct = eanMatch;
+                matchMethod = "ean";
+                confidence = 98;
+              }
+            }
+          }
           }
 
 

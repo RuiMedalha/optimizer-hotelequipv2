@@ -9839,6 +9839,7 @@ export type Database = {
           certifications: Json | null
           created_at: string
           crosssell_skus: Json | null
+          ean: string | null
           faq: Json | null
           focus_keyword: string[] | null
           id: string
@@ -9903,6 +9904,7 @@ export type Database = {
           certifications?: Json | null
           created_at?: string
           crosssell_skus?: Json | null
+          ean?: string | null
           faq?: Json | null
           focus_keyword?: string[] | null
           id?: string
@@ -9969,6 +9971,7 @@ export type Database = {
           certifications?: Json | null
           created_at?: string
           crosssell_skus?: Json | null
+          ean?: string | null
           faq?: Json | null
           focus_keyword?: string[] | null
           id?: string

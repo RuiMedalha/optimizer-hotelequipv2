@@ -140,6 +140,8 @@ Deno.serve(async (req) => {
           const sTitle = cleanSupplierValue(rawData.original_title ?? rawData.supplier_title ?? rawData.title);
           const sDesc = cleanSupplierValue(rawData.original_description ?? rawData.supplier_description ?? rawData.description);
           const price = cleanSupplierValue(rawData.original_price ?? rawData.price ?? rawData.Preço ?? rawData.Publico);
+          const ean = cleanSupplierValue(rawData.ean);
+          const woocommerceId = rawData.woocommerce_id ? parseInt(String(rawData.woocommerce_id), 10) : null;
 
           // Validação básica
           if (!sTitle && !existingProductData?.original_title) {
@@ -156,6 +158,8 @@ Deno.serve(async (req) => {
               original_title: sTitle || existingProductData.original_title,
               original_description: sDesc || existingProductData.original_description,
               original_price: price || existingProductData.original_price,
+              ...(ean !== undefined && { ean }),
+              ...(woocommerceId && woocommerceId > 0 && { woocommerce_id: woocommerceId }),
               updated_at: new Date().toISOString()
             }).eq("id", effectiveProductId);
           } else {
@@ -173,6 +177,8 @@ Deno.serve(async (req) => {
               original_title: sTitle,
               original_description: sDesc,
               original_price: price,
+              ...(ean !== undefined && { ean }),
+              ...(woocommerceId && woocommerceId > 0 && { woocommerce_id: woocommerceId }),
               is_discontinued: false
             };
             await supabase.from("products").insert(productToInsert);
