@@ -279,7 +279,7 @@ Deno.serve(async (req) => {
     while (hasMoreProducts) {
       const { data: productPage, error: prodErr } = await supabase
         .from("products")
-        .select("id, sku, ean, model, brand, original_title")
+        .select("id, sku, model, brand, original_title")
         .eq("workspace_id", workspaceId)
         .range(productOffset, productOffset + PRODUCT_PAGE_SIZE - 1);
       if (prodErr) throw prodErr;
