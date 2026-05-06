@@ -361,8 +361,60 @@ export function applyConnectorTransformations(
 }
 
 // ============================================================
+// SPECIAL FIELDS DETECTION
+// ============================================================
+
+export function detectSpecialFields(
+  rows: Record<string, any>[],
+  headers: string[]
+): {
+  priceFields: Array<{ key: string; label: string; sample: string }>;
+  imageFields: Array<{ key: string; label: string; sample: string }>;
+  descriptionFields: Array<{ key: string; label: string; sample: string }>;
+} {
+  if (!rows.length) return { priceFields: [], imageFields: [], descriptionFields: [] };
+  
+  const sample = rows[0];
+  
+  // Detect price fields — numeric values that look like prices
+  const priceFields = headers
+    .filter(h => {
+      const val = String(sample[h] || '');
+      const cleaned = val.replace(/[.,\s€$£]/g, '');
+      return /^\d+$/.test(cleaned) && parseFloat(val.replace(',', '.')) > 0;
+    })
+    .map(h => ({
+      key: h,
+      label: h,
+      sample: String(sample[h] || '')
+    }));
+
+  // Detect image fields — URLs that look like images
+  const imageFields = headers
+    .filter(h => {
+      const val = String(sample[h] || '');
+      return val.startsWith('http') && (
+        val.includes('/image') || val.includes('img') || 
+        h.toLowerCase().includes('img') || h.toLowerCase().includes('image')
+      );
+    })
+    .map(h => ({ key: h, label: h, sample: String(sample[h] || '').substring(0, 60) + '...' }));
+
+  // Detect description fields — long text
+  const descriptionFields = headers
+    .filter(h => {
+      const val = String(sample[h] || '');
+      return val.length > 80 && !val.startsWith('http');
+    })
+    .map(h => ({ key: h, label: h, sample: String(sample[h] || '').substring(0, 80) + '...' }));
+
+  return { priceFields, imageFields, descriptionFields };
+}
+
+// ============================================================
 // AI PROMPT GENERATOR
 // ============================================================
+
 
 export function generateAiPrompt(
   rows: Record<string, any>[],
