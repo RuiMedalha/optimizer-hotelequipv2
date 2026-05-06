@@ -139,6 +139,7 @@ function SupplierDetail({ supplier, onBack }: { supplier: any; onBack: () => voi
       <Tabs defaultValue="schemas">
         <TabsList className="flex-wrap">
           <TabsTrigger value="schemas">Estrutura</TabsTrigger>
+          <TabsTrigger value="feed">Feed & Connector</TabsTrigger>
           <TabsTrigger value="patterns">Padrões</TabsTrigger>
           <TabsTrigger value="mappings">Mapeamentos</TabsTrigger>
           <TabsTrigger value="graph">Knowledge Graph</TabsTrigger>
