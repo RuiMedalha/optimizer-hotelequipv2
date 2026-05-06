@@ -146,10 +146,14 @@ Deno.serve(async (req) => {
       if (sku) {
         masterMap.set(sku, item);
         // Also map with prefix/suffix if present in job config (Bug 2)
-        const config = deltaJob?.config || {};
-        if (config.skuPrefix) masterMap.set(config.skuPrefix + sku, item);
-        if (config.skuSuffix) masterMap.set(sku + config.skuSuffix, item);
-        if (config.skuPrefix && config.skuSuffix) masterMap.set(config.skuPrefix + sku + config.skuSuffix, item);
+        const skuPrefix = config.skuPrefix || "";
+        const skuSuffix = config.skuSuffix || "";
+        const alreadyHasPrefix = skuPrefix && sku.startsWith(skuPrefix);
+        const alreadyHasSuffix = skuSuffix && sku.endsWith(skuSuffix);
+
+        if (!alreadyHasPrefix && skuPrefix) masterMap.set(skuPrefix + sku, item);
+        if (!alreadyHasSuffix && skuSuffix) masterMap.set(sku + skuSuffix, item);
+        if (!alreadyHasPrefix && !alreadyHasSuffix && skuPrefix && skuSuffix) masterMap.set(skuPrefix + sku + skuSuffix, item);
       }
     });
 
