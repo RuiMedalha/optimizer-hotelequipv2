@@ -3174,6 +3174,9 @@ async function publishVariableProduct(
     })
     .eq("id", parent.id);
 
+  // Cache-bust no parent variável para forçar refresh de meta/transients.
+  await wooCacheRefresh(baseUrl, auth, parentWooId);
+
   return { id: parent.id, status: parentAction, woocommerce_id: parentWooId };
 }
 
