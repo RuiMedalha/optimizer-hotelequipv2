@@ -210,10 +210,13 @@ Deno.serve(async (req) => {
       // Secondary lookup against products table (Bug 4)
       let existingProduct = null;
       if (normalizedSku) {
+        const alreadyHasPrefix = skuPrefix && normalizedSku.startsWith(skuPrefix);
+        const alreadyHasSuffix = skuSuffix && normalizedSku.endsWith(skuSuffix);
+
         existingProduct = productSkuMap.get(normalizedSku) || 
-                          (skuPrefix ? productSkuMap.get(skuPrefix + normalizedSku) : null) ||
-                          (skuSuffix ? productSkuMap.get(normalizedSku + skuSuffix) : null) ||
-                          (skuPrefix && skuSuffix ? productSkuMap.get(skuPrefix + normalizedSku + skuSuffix) : null);
+                          (!alreadyHasPrefix && skuPrefix ? productSkuMap.get(skuPrefix + normalizedSku) : null) ||
+                          (!alreadyHasSuffix && skuSuffix ? productSkuMap.get(normalizedSku + skuSuffix) : null) ||
+                          (!alreadyHasPrefix && !alreadyHasSuffix && skuPrefix && skuSuffix ? productSkuMap.get(skuPrefix + normalizedSku + skuSuffix) : null);
       }
 
       // If no master job item found, but product exists, simulate a master item
