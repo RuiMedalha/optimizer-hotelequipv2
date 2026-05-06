@@ -1059,7 +1059,7 @@ const IngestionHubPage = () => {
                     <SmartColumnInferencePreview
                       inference={currentInference}
                       headers={parsedHeaders}
-                      sampleData={parsedData || []}
+                      sampleData={(transformedData.length > 0 ? transformedData : parsedData) || []}
                       fieldMappings={fieldMappings}
                       onMappingChange={setFieldMappings}
                     />
