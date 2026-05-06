@@ -394,15 +394,20 @@ const IngestionHubPage = () => {
           document.querySelector('[data-mapping-section]')?.scrollIntoView({ behavior: 'smooth' });
         }, 300);
         
-        // When connector is applied, the mapping should be simplified
+        // Auto-set field mappings from connector column_mapping
         if (config.column_mapping) {
-          const simplifiedMapping: Record<string, string> = {};
-          // Only map fields that are actually in the output
-          Object.values(config.column_mapping).forEach((val: any) => {
-            if (typeof val === 'string') simplifiedMapping[val] = val;
+          const autoMappings: Record<string, string> = {};
+          Object.entries(config.column_mapping).forEach(([src, dst]: [string, any]) => {
+            if (typeof dst === 'string' && !dst.includes('.')) {
+              autoMappings[src] = dst;
+            }
           });
-          // setFieldMappings(simplifiedMapping); // Not strictly needed if we use transformedData for preview
+          setFieldMappings(autoMappings);
         }
+
+        // Set prefixes and defaults from connector config
+        if (config.sku_prefix) setSkuPrefix(config.sku_prefix);
+        if (config.default_brand) setDefaultBrand(config.default_brand);
         
         toast.success(`Conector ${detectedSupplier.supplier_name} aplicado com sucesso.`);
       } catch (err: any) {
