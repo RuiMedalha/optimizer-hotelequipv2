@@ -171,6 +171,10 @@ const IngestionHubPage = () => {
     setCurrentDetection(null);
     setCurrentInference(null);
     setShowReview(false);
+    setConnectorApplied(false);
+    setTransformedData([]);
+    setDetectedXmlFormat(null);
+    setDetectedSupplier(null);
     const ext = file.name.split(".").pop()?.toLowerCase();
 
     let headers: string[] = [];
