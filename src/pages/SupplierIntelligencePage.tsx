@@ -8,11 +8,21 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Plus, Building2, Globe, CheckCircle, AlertCircle, Clock, ArrowLeft, Brain, Search, Network, BarChart3, ArrowRight } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Plus, Building2, Globe, CheckCircle, AlertCircle, Clock, ArrowLeft, Brain, Search, Network, BarChart3, ArrowRight, Wand2, Copy, Save, Check } from "lucide-react";
 import { toast } from "sonner";
+import { 
+  generateAiPrompt, 
+  applyConnectorTransformations, 
+  CONNECTOR_PRESETS,
+  type ConnectorConfig,
+  type XmlFormat
+} from '@/lib/supplierConnector';
 
 import { SupplierHealthCards } from "@/components/supplier/SupplierHealthCards";
 import { SupplierTable } from "@/components/supplier/SupplierTable";
@@ -23,8 +33,75 @@ import { SupplierChangeFeed } from "@/components/supplier/SupplierChangeFeed";
 
 // --- Supplier Detail View (existing, enhanced) ---
 function SupplierDetail({ supplier, onBack }: { supplier: any; onBack: () => void }) {
-  const { learnPatterns, calculateQuality, buildKnowledgeGraph } = useSupplierIntelligence();
+  const { learnPatterns, calculateQuality, buildKnowledgeGraph, updateSupplier, wsId } = useSupplierIntelligence();
   const detail = useSupplierDetail(supplier.id);
+
+  const [feedUrlXml, setFeedUrlXml] = useState(supplier?.feed_url_xml || '');
+  const [feedUrlCsv, setFeedUrlCsv] = useState(supplier?.feed_url_csv || '');
+  const [feedTestResult, setFeedTestResult] = useState<any>(null);
+  const [connectorConfigText, setConnectorConfigText] = useState(
+    supplier?.connector_config ? JSON.stringify(supplier.connector_config, null, 2) : ''
+  );
+  const [configError, setConfigError] = useState<string | null>(null);
+  const [connectorTestResult, setConnectorTestResult] = useState<any[]>([]);
+  const [showAiPromptModal, setShowAiPromptModal] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+
+  const handleTestUrl = (format: 'xml' | 'csv') => async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-supplier-feed', {
+        body: { supplierId: supplier.id, workspaceId: wsId, format }
+      });
+      if (error) throw error;
+      setFeedTestResult(data);
+      toast.success(`Feed carregado: ${data.totalRows} produtos`);
+    } catch (e: any) {
+      toast.error(`Erro ao testar URL: ${e.message}`);
+    }
+  };
+
+  const handlePresetSelect = (preset: string) => {
+    const config = CONNECTOR_PRESETS[preset] || {};
+    setConnectorConfigText(JSON.stringify(config, null, 2));
+    setConfigError(null);
+  };
+
+  const handleValidateConfig = () => {
+    try {
+      JSON.parse(connectorConfigText);
+      setConfigError(null);
+      toast.success('JSON válido');
+    } catch (e: any) {
+      setConfigError(`JSON inválido: ${e.message}`);
+    }
+  };
+
+  const handleTestConnector = () => {
+    try {
+      const config = JSON.parse(connectorConfigText);
+      const rows = feedTestResult?.rows || [];
+      const format = feedTestResult?.format || 'xml';
+      const transformed = applyConnectorTransformations(rows, config, format);
+      setConnectorTestResult(transformed.slice(0, 3));
+      toast.success('Connector testado com sucesso');
+    } catch (e: any) {
+      toast.error(`Erro ao testar connector: ${e.message}`);
+    }
+  };
+
+  const handleSaveConnector = async () => {
+    try {
+      const config = connectorConfigText ? JSON.parse(connectorConfigText) : {};
+      await updateSupplier.mutateAsync({
+        id: supplier.id,
+        feed_url_xml: feedUrlXml || null,
+        feed_url_csv: feedUrlCsv || null,
+        connector_config: config
+      });
+    } catch (e: any) {
+      toast.error(`Erro ao guardar: ${e.message}`);
+    }
+  };
 
   const avgConfidence = detail.benchmarks.data?.length
     ? (detail.benchmarks.data.reduce((s: number, b: any) => s + (b.average_confidence || 0), 0) / detail.benchmarks.data.length).toFixed(2)
@@ -62,6 +139,7 @@ function SupplierDetail({ supplier, onBack }: { supplier: any; onBack: () => voi
       <Tabs defaultValue="schemas">
         <TabsList className="flex-wrap">
           <TabsTrigger value="schemas">Estrutura</TabsTrigger>
+          <TabsTrigger value="feed">Feed & Connector</TabsTrigger>
           <TabsTrigger value="patterns">Padrões</TabsTrigger>
           <TabsTrigger value="mappings">Mapeamentos</TabsTrigger>
           <TabsTrigger value="graph">Knowledge Graph</TabsTrigger>
@@ -409,3 +487,95 @@ export default function SupplierIntelligencePage() {
     </div>
   );
 }
+
+// AI Prompt Generator Modal
+const AiPromptModal = ({ 
+  isOpen, 
+  onClose, 
+  prompt, 
+  onApply, 
+  supplierId 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  prompt: string; 
+  onApply: (config: any) => void;
+  supplierId?: string;
+}) => {
+  const [response, setResponse] = useState("");
+  const [parsedConfig, setParsedConfig] = useState<any>(null);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(prompt);
+    toast.success("Prompt copiado para a área de transferência.");
+  };
+
+  const validateAndParse = () => {
+    try {
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      const jsonStr = jsonMatch ? jsonMatch[0] : response;
+      const config = JSON.parse(jsonStr);
+      setParsedConfig(config);
+      toast.success("JSON validado com sucesso.");
+    } catch (e) {
+      toast.error("JSON inválido.");
+    }
+  };
+
+  const saveToSupplier = async () => {
+    if (!supplierId || !parsedConfig) return;
+    try {
+      const { error } = await supabase
+        .from("supplier_profiles")
+        .update({ connector_config: parsedConfig })
+        .eq("id", supplierId);
+      if (error) throw error;
+      toast.success("Configuração guardada.");
+      onApply(parsedConfig);
+      onClose();
+    } catch (e: any) {
+      toast.error(`Erro: ${e.message}`);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Wand2 className="w-5 h-5 text-primary" />
+            Gerar Configuração com IA
+          </DialogTitle>
+        </DialogHeader>
+        <div className="flex-1 overflow-y-auto space-y-4 py-4">
+          <div className="space-y-2">
+            <Label className="text-xs font-bold uppercase">1. Copia o Prompt</Label>
+            <div className="relative">
+              <ScrollArea className="h-32 border rounded p-2 text-[10px] font-mono">
+                <pre>{prompt}</pre>
+              </ScrollArea>
+              <Button size="sm" variant="secondary" className="absolute top-1 right-1 h-6" onClick={handleCopy}>Copiar</Button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs font-bold uppercase">2. Cola o JSON</Label>
+            <Textarea className="h-32 font-mono text-[10px]" value={response} onChange={e => setResponse(e.target.value)} />
+          </div>
+          {parsedConfig && (
+            <div className="p-2 bg-green-500/10 border border-green-500/20 rounded text-[10px]">
+              ✓ JSON válido detectado
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Fechar</Button>
+          {!parsedConfig ? (
+            <Button onClick={validateAndParse}>Validar</Button>
+          ) : (
+            <Button onClick={saveToSupplier}>Guardar</Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
