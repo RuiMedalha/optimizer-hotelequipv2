@@ -4,7 +4,7 @@ import {
   Upload, FileSpreadsheet, Play, Eye, Loader2, CheckCircle, AlertCircle, 
   Clock, ArrowRight, X, Database, Webhook, Zap, ChevronLeft, ChevronRight, 
   ChevronsLeft, ChevronsRight, RefreshCw, Plus, Check, FileText, Search, 
-  Trash2, History, Wand2, Copy, Save, FileCode
+  Trash2, History, Wand2, Copy, Save, FileCode, Link, Download
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -99,6 +99,9 @@ const IngestionHubPage = () => {
   const [activeTab, setActiveTab] = useState("import");
   const [dragOver, setDragOver] = useState(false);
   const [fileSearch, setFileSearch] = useState("");
+  const [feedUrl, setFeedUrl] = useState('');
+  const [feedFormat, setFeedFormat] = useState<'xml' | 'csv'>('xml');
+  const [loadingFeed, setLoadingFeed] = useState(false);
 
   // Parsing state
   const [parsedData, setParsedData] = useState<any[] | null>(null);
@@ -412,6 +415,39 @@ const IngestionHubPage = () => {
     if (e.target.files?.[0]) handleFile(e.target.files[0]);
     e.target.value = "";
   }, [handleFile]);
+
+  const handleLoadFromUrl = async () => {
+    if (!feedUrl.trim()) return;
+    setLoadingFeed(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-supplier-feed', {
+        body: { feedUrl, format: feedFormat }
+      });
+      if (error) throw new Error(error.message);
+      if (data.error) throw new Error(data.error);
+
+      if (data.format === 'xml' && data.allRows) {
+        setParsedData(data.allRows);
+        setParsedHeaders(
+          Object.keys(data.allRows[0] || {}).filter(k => !k.startsWith('_'))
+        );
+        setDetectedXmlFormat(data.xmlFormat || null);
+        setFileName(`feed_xml_${new Date().toISOString().slice(0,10)}.xml`);
+      } else if (data.rawText) {
+        const result = Papa.parse(data.rawText, {
+          header: true, skipEmptyLines: true, dynamicTyping: false, delimiter: ''
+        });
+        setParsedData(result.data as any[]);
+        setParsedHeaders(result.meta.fields || []);
+        setFileName(`feed_csv_${new Date().toISOString().slice(0,10)}.csv`);
+      }
+      toast.success(`Feed carregado: ${data.totalRows} produtos`);
+    } catch (e: any) {
+      toast.error(`Erro ao carregar feed: ${e.message}`);
+    } finally {
+      setLoadingFeed(false);
+    }
+  };
 
   const handleDryRun = async () => {
     if (!parsedData) return;
@@ -741,11 +777,11 @@ const IngestionHubPage = () => {
                 onDragLeave={() => setDragOver(false)}
                 onDrop={onDrop}
               >
-                <CardContent className="flex flex-col items-center justify-center py-16">
-                  <FileSpreadsheet className="w-12 h-12 text-muted-foreground mb-4" />
-                  <p className="text-lg font-medium mb-1">Arraste um ficheiro para importar</p>
-                  <p className="text-sm text-muted-foreground mb-2">CSV, XLSX, XLS ou JSON</p>
-                  <p className="text-xs text-muted-foreground mb-4 flex items-center gap-1">
+                <CardContent className="flex flex-col items-center justify-center py-16 gap-4 w-full">
+                  <FileSpreadsheet className="w-12 h-12 text-muted-foreground" />
+                  <p className="text-lg font-medium">Arraste um ficheiro para importar</p>
+                  <p className="text-sm text-muted-foreground">CSV, XLSX, XLS, JSON ou XML</p>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <Zap className="w-3 h-3" /> Deteção automática de fornecedor e mapeamento inteligente
                   </p>
                   <Button variant="outline" asChild>
@@ -754,6 +790,40 @@ const IngestionHubPage = () => {
                       <input type="file" accept=".csv,.xlsx,.xls,.json,.xml" className="hidden" onChange={onFileSelect} />
                     </label>
                   </Button>
+
+                  <div className="w-full max-w-lg border-t border-border pt-4 space-y-2">
+                    <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1">
+                      <Link className="w-3 h-3" /> Ou carregar directamente por URL de feed
+                    </p>
+                    <div className="flex gap-2">
+                      <Input
+                        value={feedUrl}
+                        onChange={e => setFeedUrl(e.target.value)}
+                        placeholder="https://feedapi.supplier.com/feed.xml?Key=..."
+                        className="flex-1 text-sm h-9"
+                      />
+                      <Select value={feedFormat} onValueChange={(v: any) => setFeedFormat(v)}>
+                        <SelectTrigger className="w-20 h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="xml">XML</SelectItem>
+                          <SelectItem value="csv">CSV</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        size="sm"
+                        className="h-9"
+                        onClick={handleLoadFromUrl}
+                        disabled={!feedUrl.trim() || loadingFeed}
+                      >
+                        {loadingFeed
+                          ? <Loader2 className="w-4 h-4 animate-spin" />
+                          : <Download className="w-4 h-4" />
+                        }
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
