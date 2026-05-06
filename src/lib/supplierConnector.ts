@@ -332,13 +332,6 @@ function applyToRow(
     if (technical_specs && !result.technical_specs) result.technical_specs = technical_specs;
   }
   
-  // Ensure string fields are never objects
-  const stringFields = ['original_title', 'short_description', 'original_description', 'ean', 'brand', 'model', 'category', 'sku'];
-  for (const field of stringFields) {
-    if (result[field] && typeof result[field] === 'object') {
-      result[field] = JSON.stringify(result[field]);
-    }
-  }
   
   // 7. DESCRIPTION2 bullets → HTML
   if (row.DESCRIPTION2) {
@@ -367,6 +360,14 @@ function applyToRow(
   // Ensure model is set from PRODUCTNAME
   if (!result.model && row.PRODUCTNAME) {
     result.model = row.PRODUCTNAME;
+  }
+  
+  // Ensure string fields are never objects
+  const stringFields = ['original_title', 'short_description', 'original_description', 'ean', 'brand', 'model', 'category', 'sku'];
+  for (const field of stringFields) {
+    if (result[field] && typeof result[field] === 'object') {
+      result[field] = JSON.stringify(result[field]);
+    }
   }
   
   return result;
