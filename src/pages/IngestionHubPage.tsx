@@ -1022,7 +1022,8 @@ const IngestionHubPage = () => {
                   </div>
 
                   {/* Smart column inference */}
-                  <SmartColumnInferencePreview
+                  <div data-mapping-section>
+                    <SmartColumnInferencePreview
                     inference={currentInference}
                     headers={parsedHeaders}
                     sampleData={parsedData || []}
