@@ -163,7 +163,7 @@ Deno.serve(async (req) => {
     while (hasMoreWsProducts) {
       const { data: wsPage, error: wsErr } = await supabase
         .from("products")
-        .select("id, sku, brand, model, original_title, original_description, original_price, image_urls, attributes")
+        .select("id, sku, ean, woocommerce_id, brand, model, original_title, original_description, original_price, image_urls, attributes")
         .eq("workspace_id", finalWorkspaceId)
         .range(wsProductOffset, wsProductOffset + WS_PAGE_SIZE - 1);
       if (wsErr) throw wsErr;
@@ -276,7 +276,7 @@ Deno.serve(async (req) => {
       };
 
       // 1. Include standard fields from Master for context display
-      const contextFields = ['original_title', 'original_description', 'short_description', 'category', 'brand', 'image_urls', 'model', 'ean'];
+      const contextFields = ['original_title', 'original_description', 'short_description', 'category', 'brand', 'image_urls', 'model', 'ean', 'woocommerce_id'];
       contextFields.forEach(field => {
         if (masterMapped[field] !== undefined) {
           proposedChanges[field] = masterMapped[field];
