@@ -83,6 +83,53 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   error: { label: "Erro", color: "bg-destructive/10 text-destructive" },
 };
 
+const SpecialFieldsPicker = ({
+  priceFields,
+  onSelectPrice,
+  selectedPrice,
+}: {
+  priceFields: Array<{ key: string; label: string; sample: string }>;
+  onSelectPrice: (key: string) => void;
+  selectedPrice: string;
+}) => {
+  if (!priceFields.length) return null;
+  
+  return (
+    <Card className="border-amber-500/30 bg-amber-500/5">
+      <CardContent className="pt-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-amber-400" />
+          <p className="text-sm font-medium text-amber-400">
+            Foram detectados {priceFields.length} campos de preço — escolhe qual usar como preço de venda
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {priceFields.map(f => (
+            <button
+              key={f.key}
+              onClick={() => onSelectPrice(f.key)}
+              className={cn(
+                "px-3 py-2 rounded-lg border text-sm transition-all",
+                selectedPrice === f.key
+                  ? "border-primary bg-primary/10 text-primary font-medium"
+                  : "border-border hover:border-primary/50"
+              )}
+            >
+              <span className="font-mono font-medium">{f.label}</span>
+              <span className="ml-2 text-muted-foreground">{f.sample}</span>
+            </button>
+          ))}
+        </div>
+        {selectedPrice && (
+          <p className="text-xs text-muted-foreground">
+            ✓ Preço de venda: <strong>{selectedPrice}</strong>
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 const IngestionHubPage = () => {
   const { activeWorkspace } = useWorkspaceContext();
   const workspaceId = activeWorkspace?.id;
@@ -150,6 +197,8 @@ const IngestionHubPage = () => {
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiResponse, setAiResponse] = useState("");
   const [detectedSupplier, setDetectedSupplier] = useState<any>(null);
+  const [specialFields, setSpecialFields] = useState<any>(null);
+  const [selectedPriceField, setSelectedPriceField] = useState<string>('');
 
   // Auto-select latest master and delta if not set
   useEffect(() => {
@@ -375,44 +424,59 @@ const IngestionHubPage = () => {
 
   // When supplier is detected with connector_config, auto-apply transformations
   useEffect(() => {
-    if (
-      detectedSupplier?.connector_config &&
-      Object.keys(detectedSupplier.connector_config).length > 0 &&
-      parsedData && parsedData.length > 0
-    ) {
-      const config = detectedSupplier.connector_config as any;
-      const fileFormat = detectedXmlFormat ? 'xml' : 
-                         (fileName.endsWith('.xlsx') || fileName.endsWith('.xls') ? 'excel' : 'csv');
-      
-      try {
-        const transformed = applyConnectorTransformations(parsedData, config, fileFormat);
-        setTransformedData(transformed);
-        setConnectorApplied(true);
+    const applyConnector = async () => {
+      if (
+        detectedSupplier?.connector_config &&
+        Object.keys(detectedSupplier.connector_config).length > 0 &&
+        parsedData && parsedData.length > 0
+      ) {
+        const config = detectedSupplier.connector_config as any;
+        const fileFormat = detectedXmlFormat ? 'xml' : 
+                           (fileName.endsWith('.xlsx') || fileName.endsWith('.xls') ? 'excel' : 'csv');
         
-        // Update headers to match the transformed data keys
-        const transformedHeaders = Object.keys(transformed[0] || {})
-          .filter(k => !k.startsWith('_'));
-        setParsedHeaders(transformedHeaders);
+        try {
+          const transformed = applyConnectorTransformations(parsedData, config, fileFormat);
+          setTransformedData(transformed);
+          setConnectorApplied(true);
+          
+          // Update headers to match the transformed data keys
+          const transformedHeaders = Object.keys(transformed[0] || {})
+            .filter(k => !k.startsWith('_'));
+          setParsedHeaders(transformedHeaders);
 
-        // Auto-set field mappings so each transformed field maps to itself
-        const selfMappings: Record<string, string> = {};
-        transformedHeaders.forEach(h => { selfMappings[h] = h; });
-        setFieldMappings(selfMappings);
+          // Auto-set field mappings so each transformed field maps to itself
+          const selfMappings: Record<string, string> = {};
+          transformedHeaders.forEach(h => { selfMappings[h] = h; });
+          setFieldMappings(selfMappings);
 
-        // Scroll to mapping section after connector applied
-        setTimeout(() => {
-          document.querySelector('[data-mapping-section]')?.scrollIntoView({ behavior: 'smooth' });
-        }, 300);
-        
-        if (config.sku_prefix) setSkuPrefix(config.sku_prefix);
-        if (config.default_brand) setDefaultBrand(config.default_brand);
-        
-        toast.success(`Conector ${detectedSupplier.supplier_name} aplicado com sucesso.`);
-      } catch (err: any) {
-        console.error("Error applying connector:", err);
-        toast.error(`Erro ao aplicar conector: ${err.message}`);
+          // Scroll to mapping section after connector applied
+          setTimeout(() => {
+            document.querySelector('[data-mapping-section]')?.scrollIntoView({ behavior: 'smooth' });
+          }, 300);
+          
+          if (config.sku_prefix) setSkuPrefix(config.sku_prefix);
+          if (config.default_brand) setDefaultBrand(config.default_brand);
+          
+          // Detect special fields for user selection
+          const { detectSpecialFields } = await import('@/lib/supplierConnector');
+          const special = detectSpecialFields(parsedData, 
+            Object.keys(parsedData[0] || {}).filter(k => !k.startsWith('_'))
+          );
+          setSpecialFields(special);
+          // Auto-select the first price field as default
+          if (special.priceFields.length > 0) {
+            setSelectedPriceField(special.priceFields[0].key);
+          }
+
+          toast.success(`Conector ${detectedSupplier.supplier_name} aplicado com sucesso.`);
+        } catch (err: any) {
+          console.error("Error applying connector:", err);
+          toast.error(`Erro ao aplicar conector: ${err.message}`);
+        }
       }
-    }
+    };
+
+    applyConnector();
   }, [detectedSupplier, parsedData, detectedXmlFormat, fileName]);
 
 
@@ -485,10 +549,23 @@ const IngestionHubPage = () => {
   const handleDryRun = async () => {
     const dataToProcess = transformedData.length > 0 ? transformedData : parsedData;
     if (!dataToProcess) return;
-    
+
+    // Apply selected price field override
+    const finalData = selectedPriceField ? dataToProcess.map(row => ({
+      ...row,
+      original_price: row[selectedPriceField] !== undefined 
+        ? (() => {
+            const raw = String(row[selectedPriceField] || '');
+            const cleaned = raw.replace(/\./g, '').replace(',', '.');
+            const parsed = parseFloat(cleaned);
+            return isNaN(parsed) || parsed <= 0 ? row.original_price : parsed;
+          })()
+        : row.original_price
+    })) : dataToProcess;
+
     try {
       const result = await parseIngestion.mutateAsync({
-        data: dataToProcess,
+        data: finalData,
         fileName,
         sourceType: fileName.endsWith(".csv") ? "csv" : fileName.endsWith(".json") ? "json" : "xlsx",
         fieldMappings,
@@ -514,9 +591,22 @@ const IngestionHubPage = () => {
     const dataToProcess = transformedData.length > 0 ? transformedData : parsedData;
     if (!dataToProcess) return;
 
+    // Apply selected price field override
+    const finalData = selectedPriceField ? dataToProcess.map(row => ({
+      ...row,
+      original_price: row[selectedPriceField] !== undefined 
+        ? (() => {
+            const raw = String(row[selectedPriceField] || '');
+            const cleaned = raw.replace(/\./g, '').replace(',', '.');
+            const parsed = parseFloat(cleaned);
+            return isNaN(parsed) || parsed <= 0 ? row.original_price : parsed;
+          })()
+        : row.original_price
+    })) : dataToProcess;
+
     try {
       const result = await parseIngestion.mutateAsync({
-        data: dataToProcess,
+        data: finalData,
         fileName,
         sourceType: fileName.endsWith(".csv") ? "csv" : fileName.endsWith(".json") ? "json" : "xlsx",
         fieldMappings,
@@ -546,7 +636,7 @@ const IngestionHubPage = () => {
         }
       }).eq("id", result.jobId);
 
-      toast.info(`A iniciar processamento de ${dataToProcess.length} produtos...`);
+      toast.info(`A iniciar processamento de ${finalData.length} produtos...`);
       await runJob.mutateAsync(result.jobId);
 
       triggerAutoDraftAfterIngestion(result.jobId);
@@ -557,14 +647,28 @@ const IngestionHubPage = () => {
   const triggerAutoDraftAfterIngestion = (jobId: string) => {
     const dataToProcess = transformedData.length > 0 ? transformedData : parsedData;
     if (!dataToProcess || !parsedHeaders.length) return;
+
+    // Apply selected price field override
+    const finalData = selectedPriceField ? dataToProcess.map(row => ({
+      ...row,
+      original_price: row[selectedPriceField] !== undefined 
+        ? (() => {
+            const raw = String(row[selectedPriceField] || '');
+            const cleaned = raw.replace(/\./g, '').replace(',', '.');
+            const parsed = parseFloat(cleaned);
+            return isNaN(parsed) || parsed <= 0 ? row.original_price : parsed;
+          })()
+        : row.original_price
+    })) : dataToProcess;
+
     const ext = fileName.split(".").pop()?.toLowerCase() || "xlsx";
     triggerAutoDraftFromIngestion.mutate({
       ingestion_job_id: jobId,
       file_name: fileName,
       headers: parsedHeaders,
-      sample_data: dataToProcess.length > 100 
-        ? [...dataToProcess.slice(0, 50), ...dataToProcess.slice(-50)] 
-        : dataToProcess,
+      sample_data: finalData.length > 100 
+        ? [...finalData.slice(0, 50), ...finalData.slice(-50)] 
+        : finalData,
       source_type: ext,
     });
   };
@@ -926,17 +1030,32 @@ const IngestionHubPage = () => {
                   <Button variant="ghost" size="sm" onClick={resetForm}><X className="w-4 h-4 mr-1" /> Cancelar</Button>
                 </div>
               </div>
-
-              {/* Auto-detection panel */}
-              <SupplierAutoDetectionPanel
-                detection={currentDetection}
-                isDetecting={autoDetect.isPending}
-              />
               {connectorApplied && detectedSupplier && (
                 <div className="mt-4 flex items-center gap-2 px-4 py-2 bg-green-500/10 border border-green-500/30 rounded-lg text-sm text-green-400">
                   <CheckCircle className="w-4 h-4" />
                   Connector {detectedSupplier.supplier_name} aplicado automaticamente — dados processados e prontos para mapeamento
                 </div>
+              )}
+
+              {specialFields?.priceFields?.length > 1 && (
+                <SpecialFieldsPicker
+                  priceFields={specialFields.priceFields}
+                  onSelectPrice={(key) => {
+                    setSelectedPriceField(key);
+                    // Update the field mapping to use selected price field
+                    setFieldMappings(prev => ({
+                      ...prev,
+                      [key]: 'original_price',
+                      // Remove old price mapping if different field was selected
+                      ...Object.fromEntries(
+                        specialFields.priceFields
+                          .filter((f: any) => f.key !== key)
+                          .map((f: any) => [f.key, ''])
+                      )
+                    }));
+                  }}
+                  selectedPrice={selectedPriceField}
+                />
               )}
 
               {/* Smart inference with review toggle */}
