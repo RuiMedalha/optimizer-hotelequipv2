@@ -862,28 +862,84 @@ function extractBrandFromAttributes(attributes: any): string | null {
 }
 
 
-async function assignBrandToProductTaxonomies(baseUrl: string, auth: string, brandValue: string, target: Record<string, unknown>) {
-  if (!brandValue) return;
+/**
+ * Ensures a brand term exists in the WooCommerce Brands official taxonomy (REST: /wc/v3/products/brands).
+ */
+async function ensureProductBrand(baseUrl: string, auth: string, brandName: string): Promise<number | null> {
+  if (!brandName) return null;
+  const slug = brandName.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w\-]+/g, '');
+  const key = `pb:${slug}`;
+  if (_pwbBrandCache.has(key)) return _pwbBrandCache.get(key)!;
 
-  const assignedIds = new Set<number>();
+  try {
+    const searchResp = await fetch(
+      `${baseUrl}/wp-json/wc/v3/products/brands?slug=${slug}`,
+      { headers: { Authorization: `Basic ${auth}` } }
+    );
+    if (searchResp.ok) {
+      const terms = await searchResp.json();
+      if (Array.isArray(terms) && terms.length > 0) {
+        _pwbBrandCache.set(key, terms[0].id);
+        return terms[0].id;
+      }
+    }
 
+    const createResp = await fetch(`${baseUrl}/wp-json/wc/v3/products/brands`, {
+      method: "POST",
+      headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: brandName, slug: slug }),
+    });
+    
+    if (createResp.ok) {
+      const created = await createResp.json();
+      _pwbBrandCache.set(key, created.id);
+      return created.id;
+    } else if (createResp.status === 400) {
+       const err = await createResp.json();
+       if (err.code === "term_exists") {
+         const termId = err.data?.resource_id || err.data?.id;
+         if (termId) {
+           _pwbBrandCache.set(key, termId);
+           return termId;
+         }
+       }
+    }
+  } catch (e) {
+    console.warn(`[product-brand] Error ensuring "${brandName}":`, e);
+  }
+  return null;
+}
+
+async function assignBrandToProductTaxonomies(baseUrl: string, auth: string, brandValue: string, target: Record<string, unknown>): Promise<number | null> {
+  if (!brandValue) return null;
+
+  let firstValidId: number | null = null;
+
+  // 1. Official WooCommerce Brands (product_brand)
+  const pbId = await ensureProductBrand(baseUrl, auth, brandValue);
+  if (pbId) {
+    firstValidId = pbId;
+    (target as any).product_brand = [pbId];
+    console.log(`[product-brand] Assigned official brand taxonomy "${brandValue}" (ID ${pbId})`);
+  }
+
+  // 2. Custom "brand" taxonomy
   const brandTaxonomyId = await ensureBrandTaxonomy(baseUrl, auth, brandValue);
   if (brandTaxonomyId) {
-    assignedIds.add(brandTaxonomyId);
+    if (!firstValidId) firstValidId = brandTaxonomyId;
     (target as any).brand = [brandTaxonomyId];
     console.log(`[brand-taxonomy] Assigned custom brand taxonomy "${brandValue}" (ID ${brandTaxonomyId})`);
   }
 
+  // 3. Perfect WooCommerce Brands (brands)
   const pwbId = await ensurePwbBrand(baseUrl, auth, brandValue);
   if (pwbId) {
-    assignedIds.add(pwbId);
+    if (!firstValidId) firstValidId = pwbId;
     target.brands = [pwbId];
     console.log(`[pwb-brand] Assigned PWB brand taxonomy "${brandValue}" (ID ${pwbId})`);
   }
 
-  if (assignedIds.size > 0) {
-    (target as any).brand = Array.from(assignedIds);
-  }
+  return firstValidId;
 }
 
 function extractBrandValue(product: any, fallbackAttributes?: any[]): string | null {
