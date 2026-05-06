@@ -3129,11 +3129,7 @@ async function publishVariableProduct(
     parentPayload.attributes = merged;
   }
 
-  // Add XStore brand/model meta_data
-  if (brandValue) {
-    ensureBrandMeta(parentPayload, brandValue);
-    console.log(`[publish-variable] Added brand meta: ${brandValue}`);
-  }
+  // Add XStore model meta_data (brand is handled later with taxonomy ID)
   if (modelValue) {
     ensureModelMeta(parentPayload, modelValue);
     console.log(`[publish-variable] Added model meta: ${modelValue}`);
