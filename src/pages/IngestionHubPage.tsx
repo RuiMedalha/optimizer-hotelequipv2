@@ -395,16 +395,17 @@ const IngestionHubPage = () => {
         }, 300);
         
         // Auto-set field mappings from connector column_mapping
-        const autoMappings: Record<string, string> = {};
-        Object.entries(config.column_mapping).forEach(([src, dst]: [string, any]) => {
-          if (typeof dst === 'string' && !dst.includes('.')) {
-            autoMappings[src] = dst;
-          }
-        });
-        setFieldMappings(autoMappings);
-      }
-      if (config.sku_prefix) setSkuPrefix(config.sku_prefix);
-      if (config.default_brand) setDefaultBrand(config.default_brand);
+        if (config.column_mapping) {
+          const autoMappings: Record<string, string> = {};
+          Object.entries(config.column_mapping).forEach(([src, dst]: [string, any]) => {
+            if (typeof dst === 'string' && !dst.includes('.')) {
+              autoMappings[src] = dst;
+            }
+          });
+          setFieldMappings(autoMappings);
+        }
+        if (config.sku_prefix) setSkuPrefix(config.sku_prefix);
+        if (config.default_brand) setDefaultBrand(config.default_brand);
         
         toast.success(`Conector ${detectedSupplier.supplier_name} aplicado com sucesso.`);
       } catch (err: any) {
