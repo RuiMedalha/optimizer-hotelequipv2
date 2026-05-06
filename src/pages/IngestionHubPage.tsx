@@ -1024,12 +1024,13 @@ const IngestionHubPage = () => {
                   {/* Smart column inference */}
                   <div data-mapping-section>
                     <SmartColumnInferencePreview
-                    inference={currentInference}
-                    headers={parsedHeaders}
-                    sampleData={parsedData || []}
-                    fieldMappings={fieldMappings}
-                    onMappingChange={setFieldMappings}
-                  />
+                      inference={currentInference}
+                      headers={parsedHeaders}
+                      sampleData={parsedData || []}
+                      fieldMappings={fieldMappings}
+                      onMappingChange={setFieldMappings}
+                    />
+                  </div>
 
                   {/* Corrections panel */}
                   {showCorrections && (
