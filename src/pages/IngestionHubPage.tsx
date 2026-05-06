@@ -647,14 +647,28 @@ const IngestionHubPage = () => {
   const triggerAutoDraftAfterIngestion = (jobId: string) => {
     const dataToProcess = transformedData.length > 0 ? transformedData : parsedData;
     if (!dataToProcess || !parsedHeaders.length) return;
+
+    // Apply selected price field override
+    const finalData = selectedPriceField ? dataToProcess.map(row => ({
+      ...row,
+      original_price: row[selectedPriceField] !== undefined 
+        ? (() => {
+            const raw = String(row[selectedPriceField] || '');
+            const cleaned = raw.replace(/\./g, '').replace(',', '.');
+            const parsed = parseFloat(cleaned);
+            return isNaN(parsed) || parsed <= 0 ? row.original_price : parsed;
+          })()
+        : row.original_price
+    })) : dataToProcess;
+
     const ext = fileName.split(".").pop()?.toLowerCase() || "xlsx";
     triggerAutoDraftFromIngestion.mutate({
       ingestion_job_id: jobId,
       file_name: fileName,
       headers: parsedHeaders,
-      sample_data: dataToProcess.length > 100 
-        ? [...dataToProcess.slice(0, 50), ...dataToProcess.slice(-50)] 
-        : dataToProcess,
+      sample_data: finalData.length > 100 
+        ? [...finalData.slice(0, 50), ...finalData.slice(-50)] 
+        : finalData,
       source_type: ext,
     });
   };
