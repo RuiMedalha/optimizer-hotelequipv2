@@ -2945,9 +2945,9 @@ async function publishSingleProduct(
     if (attrId) {
       await ensureWooBrandTerm(baseUrl, auth, attrId, brandVal);
     }
-    await assignBrandToProductTaxonomies(baseUrl, auth, brandVal, wooProduct);
+    const taxonomyId = await assignBrandToProductTaxonomies(baseUrl, auth, brandVal, wooProduct);
     // XStore / theme compatibility meta fields
-    ensureBrandMeta(wooProduct, brandVal);
+    ensureBrandMeta(wooProduct, brandVal, taxonomyId);
   }
 
   const modelVal = extractModelValue(enrichedProduct, sourceAttrs);
