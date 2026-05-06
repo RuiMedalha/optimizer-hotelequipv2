@@ -33,8 +33,75 @@ import { SupplierChangeFeed } from "@/components/supplier/SupplierChangeFeed";
 
 // --- Supplier Detail View (existing, enhanced) ---
 function SupplierDetail({ supplier, onBack }: { supplier: any; onBack: () => void }) {
-  const { learnPatterns, calculateQuality, buildKnowledgeGraph } = useSupplierIntelligence();
+  const { learnPatterns, calculateQuality, buildKnowledgeGraph, updateSupplier, wsId } = useSupplierIntelligence();
   const detail = useSupplierDetail(supplier.id);
+
+  const [feedUrlXml, setFeedUrlXml] = useState(supplier?.feed_url_xml || '');
+  const [feedUrlCsv, setFeedUrlCsv] = useState(supplier?.feed_url_csv || '');
+  const [feedTestResult, setFeedTestResult] = useState<any>(null);
+  const [connectorConfigText, setConnectorConfigText] = useState(
+    supplier?.connector_config ? JSON.stringify(supplier.connector_config, null, 2) : ''
+  );
+  const [configError, setConfigError] = useState<string | null>(null);
+  const [connectorTestResult, setConnectorTestResult] = useState<any[]>([]);
+  const [showAiPromptModal, setShowAiPromptModal] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+
+  const handleTestUrl = (format: 'xml' | 'csv') => async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-supplier-feed', {
+        body: { supplierId: supplier.id, workspaceId: wsId, format }
+      });
+      if (error) throw error;
+      setFeedTestResult(data);
+      toast.success(`Feed carregado: ${data.totalRows} produtos`);
+    } catch (e: any) {
+      toast.error(`Erro ao testar URL: ${e.message}`);
+    }
+  };
+
+  const handlePresetSelect = (preset: string) => {
+    const config = CONNECTOR_PRESETS[preset] || {};
+    setConnectorConfigText(JSON.stringify(config, null, 2));
+    setConfigError(null);
+  };
+
+  const handleValidateConfig = () => {
+    try {
+      JSON.parse(connectorConfigText);
+      setConfigError(null);
+      toast.success('JSON válido');
+    } catch (e: any) {
+      setConfigError(`JSON inválido: ${e.message}`);
+    }
+  };
+
+  const handleTestConnector = () => {
+    try {
+      const config = JSON.parse(connectorConfigText);
+      const rows = feedTestResult?.rows || [];
+      const format = feedTestResult?.format || 'xml';
+      const transformed = applyConnectorTransformations(rows, config, format);
+      setConnectorTestResult(transformed.slice(0, 3));
+      toast.success('Connector testado com sucesso');
+    } catch (e: any) {
+      toast.error(`Erro ao testar connector: ${e.message}`);
+    }
+  };
+
+  const handleSaveConnector = async () => {
+    try {
+      const config = connectorConfigText ? JSON.parse(connectorConfigText) : {};
+      await updateSupplier.mutateAsync({
+        id: supplier.id,
+        feed_url_xml: feedUrlXml || null,
+        feed_url_csv: feedUrlCsv || null,
+        connector_config: config
+      });
+    } catch (e: any) {
+      toast.error(`Erro ao guardar: ${e.message}`);
+    }
+  };
 
   const avgConfidence = detail.benchmarks.data?.length
     ? (detail.benchmarks.data.reduce((s: number, b: any) => s + (b.average_confidence || 0), 0) / detail.benchmarks.data.length).toFixed(2)
