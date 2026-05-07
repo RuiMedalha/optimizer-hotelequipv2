@@ -2098,7 +2098,7 @@ function ItemDetailDialog({
                         {FIELD_LABELS[key] || key}
                       </span>
                       <span className="text-foreground text-xs break-all whitespace-pre-wrap flex-1">
-                        {formatValue(val)}
+                        {formatValue(val, key)}
                       </span>
                       {isPending && (
                         <Button size="sm" variant="ghost" className="h-5 w-5 p-0 shrink-0" onClick={() => removeFieldFromPending(key)}>
