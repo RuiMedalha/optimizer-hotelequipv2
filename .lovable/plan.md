@@ -1,26 +1,29 @@
-### Objective
-Fix `src/pages/IngestionHubPage.tsx` by adding supplier auto-detection logic to the `handleLoadFromUrl` function and ensuring the `workspaceId` is correctly handled.
+I will resolve the issue where nested attribute objects (e.g., `{ value: "850", unit: "mm" }`) are being implicitly stringified to `[object Object]` in previews and saved products.
 
-### Proposed Changes
+### 1. Code-level Normalization Utility
+I'll add a robust formatting utility in `src/lib/supplierConnector.ts` to handle both the internal JSON representation and the human-readable display string.
 
-#### 1. Imports
-Add `useWorkspaceContext` to the imports in `src/pages/IngestionHubPage.tsx` to retrieve the current workspace ID.
+### 2. Edge Function Updates
+I'll update the ingestion and reconciliation edge functions to use this formatter when generating previews or display strings, while ensuring the underlying data remains structured JSON.
 
-#### 2. Component Logic
-- Initialize `useWorkspaceContext` at the top of the `IngestionHubPage` component.
-- Define `workspaceId` as `activeWorkspace?.id`.
-
-#### 3. Supplier Matching Logic in `handleLoadFromUrl`
-Modify the `handleLoadFromUrl` function to search for a matching supplier based on the feed URL after a successful load. If a match is found, update the `detectedSupplier` state and show a success toast.
+### 3. UI Component Fixes
+I'll update the `ReconciliationTab.tsx` and any relevant preview components to use a safe display formatter for attributes and other potentially nested objects.
 
 ### Technical Details
 
-- **File**: `src/pages/IngestionHubPage.tsx`
-- **Hook**: `const { activeWorkspace } = useWorkspaceContext();`
-- **Variable**: `const workspaceId = activeWorkspace?.id;`
-- **Logic Placement**: After `toast.success(\`Feed carregado: \${data.totalRows} produtos\`);` in `handleLoadFromUrl`.
+**`src/lib/supplierConnector.ts`**
+- Add `formatAttributeValue(val: any): string` to convert `{value, unit}` objects or primitives into human-readable strings.
+- Ensure `applyToRow` doesn't accidentally stringify the `attributes` object itself, only its primitive fields if necessary.
 
-### Verification Plan
-- Confirm `workspaceId` usage in the file.
-- Verify the `handleLoadFromUrl` function contains the new logic.
-- Show lines 440-465 of the modified file.
+**`supabase/functions/run-ingestion-job/index.ts`**
+- In `buildProductData`, ensure `attributes` are merged correctly as objects.
+- Fix the logic that stringifies "string fields" to ensure it doesn't touch the `attributes` object.
+
+**`supabase/functions/reconcile-history-jobs/index.ts`**
+- Update the `proposed_changes` and `site_data` preparation logic to ensure attribute values are either properly structured JSON or formatted for display in `proposed_changes` if intended for UI consumption.
+
+**`src/components/supplier/ReconciliationTab.tsx`**
+- Update the rendering loop (around line 696) to use a safe formatter instead of `String(newVal || '—')`.
+
+### User-facing explanation
+This fix will ensure that product specifications like "Height: 850 mm" appear correctly in your dashboard instead of the generic "[object Object]". It preserves the technical data structure behind the scenes while showing you readable text during the review process.

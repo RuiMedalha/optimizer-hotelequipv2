@@ -15,6 +15,16 @@ const normalizeSKU = (sku: string): string => {
   return normalized || "0";
 };
 
+const formatAttributeValue = (val: any): string => {
+  if (val === null || val === undefined) return "";
+  if (typeof val === "object" && val.value !== undefined) {
+    const unit = val.unit ? ` ${val.unit}` : "";
+    return `${val.value}${unit}`;
+  }
+  if (typeof val === "object") return JSON.stringify(val);
+  return String(val);
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -149,7 +159,7 @@ Deno.serve(async (req) => {
       "original_price", "optimized_price", "sale_price", "optimized_sale_price",
       "category", "brand", "model", "tags", "meta_title", "meta_description", "seo_slug",
       "short_description", "optimized_short_description", "technical_specs",
-      "image_urls", "product_type", "stock", "supplier_ref", "ean", "woocommerce_id"
+      "image_urls", "product_type", "stock", "supplier_ref", "ean", "woocommerce_id", "attributes"
     ]);
 
     function buildProductData(mapped: Record<string, any>, isRawData = false): Record<string, any> {
