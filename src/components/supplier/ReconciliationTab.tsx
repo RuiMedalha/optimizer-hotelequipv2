@@ -14,7 +14,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ConfidenceIndicator } from "@/components/ConfidenceIndicator";
 import { 
   AlertCircle, Check, X, Eye, Image as ImageIcon, Search, AlertTriangle, 
-  Tag, ArrowUpCircle, RefreshCw, Layers, Trash2, LayoutDashboard, ChevronDown, DollarSign
+  Tag, ArrowUpCircle, RefreshCw, Layers, Trash2, LayoutDashboard, ChevronDown, DollarSign,
+  CheckSquare, Square, Loader2
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -31,6 +32,7 @@ export function ReconciliationTab() {
   const [filterType, setFilterType] = useState<string | undefined>(undefined);
   const [offset, setOffset] = useState(0);
   const [allItems, setAllItems] = useState<(SyncStagingItem & { job: { config: any } | null })[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const { data: stagingData, isLoading, isFetching, error: fetchError } = usePendingStagingItems({ 
     changeType: filterType, 
@@ -61,10 +63,25 @@ export function ReconciliationTab() {
     setFilterType(type);
     setOffset(0);
     setAllItems([]);
+    setSelectedIds([]);
   };
 
   const handleLoadMore = () => {
     setOffset(prev => prev + ITEMS_PER_PAGE);
+  };
+
+  const handleToggleSelection = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedIds.length === allItems.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(allItems.map(i => i.id));
+    }
   };
 
   const handleOpenDetail = (item: SyncStagingItem & { job: { config: any } | null }) => {
@@ -120,10 +137,13 @@ export function ReconciliationTab() {
     } catch (e) {}
   };
 
-  const handleBatchAction = async (type: string, action: string, label: string) => {
+  const handleBatchAction = async (type: string | undefined, action: string, label: string, useSelection = false) => {
     if (!activeWorkspace?.id) return;
     
-    if (!confirm(`Tem a certeza que deseja ${label} para todos os produtos do tipo "${changeTypeLabels[type]}"?`)) {
+    const itemsToProcess = useSelection ? selectedIds : [];
+    const targetLabel = useSelection ? `${selectedIds.length} selecionados` : `todos do tipo "${changeTypeLabels[type || '']}"`;
+
+    if (!confirm(`Tem a certeza que deseja ${label} para ${targetLabel}?`)) {
       return;
     }
 
@@ -131,21 +151,10 @@ export function ReconciliationTab() {
       await batchProcess.mutateAsync({
         changeType: type,
         action,
-        workspaceId: activeWorkspace.id
+        workspaceId: activeWorkspace.id,
+        selectedIds: useSelection ? selectedIds : undefined
       });
-    } catch (e) {}
-  };
-
-  const handleBatchApproveOnlyPrices = async () => {
-    if (!activeWorkspace?.id) return;
-    if (!confirm("Deseja aprovar apenas os preços para todos os produtos com múltiplas alterações?")) return;
-
-    try {
-      await batchProcess.mutateAsync({
-        changeType: 'multiple_changes',
-        action: 'approve_prices_only',
-        workspaceId: activeWorkspace.id
-      });
+      if (useSelection) setSelectedIds([]);
     } catch (e) {}
   };
 
@@ -262,6 +271,7 @@ export function ReconciliationTab() {
                 
                 {!isDisabled && (
                   <div className="mt-1 pt-2 border-t w-full flex flex-col gap-1 justify-center">
+                  <div className="mt-1 pt-2 border-t w-full flex flex-col gap-1 justify-center">
                     {type === 'discontinued' && (
                       <Button 
                         variant="ghost" 
@@ -293,14 +303,24 @@ export function ReconciliationTab() {
                       </Button>
                     )}
                     {type === 'field_update' && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-6 text-[9px] px-2 hover:bg-blue-100 text-blue-600"
-                        onClick={(e) => { e.stopPropagation(); handleBatchAction(type, 'review_visual', 'enviar para revisão'); }}
-                      >
-                        Revisão Visual
-                      </Button>
+                      <>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 text-[9px] px-2 hover:bg-blue-100 text-blue-600"
+                          onClick={(e) => { e.stopPropagation(); handleBatchAction(type, 'review_visual', 'enviar para revisão visual'); }}
+                        >
+                          Revisão Visual
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 text-[9px] px-2 hover:bg-green-100 text-green-600"
+                          onClick={(e) => { e.stopPropagation(); handleBatchAction(type, 'approve_all', 'aprovar tudo (conteúdo + preço)'); }}
+                        >
+                          Aprovar Tudo
+                        </Button>
+                      </>
                     )}
                     {type === 'multiple_changes' && (
                       <>
@@ -308,20 +328,29 @@ export function ReconciliationTab() {
                           variant="ghost" 
                           size="sm" 
                           className="h-6 text-[9px] px-2 hover:bg-purple-100 text-purple-600"
-                          onClick={(e) => { e.stopPropagation(); handleBatchAction(type, 'review_visual', 'enviar para revisão'); }}
+                          onClick={(e) => { e.stopPropagation(); handleBatchAction(type, 'review_visual', 'enviar para revisão visual'); }}
                         >
                           Revisão Visual
                         </Button>
                         <Button 
                           variant="ghost" 
                           size="sm" 
+                          className="h-6 text-[9px] px-2 hover:bg-green-100 text-green-600"
+                          onClick={(e) => { e.stopPropagation(); handleBatchAction(type, 'approve_all', 'aprovar tudo (conteúdo + preço)'); }}
+                        >
+                          Aprovar Tudo
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
                           className="h-6 text-[9px] px-2 hover:bg-amber-100 text-amber-600"
-                          onClick={(e) => { e.stopPropagation(); handleBatchApproveOnlyPrices(); }}
+                          onClick={(e) => { e.stopPropagation(); handleBatchAction(type, 'approve_prices_only', 'aprovar apenas os preços'); }}
                         >
                           Aprovar só preços
                         </Button>
                       </>
                     )}
+                  </div>
                   </div>
                 )}
               </CardContent>
@@ -359,17 +388,48 @@ export function ReconciliationTab() {
             </Badge>
           </h3>
         </div>
-        {filterType && (
-          <Button variant="ghost" size="sm" onClick={handleRefresh}>
-            Limpar Filtros
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {selectedIds.length > 0 && (
+            <div className="flex items-center gap-2 mr-4 animate-in fade-in slide-in-from-right-4">
+              <span className="text-sm font-medium text-primary">
+                {selectedIds.length} selecionados
+              </span>
+              <Button 
+                variant="default" 
+                size="sm" 
+                className="h-8 bg-green-600 hover:bg-green-700"
+                onClick={() => handleBatchAction(filterType, 'approve_all', 'aprovar tudo (conteúdo + preço)', true)}
+              >
+                <CheckSquare className="w-4 h-4 mr-2" /> Aprovar Tudo
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-8 text-destructive border-destructive/20 hover:bg-destructive/10"
+                onClick={() => setSelectedIds([])}
+              >
+                Limpar
+              </Button>
+            </div>
+          )}
+          {filterType && (
+            <Button variant="ghost" size="sm" onClick={handleRefresh}>
+              Limpar Filtros
+            </Button>
+          )}
+        </div>
       </div>
 
       <Card>
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox 
+                  checked={selectedIds.length > 0 && selectedIds.length === allItems.length}
+                  onCheckedChange={handleToggleSelectAll}
+                />
+              </TableHead>
               <TableHead>Tipo / Estado</TableHead>
               <TableHead>SKU Fornecedor</TableHead>
               <TableHead>SKU Site</TableHead>
@@ -383,8 +443,21 @@ export function ReconciliationTab() {
             {allItems.length > 0 ? (
               allItems.map((item) => {
                 const Icon = item.change_type ? changeTypeIcons[item.change_type] : LayoutDashboard;
+                const isSelected = selectedIds.includes(item.id);
                 return (
-                  <TableRow key={item.id} className={cn(item.status === 'flagged' ? "bg-amber-500/5" : "")}>
+                  <TableRow 
+                    key={item.id} 
+                    className={cn(
+                      item.status === 'flagged' ? "bg-amber-500/5" : "",
+                      isSelected ? "bg-primary/5" : ""
+                    )}
+                  >
+                    <TableCell>
+                      <Checkbox 
+                        checked={isSelected}
+                        onCheckedChange={() => handleToggleSelection(item.id)}
+                      />
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline" className={cn("gap-1 px-2 py-0.5", item.change_type ? changeTypeColors[item.change_type] : "")}>
                         <Icon className="w-3 h-3" />
@@ -418,7 +491,7 @@ export function ReconciliationTab() {
               })
             ) : !isLoading && (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                   {filterType 
                     ? `Sem registos do tipo "${changeTypeLabels[filterType]}" encontrados.`
                     : "A carregar lista de produtos..."}
@@ -751,21 +824,3 @@ export function ReconciliationTab() {
   );
 }
 
-function Loader2(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-    </svg>
-  );
-}
