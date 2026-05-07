@@ -349,10 +349,8 @@ Deno.serve(async (req) => {
         proposed_changes: {
           ...proposedChanges,
           supplier_name: supplierName,
-          // Format attributes for display in the UI if needed
-          attributes: Object.fromEntries(
-            Object.entries(proposedChanges.attributes || {}).map(([k, v]) => [k, formatAttributeValue(v)])
-          )
+          // Keep attributes as structured JSON for persistence
+          attributes: proposedChanges.attributes
         },
         site_data: masterItem ? masterMapped : null,
         existing_product_id: masterItem?.product_id || null,

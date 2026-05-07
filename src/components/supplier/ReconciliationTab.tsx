@@ -685,7 +685,16 @@ export function ReconciliationTab() {
                               <div className="space-y-1">
                                 <Label className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Valor no Site</Label>
                                 <div className="text-sm line-through opacity-50 truncate italic">
-                                  {String(oldVal || '—')}
+                                  {key === 'attributes' && typeof oldVal === 'object' && oldVal !== null
+                                    ? <div className="space-y-1">
+                                        {Object.entries(oldVal).map(([attrK, attrV]) => (
+                                          <div key={attrK} className="flex gap-1 whitespace-nowrap">
+                                            <span className="opacity-70">{attrK}:</span>
+                                            <span>{formatAttributeValue(attrV)}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    : (typeof oldVal === 'object' ? JSON.stringify(oldVal) : String(oldVal || '—'))}
                                 </div>
                               </div>
                               <div className="space-y-1">
@@ -694,8 +703,15 @@ export function ReconciliationTab() {
                                   "text-sm font-medium px-2 py-1 rounded inline-block",
                                   ['price', 'original_price', 'sale_price'].includes(key) ? "bg-amber-100 text-amber-700" : "bg-primary/10 text-primary"
                                 )}>
-                                  {key === 'attributes' && typeof newVal === 'object' 
-                                    ? JSON.stringify(newVal, null, 2)
+                                  {key === 'attributes' && typeof newVal === 'object' && newVal !== null
+                                    ? <div className="space-y-1">
+                                        {Object.entries(newVal).map(([attrK, attrV]) => (
+                                          <div key={attrK} className="flex gap-1 whitespace-nowrap">
+                                            <span className="opacity-70">{attrK}:</span>
+                                            <span>{formatAttributeValue(attrV)}</span>
+                                          </div>
+                                        ))}
+                                      </div>
                                     : formatAttributeValue(newVal) || '—'}
                                 </div>
                               </div>
