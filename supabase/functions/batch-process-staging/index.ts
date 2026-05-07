@@ -261,17 +261,40 @@ Deno.serve(async (req) => {
           await supabase.from("sync_staging").delete().eq("id", staging.id);
           processedCount++;
         }
+        else if (action === 'approve_all' && effectiveProductId) {
+          // Combine visual review + price approval
+          const contentPayload = buildUpdatePayload(rawData, existingProductData || {});
+          const newPrice = cleanSupplierValue(rawData.price || rawData.original_price || rawData.Preço || rawData.Publico);
+          
+          await supabase.from("products").update({
+            ...contentPayload,
+            original_price: newPrice !== undefined ? newPrice : (existingProductData?.original_price),
+            workflow_state: 'draft',
+            updated_at: new Date().toISOString()
+          }).eq("id", effectiveProductId);
+
+          await supabase.from("sync_staging").delete().eq("id", staging.id);
+          processedCount++;
+        }
       } catch (err) {
         console.error(`Error processing staging ${staging.id}:`, err);
       }
     }
 
-    const { count: remainingCount } = await supabase
+    let remainingQuery = supabase
       .from("sync_staging")
       .select("*", { count: 'exact', head: true })
       .eq("workspace_id", workspaceId)
-      .eq("change_type", changeType)
       .in("status", ["pending", "flagged"]);
+
+    if (selectedIds && Array.isArray(selectedIds) && selectedIds.length > 0) {
+      // If we processed some selected IDs, we need to check how many of THOSE are left (though usually we process all 500)
+      remainingQuery = remainingQuery.in("id", selectedIds);
+    } else if (changeType) {
+      remainingQuery = remainingQuery.eq("change_type", changeType);
+    }
+
+    const { count: remainingCount } = await remainingQuery;
 
     return new Response(JSON.stringify({ 
       success: true, 
