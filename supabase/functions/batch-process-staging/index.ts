@@ -17,10 +17,49 @@ const normalizeSKU = (sku: string): string => {
 
 const cleanSupplierValue = (val: any) => {
   if (val === null || val === undefined) return undefined;
-  const sVal = String(val).trim();
-  if (sVal === "" || sVal === "-" || sVal === "—") return undefined;
+  if (typeof val === 'string') {
+    const sVal = val.trim();
+    if (sVal === "" || sVal === "-" || sVal === "—") return undefined;
+    return sVal;
+  }
   return val;
 };
+
+const CONTENT_FIELDS = [
+  'original_title', 'supplier_title', 'original_description', 'supplier_description',
+  'short_description', 'supplier_short_description', 'category', 'brand', 'model',
+  'ean', 'technical_specs', 'attributes', 'product_type', 'meta_title', 
+  'meta_description', 'seo_slug', 'tags', 'image_urls'
+];
+
+const buildUpdatePayload = (rawData: any, existingProduct: any = {}) => {
+  const payload: any = {};
+  
+  CONTENT_FIELDS.forEach(field => {
+    let value = cleanSupplierValue(rawData[field]);
+    
+    // Normalize image_urls to array
+    if (field === 'image_urls' && value) {
+      if (!Array.isArray(value)) value = [value];
+    }
+    
+    // attributes must be structured JSON
+    if (field === 'attributes' && value && typeof value === 'string') {
+      try {
+        value = JSON.parse(value);
+      } catch (e) {
+        // Keep as is or handle error
+      }
+    }
+
+    if (value !== undefined) {
+      payload[field] = value;
+    }
+  });
+
+  return payload;
+};
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -132,36 +171,26 @@ Deno.serve(async (req) => {
           processedCount++;
         }
         else if (action === 'create_drafts' && ws?.user_id) {
-          const jobConfig = jobConfigMap.get(staging.ingestion_job_id) || {};
-          const defaultBrand = jobConfig.defaultBrand || null;
-          
           const sTitle = cleanSupplierValue(rawData.original_title ?? rawData.supplier_title ?? rawData.title);
-          const sDesc = cleanSupplierValue(rawData.original_description ?? rawData.supplier_description ?? rawData.description);
           const price = cleanSupplierValue(rawData.original_price ?? rawData.price ?? rawData.Preço ?? rawData.Publico);
-          const ean = cleanSupplierValue(rawData.ean);
           const woocommerceId = rawData.woocommerce_id ? parseInt(String(rawData.woocommerce_id), 10) : null;
 
-          // Validação básica
           if (!sTitle && !existingProductData?.original_title) {
             await supabase.from("sync_staging").update({ status: 'error', review_notes: 'Título em falta' }).eq("id", staging.id);
             continue;
           }
 
+          const contentPayload = buildUpdatePayload(rawData, existingProductData || {});
+
           if (effectiveProductId && existingProductData) {
-            // UPDATE com MERGE
             await supabase.from("products").update({
-              brand: rawData.brand || defaultBrand || existingProductData.brand,
-              model: rawData.model || staging.sku_supplier || existingProductData.model,
-              attributes: rawData.attributes || existingProductData.attributes,
-              original_title: sTitle || existingProductData.original_title,
-              original_description: sDesc || existingProductData.original_description,
+              ...contentPayload,
               original_price: price || existingProductData.original_price,
-              ...(ean !== undefined && { ean }),
               ...(woocommerceId && woocommerceId > 0 && { woocommerce_id: woocommerceId }),
+              workflow_state: 'draft',
               updated_at: new Date().toISOString()
             }).eq("id", effectiveProductId);
           } else {
-            // INSERT novo
             const productToInsert = {
               sku: sku,
               workspace_id: workspaceId,
@@ -169,18 +198,25 @@ Deno.serve(async (req) => {
               workflow_state: 'draft',
               status: 'pending',
               origin: 'supplier',
-              brand: rawData.brand || defaultBrand,
-              model: rawData.model || staging.sku_supplier || sku,
-              supplier_title: sTitle,
-              original_title: sTitle,
-              original_description: sDesc,
               original_price: price,
-              ...(ean !== undefined && { ean }),
               ...(woocommerceId && woocommerceId > 0 && { woocommerce_id: woocommerceId }),
-              is_discontinued: false
+              is_discontinued: false,
+              ...contentPayload
             };
             await supabase.from("products").insert(productToInsert);
           }
+
+          await supabase.from("sync_staging").delete().eq("id", staging.id);
+          processedCount++;
+        }
+        else if (action === 'review_visual' && (changeType === 'field_update' || changeType === 'multiple_changes') && effectiveProductId) {
+          const contentPayload = buildUpdatePayload(rawData, existingProductData || {});
+          
+          await supabase.from("products").update({
+            ...contentPayload,
+            workflow_state: 'draft',
+            updated_at: new Date().toISOString()
+          }).eq("id", effectiveProductId);
 
           await supabase.from("sync_staging").delete().eq("id", staging.id);
           processedCount++;
@@ -201,9 +237,21 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ success: true, count: processedCount }), {
+    const { count: remainingCount } = await supabase
+      .from("sync_staging")
+      .select("*", { count: 'exact', head: true })
+      .eq("workspace_id", workspaceId)
+      .eq("change_type", changeType)
+      .in("status", ["pending", "flagged"]);
+
+    return new Response(JSON.stringify({ 
+      success: true, 
+      count: processedCount,
+      remaining: remainingCount || 0
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
+
 
   } catch (e: any) {
     return new Response(JSON.stringify({ success: false, error: e.message }), {
