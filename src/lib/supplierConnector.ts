@@ -551,8 +551,8 @@ export const CONNECTOR_PRESETS: Record<string, ConnectorConfig> = {
       'DESCRIPTION': 'original_description',
       'BRAND': 'brand',
       'EAN': 'ean',
-      'PRICE': 'original_price',
-      'BASIC_PRICE': 'attributes.pvp_recomendado',
+      'BASIC_PRICE': 'original_price',
+      'PRICE': 'attributes.preco_custo',
       'ON_STOCK': 'stock',
       'CATEGORYTEXT1': 'category',
       'URL': 'attributes.supplier_url'

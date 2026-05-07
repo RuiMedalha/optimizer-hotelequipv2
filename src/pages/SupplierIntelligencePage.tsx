@@ -68,6 +68,9 @@ function SupplierDetail({ supplier, onBack }: { supplier: any; onBack: () => voi
     const config = CONNECTOR_PRESETS[preset] || {};
     setConnectorConfigText(JSON.stringify(config, null, 2));
     setConfigError(null);
+    if (preset === 'tefcold_xml') {
+      toast.info('Preset aplicado. Clica Guardar para actualizar o connector do fornecedor.');
+    }
   };
 
   const handleValidateConfig = () => {

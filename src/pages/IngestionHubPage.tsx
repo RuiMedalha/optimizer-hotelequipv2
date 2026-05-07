@@ -551,17 +551,17 @@ const IngestionHubPage = () => {
     if (!dataToProcess) return;
 
     // Apply selected price field override
-    const finalData = selectedPriceField ? dataToProcess.map(row => ({
-      ...row,
-      original_price: row[selectedPriceField] !== undefined 
-        ? (() => {
-            const raw = String(row[selectedPriceField] || '');
-            const cleaned = raw.replace(/\./g, '').replace(',', '.');
-            const parsed = parseFloat(cleaned);
-            return isNaN(parsed) || parsed <= 0 ? row.original_price : parsed;
-          })()
-        : row.original_price
-    })) : dataToProcess;
+    const finalData = (selectedPriceField && parsedData) ? dataToProcess.map((row, idx) => {
+      const rawRow = parsedData[idx];
+      if (!rawRow || rawRow[selectedPriceField] === undefined) return row;
+      const raw = String(rawRow[selectedPriceField] || '');
+      const cleaned = raw.includes(',') && raw.includes('.') 
+        ? raw.replace(/\./g, '').replace(',', '.')
+        : raw.replace(',', '.');
+      const parsed = parseFloat(cleaned);
+      if (isNaN(parsed) || parsed <= 0) return row;
+      return { ...row, original_price: parsed };
+    }) : dataToProcess;
 
     try {
       const result = await parseIngestion.mutateAsync({
@@ -592,17 +592,17 @@ const IngestionHubPage = () => {
     if (!dataToProcess) return;
 
     // Apply selected price field override
-    const finalData = selectedPriceField ? dataToProcess.map(row => ({
-      ...row,
-      original_price: row[selectedPriceField] !== undefined 
-        ? (() => {
-            const raw = String(row[selectedPriceField] || '');
-            const cleaned = raw.replace(/\./g, '').replace(',', '.');
-            const parsed = parseFloat(cleaned);
-            return isNaN(parsed) || parsed <= 0 ? row.original_price : parsed;
-          })()
-        : row.original_price
-    })) : dataToProcess;
+    const finalData = (selectedPriceField && parsedData) ? dataToProcess.map((row, idx) => {
+      const rawRow = parsedData[idx];
+      if (!rawRow || rawRow[selectedPriceField] === undefined) return row;
+      const raw = String(rawRow[selectedPriceField] || '');
+      const cleaned = raw.includes(',') && raw.includes('.') 
+        ? raw.replace(/\./g, '').replace(',', '.')
+        : raw.replace(',', '.');
+      const parsed = parseFloat(cleaned);
+      if (isNaN(parsed) || parsed <= 0) return row;
+      return { ...row, original_price: parsed };
+    }) : dataToProcess;
 
     try {
       const result = await parseIngestion.mutateAsync({
@@ -649,17 +649,17 @@ const IngestionHubPage = () => {
     if (!dataToProcess || !parsedHeaders.length) return;
 
     // Apply selected price field override
-    const finalData = selectedPriceField ? dataToProcess.map(row => ({
-      ...row,
-      original_price: row[selectedPriceField] !== undefined 
-        ? (() => {
-            const raw = String(row[selectedPriceField] || '');
-            const cleaned = raw.replace(/\./g, '').replace(',', '.');
-            const parsed = parseFloat(cleaned);
-            return isNaN(parsed) || parsed <= 0 ? row.original_price : parsed;
-          })()
-        : row.original_price
-    })) : dataToProcess;
+    const finalData = (selectedPriceField && parsedData) ? dataToProcess.map((row, idx) => {
+      const rawRow = parsedData[idx];
+      if (!rawRow || rawRow[selectedPriceField] === undefined) return row;
+      const raw = String(rawRow[selectedPriceField] || '');
+      const cleaned = raw.includes(',') && raw.includes('.') 
+        ? raw.replace(/\./g, '').replace(',', '.')
+        : raw.replace(',', '.');
+      const parsed = parseFloat(cleaned);
+      if (isNaN(parsed) || parsed <= 0) return row;
+      return { ...row, original_price: parsed };
+    }) : dataToProcess;
 
     const ext = fileName.split(".").pop()?.toLowerCase() || "xlsx";
     triggerAutoDraftFromIngestion.mutate({
