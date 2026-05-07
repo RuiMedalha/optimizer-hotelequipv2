@@ -402,7 +402,7 @@ export function useStagingCounts() {
 export function useBatchProcessStaging() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ changeType, action, workspaceId }: { changeType: string; action: string; workspaceId: string }) => {
+    mutationFn: async ({ changeType, action, workspaceId, selectedIds }: { changeType?: string; action: string; workspaceId: string; selectedIds?: string[] }) => {
       let totalProcessed = 0;
       let hasMore = true;
       let remaining = 0;
@@ -412,14 +412,14 @@ export function useBatchProcessStaging() {
       try {
         while (hasMore) {
           const { data, error } = await supabase.functions.invoke("batch-process-staging", {
-            body: { changeType, action, workspaceId },
+            body: { changeType, action, workspaceId, selectedIds },
           });
 
           if (error) throw error;
           
           totalProcessed += data.count;
           remaining = data.remaining;
-          hasMore = remaining > 0 && data.count > 0;
+          hasMore = remaining > 0 && data.count > 0 && !selectedIds;
 
           if (hasMore) {
             toast.loading(`Processados ${totalProcessed} produtos. Restam ${remaining}...`, { id: toastId });
