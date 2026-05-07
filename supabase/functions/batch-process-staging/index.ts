@@ -110,7 +110,6 @@ Deno.serve(async (req) => {
         if (action === 'draft_discontinued') {
           if (effectiveProductId) {
             await supabase.from("products").update({
-              status: 'discontinued',
               is_discontinued: true,
               stock: 0,
               workflow_state: 'draft',
@@ -121,7 +120,6 @@ Deno.serve(async (req) => {
               sku: sku,
               workspace_id: workspaceId,
               user_id: ws.user_id,
-              status: 'discontinued',
               workflow_state: 'draft',
               is_discontinued: true,
               stock: 0,
