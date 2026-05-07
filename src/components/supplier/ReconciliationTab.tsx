@@ -491,7 +491,7 @@ export function ReconciliationTab() {
               })
             ) : !isLoading && (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                   {filterType 
                     ? `Sem registos do tipo "${changeTypeLabels[filterType]}" encontrados.`
                     : "A carregar lista de produtos..."}
