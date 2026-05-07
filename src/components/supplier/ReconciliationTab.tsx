@@ -388,17 +388,48 @@ export function ReconciliationTab() {
             </Badge>
           </h3>
         </div>
-        {filterType && (
-          <Button variant="ghost" size="sm" onClick={handleRefresh}>
-            Limpar Filtros
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {selectedIds.length > 0 && (
+            <div className="flex items-center gap-2 mr-4 animate-in fade-in slide-in-from-right-4">
+              <span className="text-sm font-medium text-primary">
+                {selectedIds.length} selecionados
+              </span>
+              <Button 
+                variant="default" 
+                size="sm" 
+                className="h-8 bg-green-600 hover:bg-green-700"
+                onClick={() => handleBatchAction(filterType, 'approve_all', 'aprovar tudo (conteúdo + preço)', true)}
+              >
+                <CheckSquare className="w-4 h-4 mr-2" /> Aprovar Tudo
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-8 text-destructive border-destructive/20 hover:bg-destructive/10"
+                onClick={() => setSelectedIds([])}
+              >
+                Limpar
+              </Button>
+            </div>
+          )}
+          {filterType && (
+            <Button variant="ghost" size="sm" onClick={handleRefresh}>
+              Limpar Filtros
+            </Button>
+          )}
+        </div>
       </div>
 
       <Card>
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox 
+                  checked={selectedIds.length > 0 && selectedIds.length === allItems.length}
+                  onCheckedChange={handleToggleSelectAll}
+                />
+              </TableHead>
               <TableHead>Tipo / Estado</TableHead>
               <TableHead>SKU Fornecedor</TableHead>
               <TableHead>SKU Site</TableHead>
@@ -412,8 +443,21 @@ export function ReconciliationTab() {
             {allItems.length > 0 ? (
               allItems.map((item) => {
                 const Icon = item.change_type ? changeTypeIcons[item.change_type] : LayoutDashboard;
+                const isSelected = selectedIds.includes(item.id);
                 return (
-                  <TableRow key={item.id} className={cn(item.status === 'flagged' ? "bg-amber-500/5" : "")}>
+                  <TableRow 
+                    key={item.id} 
+                    className={cn(
+                      item.status === 'flagged' ? "bg-amber-500/5" : "",
+                      isSelected ? "bg-primary/5" : ""
+                    )}
+                  >
+                    <TableCell>
+                      <Checkbox 
+                        checked={isSelected}
+                        onCheckedChange={() => handleToggleSelection(item.id)}
+                      />
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline" className={cn("gap-1 px-2 py-0.5", item.change_type ? changeTypeColors[item.change_type] : "")}>
                         <Icon className="w-3 h-3" />
