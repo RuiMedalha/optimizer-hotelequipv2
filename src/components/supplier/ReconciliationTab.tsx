@@ -15,8 +15,9 @@ import { ConfidenceIndicator } from "@/components/ConfidenceIndicator";
 import { 
   AlertCircle, Check, X, Eye, Image as ImageIcon, Search, AlertTriangle, 
   Tag, ArrowUpCircle, RefreshCw, Layers, Trash2, LayoutDashboard, ChevronDown, DollarSign,
-  CheckSquare, Square, Loader2
+  CheckSquare, Square
 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
