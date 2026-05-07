@@ -63,10 +63,25 @@ export function ReconciliationTab() {
     setFilterType(type);
     setOffset(0);
     setAllItems([]);
+    setSelectedIds([]);
   };
 
   const handleLoadMore = () => {
     setOffset(prev => prev + ITEMS_PER_PAGE);
+  };
+
+  const handleToggleSelection = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedIds.length === allItems.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(allItems.map(i => i.id));
+    }
   };
 
   const handleOpenDetail = (item: SyncStagingItem & { job: { config: any } | null }) => {
@@ -122,10 +137,13 @@ export function ReconciliationTab() {
     } catch (e) {}
   };
 
-  const handleBatchAction = async (type: string, action: string, label: string) => {
+  const handleBatchAction = async (type: string | undefined, action: string, label: string, useSelection = false) => {
     if (!activeWorkspace?.id) return;
     
-    if (!confirm(`Tem a certeza que deseja ${label} para todos os produtos do tipo "${changeTypeLabels[type]}"?`)) {
+    const itemsToProcess = useSelection ? selectedIds : [];
+    const targetLabel = useSelection ? `${selectedIds.length} selecionados` : `todos do tipo "${changeTypeLabels[type || '']}"`;
+
+    if (!confirm(`Tem a certeza que deseja ${label} para ${targetLabel}?`)) {
       return;
     }
 
@@ -133,21 +151,10 @@ export function ReconciliationTab() {
       await batchProcess.mutateAsync({
         changeType: type,
         action,
-        workspaceId: activeWorkspace.id
+        workspaceId: activeWorkspace.id,
+        selectedIds: useSelection ? selectedIds : undefined
       });
-    } catch (e) {}
-  };
-
-  const handleBatchApproveOnlyPrices = async () => {
-    if (!activeWorkspace?.id) return;
-    if (!confirm("Deseja aprovar apenas os preços para todos os produtos com múltiplas alterações?")) return;
-
-    try {
-      await batchProcess.mutateAsync({
-        changeType: 'multiple_changes',
-        action: 'approve_prices_only',
-        workspaceId: activeWorkspace.id
-      });
+      if (useSelection) setSelectedIds([]);
     } catch (e) {}
   };
 
