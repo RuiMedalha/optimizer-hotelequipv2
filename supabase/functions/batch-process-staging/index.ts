@@ -91,16 +91,24 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { changeType, action, workspaceId } = await req.json();
-    if (!changeType || !action || !workspaceId) throw new Error("Missing parameters");
+    const { changeType, action, workspaceId, selectedIds } = await req.json();
+    if (!action || !workspaceId) throw new Error("Missing parameters");
 
-    const { data: stagingRecords, error: fetchErr } = await supabase
+    let fetchQuery = supabase
       .from("sync_staging")
       .select("*")
       .eq("workspace_id", workspaceId)
-      .eq("change_type", changeType)
-      .in("status", ["pending", "flagged"])
-      .limit(500); // Batch smaller for safety
+      .in("status", ["pending", "flagged"]);
+
+    if (selectedIds && Array.isArray(selectedIds) && selectedIds.length > 0) {
+      fetchQuery = fetchQuery.in("id", selectedIds);
+    } else if (changeType) {
+      fetchQuery = fetchQuery.eq("change_type", changeType);
+    } else {
+      throw new Error("Missing changeType or selectedIds");
+    }
+
+    const { data: stagingRecords, error: fetchErr } = await fetchQuery.limit(500);
 
     if (fetchErr) throw fetchErr;
     if (!stagingRecords || stagingRecords.length === 0) {
