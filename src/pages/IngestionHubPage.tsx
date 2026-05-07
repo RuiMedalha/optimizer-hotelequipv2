@@ -39,6 +39,7 @@ import {
   parseXml, 
   applyConnectorTransformations, 
   generateAiPrompt, 
+  formatAttributeValue,
   type ConnectorConfig, 
   type XmlFormat 
 } from "@/lib/supplierConnector";
@@ -1965,8 +1966,20 @@ function ItemDetailDialog({
       return v !== null && v !== undefined && v !== "";
     });
 
-  const formatValue = (val: any): string => {
+  const formatValue = (val: any, key?: string): React.ReactNode => {
     if (val === null || val === undefined || val === "") return "—";
+    if (key === 'attributes' && typeof val === 'object') {
+      return (
+        <div className="space-y-1">
+          {Object.entries(val).map(([k, v]) => (
+            <div key={k} className="flex gap-1">
+              <span className="text-muted-foreground">{k}:</span>
+              <span>{formatAttributeValue(v)}</span>
+            </div>
+          ))}
+        </div>
+      );
+    }
     if (Array.isArray(val)) return val.join(", ");
     if (typeof val === "object") { try { return JSON.stringify(val, null, 2); } catch { return String(val); } }
     return String(val);
