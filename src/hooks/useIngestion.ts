@@ -403,11 +403,35 @@ export function useBatchProcessStaging() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ changeType, action, workspaceId }: { changeType: string; action: string; workspaceId: string }) => {
-      const { data, error } = await supabase.functions.invoke("batch-process-staging", {
-        body: { changeType, action, workspaceId },
-      });
-      if (error) throw error;
-      return data;
+      let totalProcessed = 0;
+      let hasMore = true;
+      let remaining = 0;
+
+      const toastId = toast.loading(`A processar lote...`);
+
+      try {
+        while (hasMore) {
+          const { data, error } = await supabase.functions.invoke("batch-process-staging", {
+            body: { changeType, action, workspaceId },
+          });
+
+          if (error) throw error;
+          
+          totalProcessed += data.count;
+          remaining = data.remaining;
+          hasMore = remaining > 0 && data.count > 0;
+
+          if (hasMore) {
+            toast.loading(`Processados ${totalProcessed} produtos. Restam ${remaining}...`, { id: toastId });
+          }
+        }
+        
+        toast.dismiss(toastId);
+        return { count: totalProcessed };
+      } catch (e) {
+        toast.dismiss(toastId);
+        throw e;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["pending-staging-items"] });
