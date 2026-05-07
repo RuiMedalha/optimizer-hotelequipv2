@@ -433,7 +433,11 @@ Deno.serve(async (req) => {
                    brand: mergedData.brand || mergedData.Marca,
                    model: mergedData.model || mergedData.Modelo,
                    ean: mergedData.ean || mergedData.EAN,
-                   original_description: mergedData.original_description || mergedData.Descrição
+                   original_description: mergedData.original_description || mergedData.Descrição,
+                   // Format attributes for display
+                   attributes: mergedData.attributes ? Object.fromEntries(
+                     Object.entries(mergedData.attributes).map(([k, v]) => [k, formatAttributeValue(v)])
+                   ) : undefined
                 },
                 site_data: existingProduct || null,
                 existing_product_id: existingProduct?.id || null,
