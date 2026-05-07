@@ -38,17 +38,38 @@ const buildUpdatePayload = (rawData: any, existingProduct: any = {}) => {
   CONTENT_FIELDS.forEach(field => {
     let value = cleanSupplierValue(rawData[field]);
     
-    // Normalize image_urls to array
-    if (field === 'image_urls' && value) {
-      if (!Array.isArray(value)) value = [value];
+    // Normalize image_urls and tags to array
+    if ((field === 'image_urls' || field === 'tags') && value) {
+      if (typeof value === 'string') {
+        if (value.includes(',')) {
+          value = value.split(',').map((v: string) => v.trim()).filter(Boolean);
+        } else {
+          value = [value.trim()];
+        }
+      } else if (!Array.isArray(value)) {
+        value = [value];
+      }
     }
     
     // attributes must be structured JSON
-    if (field === 'attributes' && value && typeof value === 'string') {
-      try {
-        value = JSON.parse(value);
-      } catch (e) {
-        // Keep as is or handle error
+    if (field === 'attributes' && value) {
+      if (typeof value === 'string') {
+        try {
+          const parsed = JSON.parse(value);
+          // Only use it if it's an object (including arrays)
+          if (parsed !== null && typeof parsed === 'object') {
+            value = parsed;
+          } else {
+            // Not a valid object/array, skip
+            value = undefined;
+          }
+        } catch (e) {
+          // Parse failed, skip attributes to avoid saving display strings
+          value = undefined;
+        }
+      } else if (typeof value !== 'object' || value === null) {
+        // Not a string and not an object, skip
+        value = undefined;
       }
     }
 
