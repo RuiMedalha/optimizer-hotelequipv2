@@ -15,6 +15,16 @@ const normalizeSKU = (sku: string): string => {
   return normalized || "0";
 };
 
+const formatAttributeValue = (val: any): string => {
+  if (val === null || val === undefined) return "";
+  if (typeof val === "object" && val.value !== undefined) {
+    const unit = val.unit ? ` ${val.unit}` : "";
+    return `${val.value}${unit}`;
+  }
+  if (typeof val === "object") return JSON.stringify(val);
+  return String(val);
+};
+
 const areValuesDifferent = (val1: any, val2: any): boolean => {
   if (val1 === val2) return false;
   if (!val1 && !val2) return false;
@@ -338,7 +348,11 @@ Deno.serve(async (req) => {
         },
         proposed_changes: {
           ...proposedChanges,
-          supplier_name: supplierName
+          supplier_name: supplierName,
+          // Format attributes for display in the UI if needed
+          attributes: Object.fromEntries(
+            Object.entries(proposedChanges.attributes || {}).map(([k, v]) => [k, formatAttributeValue(v)])
+          )
         },
         site_data: masterItem ? masterMapped : null,
         existing_product_id: masterItem?.product_id || null,

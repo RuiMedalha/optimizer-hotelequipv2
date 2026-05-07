@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
+import { formatAttributeValue } from "@/lib/supplierConnector";
 
 const ITEMS_PER_PAGE = 50;
 
@@ -693,7 +694,9 @@ export function ReconciliationTab() {
                                   "text-sm font-medium px-2 py-1 rounded inline-block",
                                   ['price', 'original_price', 'sale_price'].includes(key) ? "bg-amber-100 text-amber-700" : "bg-primary/10 text-primary"
                                 )}>
-                                  {String(newVal || '—')}
+                                  {key === 'attributes' && typeof newVal === 'object' 
+                                    ? JSON.stringify(newVal, null, 2)
+                                    : formatAttributeValue(newVal) || '—'}
                                 </div>
                               </div>
                             </div>

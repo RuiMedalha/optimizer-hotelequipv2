@@ -381,6 +381,16 @@ export function applyConnectorTransformations(
   return rows.map(row => applyToRow(row, config, fileFormat));
 }
 
+export function formatAttributeValue(val: any): string {
+  if (val === null || val === undefined) return '';
+  if (typeof val === 'object' && val.value !== undefined) {
+    const unit = val.unit ? ` ${val.unit}` : '';
+    return `${val.value}${unit}`;
+  }
+  if (typeof val === 'object') return JSON.stringify(val);
+  return String(val);
+}
+
 // ============================================================
 // SPECIAL FIELDS DETECTION
 // ============================================================
