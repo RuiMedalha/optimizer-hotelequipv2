@@ -271,6 +271,7 @@ export function ReconciliationTab() {
                 
                 {!isDisabled && (
                   <div className="mt-1 pt-2 border-t w-full flex flex-col gap-1 justify-center">
+                  <div className="mt-1 pt-2 border-t w-full flex flex-col gap-1 justify-center">
                     {type === 'discontinued' && (
                       <Button 
                         variant="ghost" 
@@ -302,14 +303,24 @@ export function ReconciliationTab() {
                       </Button>
                     )}
                     {type === 'field_update' && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-6 text-[9px] px-2 hover:bg-blue-100 text-blue-600"
-                        onClick={(e) => { e.stopPropagation(); handleBatchAction(type, 'review_visual', 'enviar para revisão'); }}
-                      >
-                        Revisão Visual
-                      </Button>
+                      <>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 text-[9px] px-2 hover:bg-blue-100 text-blue-600"
+                          onClick={(e) => { e.stopPropagation(); handleBatchAction(type, 'review_visual', 'enviar para revisão visual'); }}
+                        >
+                          Revisão Visual
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 text-[9px] px-2 hover:bg-green-100 text-green-600"
+                          onClick={(e) => { e.stopPropagation(); handleBatchAction(type, 'approve_all', 'aprovar tudo (conteúdo + preço)'); }}
+                        >
+                          Aprovar Tudo
+                        </Button>
+                      </>
                     )}
                     {type === 'multiple_changes' && (
                       <>
@@ -317,20 +328,29 @@ export function ReconciliationTab() {
                           variant="ghost" 
                           size="sm" 
                           className="h-6 text-[9px] px-2 hover:bg-purple-100 text-purple-600"
-                          onClick={(e) => { e.stopPropagation(); handleBatchAction(type, 'review_visual', 'enviar para revisão'); }}
+                          onClick={(e) => { e.stopPropagation(); handleBatchAction(type, 'review_visual', 'enviar para revisão visual'); }}
                         >
                           Revisão Visual
                         </Button>
                         <Button 
                           variant="ghost" 
                           size="sm" 
+                          className="h-6 text-[9px] px-2 hover:bg-green-100 text-green-600"
+                          onClick={(e) => { e.stopPropagation(); handleBatchAction(type, 'approve_all', 'aprovar tudo (conteúdo + preço)'); }}
+                        >
+                          Aprovar Tudo
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
                           className="h-6 text-[9px] px-2 hover:bg-amber-100 text-amber-600"
-                          onClick={(e) => { e.stopPropagation(); handleBatchApproveOnlyPrices(); }}
+                          onClick={(e) => { e.stopPropagation(); handleBatchAction(type, 'approve_prices_only', 'aprovar apenas os preços'); }}
                         >
                           Aprovar só preços
                         </Button>
                       </>
                     )}
+                  </div>
                   </div>
                 )}
               </CardContent>
