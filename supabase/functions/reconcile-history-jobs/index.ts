@@ -284,7 +284,7 @@ Deno.serve(async (req) => {
       };
 
       // 1. Include standard fields from Master for context display
-      const contextFields = ['original_title', 'original_description', 'short_description', 'category', 'brand', 'image_urls', 'model', 'ean', 'woocommerce_id'];
+      const contextFields = ['original_title', 'original_description', 'short_description', 'category', 'brand', 'image_urls', 'model', 'ean', 'woocommerce_id', 'attributes'];
       contextFields.forEach(field => {
         if (masterMapped[field] !== undefined) {
           proposedChanges[field] = masterMapped[field];
@@ -298,7 +298,8 @@ Deno.serve(async (req) => {
         }
       });
 
-      // 3. PRESERVATION RULE: Workable text fields from Master always win
+      // 3. PRESERVATION RULE: If master exists, its text fields win for display context
+      // but if it's a NEW product, we MUST use the supplier data
       const textFields = ['original_title', 'original_description', 'short_description'];
       textFields.forEach(field => {
         if (masterItem && masterMapped[field]) {
@@ -308,6 +309,9 @@ Deno.serve(async (req) => {
           const refField = field === 'original_title' ? 'supplier_title' : 
                           field === 'original_description' ? 'supplier_description' : 'supplier_short_description';
           proposedChanges[refField] = mappedData[field];
+        } else if (!masterItem && mappedData[field]) {
+          // If NEW product, use supplier value directly
+          proposedChanges[field] = mappedData[field];
         }
       });
 
@@ -315,12 +319,19 @@ Deno.serve(async (req) => {
       if (masterItem) {
         if (masterMapped.category) proposedChanges.category = masterMapped.category;
         if (masterMapped.brand) proposedChanges.brand = masterMapped.brand;
+      } else {
+        // For new products, ensure we take them from mapped data
+        if (mappedData.category) proposedChanges.category = mappedData.category;
+        if (mappedData.brand) proposedChanges.brand = mappedData.brand;
       }
 
-      // Ensure images are arrays
-      if (proposedChanges.image_urls) {
+      // Ensure images are arrays and handled for new products
+      if (mappedData.image_urls && !masterItem) {
+        proposedChanges.image_urls = ensureArray(mappedData.image_urls);
+      } else if (proposedChanges.image_urls) {
         proposedChanges.image_urls = ensureArray(proposedChanges.image_urls);
       }
+
 
       // Fallback supplier name from config if supplier_id is missing
       const supplierName = config.defaultBrand || "Desconhecido";
