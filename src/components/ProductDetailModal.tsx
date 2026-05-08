@@ -288,6 +288,15 @@ export function ProductDetailModal({ product, onClose }: Props) {
               value={editData.optimized_title}
               onChange={(v) => handleFieldChange("optimized_title", v)}
             />
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Marca</label>
+              <Input
+                value={editData.brand ?? ""}
+                onChange={e => handleFieldChange("brand", e.target.value)}
+                placeholder="Ex: TEFCOLD, Hendi, Magnus..."
+                className="text-sm"
+              />
+            </div>
             <EditableComparison
               label="Descrição Curta"
               original={product.short_description ?? "—"}
