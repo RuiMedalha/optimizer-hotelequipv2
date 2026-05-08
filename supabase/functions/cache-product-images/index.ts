@@ -155,7 +155,7 @@ Deno.serve(async (req) => {
               .substring(0, 60) || "product";
             
             const ext = guessExt(url, contentType);
-            const filename = idx === 0 ? `${baseSlug}.${ext}` : `${baseSlug}-${idx + 1}.${ext}`;
+            const filename = generateImageFilename(baseSlug, idx, url, ext);
             const storagePath = `${workspaceId}/${product.id}/${filename}`;
 
             // f. Upload to Supabase Storage
