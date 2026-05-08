@@ -1229,7 +1229,7 @@ const ProductsPage = () => {
                       : contentType.includes("gif") ? "gif"
                       : "jpg";
                     
-                    const filename = idx === 0 ? `${slug}.${ext}` : `${slug}-${idx + 1}.${ext}`;
+                    const filename = generateImageFilename(slug, idx, url, ext);
                     const storagePath = `${activeWorkspace.id}/${productId}/${filename}`;
                     
                     const { error: uploadError } = await supabase.storage
