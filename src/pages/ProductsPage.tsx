@@ -1434,6 +1434,61 @@ const ProductsPage = () => {
               <Button size="sm" variant="secondary" className="text-xs h-8" onClick={() => handleOptimizeClick(Array.from(selected))} disabled={optimizeProducts.isPending}>
                 <Sparkles className="w-3.5 h-3.5 mr-1" /> <span className="hidden sm:inline">Otimizar </span>IA ({selected.size})
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-8"
+                onClick={() => setShowBrandInput(!showBrandInput)}
+                disabled={selected.size === 0}
+              >
+                <Tag className="w-4 h-4 mr-2" />
+                Definir Marca ({selected.size})
+              </Button>
+
+              {showBrandInput && (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={bulkBrandValue}
+                    onChange={e => setBulkBrandValue(e.target.value)}
+                    placeholder="Nome da marca..."
+                    className="h-8 w-48 text-sm"
+                    onKeyDown={async e => {
+                      if (e.key === "Enter" && bulkBrandValue.trim()) {
+                        await supabase
+                          .from("products")
+                          .update({ brand: bulkBrandValue.trim() })
+                          .in("id", Array.from(selected));
+                        toast.success(`Marca "${bulkBrandValue.trim()}" aplicada a ${selected.size} produtos`);
+                        setBulkBrandValue("");
+                        setShowBrandInput(false);
+                        qc.invalidateQueries({ queryKey: ["products"] });
+                      }
+                      if (e.key === "Escape") setShowBrandInput(false);
+                    }}
+                    autoFocus
+                  />
+                  <Button
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={async () => {
+                      if (!bulkBrandValue.trim()) return;
+                      await supabase
+                        .from("products")
+                        .update({ brand: bulkBrandValue.trim() })
+                        .in("id", Array.from(selected));
+                      toast.success(`Marca "${bulkBrandValue.trim()}" aplicada a ${selected.size} produtos`);
+                      setBulkBrandValue("");
+                      setShowBrandInput(false);
+                      qc.invalidateQueries({ queryKey: ["products"] });
+                    }}
+                  >
+                    Aplicar
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setShowBrandInput(false)}>
+                    Cancelar
+                  </Button>
+                </div>
+              )}
               <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => setShowCompareModal(true)}>
                 <GitCompare className="w-3.5 h-3.5 mr-1" /> <span className="hidden sm:inline">Comparar </span>IA ({selected.size})
               </Button>
