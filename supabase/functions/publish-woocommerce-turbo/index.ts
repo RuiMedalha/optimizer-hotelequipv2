@@ -148,7 +148,11 @@ async function preuploadMedia(
         if (altCache.has(url)) {
           // we still need the media id — use cached if present
         }
-        const resp = await fetch(url);
+        const resp = await fetch(url, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+          },
+        });
         if (!resp.ok) {
           console.warn(`[turbo] image fetch failed ${resp.status} ${url}`);
           continue;
