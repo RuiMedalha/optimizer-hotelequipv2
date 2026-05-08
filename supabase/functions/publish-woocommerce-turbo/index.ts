@@ -347,7 +347,9 @@ function buildConsolidatedPayload(
   const wp: Record<string, unknown> = { 
     type: "simple",
     status: "publish",
-    catalog_visibility: "visible"
+    catalog_visibility: "visible",
+    manage_stock: false,
+    stock_status: "instock"
   };
 
   if (has("title")) wp.name = product.optimized_title || product.original_title || "Sem título";
