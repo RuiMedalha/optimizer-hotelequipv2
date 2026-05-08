@@ -777,7 +777,10 @@ Deno.serve(async (req) => {
                     body: JSON.stringify({ 
                       status: "publish",
                       catalog_visibility: "visible",
-                      date_modified: new Date().toISOString().replace('T', ' ').split('.')[0]
+                      manage_stock: false,
+                      stock_status: "instock",
+                      date_modified: new Date().toISOString().replace('T', ' ').split('.')[0],
+                      meta_data: [{ key: "_lovable_last_sync", value: new Date().toISOString() }]
                     }),
                   });
                 }
