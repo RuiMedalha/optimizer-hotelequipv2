@@ -3085,7 +3085,14 @@ async function wooCacheRefresh(baseUrl: string, auth: string, productId: number 
         Authorization: auth,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ status: "publish" }),
+      body: JSON.stringify({ 
+        status: "publish",
+        catalog_visibility: "visible",
+        manage_stock: false,
+        stock_status: "instock",
+        date_modified: new Date().toISOString().replace('T', ' ').split('.')[0],
+        meta_data: [{ key: "_lovable_last_sync", value: new Date().toISOString() }]
+      }),
     });
     if (!resp.ok) {
       console.warn(`[wooCacheRefresh] WC#${productId} cache refresh returned ${resp.status}`);
