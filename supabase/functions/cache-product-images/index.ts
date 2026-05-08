@@ -220,12 +220,14 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        processed: totalProcessed, 
-        cached: totalCached, 
-        failed: totalFailed, 
-        skipped: totalSkipped 
+      JSON.stringify({
+        success: true,
+        processed: totalProcessed,
+        cached: totalCached,
+        failed: totalFailed,
+        skipped: totalSkipped,
+        remainingProductIds,
+        hasMore: remainingProductIds.length > 0,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
