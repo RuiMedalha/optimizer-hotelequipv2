@@ -69,11 +69,39 @@ async function publishSingleInline(
   auth: string,
   product: any,
   payload: Record<string, unknown>,
+  supabase: any,
 ): Promise<{ ok: boolean; woocommerce_id?: number; mode: "create" | "update"; error?: string }> {
-  const isUpdate = !!product.woocommerce_id;
+  let isUpdate = !!product.woocommerce_id;
+  
+  // ── SE NÃO TEM woocommerce_id, tenta encontrar por SKU para evitar duplicados ──
+  if (!isUpdate && product.sku) {
+    try {
+      const searchUrl = `${baseUrl}/wp-json/wc/v3/products?sku=${encodeURIComponent(product.sku)}`;
+      const searchResp = await fetch(searchUrl, {
+        headers: { Authorization: `Basic ${auth}` },
+      });
+      if (searchResp.ok) {
+        const existing = await searchResp.json();
+        if (Array.isArray(existing) && existing.length > 0 && existing[0].id) {
+          product.woocommerce_id = existing[0].id;
+          isUpdate = true;
+          console.log(`[turbo] SKU ${product.sku} found on WC (ID: ${existing[0].id}). Switching to UPDATE mode.`);
+          
+          // Update local DB to keep sync
+          await supabase.from("products")
+            .update({ woocommerce_id: existing[0].id })
+            .eq("id", product.id);
+        }
+      }
+    } catch (e) {
+      console.warn(`[turbo] SKU search failed for ${product.sku}:`, e);
+    }
+  }
+
   const url = isUpdate
     ? `${baseUrl}/wp-json/wc/v3/products/${product.woocommerce_id}`
     : `${baseUrl}/wp-json/wc/v3/products`;
+    
   try {
     const r = await fetch(url, {
       method: isUpdate ? "PUT" : "POST",
@@ -777,7 +805,7 @@ Deno.serve(async (req) => {
         //     publicado quando o WooCommerce confirma com um ID real.
         if (failedToFallback.length > 0) {
           for (const { product, payload } of failedToFallback) {
-            const res = await publishSingleInline(baseUrl, auth, product, payload);
+            const res = await publishSingleInline(baseUrl, auth, product, payload, supabase);
             if (res.ok && res.woocommerce_id) {
               await supabase.from("products")
                 .update({ 
