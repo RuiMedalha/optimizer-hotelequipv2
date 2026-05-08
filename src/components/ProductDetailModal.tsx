@@ -116,18 +116,19 @@ export function ProductDetailModal({ product, onClose }: Props) {
 
   useEffect(() => {
     if (product) {
-      setEditData({
-        optimized_title: product.optimized_title ?? "",
-        optimized_description: product.optimized_description ?? "",
-        optimized_short_description: product.optimized_short_description ?? "",
-        meta_title: product.meta_title ?? "",
-        meta_description: product.meta_description ?? "",
-        seo_slug: product.seo_slug ?? "",
-        tags: (product.tags ?? []).join(", "),
-        optimized_price: product.optimized_price ?? product.original_price ?? "",
-        category: product.category ?? "",
-        focus_keyword: (Array.isArray(product.focus_keyword) ? product.focus_keyword : []).join(", "),
-      });
+        setEditData({
+          optimized_title: product.optimized_title ?? "",
+          optimized_description: product.optimized_description ?? "",
+          optimized_short_description: product.optimized_short_description ?? "",
+          meta_title: product.meta_title ?? "",
+          meta_description: product.meta_description ?? "",
+          seo_slug: product.seo_slug ?? "",
+          tags: (product.tags ?? []).join(", "),
+          optimized_price: product.optimized_price ?? product.original_price ?? "",
+          category: product.category ?? "",
+          focus_keyword: (Array.isArray(product.focus_keyword) ? product.focus_keyword : []).join(", "),
+          brand: product.brand ?? "",
+        });
       setHasChanges(false);
     }
   }, [product]);
