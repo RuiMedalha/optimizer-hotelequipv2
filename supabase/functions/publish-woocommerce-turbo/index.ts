@@ -197,13 +197,19 @@ async function preuploadMedia(
         }
 
         const ext = guessExt(url, ct);
-        const baseName = sanitizeFilename(url.split("/").pop()?.split("?")[0] || "image");
-        const filename = baseName.endsWith(`.${ext}`) ? baseName : `${baseName}.${ext}`;
+        // Using generateImageFilename instead of sanitizeFilename
+        const slugForFilename = sanitizeFilename(url.split("/").pop()?.split("?")[0] || "image");
+        // We find the index of this url in the original allImageUrls to pass to generateImageFilename
+        const urlIndex = imageUrls.indexOf(url);
+        const filename = generateImageFilename(slugForFilename, urlIndex === -1 ? 0 : urlIndex, url, ext);
         const blob = new Blob([buf], { type: ct || `image/${ext === "jpg" ? "jpeg" : ext}` });
         const formData = new FormData();
         formData.append("file", new File([blob], filename, { type: blob.type }));
         const altText = altByUrl.get(url);
-        if (altText) formData.append("alt_text", altText);
+        if (altText) {
+          formData.append("alt_text", altText);
+          formData.append("title", altText);
+        }
 
         const upResp = await fetch(`${baseUrl}/wp-json/wp/v2/media`, {
           method: "POST",
