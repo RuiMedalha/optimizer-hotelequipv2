@@ -634,8 +634,8 @@ Deno.serve(async (req) => {
                 if (m) alt = String(m.alt_text || "");
               }
               if (!alt && has("image_alt_text")) {
-                const fallback = String(p.optimized_title || p.original_title || p.sku || "").trim();
-                if (fallback) alt = i === 0 ? fallback : `${fallback} - imagem ${i + 1}`;
+                const productTitle = String(p.optimized_title || p.original_title || p.sku || "").trim();
+                if (productTitle) alt = generateImageAltText(productTitle, i, url);
               }
               if (alt) altByUrl.set(url, alt);
             }
