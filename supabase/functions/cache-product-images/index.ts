@@ -99,6 +99,10 @@ Deno.serve(async (req) => {
       if (fetchError) throw fetchError;
 
       for (const product of products || []) {
+        if (isOverDeadline()) {
+          if (!remainingProductIds.includes(product.id)) remainingProductIds.push(product.id);
+          continue;
+        }
         const imageUrls = Array.isArray(product.image_urls) ? product.image_urls : [];
         if (imageUrls.length === 0) {
           totalSkipped++;
