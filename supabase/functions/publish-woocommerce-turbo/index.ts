@@ -1,7 +1,9 @@
 // ──────────────────────────────────────────────────────────────────────────
 //  publish-woocommerce-turbo
 //
-//  Modo TURBO de publicação para WooCommerce.
+//  TURBO: Must remain functionally identical to publish-woocommerce
+//  Only difference: parallel batch processing
+//
 //  Estratégia (aditiva — não substitui o publish-woocommerce clássico):
 //    1) Pre-upload das imagens únicas para /wp/v2/media (com dedup por SHA-256)
 //       → reduz drasticamente a pressão de disco /tmp do WordPress (uma única
@@ -330,19 +332,91 @@ async function fetchUsoProfissional(supabase: any, productId: string): Promise<s
   return null; 
 }
 
+function buildFaqHtml(faq: any[]): string {
+  if (!Array.isArray(faq) || faq.length === 0) return "";
+  const items = faq.slice(0, 4).map((item: any) => {
+    const q = typeof item === "string" ? item : (item?.question || item?.q || "");
+    const a = typeof item === "string" ? "" : (item?.answer || item?.a || "");
+    if (!q) return "";
+    return `<div style="margin-bottom:12px;"><p style="font-weight:bold;color:#00526d;margin:0 0 4px 0;">${q}</p>${a ? `<p style="color:#6b7280;font-style:italic;margin:0;">${a}</p>` : ""}</div>`;
+  }).filter(Boolean);
+  if (items.length === 0) return "";
+  return `<!-- HOTELEQUIP:FAQ_START --><div class="hotelequip-faq" style="margin-top:24px;"><h3 style="color:#00526d;font-size:18px;margin-bottom:12px;">Perguntas Frequentes</h3>${items.join("")}</div><!-- HOTELEQUIP:FAQ_END -->`;
+}
+
+function buildUsoProfissionalHtml(data: any): string {
+  if (!data) return "";
+  const sections: string[] = [];
+  sections.push(`<h3 style="font-size:1.1em;font-weight:600;margin-bottom:0.75em;color:#00526d;">Como é usado por profissionais</h3>`);
+  if (data.intro) sections.push(`<p style="color:#374151;line-height:1.7;margin:0 0 1em;">${data.intro}</p>`);
+  if (Array.isArray(data.use_cases) && data.use_cases.length > 0) {
+    const items = data.use_cases.map((uc: any) => {
+      const title = uc.context || uc.title || uc.name || "";
+      const desc = uc.description || uc.text || "";
+      return title && desc ? `<li style="margin-bottom:0.5em;"><strong>${title}:</strong> ${desc}</li>` : (title || desc ? `<li style="margin-bottom:0.5em;">${title || desc}</li>` : "");
+    }).filter(Boolean);
+    if (items.length > 0) {
+      sections.push(`<h4 style="font-weight:600;margin:1em 0 0.5em;color:#00526d;">Contextos de utilização</h4><ul style="padding-left:1.25em;color:#374151;line-height:1.6;">${items.join("")}</ul>`);
+    }
+  }
+  if (Array.isArray(data.professional_tips) && data.professional_tips.length > 0) {
+    const items = data.professional_tips.map((t: any) => {
+      let text = typeof t === "string" ? t : (t?.tip || t?.text || "");
+      text = text.replace(/^(Dica Profissional|Professional Tip):\s*/i, "");
+      return text ? `<li style="margin-bottom:0.25em;">${text}</li>` : "";
+    }).filter(Boolean);
+    if (items.length > 0) {
+      sections.push(`<h4 style="font-weight:600;margin:1em 0 0.5em;color:#00526d;">Dicas de profissionais</h4><ul style="padding-left:1.25em;color:#374151;line-height:1.6;">${items.join("")}</ul>`);
+    }
+  }
+  return `<!-- HOTELEQUIP:USO_PROFISSIONAL_START --><div class="uso-profissional-hotelequip" style="margin-top:2em;padding-top:1.5em;border-top:1px solid #e5e7eb;">${sections.join("")}</div><!-- HOTELEQUIP:USO_PROFISSIONAL_END -->`;
+}
+
+function buildUsoProfissionalJson(data: any): any[] {
+  if (!data) return [];
+  const repeater: any[] = [];
+  if (data.intro) repeater.push({ title: "Introdução", description: String(data.intro) });
+  if (Array.isArray(data.use_cases)) {
+    for (const uc of data.use_cases) {
+      repeater.push({ title: String(uc?.context || uc?.title || uc?.name || "Caso de Uso"), description: String(uc?.description || uc?.text || (typeof uc === 'string' ? uc : '')) });
+    }
+  }
+  if (Array.isArray(data.professional_tips)) {
+    for (const tip of data.professional_tips) {
+      let text = String(typeof tip === "string" ? tip : (tip?.description || tip?.text || tip?.tip || ""));
+      text = text.replace(/^(Dica Profissional|Professional Tip):\s*/i, "");
+      if (text) repeater.push({ title: "Dica Profissional", description: text });
+    }
+  }
+  return repeater;
+}
+
+function injectOrReplaceBlock(description: string, startMarker: string, endMarker: string, newBlock: string): string {
+  const startIdx = description.indexOf(startMarker);
+  const endIdx = description.indexOf(endMarker);
+  if (startIdx >= 0 && endIdx >= 0) return description.substring(0, startIdx) + newBlock + description.substring(endIdx + endMarker.length);
+  return description + newBlock;
+}
+
+function stripHtml(value: string): string {
+  if (!value) return "";
+  return value.replace(/<[^>]*>?/gm, "").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+}
+
 // ── Build consolidated payload (simple products) ───────────────────────────
 function buildConsolidatedPayload(
   product: any,
   has: (k: string) => boolean,
   imageMap: Map<string, MediaUploadResult>,
   categoryIds: Array<{ id: number }> | undefined,
-  faqs: Array<{ q: string; a: string }>,
-  usoPro: string | null,
+  faqs: any[],
+  usoData: any,
   upsellIds: number[],
   crosssellIds: number[],
   markupPercent: number,
   discountPercent: number,
   altByUrl: Map<string, string>,
+  seoPlugin: string = 'rankmath'
 ): Record<string, unknown> {
   const wp: Record<string, unknown> = { 
     type: "simple",
@@ -355,16 +429,31 @@ function buildConsolidatedPayload(
   if (has("title")) wp.name = product.optimized_title || product.original_title || "Sem título";
   if (has("description")) {
     let desc = product.optimized_description || product.original_description || "";
-    if (usoPro) {
-      desc += `\n<div class="uso-profissional" style="margin-top:24px;">${usoPro}</div>`;
+    
+    // Rule 2 & 3: Strip existing FAQ and Uso Profissional HTML
+    desc = desc.replace(/<!-- HOTELEQUIP:FAQ_START -->[\s\S]*?<!-- HOTELEQUIP:FAQ_END -->/gi, "");
+    desc = desc.replace(/<div[^>]*class=["']hotelequip-faq["'][\s\S]*?<\/div>/gi, "");
+    desc = desc.replace(/<div[^>]*class=["']product-faq["'][\s\S]*?<\/div>\s*(<\/div>)?/gi, "");
+    desc = desc.replace(/<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->[\s\S]*?<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->/gi, "");
+    desc = desc.replace(/<div[^>]*class=["']uso-profissional[^"']*["'][\s\S]*?<\/div>/gi, "");
+
+    // Rule 3: Add Uso Profissional if requested
+    if (has("uso_profissional_in_description") && usoData && usoData.publish_enabled) {
+      const usoHtml = buildUsoProfissionalHtml(usoData);
+      if (usoHtml) {
+        desc = injectOrReplaceBlock(desc, "<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->", "<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->", usoHtml);
+      }
     }
-    if (faqs.length > 0) {
-      const faqHtml = faqs.map(f =>
-        `<div class="hotelequip-faq-item" style="margin-bottom:12px;"><strong>${f.q}</strong><div>${f.a}</div></div>`
-      ).join("");
-      desc += `\n<div class="hotelequip-faq" style="margin-top:24px;"><h3>Perguntas Frequentes</h3>${faqHtml}</div>`;
+
+    // Rule 2: Add FAQ if requested
+    if (has("faq_in_description") && faqs.length > 0) {
+      const faqHtml = buildFaqHtml(faqs);
+      if (faqHtml) {
+        desc = injectOrReplaceBlock(desc, "<!-- HOTELEQUIP:FAQ_START -->", "<!-- HOTELEQUIP:FAQ_END -->", faqHtml);
+      }
     }
-    wp.description = desc;
+    
+    wp.description = desc.trim();
   }
   if (has("short_description")) {
     const raw = product.optimized_short_description || product.short_description || "";
@@ -411,15 +500,57 @@ function buildConsolidatedPayload(
       .map((name: string) => ({ name }));
   }
 
-  // ── Meta_data consolidado: SEO + Brand + Upsells/Cross extras ────────────
-  const meta: Array<{ key: string; value: string }> = [];
+  // ── Meta_data consolidado ──
+  const meta: Array<{ key: string; value: any }> = [];
+  
+  // Rule 1: _product_faqs from product.faq
+  if (Array.isArray(product.faq) && product.faq.length > 0) {
+    meta.push({
+      key: "_product_faqs",
+      value: JSON.stringify(product.faq.map((f: any) => ({
+        question: f.question || f.q || "",
+        answer: f.answer || f.a || "",
+      })))
+    });
+  } else if (faqs.length > 0) {
+    meta.push({
+      key: "_product_faqs",
+      value: JSON.stringify(faqs.map((f: any) => ({
+        question: f.question || f.q || "",
+        answer: f.answer || f.a || "",
+      })))
+    });
+  }
+
+  // Rule 3: _product_conselhos
+  if (usoData && usoData.publish_enabled) {
+    meta.push({ key: "_product_conselhos", value: buildUsoProfissionalJson(usoData) });
+    const plainReview = stripHtml(buildUsoProfissionalHtml(usoData));
+    meta.push({ key: "_editorial_review", value: plainReview });
+    
+    if (seoPlugin === 'rankmath') {
+      const schema = {
+        "@context": "https://schema.org/",
+        "@type": "Product",
+        "name": wp.name || product.optimized_title || product.original_title,
+        "review": {
+          "@type": "Review",
+          "reviewRating": { "@type": "Rating", "ratingValue": "5", "bestRating": "5" },
+          "author": { "@type": "Organization", "name": "HotelEquip" },
+          "reviewBody": plainReview
+        }
+      };
+      meta.push({ key: 'rank_math_schema_Product', value: JSON.stringify(schema) });
+    }
+  }
+
   if (has("meta_title") && product.meta_title) meta.push({ key: "_yoast_wpseo_title", value: String(product.meta_title) });
   if (has("meta_description") && product.meta_description) meta.push({ key: "_yoast_wpseo_metadesc", value: String(product.meta_description) });
-  // Focus keyword (Yoast)
+  
   if (Array.isArray(product.focus_keyword) && product.focus_keyword.length > 0) {
     meta.push({ key: "_yoast_wpseo_focuskw", value: String(product.focus_keyword[0]) });
   }
-  // Brand meta (XStore / theme compat)
+
   if (Array.isArray(product.attributes)) {
     for (const a of product.attributes) {
       const n = String(a?.name || "").toLowerCase().trim();
@@ -687,18 +818,17 @@ Deno.serve(async (req) => {
 
         // 3c) Construir payloads em paralelo
         const payloads = await Promise.all(simpleProducts.map(async (p) => {
-          const [categoryIds, faqs, upsellIds, crosssellIds] = await Promise.all([
+          const [categoryIds, upsellIds, crosssellIds, usoData] = await Promise.all([
             has("categories") ? resolveCategories(supabase, p) : Promise.resolve(undefined),
-            fetchFaq(supabase, p.id).catch(() => []),
             has("upsells") ? resolveSkusToWooIds(supabase, p.upsell_skus || []) : Promise.resolve([]),
             has("crosssells") ? resolveSkusToWooIds(supabase, p.crosssell_skus || []) : Promise.resolve([]),
+            adminClient.from("product_uso_profissional").select("*").eq("product_id", p.id).maybeSingle().then(({data}: any) => data),
           ]);
 
-          // Use p.professional_use_content if available, otherwise try to fetch it
-          const usoPro = p.professional_use_content || null;
+          const faqs = Array.isArray(p.faq) ? p.faq : await fetchFaq(supabase, p.id).catch(() => []);
 
           const wp = buildConsolidatedPayload(
-            p, has, imageMap, categoryIds, faqs, usoPro, upsellIds, crosssellIds,
+            p, has, imageMap, categoryIds, faqs, usoData, upsellIds, crosssellIds,
             markupPercent, discountPercent, altByUrl,
           );
           return { product: p, payload: wp };

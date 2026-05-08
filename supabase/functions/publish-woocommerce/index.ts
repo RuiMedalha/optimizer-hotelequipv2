@@ -1672,64 +1672,42 @@ async function enrichWithExtraContent(
     return wooProduct.meta_data as Array<{ key: string; value: any }>;
   };
 
+  // Rule 2 & 3: Strip existing FAQ and Uso Profissional HTML FIRST
+  let desc = String(wooProduct.description || product.optimized_description || product.original_description || "");
+  desc = desc.replace(/<!-- HOTELEQUIP:FAQ_START -->[\s\S]*?<!-- HOTELEQUIP:FAQ_END -->/gi, "");
+  desc = desc.replace(/<div[^>]*class=["']hotelequip-faq["'][\s\S]*?<\/div>/gi, "");
+  desc = desc.replace(/<div[^>]*class=["']product-faq["'][\s\S]*?<\/div>\s*(<\/div>)?/gi, "");
+  desc = desc.replace(/<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->[\s\S]*?<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->/gi, "");
+  desc = desc.replace(/<div[^>]*class=["']uso-profissional[^"']*["'][\s\S]*?<\/div>/gi, "");
+  wooProduct.description = desc.trim();
+
   // ── FAQ ──
   const faq = Array.isArray(product.faq) ? product.faq : [];
   if (faq.length > 0) {
-    const wantsFaqInDesc = has("faq_in_description");
-
-    // --- FAQ STRIPPING (Default: remove from description if not explicitly requested) ---
-    // Improved regex to handle nested divs and common patterns from the AI generator
-    if (!wantsFaqInDesc) {
-      let desc = String(wooProduct.description || product.optimized_description || product.original_description || "");
-      
-      // Pattern 1: Wrapped in <div class="product-faq"> (most common from generator)
-      // Handles nested content by looking for the closing div of that specific block
-      if (desc.includes("product-faq")) {
-        desc = desc.replace(/<div\s+class=["']product-faq["'][\s\S]*?<\/div>\s*<\/div>/gi, "");
-      }
-      
-      // Pattern 2: Our own injected markers
-      if (desc.includes("<!-- HOTELEQUIP:FAQ_START -->")) {
-        desc = desc.replace(/<!-- HOTELEQUIP:FAQ_START -->[\s\S]*?<!-- HOTELEQUIP:FAQ_END -->/gi, "");
-      }
-
-      // Pattern 3: Just the <h2>Perguntas Frequentes</h2> and following paragraphs (emergency fallback)
-      if (desc.includes("Perguntas Frequentes") && !wantsFaqInDesc) {
-         desc = desc.replace(/<h[23][^>]*>Perguntas Frequentes<\/h[23]>[\s\S]*?(?=<h[23]|<\/div>|$)/gi, "");
-      }
-
-      wooProduct.description = desc.trim();
-    }
-
-    if (wantsFaqInDesc) {
+    if (has("faq_in_description")) {
       const faqHtml = buildFaqHtml(faq);
       if (faqHtml) {
-        const currentDesc = String(wooProduct.description || product.optimized_description || product.original_description || "");
-        wooProduct.description = injectOrReplaceBlock(
-          currentDesc,
-          "<!-- HOTELEQUIP:FAQ_START -->",
-          "<!-- HOTELEQUIP:FAQ_END -->",
-          faqHtml
-        );
+        wooProduct.description = injectOrReplaceBlock(wooProduct.description, "<!-- HOTELEQUIP:FAQ_START -->", "<!-- HOTELEQUIP:FAQ_END -->", faqHtml);
       }
     }
 
-    // FAQ to custom field - ALWAYS send for theme compatibility
     const meta = ensureMeta();
-    const faqJson = buildFaqSchemaJson(faq);
+    // Rule 1: Always send _product_faqs as JSON
+    const faqJson = JSON.stringify(faq.map((f: any) => ({
+      question: f.question || f.q || "",
+      answer: f.answer || f.a || "",
+    })));
     
-    // 1. Specific repeater for some plugins/themes
-    const faqIdx = meta.findIndex(m => m.key === "_product_faqs" || m.key === "_product_faq");
+    const faqIdx = meta.findIndex(m => m.key === "_product_faqs");
     if (faqIdx !== -1) {
       meta[faqIdx].value = faqJson;
-      meta[faqIdx].key = "_product_faqs";
     } else {
       meta.push({ key: "_product_faqs", value: faqJson });
     }
 
-    // 2. Custom Tab for themes like XStore / Electra
+    // Custom Tab for themes like XStore / Electra
     const tabIdx = meta.findIndex(m => m.key === "et_custom_tab2_content");
-    const faqHtml = buildFaqHtml(faq); // Use HTML version for the tab content
+    const faqHtml = buildFaqHtml(faq);
     if (tabIdx !== -1) {
       meta[tabIdx].value = faqHtml;
     } else {
@@ -1737,72 +1715,39 @@ async function enrichWithExtraContent(
       meta.push({ key: "et_custom_tab2_content", value: faqHtml });
     }
     
-    // Additional SEO meta
     if (!meta.some(m => m.key === "_yoast_wpseo_schema_page_type")) {
       meta.push({ key: "_yoast_wpseo_schema_page_type", value: "FAQPage" });
     }
-    console.log(`[enrichExtraContent] FAQ sent to _product_faqs and et_custom_tab2 for ${product.id}`);
   }
-
 
   // ── SEO Short Description (clean text for og:description) ──
   if (has("short_description") || has("meta_description")) {
     const cleanShort = product.seo_short_description || product.optimized_short_description || product.short_description || "";
     if (cleanShort) {
+      const meta = ensureMeta();
       if (seoPlugin === 'rankmath') {
-        const meta = ensureMeta();
-        meta.push({ 
-          key: 'rank_math_snippet_description', 
-          value: cleanShort.substring(0, 160)
-        });
-        console.log(`[seo-short] Injected clean short_description for RankMath`);
+        meta.push({ key: 'rank_math_snippet_description', value: cleanShort.substring(0, 160) });
       } else if (seoPlugin === 'yoast') {
-        const meta = ensureMeta();
-        meta.push({ 
-          key: '_yoast_wpseo_metadesc', 
-          value: cleanShort.substring(0, 160)
-        });
-        console.log(`[seo-short] Injected clean short_description for Yoast`);
+        meta.push({ key: '_yoast_wpseo_metadesc', value: cleanShort.substring(0, 160) });
       }
     }
   }
 
   // ── Uso Profissional (Conselhos) ──
-  // Always try to fetch and send, regardless of 'has' flags, if data exists
   const { data: usoData } = await adminClient
     .from("product_uso_profissional")
-    .select("intro, use_cases, professional_tips, target_profiles, publish_enabled, placement")
+    .select("*")
     .eq("product_id", product.id)
     .maybeSingle();
 
   if (usoData && usoData.publish_enabled) {
-    const wantsUsoInDesc = has("uso_profissional_in_description");
-    const wantsUsoCustom = true; // FORCE custom field for theme compatibility
-
-    // Build HTML and JSON
-    const usoHtml = buildUsoProfissionalHtml(usoData);
-    const usoJson = buildUsoProfissionalJson(usoData);
-
-    if (wantsUsoInDesc) {
-      let currentDesc = String(wooProduct.description || product.optimized_description || product.original_description || "");
-      const placement = usoData.placement || "before_faq";
-      
-      if (placement === "before_faq" && currentDesc.includes("<!-- HOTELEQUIP:FAQ_START -->")) {
-        const faqIdx = currentDesc.indexOf("<!-- HOTELEQUIP:FAQ_START -->");
-        currentDesc = currentDesc.substring(0, faqIdx) + usoHtml + currentDesc.substring(faqIdx);
-        wooProduct.description = currentDesc;
-      } else {
-        wooProduct.description = injectOrReplaceBlock(
-          currentDesc,
-          "<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->",
-          "<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->",
-          usoHtml
-        );
-      }
+    if (has("uso_profissional_in_description")) {
+      const usoHtml = buildUsoProfissionalHtml(usoData);
+      wooProduct.description = injectOrReplaceBlock(wooProduct.description, "<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->", "<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->", usoHtml);
     }
 
-    // Always send as JSON array to _product_conselhos
     const meta = ensureMeta();
+    const usoJson = buildUsoProfissionalJson(usoData);
     const existingIdx = meta.findIndex(m => m.key === '_product_conselhos');
     if (existingIdx !== -1) {
       meta[existingIdx].value = usoJson;
@@ -1810,13 +1755,11 @@ async function enrichWithExtraContent(
       meta.push({ key: "_product_conselhos", value: usoJson });
     }
     
-    // Add _editorial_review (plain text for schema/internal use)
-    const plainReview = stripHtml(usoHtml);
+    const plainReview = stripHtml(buildUsoProfissionalHtml(usoData));
     if (!meta.some(m => m.key === "_editorial_review")) {
       meta.push({ key: "_editorial_review", value: plainReview });
     }
 
-    // Add Schema JSON-LD to RankMath meta_data
     if (seoPlugin === 'rankmath') {
       const schema = {
         "@context": "https://schema.org/",
@@ -1824,30 +1767,20 @@ async function enrichWithExtraContent(
         "name": wooProduct.name || product.optimized_title || product.original_title,
         "review": {
           "@type": "Review",
-          "reviewRating": {
-            "@type": "Rating",
-            "ratingValue": "5",
-            "bestRating": "5"
-          },
-          "author": {
-            "@type": "Organization",
-            "name": "HotelEquip"
-          },
+          "reviewRating": { "@type": "Rating", "ratingValue": "5", "bestRating": "5" },
+          "author": { "@type": "Organization", "name": "HotelEquip" },
           "reviewBody": plainReview
         }
       };
       
-      const meta = ensureMeta();
-      // Remove any existing rank_math_schema_Product to avoid duplicates
       const existingSchemaIdx = meta.findIndex(m => m.key === 'rank_math_schema_Product');
       if (existingSchemaIdx !== -1) {
         meta[existingSchemaIdx].value = JSON.stringify(schema);
       } else {
-        meta.push({ 
-          key: 'rank_math_schema_Product', 
-          value: JSON.stringify(schema)
-        });
+        meta.push({ key: 'rank_math_schema_Product', value: JSON.stringify(schema) });
       }
+    }
+  }
       console.log(`[enrichExtraContent] Injected RankMath Product Schema with editorial review`);
     }
 
