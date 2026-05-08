@@ -74,10 +74,21 @@ Deno.serve(async (req) => {
     let totalCached = 0;
     let totalFailed = 0;
     let totalSkipped = 0;
+    let remainingProductIds: string[] = [];
 
-    // Process in batches of 5 to avoid timeouts
-    const batchSize = 5;
+    // Hard deadline to stay well below the 150s edge runtime idle timeout.
+    const startedAt = Date.now();
+    const DEADLINE_MS = 110_000;
+    const isOverDeadline = () => Date.now() - startedAt > DEADLINE_MS;
+
+    // Process in small batches to avoid timeouts
+    const batchSize = 3;
     for (let i = 0; i < productIds.length; i += batchSize) {
+      if (isOverDeadline()) {
+        remainingProductIds = productIds.slice(i);
+        console.log(`[cache-images] Deadline reached, returning ${remainingProductIds.length} remaining`);
+        break;
+      }
       const batch = productIds.slice(i, i + batchSize);
       
       const { data: products, error: fetchError } = await supabase
