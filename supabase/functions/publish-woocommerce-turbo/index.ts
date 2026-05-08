@@ -113,6 +113,34 @@ async function sha256Hex(data: ArrayBuffer): Promise<string> {
   return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
+function generateImageFilename(slug: string, index: number, imageUrl: string, ext: string): string {
+  const urlLower = (imageUrl || "").toLowerCase();
+  if (urlLower.includes("lifestyle")) return `${slug}-lifestyle.${ext}`;
+  if (urlLower.includes("optimiz") || urlLower.includes("optimis")) return `${slug}-optimizada.${ext}`;
+  if (urlLower.includes("detail") || urlLower.includes("detalhe") || urlLower.includes("pormenor")) return `${slug}-detalhe.${ext}`;
+  if (urlLower.includes("dimension") || urlLower.includes("dimensao") || urlLower.includes("medida")) return `${slug}-dimensoes.${ext}`;
+  if (urlLower.includes("back") || urlLower.includes("traseira") || urlLower.includes("posterior")) return `${slug}-traseira.${ext}`;
+  switch(index) {
+    case 0: return `${slug}.${ext}`;
+    case 1: return `${slug}-vista.${ext}`;
+    default: return `${slug}-detalhe-${index}.${ext}`;
+  }
+}
+
+function generateImageAltText(productTitle: string, index: number, imageUrl: string): string {
+  const urlLower = (imageUrl || "").toLowerCase();
+  if (urlLower.includes("lifestyle")) return `${productTitle} - Lifestyle`;
+  if (urlLower.includes("optimiz") || urlLower.includes("optimis")) return `${productTitle} - Imagem optimizada`;
+  if (urlLower.includes("detail") || urlLower.includes("detalhe") || urlLower.includes("pormenor")) return `${productTitle} - Detalhe`;
+  if (urlLower.includes("dimension") || urlLower.includes("dimensao") || urlLower.includes("medida")) return `${productTitle} - Dimensões`;
+  if (urlLower.includes("back") || urlLower.includes("traseira") || urlLower.includes("posterior")) return `${productTitle} - Vista traseira`;
+  switch(index) {
+    case 0: return productTitle;
+    case 1: return `${productTitle} - Vista`;
+    default: return `${productTitle} - Detalhe ${index}`;
+  }
+}
+
 const sanitizeFilename = (s: string) =>
   String(s || "image").replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-").slice(0, 100);
 
@@ -169,13 +197,19 @@ async function preuploadMedia(
         }
 
         const ext = guessExt(url, ct);
-        const baseName = sanitizeFilename(url.split("/").pop()?.split("?")[0] || "image");
-        const filename = baseName.endsWith(`.${ext}`) ? baseName : `${baseName}.${ext}`;
+        // Using generateImageFilename instead of sanitizeFilename
+        const slugForFilename = sanitizeFilename(url.split("/").pop()?.split("?")[0] || "image");
+        // We find the index of this url in the original allImageUrls to pass to generateImageFilename
+        const urlIndex = imageUrls.indexOf(url);
+        const filename = generateImageFilename(slugForFilename, urlIndex === -1 ? 0 : urlIndex, url, ext);
         const blob = new Blob([buf], { type: ct || `image/${ext === "jpg" ? "jpeg" : ext}` });
         const formData = new FormData();
         formData.append("file", new File([blob], filename, { type: blob.type }));
         const altText = altByUrl.get(url);
-        if (altText) formData.append("alt_text", altText);
+        if (altText) {
+          formData.append("alt_text", altText);
+          formData.append("title", altText);
+        }
 
         const upResp = await fetch(`${baseUrl}/wp-json/wp/v2/media`, {
           method: "POST",
@@ -322,14 +356,12 @@ function buildConsolidatedPayload(
     const imgs: any[] = [];
     for (let i = 0; i < product.image_urls.length; i++) {
       const url = product.image_urls[i];
+      if (!url || typeof url !== "string") continue; // Added safety check
       const media = imageMap.get(url);
       const altText = altByUrl.get(url) || "";
       if (media) {
         imgs.push(altText ? { id: media.id, alt: altText, position: i } : { id: media.id, position: i });
       } else {
-        // Fallback: deixar o WC tentar fazer download (modo clássico). Esta é a
-        // razão exacta que pode falhar com Disk Quota — quem usa Turbo deve ter
-        // pré-upload bem-sucedido.
         imgs.push(altText ? { src: url, alt: altText, position: i } : { src: url, position: i });
       }
     }
@@ -589,8 +621,9 @@ Deno.serve(async (req) => {
           if (Array.isArray(p.image_urls)) {
             for (let i = 0; i < p.image_urls.length; i++) {
               const url = p.image_urls[i];
-              if (!url) continue;
+              if (!url || typeof url !== "string") continue;
               allImageUrls.add(url);
+              
               const rawAlts = p.image_alt_texts;
               let alt = "";
               if (rawAlts && typeof rawAlts === "object" && !Array.isArray(rawAlts)) {
@@ -599,10 +632,12 @@ Deno.serve(async (req) => {
                 const m = rawAlts.find((x: any) => x?.url === url);
                 if (m) alt = String(m.alt_text || "");
               }
+              
               if (!alt && has("image_alt_text")) {
-                const fallback = String(p.optimized_title || p.original_title || p.sku || "").trim();
-                if (fallback) alt = i === 0 ? fallback : `${fallback} - imagem ${i + 1}`;
+                const productTitle = String(p.optimized_title || p.original_title || p.sku || "").trim();
+                if (productTitle) alt = generateImageAltText(productTitle, i, url);
               }
+              
               if (alt) altByUrl.set(url, alt);
             }
           }

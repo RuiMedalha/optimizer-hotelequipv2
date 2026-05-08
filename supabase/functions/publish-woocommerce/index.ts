@@ -1279,6 +1279,34 @@ async function enrichProductImages(product: any, supabase: any, opts?: { skipOri
 }
 
 // ── Image reference resolution ──
+function generateImageFilename(slug: string, index: number, imageUrl: string, ext: string): string {
+  const urlLower = (imageUrl || "").toLowerCase();
+  if (urlLower.includes("lifestyle")) return `${slug}-lifestyle.${ext}`;
+  if (urlLower.includes("optimiz") || urlLower.includes("optimis")) return `${slug}-optimizada.${ext}`;
+  if (urlLower.includes("detail") || urlLower.includes("detalhe") || urlLower.includes("pormenor")) return `${slug}-detalhe.${ext}`;
+  if (urlLower.includes("dimension") || urlLower.includes("dimensao") || urlLower.includes("medida")) return `${slug}-dimensoes.${ext}`;
+  if (urlLower.includes("back") || urlLower.includes("traseira") || urlLower.includes("posterior")) return `${slug}-traseira.${ext}`;
+  switch(index) {
+    case 0: return `${slug}.${ext}`;
+    case 1: return `${slug}-vista.${ext}`;
+    default: return `${slug}-detalhe-${index}.${ext}`;
+  }
+}
+
+function generateImageAltText(productTitle: string, index: number, imageUrl: string): string {
+  const urlLower = (imageUrl || "").toLowerCase();
+  if (urlLower.includes("lifestyle")) return `${productTitle} - Lifestyle`;
+  if (urlLower.includes("optimiz") || urlLower.includes("optimis")) return `${productTitle} - Imagem optimizada`;
+  if (urlLower.includes("detail") || urlLower.includes("detalhe") || urlLower.includes("pormenor")) return `${productTitle} - Detalhe`;
+  if (urlLower.includes("dimension") || urlLower.includes("dimensao") || urlLower.includes("medida")) return `${productTitle} - Dimensões`;
+  if (urlLower.includes("back") || urlLower.includes("traseira") || urlLower.includes("posterior")) return `${productTitle} - Vista traseira`;
+  switch(index) {
+    case 0: return productTitle;
+    case 1: return `${productTitle} - Vista`;
+    default: return `${productTitle} - Detalhe ${index}`;
+  }
+}
+
 const IMAGE_EXTENSIONS = /\.(webp|jpeg|jpg|png|gif|svg|bmp|avif|tiff|tif)$/i;
 const imageCache = new Map<string, Record<string, unknown>>();
 
@@ -1348,9 +1376,12 @@ async function uploadImageToWPMedia(
     const contentType = resp.headers.get("content-type") || "image/webp";
 
     const fname = filename || sourceUrl.split("/").pop() || `image_${Date.now()}.webp`;
-
     const formData = new FormData();
     formData.append("file", new File([blob], fname, { type: contentType }));
+    
+    // Add title derived from filename (strip extension and replace dashes with spaces)
+    const imageTitle = fname.replace(/\.[^.]+$/, "").replace(/-/g, " ");
+    formData.append("title", imageTitle);
 
     const uploadResp = await fetch(`${baseUrl}/wp-json/wp/v2/media`, {
       method: "POST",

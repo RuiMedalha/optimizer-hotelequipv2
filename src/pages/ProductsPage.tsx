@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Search, Check, X, Edit, Sparkles, Loader2, Download, Send, Trash2, Settings2, Save, GitBranch, Layers, Plus, Ban, Filter, ChevronDown, ChevronRight, Rocket, XCircle, List, Network, Globe, Copy, AlertTriangle, ImageIcon, Camera, GitCompare, Wand2 } from "lucide-react";
+import { Search, Check, X, Edit, Sparkles, Loader2, Download, Send, Trash2, Settings2, Save, GitBranch, Layers, Plus, Ban, Filter, ChevronDown, ChevronRight, Rocket, XCircle, List, Network, Globe, Copy, AlertTriangle, ImageIcon, Camera, GitCompare, Wand2, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useProducts, useAllProductIds, useUpdateProductStatus, useProductFilterOptions, type Product, type ProductFilters } from "@/hooks/useProducts";
@@ -85,7 +85,37 @@ function getMigrationStatus(product: Product): "migrated" | "partial" | "not_mig
   return "not_migrated";
 }
 
+function generateImageFilename(slug: string, index: number, imageUrl: string, ext: string): string {
+  const urlLower = (imageUrl || "").toLowerCase();
+  if (urlLower.includes("lifestyle")) return `${slug}-lifestyle.${ext}`;
+  if (urlLower.includes("optimiz") || urlLower.includes("optimis")) return `${slug}-optimizada.${ext}`;
+  if (urlLower.includes("detail") || urlLower.includes("detalhe") || urlLower.includes("pormenor")) return `${slug}-detalhe.${ext}`;
+  if (urlLower.includes("dimension") || urlLower.includes("dimensao") || urlLower.includes("medida")) return `${slug}-dimensoes.${ext}`;
+  if (urlLower.includes("back") || urlLower.includes("traseira") || urlLower.includes("posterior")) return `${slug}-traseira.${ext}`;
+  switch(index) {
+    case 0: return `${slug}.${ext}`;
+    case 1: return `${slug}-vista.${ext}`;
+    default: return `${slug}-detalhe-${index}.${ext}`;
+  }
+}
+
+function generateImageAltText(productTitle: string, index: number, imageUrl: string): string {
+  const urlLower = (imageUrl || "").toLowerCase();
+  if (urlLower.includes("lifestyle")) return `${productTitle} - Lifestyle`;
+  if (urlLower.includes("optimiz") || urlLower.includes("optimis")) return `${productTitle} - Imagem optimizada`;
+  if (urlLower.includes("detail") || urlLower.includes("detalhe") || urlLower.includes("pormenor")) return `${productTitle} - Detalhe`;
+  if (urlLower.includes("dimension") || urlLower.includes("dimensao") || urlLower.includes("medida")) return `${productTitle} - Dimensões`;
+  if (urlLower.includes("back") || urlLower.includes("traseira") || urlLower.includes("posterior")) return `${productTitle} - Vista traseira`;
+  switch(index) {
+    case 0: return productTitle;
+    case 1: return `${productTitle} - Vista`;
+    default: return `${productTitle} - Detalhe ${index}`;
+  }
+}
+
 const ProductsPage = () => {
+  const [showBrandInput, setShowBrandInput] = useState(false);
+  const [bulkBrandValue, setBulkBrandValue] = useState("");
   const { activeWorkspace, toggleVariableProducts } = useWorkspaceContext();
   const qc = useQueryClient();
   useRepairAttributes();
@@ -1199,7 +1229,7 @@ const ProductsPage = () => {
                       : contentType.includes("gif") ? "gif"
                       : "jpg";
                     
-                    const filename = idx === 0 ? `${slug}.${ext}` : `${slug}-${idx + 1}.${ext}`;
+                    const filename = generateImageFilename(slug, idx, url, ext);
                     const storagePath = `${activeWorkspace.id}/${productId}/${filename}`;
                     
                     const { error: uploadError } = await supabase.storage
@@ -1404,6 +1434,61 @@ const ProductsPage = () => {
               <Button size="sm" variant="secondary" className="text-xs h-8" onClick={() => handleOptimizeClick(Array.from(selected))} disabled={optimizeProducts.isPending}>
                 <Sparkles className="w-3.5 h-3.5 mr-1" /> <span className="hidden sm:inline">Otimizar </span>IA ({selected.size})
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-8"
+                onClick={() => setShowBrandInput(!showBrandInput)}
+                disabled={selected.size === 0}
+              >
+                <Tag className="w-4 h-4 mr-2" />
+                Definir Marca ({selected.size})
+              </Button>
+
+              {showBrandInput && (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={bulkBrandValue}
+                    onChange={e => setBulkBrandValue(e.target.value)}
+                    placeholder="Nome da marca..."
+                    className="h-8 w-48 text-sm"
+                    onKeyDown={async e => {
+                      if (e.key === "Enter" && bulkBrandValue.trim()) {
+                        await supabase
+                          .from("products")
+                          .update({ brand: bulkBrandValue.trim() })
+                          .in("id", Array.from(selected));
+                        toast.success(`Marca "${bulkBrandValue.trim()}" aplicada a ${selected.size} produtos`);
+                        setBulkBrandValue("");
+                        setShowBrandInput(false);
+                        qc.invalidateQueries({ queryKey: ["products"] });
+                      }
+                      if (e.key === "Escape") setShowBrandInput(false);
+                    }}
+                    autoFocus
+                  />
+                  <Button
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={async () => {
+                      if (!bulkBrandValue.trim()) return;
+                      await supabase
+                        .from("products")
+                        .update({ brand: bulkBrandValue.trim() })
+                        .in("id", Array.from(selected));
+                      toast.success(`Marca "${bulkBrandValue.trim()}" aplicada a ${selected.size} produtos`);
+                      setBulkBrandValue("");
+                      setShowBrandInput(false);
+                      qc.invalidateQueries({ queryKey: ["products"] });
+                    }}
+                  >
+                    Aplicar
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => setShowBrandInput(false)}>
+                    Cancelar
+                  </Button>
+                </div>
+              )}
               <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => setShowCompareModal(true)}>
                 <GitCompare className="w-3.5 h-3.5 mr-1" /> <span className="hidden sm:inline">Comparar </span>IA ({selected.size})
               </Button>

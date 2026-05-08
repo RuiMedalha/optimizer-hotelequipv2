@@ -116,18 +116,19 @@ export function ProductDetailModal({ product, onClose }: Props) {
 
   useEffect(() => {
     if (product) {
-      setEditData({
-        optimized_title: product.optimized_title ?? "",
-        optimized_description: product.optimized_description ?? "",
-        optimized_short_description: product.optimized_short_description ?? "",
-        meta_title: product.meta_title ?? "",
-        meta_description: product.meta_description ?? "",
-        seo_slug: product.seo_slug ?? "",
-        tags: (product.tags ?? []).join(", "),
-        optimized_price: product.optimized_price ?? product.original_price ?? "",
-        category: product.category ?? "",
-        focus_keyword: (Array.isArray(product.focus_keyword) ? product.focus_keyword : []).join(", "),
-      });
+        setEditData({
+          optimized_title: product.optimized_title ?? "",
+          optimized_description: product.optimized_description ?? "",
+          optimized_short_description: product.optimized_short_description ?? "",
+          meta_title: product.meta_title ?? "",
+          meta_description: product.meta_description ?? "",
+          seo_slug: product.seo_slug ?? "",
+          tags: (product.tags ?? []).join(", "),
+          optimized_price: product.optimized_price ?? product.original_price ?? "",
+          category: product.category ?? "",
+          focus_keyword: (Array.isArray(product.focus_keyword) ? product.focus_keyword : []).join(", "),
+          brand: product.brand ?? "",
+        });
       setHasChanges(false);
     }
   }, [product]);
@@ -165,6 +166,7 @@ export function ProductDetailModal({ product, onClose }: Props) {
       optimized_price: editData.optimized_price ? Number(editData.optimized_price) : null,
       category: editData.category || null,
       focus_keyword: editData.focus_keyword ? editData.focus_keyword.split(",").map((t: string) => t.trim()).filter(Boolean) : null,
+      brand: editData.brand || null,
     };
 
     if (product.image_urls && product.image_urls.length > 0) {
@@ -286,6 +288,15 @@ export function ProductDetailModal({ product, onClose }: Props) {
               value={editData.optimized_title}
               onChange={(v) => handleFieldChange("optimized_title", v)}
             />
+            <div className="space-y-1">
+              <label className="text-xs font-medium">Marca</label>
+              <Input
+                value={editData.brand ?? ""}
+                onChange={e => handleFieldChange("brand", e.target.value)}
+                placeholder="Ex: TEFCOLD, Hendi, Magnus..."
+                className="text-sm"
+              />
+            </div>
             <EditableComparison
               label="Descrição Curta"
               original={product.short_description ?? "—"}
