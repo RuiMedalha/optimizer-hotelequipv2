@@ -1348,9 +1348,12 @@ async function uploadImageToWPMedia(
     const contentType = resp.headers.get("content-type") || "image/webp";
 
     const fname = filename || sourceUrl.split("/").pop() || `image_${Date.now()}.webp`;
-
     const formData = new FormData();
     formData.append("file", new File([blob], fname, { type: contentType }));
+    
+    // Add title derived from filename (strip extension and replace dashes with spaces)
+    const imageTitle = fname.replace(/\.[^.]+$/, "").replace(/-/g, " ");
+    formData.append("title", imageTitle);
 
     const uploadResp = await fetch(`${baseUrl}/wp-json/wp/v2/media`, {
       method: "POST",
