@@ -500,15 +500,57 @@ function buildConsolidatedPayload(
       .map((name: string) => ({ name }));
   }
 
-  // ── Meta_data consolidado: SEO + Brand + Upsells/Cross extras ────────────
-  const meta: Array<{ key: string; value: string }> = [];
+  // ── Meta_data consolidado ──
+  const meta: Array<{ key: string; value: any }> = [];
+  
+  // Rule 1: _product_faqs from product.faq
+  if (Array.isArray(product.faq) && product.faq.length > 0) {
+    meta.push({
+      key: "_product_faqs",
+      value: JSON.stringify(product.faq.map((f: any) => ({
+        question: f.question || f.q || "",
+        answer: f.answer || f.a || "",
+      })))
+    });
+  } else if (faqs.length > 0) {
+    meta.push({
+      key: "_product_faqs",
+      value: JSON.stringify(faqs.map((f: any) => ({
+        question: f.question || f.q || "",
+        answer: f.answer || f.a || "",
+      })))
+    });
+  }
+
+  // Rule 3: _product_conselhos
+  if (usoData && usoData.publish_enabled) {
+    meta.push({ key: "_product_conselhos", value: buildUsoProfissionalJson(usoData) });
+    const plainReview = stripHtml(buildUsoProfissionalHtml(usoData));
+    meta.push({ key: "_editorial_review", value: plainReview });
+    
+    if (seoPlugin === 'rankmath') {
+      const schema = {
+        "@context": "https://schema.org/",
+        "@type": "Product",
+        "name": wp.name || product.optimized_title || product.original_title,
+        "review": {
+          "@type": "Review",
+          "reviewRating": { "@type": "Rating", "ratingValue": "5", "bestRating": "5" },
+          "author": { "@type": "Organization", "name": "HotelEquip" },
+          "reviewBody": plainReview
+        }
+      };
+      meta.push({ key: 'rank_math_schema_Product', value: JSON.stringify(schema) });
+    }
+  }
+
   if (has("meta_title") && product.meta_title) meta.push({ key: "_yoast_wpseo_title", value: String(product.meta_title) });
   if (has("meta_description") && product.meta_description) meta.push({ key: "_yoast_wpseo_metadesc", value: String(product.meta_description) });
-  // Focus keyword (Yoast)
+  
   if (Array.isArray(product.focus_keyword) && product.focus_keyword.length > 0) {
     meta.push({ key: "_yoast_wpseo_focuskw", value: String(product.focus_keyword[0]) });
   }
-  // Brand meta (XStore / theme compat)
+
   if (Array.isArray(product.attributes)) {
     for (const a of product.attributes) {
       const n = String(a?.name || "").toLowerCase().trim();
