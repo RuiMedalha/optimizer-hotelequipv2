@@ -522,10 +522,47 @@ Deno.serve(async (req) => {
       // ── 3) PROCESSAR simples em modo Turbo ──
       if (simpleProducts.length > 0) {
         // 3a) Recolher imagens únicas + alt texts
-        const allImageUrls = new Set<string>();
+        let allImageUrls = new Set<string>();
         const altByUrl = new Map<string, string>();
+        
         for (const p of simpleProducts) {
           if (!has("images")) break;
+          
+          const currentProductImageUrls = Array.isArray(p.image_urls) ? p.image_urls : [];
+          
+          // Cache external images to Supabase Storage before publishing
+          const externalImages = currentProductImageUrls.filter(url => 
+            url && typeof url === "string" &&
+            !url.includes(Deno.env.get("SUPABASE_URL") || "") && 
+            url.startsWith("http")
+          );
+
+          if (externalImages.length > 0) {
+            console.log(`[turbo] Caching ${externalImages.length} external images for product ${p.id}...`);
+            try {
+              const cacheResp = await fetch(`${SUPABASE_URL}/functions/v1/cache-product-images`, {
+                method: "POST",
+                headers: { Authorization: authHeader!, "Content-Type": "application/json" },
+                body: JSON.stringify({ productIds: [p.id], workspaceId: p.workspace_id, overwrite: false }),
+              });
+              
+              if (cacheResp.ok) {
+                // Reload product image_urls from DB
+                const { data: refreshed } = await adminClient
+                  .from("products")
+                  .select("image_urls")
+                  .eq("id", p.id)
+                  .single();
+                if (refreshed?.image_urls) {
+                  p.image_urls = refreshed.image_urls;
+                  console.log(`[turbo] Product ${p.id} images refreshed (now from Supabase Storage)`);
+                }
+              }
+            } catch (err) {
+              console.warn(`[turbo] Failed to cache images for product ${p.id}:`, err);
+            }
+          }
+
           if (Array.isArray(p.image_urls)) {
             for (let i = 0; i < p.image_urls.length; i++) {
               const url = p.image_urls[i];
