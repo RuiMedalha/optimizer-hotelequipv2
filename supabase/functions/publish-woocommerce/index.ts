@@ -3358,6 +3358,22 @@ async function publishVariation(
       })
       .eq("id", variation.id);
 
+    // Force WooCommerce cache invalidation
+    try {
+      if (varWooData.id) {
+        await fetch(`${baseUrl}/wp-json/wc/v3/products/${parentWooId}/variations/${varWooData.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": auth,
+          },
+          body: JSON.stringify({ status: "publish" }),
+        });
+      }
+    } catch (cacheErr) {
+      console.warn("[classic] Cache invalidation POST failed (non-critical):", cacheErr);
+    }
+
     return { id: variation.id, status: action, woocommerce_id: varWooData.id };
   } else {
     return {
