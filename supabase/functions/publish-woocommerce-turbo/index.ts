@@ -621,8 +621,9 @@ Deno.serve(async (req) => {
           if (Array.isArray(p.image_urls)) {
             for (let i = 0; i < p.image_urls.length; i++) {
               const url = p.image_urls[i];
-              if (!url) continue;
+              if (!url || typeof url !== "string") continue;
               allImageUrls.add(url);
+              
               const rawAlts = p.image_alt_texts;
               let alt = "";
               if (rawAlts && typeof rawAlts === "object" && !Array.isArray(rawAlts)) {
@@ -631,10 +632,12 @@ Deno.serve(async (req) => {
                 const m = rawAlts.find((x: any) => x?.url === url);
                 if (m) alt = String(m.alt_text || "");
               }
+              
               if (!alt && has("image_alt_text")) {
                 const productTitle = String(p.optimized_title || p.original_title || p.sku || "").trim();
                 if (productTitle) alt = generateImageAltText(productTitle, i, url);
               }
+              
               if (alt) altByUrl.set(url, alt);
             }
           }
