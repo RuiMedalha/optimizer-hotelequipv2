@@ -2065,56 +2065,53 @@ async function buildBasePayload(
 
 
 
-  // ── Attributes (Marca, Modelo, Specs) ──
+  // ── Attributes (Marca, Modelo, EAN only) ──
   if (has("attributes")) {
+    const attrPayload: Array<{ name: string; options: string[]; visible: boolean; variation: boolean }> = [];
+    
+    // Only sync these 3 attributes to WooCommerce
+    const ALLOWED_ATTRIBUTES = ["marca", "brand", "modelo", "model", "ean", "gtin", "código de barras"];
+    
+    // Convert attributes to standard array format
     let productAttrs: any[] = [];
     if (Array.isArray(product.attributes)) {
       productAttrs = [...product.attributes];
     } else if (product.attributes && typeof product.attributes === "object") {
-      // Convert flat object to array format
       productAttrs = Object.entries(product.attributes).map(([name, value]) => ({
         name,
         value: String(value)
       }));
     }
 
-    // Inject Marca and Modelo from top-level columns if they are missing from attributes
-    const hasMarca = productAttrs.some(a => {
+    // Filter from product.attributes
+    for (const a of productAttrs) {
       const n = String(a?.name || "").toLowerCase().trim();
-      return n === "marca" || n === "brand";
-    });
-    if (!hasMarca && product.brand) {
-      productAttrs.push({ name: "Marca", value: product.brand, variation: false, visible: true });
+      if (!ALLOWED_ATTRIBUTES.some(allowed => n.includes(allowed))) continue;
+      const values: string[] = [];
+      if (a?.value) values.push(String(a.value));
+      if (Array.isArray(a?.values)) for (const v of a.values) values.push(String(v));
+      if (Array.isArray(a?.options)) for (const v of a.options) values.push(String(v));
+      if (values.length === 0) continue;
+      attrPayload.push({ name: a.name || n, options: [...new Set(values)], visible: true, variation: false });
     }
-
-    const hasModelo = productAttrs.some(a => {
-      const n = String(a?.name || "").toLowerCase().trim();
-      return n === "modelo" || n === "model";
-    });
-    if (!hasModelo && product.model) {
-      productAttrs.push({ name: "Modelo", value: product.model, variation: false, visible: true });
+    
+    // Always add Marca from product.brand if not already in attributes
+    if (product.brand && !attrPayload.some(a => a.name.toLowerCase().includes("marca") || a.name.toLowerCase().includes("brand"))) {
+      attrPayload.push({ name: "Marca", options: [product.brand], visible: true, variation: false });
     }
-
-    if (productAttrs.length > 0) {
-      const attrPayload: Array<{ name: string; options: string[]; visible: boolean; variation: boolean }> = [];
-      for (const attr of productAttrs) {
-        const n = String(attr?.name || "").trim();
-        if (!n) continue;
-        const values: string[] = [];
-        if (attr?.value) values.push(String(attr.value));
-        if (Array.isArray(attr?.values)) for (const v of attr.values) values.push(String(v));
-        if (Array.isArray(attr?.options)) for (const v of attr.options) values.push(String(v));
-        if (values.length === 0) continue;
-        attrPayload.push({
-          name: n,
-          options: [...new Set(values)],
-          visible: true,
-          variation: false,
-        });
-      }
-      if (attrPayload.length > 0) {
-        wooProduct.attributes = attrPayload;
-      }
+    
+    // Always add Modelo from product.model if not already in attributes
+    if (product.model && !attrPayload.some(a => a.name.toLowerCase().includes("modelo") || a.name.toLowerCase().includes("model"))) {
+      attrPayload.push({ name: "Modelo", options: [product.model], visible: true, variation: false });
+    }
+    
+    // Always add EAN from product.ean if not already in attributes
+    if (product.ean && !attrPayload.some(a => a.name.toLowerCase().includes("ean") || a.name.toLowerCase().includes("gtin"))) {
+      attrPayload.push({ name: "EAN", options: [String(product.ean)], visible: true, variation: false });
+    }
+    
+    if (attrPayload.length > 0) {
+      wooProduct.attributes = attrPayload;
     }
 
     // Extraction for technical dimensions and weight
