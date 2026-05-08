@@ -2834,6 +2834,48 @@ async function publishSingleProduct(
 ): Promise<WooResult> {
   const enrichedProduct = has("images") ? await enrichProductImages(product, supabase, { skipOriginals: has("skip_original_images"), skipLifestyle: has("skip_lifestyle_images") }) : product;
 
+  // Cache external images to Supabase Storage before publishing
+  if (has("images") && enrichedProduct.image_urls?.length > 0) {
+    const externalImages = (enrichedProduct.image_urls as string[]).filter(url => 
+      url && typeof url === "string" &&
+      !url.includes(Deno.env.get("SUPABASE_URL") || "") && 
+      url.startsWith("http")
+    );
+
+    if (externalImages.length > 0) {
+      console.log(`[publish] Caching ${externalImages.length} external images for product ${enrichedProduct.id}...`);
+      try {
+        const cacheResp = await fetch(`${SUPABASE_URL}/functions/v1/cache-product-images`, {
+          method: "POST",
+          headers: { 
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            "Content-Type": "application/json" 
+          },
+          body: JSON.stringify({ 
+            productIds: [enrichedProduct.id], 
+            workspaceId: enrichedProduct.workspace_id || product.workspace_id, 
+            overwrite: false 
+          }),
+        });
+        
+        if (cacheResp.ok) {
+          // Reload product image_urls from DB
+          const { data: refreshed } = await adminClient
+            .from("products")
+            .select("image_urls")
+            .eq("id", enrichedProduct.id)
+            .single();
+          if (refreshed?.image_urls) {
+            enrichedProduct.image_urls = refreshed.image_urls;
+            console.log(`[publish] Product ${enrichedProduct.id} images refreshed (now from Supabase Storage)`);
+          }
+        }
+      } catch (err) {
+        console.warn(`[publish] Failed to cache images for product ${enrichedProduct.id}:`, err);
+      }
+    }
+  }
+
   if (enrichedProduct.product_type === "variable") {
     return await publishVariableProduct(enrichedProduct, supabase, adminClient, baseUrl, auth, has, markupPercent, discountPercent, seoPlugin);
   }

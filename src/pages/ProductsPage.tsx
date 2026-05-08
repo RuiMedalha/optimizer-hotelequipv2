@@ -1108,6 +1108,32 @@ const ProductsPage = () => {
           <Button
             size="sm"
             variant="outline"
+            className="text-xs h-8 border-primary/50 text-primary"
+            onClick={async () => {
+              if (!activeWorkspace || selected.size === 0) {
+                toast.warning("Selecione pelo menos um produto");
+                return;
+              }
+              const productIds = Array.from(selected);
+              const toastId = toast.loading(`A migrar imagens para storage...`);
+              try {
+                const { data, error } = await supabase.functions.invoke("cache-product-images", {
+                  body: { productIds, workspaceId: activeWorkspace.id, overwrite: false }
+                });
+                if (error) throw error;
+                toast.success(`Migração concluída: ${data.cached} novas, ${data.skipped} já existentes, ${data.failed} erros`, { id: toastId });
+                qc.invalidateQueries({ queryKey: ["products"] });
+              } catch (err: any) {
+                toast.error(`Erro na migração: ${err.message}`, { id: toastId });
+              }
+            }}
+          >
+            <Download className="w-3.5 h-3.5 mr-1" />
+            Migrar Imagens{selected.size > 0 ? ` (${selected.size})` : ""}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
             className="text-xs h-8"
             onClick={() => {
               if (!activeWorkspace) return;
