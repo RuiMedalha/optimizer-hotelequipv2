@@ -1114,18 +1114,147 @@ const ProductsPage = () => {
                 toast.warning("Selecione pelo menos um produto");
                 return;
               }
+              
               const productIds = Array.from(selected);
-              const toastId = toast.loading(`A migrar imagens para storage...`);
+              const toastId = toast.loading(`A migrar imagens... (0/${productIds.length})`);
+              const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+              
+              let totalCached = 0;
+              let totalFailed = 0;
+              let totalSkipped = 0;
+
+              // STEP 1: Try Edge Function first (fast, server-side)
               try {
                 const { data, error } = await supabase.functions.invoke("cache-product-images", {
                   body: { productIds, workspaceId: activeWorkspace.id, overwrite: false }
                 });
-                if (error) throw error;
-                toast.success(`Migração concluída: ${data.cached} novas, ${data.skipped} já existentes, ${data.failed} erros`, { id: toastId });
-                qc.invalidateQueries({ queryKey: ["products"] });
-              } catch (err: any) {
-                toast.error(`Erro na migração: ${err.message}`, { id: toastId });
+                
+                if (!error && data) {
+                  totalCached += data.cached || 0;
+                  totalSkipped += data.skipped || 0;
+                  totalFailed += data.failed || 0;
+                }
+              } catch (err) {
+                console.warn("Edge Function failed, will retry failed images in browser:", err);
               }
+
+              // STEP 2: For each product, check if any images are still external
+              // (Edge Function failed to cache them) — retry in browser
+              toast.loading(`A verificar imagens não migradas...`, { id: toastId });
+              
+              for (let pi = 0; pi < productIds.length; pi++) {
+                const productId = productIds[pi];
+                
+                const { data: product } = await supabase
+                  .from("products")
+                  .select("id, sku, original_title, seo_slug, image_urls, workspace_id")
+                  .eq("id", productId)
+                  .single();
+                
+                if (!product?.image_urls?.length) continue;
+                
+                const imageUrls: string[] = Array.isArray(product.image_urls) ? product.image_urls : [];
+                
+                // Only process images that are still external (Edge Function didn't cache them)
+                const stillExternal = imageUrls.filter(url => 
+                  url && typeof url === 'string' &&
+                  url.startsWith("http") && 
+                  !url.includes(supabaseUrl) && 
+                  !url.includes("supabase.co/storage")
+                );
+                
+                if (stillExternal.length === 0) continue; // All cached by Edge Function ✅
+                
+                toast.loading(`A migrar ${stillExternal.length} imagens via browser (${pi + 1}/${productIds.length})...`, { id: toastId });
+                
+                const slug = (product.seo_slug || product.original_title || product.sku || "product")
+                  .toLowerCase()
+                  .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                  .replace(/[^a-z0-9]+/g, "-")
+                  .replace(/^-|-$/g, "")
+                  .substring(0, 60);
+                
+                const newImageUrls: string[] = [...imageUrls];
+                let productChanged = false;
+                
+                for (let idx = 0; idx < imageUrls.length; idx++) {
+                  const url = imageUrls[idx];
+                  
+                  // Skip already cached
+                  if (!stillExternal.includes(url)) continue;
+                  
+                  try {
+                    // Browser fetch — uses user's residential IP, bypasses CDN blocks
+                    const resp = await fetch(url);
+                    if (!resp.ok) {
+                      console.warn(`Browser fetch failed for ${url}: ${resp.status}`);
+                      totalFailed++;
+                      continue;
+                    }
+                    
+                    const blob = await resp.blob();
+                    const contentType = resp.headers.get("content-type") || "image/jpeg";
+                    const ext = contentType.includes("webp") ? "webp"
+                      : contentType.includes("png") ? "png"
+                      : contentType.includes("gif") ? "gif"
+                      : "jpg";
+                    
+                    const filename = idx === 0 ? `${slug}.${ext}` : `${slug}-${idx + 1}.${ext}`;
+                    const storagePath = `${activeWorkspace.id}/${productId}/${filename}`;
+                    
+                    const { error: uploadError } = await supabase.storage
+                      .from("product-images")
+                      .upload(storagePath, blob, { contentType, upsert: true });
+                    
+                    if (uploadError) {
+                      console.warn(`Storage upload failed:`, uploadError);
+                      totalFailed++;
+                      continue;
+                    }
+                    
+                    const { data: { publicUrl } } = supabase.storage
+                      .from("product-images")
+                      .getPublicUrl(storagePath);
+                    
+                    newImageUrls[idx] = publicUrl;
+                    productChanged = true;
+                    totalCached++;
+                    
+                    // Subtract from failed count if Edge Function had counted this as failed
+                    if (totalFailed > 0) totalFailed--;
+                    
+                    await supabase.from("images").upsert({
+                      product_id: productId,
+                      original_url: url,
+                      optimized_url: publicUrl,
+                      s3_key: storagePath,
+                      sort_order: idx,
+                      status: "done",
+                    }, { onConflict: "product_id,sort_order" });
+                    
+                  } catch (err) {
+                    console.warn(`Browser fetch exception for ${url}:`, err);
+                    totalFailed++;
+                  }
+                }
+                
+                if (productChanged) {
+                  await supabase
+                    .from("products")
+                    .update({ image_urls: newImageUrls })
+                    .eq("id", productId);
+                }
+              }
+              
+              const msg = totalFailed > 0
+                ? `Migração concluída: ${totalCached} migradas, ${totalSkipped} já existentes, ${totalFailed} falharam`
+                : `✅ Migração concluída: ${totalCached} migradas, ${totalSkipped} já existentes`;
+              
+              totalFailed > 0
+                ? toast.warning(msg, { id: toastId })
+                : toast.success(msg, { id: toastId });
+              
+              qc.invalidateQueries({ queryKey: ["products"] });
             }}
           >
             <Download className="w-3.5 h-3.5 mr-1" />
