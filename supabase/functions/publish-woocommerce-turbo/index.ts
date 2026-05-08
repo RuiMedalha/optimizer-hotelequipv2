@@ -429,16 +429,31 @@ function buildConsolidatedPayload(
   if (has("title")) wp.name = product.optimized_title || product.original_title || "Sem título";
   if (has("description")) {
     let desc = product.optimized_description || product.original_description || "";
-    if (usoPro) {
-      desc += `\n<div class="uso-profissional" style="margin-top:24px;">${usoPro}</div>`;
+    
+    // Rule 2 & 3: Strip existing FAQ and Uso Profissional HTML
+    desc = desc.replace(/<!-- HOTELEQUIP:FAQ_START -->[\s\S]*?<!-- HOTELEQUIP:FAQ_END -->/gi, "");
+    desc = desc.replace(/<div[^>]*class=["']hotelequip-faq["'][\s\S]*?<\/div>/gi, "");
+    desc = desc.replace(/<div[^>]*class=["']product-faq["'][\s\S]*?<\/div>\s*(<\/div>)?/gi, "");
+    desc = desc.replace(/<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->[\s\S]*?<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->/gi, "");
+    desc = desc.replace(/<div[^>]*class=["']uso-profissional[^"']*["'][\s\S]*?<\/div>/gi, "");
+
+    // Rule 3: Add Uso Profissional if requested
+    if (has("uso_profissional_in_description") && usoData && usoData.publish_enabled) {
+      const usoHtml = buildUsoProfissionalHtml(usoData);
+      if (usoHtml) {
+        desc = injectOrReplaceBlock(desc, "<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->", "<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->", usoHtml);
+      }
     }
-    if (faqs.length > 0) {
-      const faqHtml = faqs.map(f =>
-        `<div class="hotelequip-faq-item" style="margin-bottom:12px;"><strong>${f.q}</strong><div>${f.a}</div></div>`
-      ).join("");
-      desc += `\n<div class="hotelequip-faq" style="margin-top:24px;"><h3>Perguntas Frequentes</h3>${faqHtml}</div>`;
+
+    // Rule 2: Add FAQ if requested
+    if (has("faq_in_description") && faqs.length > 0) {
+      const faqHtml = buildFaqHtml(faqs);
+      if (faqHtml) {
+        desc = injectOrReplaceBlock(desc, "<!-- HOTELEQUIP:FAQ_START -->", "<!-- HOTELEQUIP:FAQ_END -->", faqHtml);
+      }
     }
-    wp.description = desc;
+    
+    wp.description = desc.trim();
   }
   if (has("short_description")) {
     const raw = product.optimized_short_description || product.short_description || "";
