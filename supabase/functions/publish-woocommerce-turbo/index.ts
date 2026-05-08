@@ -344,7 +344,11 @@ function buildConsolidatedPayload(
   discountPercent: number,
   altByUrl: Map<string, string>,
 ): Record<string, unknown> {
-  const wp: Record<string, unknown> = { type: "simple" };
+  const wp: Record<string, unknown> = { 
+    type: "simple",
+    status: "publish",
+    catalog_visibility: "visible"
+  };
 
   if (has("title")) wp.name = product.optimized_title || product.original_title || "Sem título";
   if (has("description")) {
