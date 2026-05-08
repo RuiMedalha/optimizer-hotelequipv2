@@ -818,18 +818,17 @@ Deno.serve(async (req) => {
 
         // 3c) Construir payloads em paralelo
         const payloads = await Promise.all(simpleProducts.map(async (p) => {
-          const [categoryIds, faqs, upsellIds, crosssellIds] = await Promise.all([
+          const [categoryIds, upsellIds, crosssellIds, usoData] = await Promise.all([
             has("categories") ? resolveCategories(supabase, p) : Promise.resolve(undefined),
-            fetchFaq(supabase, p.id).catch(() => []),
             has("upsells") ? resolveSkusToWooIds(supabase, p.upsell_skus || []) : Promise.resolve([]),
             has("crosssells") ? resolveSkusToWooIds(supabase, p.crosssell_skus || []) : Promise.resolve([]),
+            adminClient.from("product_uso_profissional").select("*").eq("product_id", p.id).maybeSingle().then(({data}: any) => data),
           ]);
 
-          // Use p.professional_use_content if available, otherwise try to fetch it
-          const usoPro = p.professional_use_content || null;
+          const faqs = Array.isArray(p.faq) ? p.faq : await fetchFaq(supabase, p.id).catch(() => []);
 
           const wp = buildConsolidatedPayload(
-            p, has, imageMap, categoryIds, faqs, usoPro, upsellIds, crosssellIds,
+            p, has, imageMap, categoryIds, faqs, usoData, upsellIds, crosssellIds,
             markupPercent, discountPercent, altByUrl,
           );
           return { product: p, payload: wp };
