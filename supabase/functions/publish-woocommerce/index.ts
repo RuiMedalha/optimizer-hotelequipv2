@@ -1335,7 +1335,11 @@ async function uploadImageToWPMedia(
   filename?: string
 ): Promise<number | null> {
   try {
-    const resp = await fetch(sourceUrl);
+    const resp = await fetch(sourceUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+      },
+    });
     if (!resp.ok) {
       console.warn(`Failed to download image from ${sourceUrl}: ${resp.status}`);
       return null;
@@ -1389,7 +1393,12 @@ async function resolveImageRef(
   }
 
   if (trimmed.startsWith("http")) {
-    if (SUPABASE_STORAGE_PATTERN.test(trimmed)) {
+    const isSupabase = SUPABASE_STORAGE_PATTERN.test(trimmed);
+    const isLocalWP = trimmed.startsWith(baseUrl);
+
+    // If it's not already on the local WordPress, attempt to upload to WP Media 
+    // to avoid WooCommerce fetch/SSL errors for remote images
+    if (isSupabase || !isLocalWP) {
       const cached = imageCache.get(trimmed);
       if (cached) {
         const result = { ...cached, position };
@@ -1403,10 +1412,10 @@ async function resolveImageRef(
         imageCache.set(trimmed, entry);
         img.id = mediaId;
         if (hasAlt && altText) (img as any).alt = altText;
-        console.log(`✅ Supabase image uploaded to WP Media: ${trimmed} → ID ${mediaId}`);
+        console.log(`✅ ${isSupabase ? "Supabase" : "External"} image uploaded to WP Media: ${trimmed} → ID ${mediaId}`);
         return img;
       }
-      console.warn(`⚠️ Failed to upload Supabase image to WP, falling back to src: ${trimmed}`);
+      console.warn(`⚠️ Failed to upload ${isSupabase ? "Supabase" : "external"} image to WP, falling back to src: ${trimmed}`);
     }
 
     img.src = trimmed;
