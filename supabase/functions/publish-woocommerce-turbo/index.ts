@@ -344,7 +344,13 @@ function buildConsolidatedPayload(
   discountPercent: number,
   altByUrl: Map<string, string>,
 ): Record<string, unknown> {
-  const wp: Record<string, unknown> = { type: "simple" };
+  const wp: Record<string, unknown> = { 
+    type: "simple",
+    status: "publish",
+    catalog_visibility: "visible",
+    manage_stock: false,
+    stock_status: "instock"
+  };
 
   if (has("title")) wp.name = product.optimized_title || product.original_title || "Sem título";
   if (has("description")) {
@@ -768,7 +774,14 @@ Deno.serve(async (req) => {
                       "Content-Type": "application/json",
                       "Authorization": `Basic ${auth}`,
                     },
-                    body: JSON.stringify({ status: "publish" }),
+                    body: JSON.stringify({ 
+                      status: "publish",
+                      catalog_visibility: "visible",
+                      manage_stock: false,
+                      stock_status: "instock",
+                      date_modified: new Date().toISOString().replace('T', ' ').split('.')[0],
+                      meta_data: [{ key: "_lovable_last_sync", value: new Date().toISOString() }]
+                    }),
                   });
                 }
               } catch (cacheErr) {
@@ -827,7 +840,14 @@ Deno.serve(async (req) => {
                       "Content-Type": "application/json",
                       "Authorization": `Basic ${auth}`,
                     },
-                    body: JSON.stringify({ status: "publish" }),
+                body: JSON.stringify({ 
+                  status: "publish",
+                  catalog_visibility: "visible",
+                  manage_stock: false,
+                  stock_status: "instock",
+                  date_modified: new Date().toISOString().replace('T', ' ').split('.')[0],
+                  meta_data: [{ key: "_lovable_last_sync", value: new Date().toISOString() }]
+                }),
                   });
                 }
               } catch (cacheErr) {
