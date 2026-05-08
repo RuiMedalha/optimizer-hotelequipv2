@@ -356,14 +356,12 @@ function buildConsolidatedPayload(
     const imgs: any[] = [];
     for (let i = 0; i < product.image_urls.length; i++) {
       const url = product.image_urls[i];
+      if (!url || typeof url !== "string") continue; // Added safety check
       const media = imageMap.get(url);
       const altText = altByUrl.get(url) || "";
       if (media) {
         imgs.push(altText ? { id: media.id, alt: altText, position: i } : { id: media.id, position: i });
       } else {
-        // Fallback: deixar o WC tentar fazer download (modo clássico). Esta é a
-        // razão exacta que pode falhar com Disk Quota — quem usa Turbo deve ter
-        // pré-upload bem-sucedido.
         imgs.push(altText ? { src: url, alt: altText, position: i } : { src: url, position: i });
       }
     }
