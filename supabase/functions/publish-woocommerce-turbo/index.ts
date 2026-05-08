@@ -113,6 +113,34 @@ async function sha256Hex(data: ArrayBuffer): Promise<string> {
   return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
+function generateImageFilename(slug: string, index: number, imageUrl: string, ext: string): string {
+  const urlLower = (imageUrl || "").toLowerCase();
+  if (urlLower.includes("lifestyle")) return `${slug}-lifestyle.${ext}`;
+  if (urlLower.includes("optimiz") || urlLower.includes("optimis")) return `${slug}-optimizada.${ext}`;
+  if (urlLower.includes("detail") || urlLower.includes("detalhe") || urlLower.includes("pormenor")) return `${slug}-detalhe.${ext}`;
+  if (urlLower.includes("dimension") || urlLower.includes("dimensao") || urlLower.includes("medida")) return `${slug}-dimensoes.${ext}`;
+  if (urlLower.includes("back") || urlLower.includes("traseira") || urlLower.includes("posterior")) return `${slug}-traseira.${ext}`;
+  switch(index) {
+    case 0: return `${slug}.${ext}`;
+    case 1: return `${slug}-vista.${ext}`;
+    default: return `${slug}-detalhe-${index}.${ext}`;
+  }
+}
+
+function generateImageAltText(productTitle: string, index: number, imageUrl: string): string {
+  const urlLower = (imageUrl || "").toLowerCase();
+  if (urlLower.includes("lifestyle")) return `${productTitle} - Lifestyle`;
+  if (urlLower.includes("optimiz") || urlLower.includes("optimis")) return `${productTitle} - Imagem optimizada`;
+  if (urlLower.includes("detail") || urlLower.includes("detalhe") || urlLower.includes("pormenor")) return `${productTitle} - Detalhe`;
+  if (urlLower.includes("dimension") || urlLower.includes("dimensao") || urlLower.includes("medida")) return `${productTitle} - Dimensões`;
+  if (urlLower.includes("back") || urlLower.includes("traseira") || urlLower.includes("posterior")) return `${productTitle} - Vista traseira`;
+  switch(index) {
+    case 0: return productTitle;
+    case 1: return `${productTitle} - Vista`;
+    default: return `${productTitle} - Detalhe ${index}`;
+  }
+}
+
 const sanitizeFilename = (s: string) =>
   String(s || "image").replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-").slice(0, 100);
 
