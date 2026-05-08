@@ -835,7 +835,11 @@ Deno.serve(async (req) => {
                       "Content-Type": "application/json",
                       "Authorization": `Basic ${auth}`,
                     },
-                    body: JSON.stringify({ status: "publish" }),
+                body: JSON.stringify({ 
+                  status: "publish",
+                  catalog_visibility: "visible",
+                  date_modified: new Date().toISOString().replace('T', ' ').split('.')[0]
+                }),
                   });
                 }
               } catch (cacheErr) {
