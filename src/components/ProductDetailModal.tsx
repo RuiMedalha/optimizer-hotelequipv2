@@ -166,6 +166,7 @@ export function ProductDetailModal({ product, onClose }: Props) {
       optimized_price: editData.optimized_price ? Number(editData.optimized_price) : null,
       category: editData.category || null,
       focus_keyword: editData.focus_keyword ? editData.focus_keyword.split(",").map((t: string) => t.trim()).filter(Boolean) : null,
+      brand: editData.brand || null,
     };
 
     if (product.image_urls && product.image_urls.length > 0) {
