@@ -805,7 +805,7 @@ Deno.serve(async (req) => {
         //     publicado quando o WooCommerce confirma com um ID real.
         if (failedToFallback.length > 0) {
           for (const { product, payload } of failedToFallback) {
-            const res = await publishSingleInline(baseUrl, auth, product, payload);
+            const res = await publishSingleInline(baseUrl, auth, product, payload, supabase);
             if (res.ok && res.woocommerce_id) {
               await supabase.from("products")
                 .update({ 
