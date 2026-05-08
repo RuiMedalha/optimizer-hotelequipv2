@@ -332,19 +332,91 @@ async function fetchUsoProfissional(supabase: any, productId: string): Promise<s
   return null; 
 }
 
+function buildFaqHtml(faq: any[]): string {
+  if (!Array.isArray(faq) || faq.length === 0) return "";
+  const items = faq.slice(0, 4).map((item: any) => {
+    const q = typeof item === "string" ? item : (item?.question || item?.q || "");
+    const a = typeof item === "string" ? "" : (item?.answer || item?.a || "");
+    if (!q) return "";
+    return `<div style="margin-bottom:12px;"><p style="font-weight:bold;color:#00526d;margin:0 0 4px 0;">${q}</p>${a ? `<p style="color:#6b7280;font-style:italic;margin:0;">${a}</p>` : ""}</div>`;
+  }).filter(Boolean);
+  if (items.length === 0) return "";
+  return `<!-- HOTELEQUIP:FAQ_START --><div class="hotelequip-faq" style="margin-top:24px;"><h3 style="color:#00526d;font-size:18px;margin-bottom:12px;">Perguntas Frequentes</h3>${items.join("")}</div><!-- HOTELEQUIP:FAQ_END -->`;
+}
+
+function buildUsoProfissionalHtml(data: any): string {
+  if (!data) return "";
+  const sections: string[] = [];
+  sections.push(`<h3 style="font-size:1.1em;font-weight:600;margin-bottom:0.75em;color:#00526d;">Como é usado por profissionais</h3>`);
+  if (data.intro) sections.push(`<p style="color:#374151;line-height:1.7;margin:0 0 1em;">${data.intro}</p>`);
+  if (Array.isArray(data.use_cases) && data.use_cases.length > 0) {
+    const items = data.use_cases.map((uc: any) => {
+      const title = uc.context || uc.title || uc.name || "";
+      const desc = uc.description || uc.text || "";
+      return title && desc ? `<li style="margin-bottom:0.5em;"><strong>${title}:</strong> ${desc}</li>` : (title || desc ? `<li style="margin-bottom:0.5em;">${title || desc}</li>` : "");
+    }).filter(Boolean);
+    if (items.length > 0) {
+      sections.push(`<h4 style="font-weight:600;margin:1em 0 0.5em;color:#00526d;">Contextos de utilização</h4><ul style="padding-left:1.25em;color:#374151;line-height:1.6;">${items.join("")}</ul>`);
+    }
+  }
+  if (Array.isArray(data.professional_tips) && data.professional_tips.length > 0) {
+    const items = data.professional_tips.map((t: any) => {
+      let text = typeof t === "string" ? t : (t?.tip || t?.text || "");
+      text = text.replace(/^(Dica Profissional|Professional Tip):\s*/i, "");
+      return text ? `<li style="margin-bottom:0.25em;">${text}</li>` : "";
+    }).filter(Boolean);
+    if (items.length > 0) {
+      sections.push(`<h4 style="font-weight:600;margin:1em 0 0.5em;color:#00526d;">Dicas de profissionais</h4><ul style="padding-left:1.25em;color:#374151;line-height:1.6;">${items.join("")}</ul>`);
+    }
+  }
+  return `<!-- HOTELEQUIP:USO_PROFISSIONAL_START --><div class="uso-profissional-hotelequip" style="margin-top:2em;padding-top:1.5em;border-top:1px solid #e5e7eb;">${sections.join("")}</div><!-- HOTELEQUIP:USO_PROFISSIONAL_END -->`;
+}
+
+function buildUsoProfissionalJson(data: any): any[] {
+  if (!data) return [];
+  const repeater: any[] = [];
+  if (data.intro) repeater.push({ title: "Introdução", description: String(data.intro) });
+  if (Array.isArray(data.use_cases)) {
+    for (const uc of data.use_cases) {
+      repeater.push({ title: String(uc?.context || uc?.title || uc?.name || "Caso de Uso"), description: String(uc?.description || uc?.text || (typeof uc === 'string' ? uc : '')) });
+    }
+  }
+  if (Array.isArray(data.professional_tips)) {
+    for (const tip of data.professional_tips) {
+      let text = String(typeof tip === "string" ? tip : (tip?.description || tip?.text || tip?.tip || ""));
+      text = text.replace(/^(Dica Profissional|Professional Tip):\s*/i, "");
+      if (text) repeater.push({ title: "Dica Profissional", description: text });
+    }
+  }
+  return repeater;
+}
+
+function injectOrReplaceBlock(description: string, startMarker: string, endMarker: string, newBlock: string): string {
+  const startIdx = description.indexOf(startMarker);
+  const endIdx = description.indexOf(endMarker);
+  if (startIdx >= 0 && endIdx >= 0) return description.substring(0, startIdx) + newBlock + description.substring(endIdx + endMarker.length);
+  return description + newBlock;
+}
+
+function stripHtml(value: string): string {
+  if (!value) return "";
+  return value.replace(/<[^>]*>?/gm, "").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+}
+
 // ── Build consolidated payload (simple products) ───────────────────────────
 function buildConsolidatedPayload(
   product: any,
   has: (k: string) => boolean,
   imageMap: Map<string, MediaUploadResult>,
   categoryIds: Array<{ id: number }> | undefined,
-  faqs: Array<{ q: string; a: string }>,
-  usoPro: string | null,
+  faqs: any[],
+  usoData: any,
   upsellIds: number[],
   crosssellIds: number[],
   markupPercent: number,
   discountPercent: number,
   altByUrl: Map<string, string>,
+  seoPlugin: string = 'rankmath'
 ): Record<string, unknown> {
   const wp: Record<string, unknown> = { 
     type: "simple",
