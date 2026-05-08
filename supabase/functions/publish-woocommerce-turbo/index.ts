@@ -692,6 +692,25 @@ Deno.serve(async (req) => {
                   workflow_state: "published"
                 })
                 .eq("id", map.product.id);
+
+              // Second POST to force WooCommerce cache invalidation and frontend rendering
+              try {
+                const wcEndpoint = r.id 
+                  ? `${baseUrl}/wp-json/wc/v3/products/${r.id}`
+                  : null;
+                if (wcEndpoint) {
+                  await fetch(wcEndpoint, {
+                    method: "PUT",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "Authorization": `Basic ${auth}`,
+                    },
+                    body: JSON.stringify({ status: "publish" }),
+                  });
+                }
+              } catch (cacheErr) {
+                console.warn("[turbo] Cache invalidation POST failed (non-critical):", cacheErr);
+              }
               existingResults.push({
                 id: map.product.id,
                 status: map.bucket === "create" ? "created" : "updated",
