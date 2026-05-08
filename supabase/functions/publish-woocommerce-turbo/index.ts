@@ -370,19 +370,42 @@ function buildConsolidatedPayload(
   }
   if (meta.length > 0) wp.meta_data = meta;
 
-  // ── Attributes (não-variation) ────────────────────────────────────────────
-  if (product.product_type !== "variable" && !product.parent_product_id && Array.isArray(product.attributes)) {
+  // ── Attributes (Marca, Modelo, EAN only) ──────────────────────────────────
+  if (product.product_type !== "variable" && !product.parent_product_id) {
     const attrPayload: Array<{ name: string; options: string[]; visible: boolean; variation: boolean }> = [];
-    for (const a of product.attributes) {
-      const n = String(a?.name || "").trim();
-      if (!n) continue;
-      const values: string[] = [];
-      if (a?.value) values.push(String(a.value));
-      if (Array.isArray(a?.values)) for (const v of a.values) values.push(String(v));
-      if (Array.isArray(a?.options)) for (const v of a.options) values.push(String(v));
-      if (values.length === 0) continue;
-      attrPayload.push({ name: n, options: [...new Set(values)], visible: true, variation: false });
+    
+    // Only sync these 3 attributes to WooCommerce
+    const ALLOWED_ATTRIBUTES = ["marca", "brand", "modelo", "model", "ean", "gtin", "código de barras"];
+    
+    // From product.attributes array
+    if (Array.isArray(product.attributes)) {
+      for (const a of product.attributes) {
+        const n = String(a?.name || "").toLowerCase().trim();
+        if (!ALLOWED_ATTRIBUTES.some(allowed => n.includes(allowed))) continue;
+        const values: string[] = [];
+        if (a?.value) values.push(String(a.value));
+        if (Array.isArray(a?.values)) for (const v of a.values) values.push(String(v));
+        if (Array.isArray(a?.options)) for (const v of a.options) values.push(String(v));
+        if (values.length === 0) continue;
+        attrPayload.push({ name: a.name || n, options: [...new Set(values)], visible: true, variation: false });
+      }
     }
+    
+    // Always add Marca from product.brand if not already in attributes
+    if (product.brand && !attrPayload.some(a => a.name.toLowerCase().includes("marca") || a.name.toLowerCase().includes("brand"))) {
+      attrPayload.push({ name: "Marca", options: [product.brand], visible: true, variation: false });
+    }
+    
+    // Always add Modelo from product.model if not already in attributes
+    if (product.model && !attrPayload.some(a => a.name.toLowerCase().includes("modelo") || a.name.toLowerCase().includes("model"))) {
+      attrPayload.push({ name: "Modelo", options: [product.model], visible: true, variation: false });
+    }
+    
+    // Always add EAN from product.ean if not already in attributes
+    if (product.ean && !attrPayload.some(a => a.name.toLowerCase().includes("ean") || a.name.toLowerCase().includes("gtin"))) {
+      attrPayload.push({ name: "EAN", options: [String(product.ean)], visible: true, variation: false });
+    }
+    
     if (attrPayload.length > 0) wp.attributes = attrPayload;
   }
 
@@ -669,6 +692,25 @@ Deno.serve(async (req) => {
                   workflow_state: "published"
                 })
                 .eq("id", map.product.id);
+
+              // Second POST to force WooCommerce cache invalidation and frontend rendering
+              try {
+                const wcEndpoint = r.id 
+                  ? `${baseUrl}/wp-json/wc/v3/products/${r.id}`
+                  : null;
+                if (wcEndpoint) {
+                  await fetch(wcEndpoint, {
+                    method: "PUT",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "Authorization": `Basic ${auth}`,
+                    },
+                    body: JSON.stringify({ status: "publish" }),
+                  });
+                }
+              } catch (cacheErr) {
+                console.warn("[turbo] Cache invalidation POST failed (non-critical):", cacheErr);
+              }
               existingResults.push({
                 id: map.product.id,
                 status: map.bucket === "create" ? "created" : "updated",
@@ -709,6 +751,25 @@ Deno.serve(async (req) => {
                   workflow_state: "published"
                 })
                 .eq("id", product.id);
+
+              // Second POST to force WooCommerce cache invalidation and frontend rendering
+              try {
+                const wcEndpoint = res.woocommerce_id 
+                  ? `${baseUrl}/wp-json/wc/v3/products/${res.woocommerce_id}`
+                  : null;
+                if (wcEndpoint) {
+                  await fetch(wcEndpoint, {
+                    method: "PUT",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "Authorization": `Basic ${auth}`,
+                    },
+                    body: JSON.stringify({ status: "publish" }),
+                  });
+                }
+              } catch (cacheErr) {
+                console.warn("[turbo] Cache invalidation POST failed (non-critical):", cacheErr);
+              }
               existingResults.push({
                 id: product.id,
                 status: res.mode === "create" ? "created" : "updated",
