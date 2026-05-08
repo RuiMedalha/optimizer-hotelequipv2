@@ -1,7 +1,9 @@
 // ──────────────────────────────────────────────────────────────────────────
 //  publish-woocommerce-turbo
 //
-//  Modo TURBO de publicação para WooCommerce.
+//  TURBO: Must remain functionally identical to publish-woocommerce
+//  Only difference: parallel batch processing
+//
 //  Estratégia (aditiva — não substitui o publish-woocommerce clássico):
 //    1) Pre-upload das imagens únicas para /wp/v2/media (com dedup por SHA-256)
 //       → reduz drasticamente a pressão de disco /tmp do WordPress (uma única
