@@ -157,7 +157,21 @@ const ProductsPage = () => {
   );
   const publishWoo = usePublishWooCommerce();
   const { activePublishJob, isCreating: isCreatingPublish, createPublishJob, cancelPublishJob, dismissPublishJob } = usePublishJob();
+  const [publishBannerVisible, setPublishBannerVisible] = useState(false);
   const [logsOpen, setLogsOpen] = useState(false);
+
+  useEffect(() => {
+    if (activePublishJob?.status === "completed") {
+      setPublishBannerVisible(true);
+      const t = setTimeout(() => setPublishBannerVisible(false), 5000);
+      return () => clearTimeout(t);
+    } else if (activePublishJob && (activePublishJob.status === "processing" || activePublishJob.status === "queued" || activePublishJob.status === "scheduled")) {
+      setPublishBannerVisible(true);
+    } else {
+      setPublishBannerVisible(false);
+    }
+  }, [activePublishJob?.status, activePublishJob?.id]);
+
   const deleteProducts = useDeleteProducts();
   const updateProduct = useUpdateProduct();
   const detectVariations = useDetectVariations();
