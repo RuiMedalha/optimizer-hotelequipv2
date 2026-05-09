@@ -918,25 +918,21 @@ Deno.serve(async (req) => {
                 console.warn("[turbo] Cache invalidation POST failed (non-critical):", cacheErr);
               }
 
-              // Force Bricks to regenerate by triggering WordPress save_post hook
+              // Trigger n8n workflow to refresh product (Bricks + LiteSpeed + WP save_post)
               try {
                 const wcId = r.id;
-                const wpEndpoint = `${baseUrl}/wp-json/wp/v2/product/${wcId}`;
-                await fetch(wpEndpoint, {
+                const n8nWebhook = "https://n8n.hotelequip.pt/webhook/refresh-wc-product";
+                await fetch(n8nWebhook, {
                   method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Basic ${auth}`,
-                  },
+                  headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
-                    status: "publish",
-                    meta: {
-                      "_bricks_page_settings_overflow": "",
-                    }
+                    woocommerce_id: wcId,
+                    base_url: baseUrl,
+                    auth: auth, // already the base64 encoded string used for WC API calls
                   }),
                 });
-              } catch (bricksErr) {
-                console.warn("[turbo] Bricks regeneration trigger failed (non-critical):", bricksErr);
+              } catch (refreshErr) {
+                console.warn("[turbo] n8n refresh trigger failed (non-critical):", refreshErr);
               }
               existingResults.push({
                 id: map.product.id,
