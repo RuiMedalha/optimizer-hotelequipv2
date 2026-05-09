@@ -1780,9 +1780,8 @@ async function enrichWithExtraContent(
         meta.push({ key: 'rank_math_schema_Product', value: JSON.stringify(schema) });
       }
     }
-    }
-    console.log(`[enrichExtraContent] Injected RankMath Product Schema with editorial review`);
   }
+  console.log(`[enrichExtraContent] Injected RankMath Product Schema with editorial review`);
 }
 
 async function buildBasePayload(
