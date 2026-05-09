@@ -892,6 +892,7 @@ Deno.serve(async (req) => {
                 })
                 .eq("id", map.product.id);
 
+              /* PAUSED — Second POST was overwriting product data (manage_stock, stock_status)
               // Second POST to force WooCommerce cache invalidation and frontend rendering
               try {
                 const wcEndpoint = r.id 
@@ -917,6 +918,7 @@ Deno.serve(async (req) => {
               } catch (cacheErr) {
                 console.warn("[turbo] Cache invalidation POST failed (non-critical):", cacheErr);
               }
+              END PAUSED */
 
               // Trigger n8n workflow to refresh product (Bricks + LiteSpeed + WP save_post)
               try {
@@ -975,6 +977,7 @@ Deno.serve(async (req) => {
                 })
                 .eq("id", product.id);
 
+              /* PAUSED — Second POST was overwriting product data (manage_stock, stock_status)
               // Second POST to force WooCommerce cache invalidation and frontend rendering
               try {
                 const wcEndpoint = res.woocommerce_id 
@@ -987,19 +990,20 @@ Deno.serve(async (req) => {
                       "Content-Type": "application/json",
                       "Authorization": `Basic ${auth}`,
                     },
-                body: JSON.stringify({ 
-                  status: "publish",
-                  catalog_visibility: "visible",
-                  manage_stock: false,
-                  stock_status: "instock",
-                  date_modified: new Date().toISOString().replace('T', ' ').split('.')[0],
-                  meta_data: [{ key: "_lovable_last_sync", value: new Date().toISOString() }]
-                }),
+                    body: JSON.stringify({ 
+                      status: "publish",
+                      catalog_visibility: "visible",
+                      manage_stock: false,
+                      stock_status: "instock",
+                      date_modified: new Date().toISOString().replace('T', ' ').split('.')[0],
+                      meta_data: [{ key: "_lovable_last_sync", value: new Date().toISOString() }]
+                    }),
                   });
                 }
               } catch (cacheErr) {
                 console.warn("[turbo] Cache invalidation POST failed (non-critical):", cacheErr);
               }
+              END PAUSED */
               existingResults.push({
                 id: product.id,
                 status: res.mode === "create" ? "created" : "updated",

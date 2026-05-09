@@ -3008,6 +3008,7 @@ async function publishSingleProduct(
 async function wooCacheRefresh(baseUrl: string, auth: string, productId: number | string): Promise<void> {
   if (!productId) return;
   try {
+    /* PAUSED — Second POST was overwriting product data (manage_stock, stock_status)
     const resp = await fetch(`${baseUrl}/wp-json/wc/v3/products/${productId}`, {
       method: "PUT",
       headers: {
@@ -3028,6 +3029,7 @@ async function wooCacheRefresh(baseUrl: string, auth: string, productId: number 
     } else {
       console.log(`[wooCacheRefresh] WC#${productId} cache refreshed`);
     }
+    END PAUSED */
   } catch (e) {
     console.warn(`[wooCacheRefresh] WC#${productId} failed:`, (e as Error).message);
   }
