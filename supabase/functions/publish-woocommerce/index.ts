@@ -3032,25 +3032,21 @@ async function wooCacheRefresh(baseUrl: string, auth: string, productId: number 
     console.warn(`[wooCacheRefresh] WC#${productId} failed:`, (e as Error).message);
   }
 
-  // Force Bricks to regenerate by triggering WordPress save_post hook
+  // Trigger n8n workflow to refresh product (Bricks + LiteSpeed + WP save_post)
   try {
     const wcId = productId;
-    const wpEndpoint = `${baseUrl}/wp-json/wp/v2/product/${wcId}`;
-    await fetch(wpEndpoint, {
+    const n8nWebhook = "https://n8n.hotelequip.pt/webhook/refresh-wc-product";
+    await fetch(n8nWebhook, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Basic ${auth}`,
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        status: "publish",
-        meta: {
-          "_bricks_page_settings_overflow": "",
-        }
+        woocommerce_id: wcId,
+        base_url: baseUrl,
+        auth: auth, // already the base64 encoded string used for WC API calls
       }),
     });
-  } catch (bricksErr) {
-    console.warn("[publish] Bricks regeneration trigger failed (non-critical):", bricksErr);
+  } catch (refreshErr) {
+    console.warn("[publish] n8n refresh trigger failed (non-critical):", refreshErr);
   }
 }
 
