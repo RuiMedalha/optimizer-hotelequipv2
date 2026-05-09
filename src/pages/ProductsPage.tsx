@@ -988,10 +988,24 @@ const ProductsPage = () => {
             {product.is_discontinued ? statusLabels.discontinued : statusLabels[product.status]}
           </Badge>
           {product.woocommerce_id && (
-            <Badge variant="outline" className="text-[10px] bg-success/10 text-success border-success/20 gap-0.5" title={`Publicado no WooCommerce (ID: ${product.woocommerce_id})`}>
-              <Send className="w-2.5 h-2.5" />
-              WC
-            </Badge>
+            <div className="flex items-center gap-1">
+              <Badge 
+                variant="outline" 
+                className="text-[10px] bg-success/10 text-success border-success/20 gap-0.5 cursor-pointer hover:bg-success/20 transition-colors"
+                title={`Ver produto no site (ID: ${product.woocommerce_id})`}
+                onClick={() => window.open(`${activeWorkspace?.woocommerce_url || ''}/produto/${product.seo_slug || ''}`, '_blank')}
+              >
+                <Check className="w-2.5 h-2.5" />
+                WC
+              </Badge>
+              <span 
+                className="text-[9px] text-muted-foreground font-mono cursor-pointer hover:text-primary transition-colors"
+                title="Abrir no WP Admin"
+                onClick={() => window.open(`${activeWorkspace?.woocommerce_url || ''}/wp-admin/post.php?post=${product.woocommerce_id}&action=edit`, '_blank')}
+              >
+                #{product.woocommerce_id}
+              </span>
+            </div>
           )}
       {product.technical_specs && (
             <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20 gap-0.5" title="Enriquecido via Web">
