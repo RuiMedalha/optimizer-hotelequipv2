@@ -2029,8 +2029,9 @@ async function buildBasePayload(
   if (has("attributes")) {
     const attrPayload: Array<{ name: string; options: string[]; visible: boolean; variation: boolean }> = [];
     
-    // Only sync these 3 attributes to WooCommerce
+    // /* PAUSED: Only sync these 3 attributes to WooCommerce
     const ALLOWED_ATTRIBUTES = ["marca", "brand", "modelo", "model", "ean", "gtin", "código de barras"];
+    // */
     
     // Convert attributes to standard array format
     let productAttrs: any[] = [];
@@ -2046,7 +2047,8 @@ async function buildBasePayload(
     // Filter from product.attributes
     for (const a of productAttrs) {
       const n = String(a?.name || "").toLowerCase().trim();
-      if (!ALLOWED_ATTRIBUTES.some(allowed => n.includes(allowed))) continue;
+      // /* PAUSED: Filter allowed attributes */
+      // if (!ALLOWED_ATTRIBUTES.some(allowed => n.includes(allowed))) continue;
       const values: string[] = [];
       if (a?.value) values.push(String(a.value));
       if (Array.isArray(a?.values)) for (const v of a.values) values.push(String(v));

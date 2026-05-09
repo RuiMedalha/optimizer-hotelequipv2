@@ -571,14 +571,16 @@ function buildConsolidatedPayload(
   if (product.product_type !== "variable" && !product.parent_product_id) {
     const attrPayload: Array<{ name: string; options: string[]; visible: boolean; variation: boolean }> = [];
     
-    // Only sync these 3 attributes to WooCommerce
+    // /* PAUSED: Only sync these 3 attributes to WooCommerce
     const ALLOWED_ATTRIBUTES = ["marca", "brand", "modelo", "model", "ean", "gtin", "código de barras"];
+    // */
     
     // From product.attributes array
     if (Array.isArray(product.attributes)) {
       for (const a of product.attributes) {
         const n = String(a?.name || "").toLowerCase().trim();
-        if (!ALLOWED_ATTRIBUTES.some(allowed => n.includes(allowed))) continue;
+        // /* PAUSED: Filter allowed attributes */
+        // if (!ALLOWED_ATTRIBUTES.some(allowed => n.includes(allowed))) continue;
         const values: string[] = [];
         if (a?.value) values.push(String(a.value));
         if (Array.isArray(a?.values)) for (const v of a.values) values.push(String(v));
