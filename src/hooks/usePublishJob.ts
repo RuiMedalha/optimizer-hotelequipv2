@@ -65,13 +65,14 @@ export function usePublishJob() {
               toast.success(`${parts.join(", ")} no WooCommerce! 🚀`);
             }
             
-            // Auto-dismiss after a delay if finished (3 seconds as requested)
+            // Auto-dismiss after 5 seconds
+            const jobIdToClear = updated.id;
             setTimeout(() => {
-              setActivePublishJob(prev => (prev?.id === updated.id ? null : prev));
-            }, 3000);
+              setActivePublishJob(prev => (prev?.id === jobIdToClear ? null : prev));
+            }, 5000);
           } else if (updated.status === "cancelled") {
             toast.info(`Publicação cancelada. ${updated.processed_products} de ${updated.total_products} processados.`);
-            setTimeout(() => setActivePublishJob(null), 3000);
+            setTimeout(() => setActivePublishJob(null), 5000);
           }
         }
       )
