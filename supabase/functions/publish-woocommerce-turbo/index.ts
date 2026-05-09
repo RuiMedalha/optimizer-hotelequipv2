@@ -917,6 +917,27 @@ Deno.serve(async (req) => {
               } catch (cacheErr) {
                 console.warn("[turbo] Cache invalidation POST failed (non-critical):", cacheErr);
               }
+
+              // Force Bricks to regenerate by triggering WordPress save_post hook
+              try {
+                const wcId = r.id;
+                const wpEndpoint = `${baseUrl}/wp-json/wp/v2/product/${wcId}`;
+                await fetch(wpEndpoint, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Basic ${auth}`,
+                  },
+                  body: JSON.stringify({
+                    status: "publish",
+                    meta: {
+                      "_bricks_page_settings_overflow": "",
+                    }
+                  }),
+                });
+              } catch (bricksErr) {
+                console.warn("[turbo] Bricks regeneration trigger failed (non-critical):", bricksErr);
+              }
               existingResults.push({
                 id: map.product.id,
                 status: map.bucket === "create" ? "created" : "updated",
