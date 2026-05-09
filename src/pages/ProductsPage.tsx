@@ -1740,7 +1740,7 @@ const ProductsPage = () => {
       )}
 
       {/* WooCommerce Publish Job Progress */}
-      {activePublishJob && (activePublishJob.status === "processing" || activePublishJob.status === "queued" || activePublishJob.status === "scheduled" || activePublishJob.status === "completed") && (
+      {publishBannerVisible && activePublishJob && (activePublishJob.status === "processing" || activePublishJob.status === "queued" || activePublishJob.status === "scheduled" || activePublishJob.status === "completed") && (
         <Card className={cn(
           "border-primary/30",
           activePublishJob.status === "completed" ? "bg-success/5 border-success/30" : "bg-primary/5"
@@ -1781,9 +1781,11 @@ const ProductsPage = () => {
                 <Button size="sm" variant="outline" onClick={() => setLogsOpen(true)} className="h-7 px-2 text-xs">
                   <List className="w-3 h-3 mr-1" /> Ver logs
                 </Button>
-                <Button size="sm" variant="destructive" onClick={cancelPublishJob} className="h-7 px-2 text-xs">
-                  <Ban className="w-3 h-3 mr-1" /> Cancelar
-                </Button>
+                {activePublishJob.status !== "completed" && (
+                  <Button size="sm" variant="destructive" onClick={cancelPublishJob} className="h-7 px-2 text-xs">
+                    <Ban className="w-3 h-3 mr-1" /> Cancelar
+                  </Button>
+                )}
               </div>
             </div>
             <Progress value={activePublishJob.status === "completed" ? 100 : (activePublishJob.total_products > 0 ? (publishStats.confirmed / activePublishJob.total_products) * 100 : 0)} className="h-2" />
@@ -1793,6 +1795,7 @@ const ProductsPage = () => {
           </CardContent>
         </Card>
       )}
+
 
       {/* WooCommerce Publish Job Completed */}
       {activePublishJob && (activePublishJob.status === "cancelled" || activePublishJob.status === "failed") && (
