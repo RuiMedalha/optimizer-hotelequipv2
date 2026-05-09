@@ -422,8 +422,10 @@ function buildConsolidatedPayload(
     type: "simple",
     status: "publish",
     catalog_visibility: "visible",
+    /* PAUSED - was overwriting stock settings
     manage_stock: false,
-    stock_status: "instock"
+    stock_status: "instock",
+    */
   };
 
   if (has("title")) wp.name = product.optimized_title || product.original_title || "Sem título";
