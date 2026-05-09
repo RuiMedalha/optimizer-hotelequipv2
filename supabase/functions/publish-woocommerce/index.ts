@@ -1781,11 +1781,7 @@ async function enrichWithExtraContent(
       }
     }
   }
-      console.log(`[enrichExtraContent] Injected RankMath Product Schema with editorial review`);
-    }
-
-    
-  }
+  console.log(`[enrichExtraContent] Injected RankMath Product Schema with editorial review`);
 }
 
 async function buildBasePayload(
@@ -3034,6 +3030,27 @@ async function wooCacheRefresh(baseUrl: string, auth: string, productId: number 
     }
   } catch (e) {
     console.warn(`[wooCacheRefresh] WC#${productId} failed:`, (e as Error).message);
+  }
+
+  // Force Bricks to regenerate by triggering WordPress save_post hook
+  try {
+    const wcId = productId;
+    const wpEndpoint = `${baseUrl}/wp-json/wp/v2/product/${wcId}`;
+    await fetch(wpEndpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Basic ${auth}`,
+      },
+      body: JSON.stringify({
+        status: "publish",
+        meta: {
+          "_bricks_page_settings_overflow": "",
+        }
+      }),
+    });
+  } catch (bricksErr) {
+    console.warn("[publish] Bricks regeneration trigger failed (non-critical):", bricksErr);
   }
 }
 
