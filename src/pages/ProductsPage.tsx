@@ -993,7 +993,7 @@ const ProductsPage = () => {
                 variant="outline" 
                 className="text-[10px] bg-success/10 text-success border-success/20 gap-0.5 cursor-pointer hover:bg-success/20 transition-colors"
                 title={`Ver produto no site (ID: ${product.woocommerce_id})`}
-                onClick={() => window.open(`${settings?.["woocommerce_url"] || ''}/produto/${product.seo_slug || ''}`, '_blank')}
+                onClick={() => window.open(`${settings?.["woocommerce_url"] || ''}/?p=${product.woocommerce_id}`, '_blank')}
               >
                 <Check className="w-2.5 h-2.5" />
                 WC
