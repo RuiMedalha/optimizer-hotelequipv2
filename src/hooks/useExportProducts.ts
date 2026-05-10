@@ -89,14 +89,22 @@ async function fetchUsoProfissionalLookup(productIds: string[]): Promise<Map<str
   }
 }
 
-const EXPORT_COLUMNS = [
+interface ExportColumn {
+  key: string;
+  header: string;
+  splitPart?: 1 | 2;
+}
+
+const EXPORT_COLUMNS: ExportColumn[] = [
   { key: "sku", header: "SKU" },
   { key: "woocommerce_id", header: "WooCommerce ID" },
-  { key: "product_type", header: "Tipo de Produto" },
+  { key: "product_type", header: "Tipo" },
   { key: "original_title", header: "Título Original" },
   { key: "optimized_title", header: "Título Otimizado" },
-  { key: "original_description", header: "Descrição Original" },
-  { key: "optimized_description", header: "Descrição Otimizada" },
+  { key: "original_description", header: "Descrição Original (1/2)", splitPart: 1 },
+  { key: "original_description", header: "Descrição Original (2/2)", splitPart: 2 },
+  { key: "optimized_description", header: "Descrição Otimizada (1/2)", splitPart: 1 },
+  { key: "optimized_description", header: "Descrição Otimizada (2/2)", splitPart: 2 },
   { key: "short_description", header: "Descrição Curta Original" },
   { key: "optimized_short_description", header: "Descrição Curta Otimizada" },
   { key: "technical_specs", header: "Características Técnicas" },
@@ -228,7 +236,9 @@ function productToRow(p: Product, skuPrefix?: string, lookups?: ProductLookups) 
     } else if (Array.isArray(val)) {
       row[col.header] = val.join(", ");
     } else {
-      row[col.header] = val ?? "";
+      row[col.header] = col.splitPart 
+        ? safeValPart((p as any)[col.key], col.splitPart)
+        : safeVal((p as any)[col.key]);
     }
   }
   return row;
