@@ -78,7 +78,7 @@ async function fetchUsoProfissionalLookup(productIds: string[]): Promise<Map<str
 const EXPORT_COLUMNS = [
   { key: "sku", header: "SKU" },
   { key: "woocommerce_id", header: "WooCommerce ID" },
-  { key: "product_type", header: "Tipo" },
+  { key: "product_type", header: "Tipo de Produto" },
   { key: "original_title", header: "Título Original" },
   { key: "optimized_title", header: "Título Otimizado" },
   { key: "original_description", header: "Descrição Original" },
