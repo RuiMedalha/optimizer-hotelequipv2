@@ -3036,20 +3036,46 @@ async function wooCacheRefresh(baseUrl: string, auth: string, productId: number 
     console.warn(`[wooCacheRefresh] WC#${productId} failed:`, (e as Error).message);
   }
 
-  // Trigger n8n workflow to refresh product (Bricks + LiteSpeed + WP save_post)
+  // Trigger refresh triggers (n8n + WordPress Custom REST)
   try {
     const wcId = productId;
-    const n8nWebhook = "https://n8n.hotelequip.pt/webhook/refresh-wc-product";
-    await fetch(n8nWebhook, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        woocommerce_ids: [wcId],
-        base_url: baseUrl,
-      }),
-    });
+    
+    // 1. n8n trigger
+    try {
+      const n8nWebhook = "https://n8n.hotelequip.pt/webhook/refresh-wc-product";
+      await fetch(n8nWebhook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          woocommerce_ids: [wcId],
+          base_url: baseUrl,
+        }),
+      });
+    } catch (n8nErr) {
+      console.warn("[publish] n8n refresh trigger failed (non-critical):", n8nErr);
+    }
+
+    // 2. WordPress Custom REST trigger
+    try {
+      const wpUser = Deno.env.get("WP_APP_USERNAME");
+      const wpPass = Deno.env.get("WP_APP_PASSWORD");
+      if (wpUser && wpPass) {
+        const wpAuth = btoa(`${wpUser}:${wpPass}`);
+        await fetch(`${baseUrl}/wp-json/hotelequip/v1/refresh-products`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Basic ${wpAuth}`,
+          },
+          body: JSON.stringify({ ids: [wcId] }),
+        });
+        console.log(`[publish] WP Custom refresh triggered for WC#${wcId}`);
+      }
+    } catch (wpErr) {
+      console.warn("[publish] WP Custom refresh trigger failed (non-critical):", wpErr);
+    }
   } catch (refreshErr) {
-    console.warn("[publish] n8n refresh trigger failed (non-critical):", refreshErr);
+    console.warn("[publish] Refresh sequence failed (non-critical):", refreshErr);
   }
 }
 

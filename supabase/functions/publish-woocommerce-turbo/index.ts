@@ -945,26 +945,51 @@ Deno.serve(async (req) => {
             }
           }
 
-          // Trigger n8n workflow to refresh all products from this batch (Bricks + LiteSpeed + WP save_post)
+          // Trigger refresh triggers (n8n + WordPress Custom REST)
           try {
-            const n8nWebhook = "https://n8n.hotelequip.pt/webhook/refresh-wc-product";
             // Collect all WC IDs from this batch
             const batchWcIds = batchResp?.create?.map((r: any) => r.id).filter(Boolean) || [];
             const updateWcIds = batchResp?.update?.map((r: any) => r.id).filter(Boolean) || [];
             const allWcIds = [...batchWcIds, ...updateWcIds];
 
             if (allWcIds.length > 0) {
-              await fetch(n8nWebhook, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  woocommerce_ids: allWcIds,
-                  base_url: baseUrl,
-                }),
-              });
+              // 1. n8n trigger
+              try {
+                const n8nWebhook = "https://n8n.hotelequip.pt/webhook/refresh-wc-product";
+                await fetch(n8nWebhook, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    woocommerce_ids: allWcIds,
+                    base_url: baseUrl,
+                  }),
+                });
+              } catch (n8nErr) {
+                console.warn("[turbo] n8n refresh trigger failed (non-critical):", n8nErr);
+              }
+
+              // 2. WordPress Custom REST trigger
+              try {
+                const wpUser = Deno.env.get("WP_APP_USERNAME");
+                const wpPass = Deno.env.get("WP_APP_PASSWORD");
+                if (wpUser && wpPass) {
+                  const wpAuth = btoa(`${wpUser}:${wpPass}`);
+                  await fetch(`${baseUrl}/wp-json/hotelequip/v1/refresh-products`, {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "Authorization": `Basic ${wpAuth}`,
+                    },
+                    body: JSON.stringify({ ids: allWcIds }),
+                  });
+                  console.log(`[turbo] WP Custom refresh triggered for ${allWcIds.length} IDs`);
+                }
+              } catch (wpErr) {
+                console.warn("[turbo] WP Custom refresh trigger failed (non-critical):", wpErr);
+              }
             }
           } catch (refreshErr) {
-            console.warn("[turbo] n8n refresh trigger failed (non-critical):", refreshErr);
+            console.warn("[turbo] Batch refresh sequence failed (non-critical):", refreshErr);
           }
         } else {
           // Batch inteiro falhou → retry inline para TODOS
