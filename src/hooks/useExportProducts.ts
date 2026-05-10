@@ -20,6 +20,20 @@ function extractAttrValue(attrs: any[], nameSet: Set<string>): string {
   return val != null ? String(val) : "";
 }
 
+const EXCEL_MAX = 32000;
+
+function safeVal(val: unknown): string {
+  if (val == null) return "";
+  return String(val);
+}
+
+function safeValPart(val: unknown, part: 1 | 2): string {
+  if (val == null) return "";
+  const str = String(val).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  if (part === 1) return str.substring(0, EXCEL_MAX);
+  return str.length > EXCEL_MAX ? str.substring(EXCEL_MAX, EXCEL_MAX * 2) : "";
+}
+
 async function fetchUserLookup(userIds: string[]): Promise<Map<string, string>> {
   if (userIds.length === 0) return new Map();
   try {
