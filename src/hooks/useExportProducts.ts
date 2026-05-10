@@ -20,6 +20,20 @@ function extractAttrValue(attrs: any[], nameSet: Set<string>): string {
   return val != null ? String(val) : "";
 }
 
+const EXCEL_MAX = 32000;
+
+function safeVal(val: unknown): string {
+  if (val == null) return "";
+  return String(val);
+}
+
+function safeValPart(val: unknown, part: 1 | 2): string {
+  if (val == null) return "";
+  const str = String(val).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  if (part === 1) return str.substring(0, EXCEL_MAX);
+  return str.length > EXCEL_MAX ? str.substring(EXCEL_MAX, EXCEL_MAX * 2) : "";
+}
+
 async function fetchUserLookup(userIds: string[]): Promise<Map<string, string>> {
   if (userIds.length === 0) return new Map();
   try {
@@ -75,14 +89,22 @@ async function fetchUsoProfissionalLookup(productIds: string[]): Promise<Map<str
   }
 }
 
-const EXPORT_COLUMNS = [
+interface ExportColumn {
+  key: string;
+  header: string;
+  splitPart?: 1 | 2;
+}
+
+const EXPORT_COLUMNS: ExportColumn[] = [
   { key: "sku", header: "SKU" },
   { key: "woocommerce_id", header: "WooCommerce ID" },
   { key: "product_type", header: "Tipo" },
   { key: "original_title", header: "Título Original" },
   { key: "optimized_title", header: "Título Otimizado" },
-  { key: "original_description", header: "Descrição Original" },
-  { key: "optimized_description", header: "Descrição Otimizada" },
+  { key: "original_description", header: "Descrição Original (1/2)", splitPart: 1 },
+  { key: "original_description", header: "Descrição Original (2/2)", splitPart: 2 },
+  { key: "optimized_description", header: "Descrição Otimizada (1/2)", splitPart: 1 },
+  { key: "optimized_description", header: "Descrição Otimizada (2/2)", splitPart: 2 },
   { key: "short_description", header: "Descrição Curta Original" },
   { key: "optimized_short_description", header: "Descrição Curta Otimizada" },
   { key: "technical_specs", header: "Características Técnicas" },
@@ -214,7 +236,9 @@ function productToRow(p: Product, skuPrefix?: string, lookups?: ProductLookups) 
     } else if (Array.isArray(val)) {
       row[col.header] = val.join(", ");
     } else {
-      row[col.header] = val ?? "";
+      row[col.header] = col.splitPart 
+        ? safeValPart((p as any)[col.key], col.splitPart)
+        : safeVal((p as any)[col.key]);
     }
   }
   return row;
