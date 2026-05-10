@@ -3044,9 +3044,8 @@ async function wooCacheRefresh(baseUrl: string, auth: string, productId: number 
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        woocommerce_id: wcId,
+        woocommerce_ids: [wcId],
         base_url: baseUrl,
-        auth: auth, // already the base64 encoded string used for WC API calls
       }),
     });
   } catch (refreshErr) {

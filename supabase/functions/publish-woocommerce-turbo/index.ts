@@ -924,22 +924,7 @@ Deno.serve(async (req) => {
               }
               END PAUSED */
 
-              // Trigger n8n workflow to refresh product (Bricks + LiteSpeed + WP save_post)
-              try {
-                const wcId = r.id;
-                const n8nWebhook = "https://n8n.hotelequip.pt/webhook/refresh-wc-product";
-                await fetch(n8nWebhook, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    woocommerce_id: wcId,
-                    base_url: baseUrl,
-                    auth: auth, // already the base64 encoded string used for WC API calls
-                  }),
-                });
-              } catch (refreshErr) {
-                console.warn("[turbo] n8n refresh trigger failed (non-critical):", refreshErr);
-              }
+              // ... keep existing code (removing individual n8n call)
               existingResults.push({
                 id: map.product.id,
                 status: map.bucket === "create" ? "created" : "updated",
@@ -958,6 +943,28 @@ Deno.serve(async (req) => {
               console.warn(`[turbo] item failed in batch product=${map.product.id}: ${errMsg} → retry inline`);
               failedToFallback.push({ product: map.product, payload: payloadByProductId.get(map.product.id) || {} });
             }
+          }
+
+          // Trigger n8n workflow to refresh all products from this batch (Bricks + LiteSpeed + WP save_post)
+          try {
+            const n8nWebhook = "https://n8n.hotelequip.pt/webhook/refresh-wc-product";
+            // Collect all WC IDs from this batch
+            const batchWcIds = batchResp?.create?.map((r: any) => r.id).filter(Boolean) || [];
+            const updateWcIds = batchResp?.update?.map((r: any) => r.id).filter(Boolean) || [];
+            const allWcIds = [...batchWcIds, ...updateWcIds];
+
+            if (allWcIds.length > 0) {
+              await fetch(n8nWebhook, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  woocommerce_ids: allWcIds,
+                  base_url: baseUrl,
+                }),
+              });
+            }
+          } catch (refreshErr) {
+            console.warn("[turbo] n8n refresh trigger failed (non-critical):", refreshErr);
           }
         } else {
           // Batch inteiro falhou → retry inline para TODOS
