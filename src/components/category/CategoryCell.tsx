@@ -125,7 +125,7 @@ export function CategoryCell({ product, onSelectSuggestion, currentOverride }: P
                           }
                         }}
                       >
-                        <span className="truncate max-w-[150px]">{secondarySuggestion.category_name}</span>
+                        <span className="truncate max-w-[250px]">{secondarySuggestion.category_name}</span>
                         <span className="ml-1 opacity-70" title="Pontuação de confiança">⭐ {secondarySuggestion.confidence}% confiança</span>
                       </div>
                     </TooltipTrigger>
