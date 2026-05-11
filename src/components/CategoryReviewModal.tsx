@@ -74,6 +74,10 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
 
   const candidates = useMemo(() => {
     if (showAllProducts) return products;
+    
+    // If small pre-filtered list passed in (from selection), show all
+    if (products.length <= 50 && products.length > 0) return products;
+
     // Show products needing confirmation: 
     // 1. Has suggested category different from current
     // 2. OR current category is empty
