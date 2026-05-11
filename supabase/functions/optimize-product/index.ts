@@ -1798,7 +1798,7 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
                 const qas = [];
                 // Match: <p><strong>Question</strong></p><p>Answer</p>
                 // OR: <p>P: Question</p><p>R: Answer</p>
-                const qRegex = /<p[^>]*>(?:<strong[^>]*>|<b[^>]*>)?\s*(?:\d+\.\s*)?(.*?)(?:<\/strong>|<\/b>)?\s*(?:<\/p>\s*<p[^>]*>|<br\/?>)\s*(?!(?:<strong|<b))([^<][^]*?)(?:<\/p>|$)/gi;
+                const qRegex = /<p[^>]*>(?:<strong[^>]*>|<b[^>]*>)?\s*(?:\d+\.\s*)?(.*?)(?:<\/strong>|<\/b>)?\s*(?:<\/p>\s*<p[^>]*>|<br\/?>)\s*(?!(?:<strong|<b))([\s\S]*?)(?:<\/p>|$)/gi;
                 let m;
                 while ((m = qRegex.exec(faqHtml)) !== null) {
                   const q = m[1].replace(/<[^>]*>/g, "").replace(/^\d+\.\s*/, "").trim();
