@@ -155,7 +155,7 @@ export function CategoryCell({ product, onSelectSuggestion, currentOverride }: P
                         }}
                       >
                         <MousePointer2 className="w-2.5 h-2.5 rotate-45" />
-                        <span className="truncate max-w-[150px] italic">Corrigir para: {primarySuggestion.category_name}</span>
+                        <span className="truncate max-w-[250px] italic">Corrigir para: {primarySuggestion.category_name}</span>
                       </div>
                     </TooltipTrigger>
                     <TooltipContent side="top" className="max-w-md break-words">
