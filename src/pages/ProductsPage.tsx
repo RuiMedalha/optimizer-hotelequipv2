@@ -1154,8 +1154,9 @@ const ProductsPage = () => {
             onClick={() => setShowCategoryReview(true)}
           >
             <Wand2 className="w-3.5 h-3.5 mr-1" />
-            Rever Categorias IA
+            {selected.size > 0 ? `Rever Categorias IA (${selected.size} sel.)` : "Rever Categorias IA"}
             {(() => {
+              if (selected.size > 0) return "";
               const catCount = (allProductsLight ?? []).filter((p: any) => p && p.suggested_category && p.suggested_category !== p.category).length;
               return catCount > 0 ? ` (${catCount})` : "";
             })()}
