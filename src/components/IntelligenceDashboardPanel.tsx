@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, AlertTriangle, TrendingUp, DollarSign, Search, ShieldCheck, Zap, RefreshCw } from "lucide-react";
+import { Loader2, AlertTriangle, TrendingUp, DollarSign, Search, ShieldCheck, Zap, RefreshCw, Database } from "lucide-react";
 import { useIntelligenceDashboard } from "@/hooks/useIntelligenceDashboard";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
