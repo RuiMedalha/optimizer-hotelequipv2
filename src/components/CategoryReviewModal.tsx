@@ -73,11 +73,17 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
   const getEffectiveSuggestion = (p: CategoryProduct) => overrides[p.id] || p.suggested_category;
 
   const candidates = useMemo(() => {
-    // If small pre-filtered list (from user selection), show all regardless of status
-    if (products.length > 0 && products.length <= 100) return products;
+    // If a small-ish list is passed (likely from user selection), show everything
+    if (products.length > 0 && products.length <= 2000) return products;
+    
     if (showAllProducts) return products;
+    
+    // Show products needing confirmation: 
+    // 1. Has suggested category different from current
+    // 2. OR current category is empty
     return products.filter(p => 
-      p.suggested_category && p.suggested_category !== p.category
+      (p.suggested_category && p.suggested_category !== p.category) || 
+      (!p.category)
     );
   }, [products, showAllProducts]);
 
