@@ -313,13 +313,24 @@ export function ProductDetailModal({ product, onClose }: Props) {
                       const lastHyphen = sku.lastIndexOf('-');
                       const lastDot = sku.lastIndexOf('.');
                       const lastUnderscore = sku.lastIndexOf('_');
-                      const lastSepIndex = Math.max(lastHyphen, lastDot, lastUnderscore);
+                      const lastSlash = sku.lastIndexOf('/');
+                      const lastSepIndex = Math.max(lastHyphen, lastDot, lastUnderscore, lastSlash);
                       
                       let suggested = sku;
                       if (lastSepIndex !== -1 && lastSepIndex > 0) {
-                        const lastPart = sku.substring(lastSepIndex + 1);
-                        if (lastPart.length <= 3 || /^\d+$/.test(lastPart)) {
-                          suggested = sku.substring(0, lastSepIndex);
+                        const before = sku.substring(0, lastSepIndex);
+                        const after = sku.substring(lastSepIndex + 1);
+                        
+                        const hasDigitsBefore = /\d/.test(before);
+                        const isLikelySuffix = after.length <= 6 || /^\d+$/.test(after) || /^(V|BT|TN|HC|R\d+|TR|BT|TNV|BTV)$/i.test(after);
+                        
+                        if (hasDigitsBefore && isLikelySuffix) {
+                          suggested = before;
+                        }
+                      } else {
+                        const match = sku.match(/^(.*?\d+)([A-Z])$/i);
+                        if (match) {
+                          suggested = match[1];
                         }
                       }
                       handleFieldChange("model", suggested);

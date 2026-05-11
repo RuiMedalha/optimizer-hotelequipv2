@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, AlertTriangle, TrendingUp, DollarSign, Search, ShieldCheck, Zap, RefreshCw } from "lucide-react";
+import { Loader2, AlertTriangle, TrendingUp, DollarSign, Search, ShieldCheck, Zap, RefreshCw, Database } from "lucide-react";
 import { useIntelligenceDashboard } from "@/hooks/useIntelligenceDashboard";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
@@ -32,6 +32,7 @@ export function IntelligenceDashboardPanel() {
   const { data, isLoading, refetch } = useIntelligenceDashboard();
   const { activeWorkspace } = useWorkspaceContext();
   const [running, setRunning] = useState(false);
+  const [inferringModels, setInferringModels] = useState(false);
 
   const runPipeline = async () => {
     if (!activeWorkspace) return;
@@ -47,6 +48,71 @@ export function IntelligenceDashboardPanel() {
       toast.error(e.message || "Erro ao executar pipeline");
     } finally {
       setRunning(false);
+    }
+  };
+
+  const inferModelsInBulk = async () => {
+    if (!activeWorkspace) return;
+    setInferringModels(true);
+    try {
+      // Fetch products in this workspace that don't have a model
+      const { data: products, error } = await supabase
+        .from("products")
+        .select("id, sku")
+        .eq("workspace_id", activeWorkspace.id)
+        .is("model", null)
+        .not("sku", "is", null);
+
+      if (error) throw error;
+      if (!products || products.length === 0) {
+        toast.info("Todos os produtos já possuem modelo ou não têm SKU.");
+        return;
+      }
+
+      const updates = products.map(p => {
+        const sku = p.sku;
+        const lastHyphen = sku.lastIndexOf('-');
+        const lastDot = sku.lastIndexOf('.');
+        const lastUnderscore = sku.lastIndexOf('_');
+        const lastSlash = sku.lastIndexOf('/');
+        const lastSepIndex = Math.max(lastHyphen, lastDot, lastUnderscore, lastSlash);
+        
+        let suggested = sku;
+        if (lastSepIndex !== -1 && lastSepIndex > 0) {
+          const before = sku.substring(0, lastSepIndex);
+          const after = sku.substring(lastSepIndex + 1);
+          
+          const hasDigitsBefore = /\d/.test(before);
+          const isLikelySuffix = after.length <= 6 || /^\d+$/.test(after) || /^(V|BT|TN|HC|R\d+|TR|BT|TNV|BTV)$/i.test(after);
+          
+          if (hasDigitsBefore && isLikelySuffix) {
+            suggested = before;
+          }
+        } else {
+          const match = sku.match(/^(.*?\d+)([A-Z])$/i);
+          if (match) {
+            suggested = match[1];
+          }
+        }
+        return { id: p.id, model: suggested };
+      });
+
+      // Update in batches of 50
+      const batchSize = 50;
+      let updatedCount = 0;
+      for (let i = 0; i < updates.length; i += batchSize) {
+        const batch = updates.slice(i, i + batchSize);
+        const { error: updateError } = await supabase.from("products").upsert(batch as any);
+        if (updateError) throw updateError;
+        updatedCount += batch.length;
+      }
+
+      toast.success(`${updatedCount} modelos inferidos com sucesso a partir do SKU.`);
+      refetch();
+    } catch (e: any) {
+      toast.error(e.message || "Erro ao inferir modelos");
+    } finally {
+      setInferringModels(false);
     }
   };
 
@@ -86,10 +152,16 @@ export function IntelligenceDashboardPanel() {
               : "Nunca"}
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={runPipeline} disabled={running}>
-          {running ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
-          Executar Pipeline
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={inferModelsInBulk} disabled={inferringModels || running}>
+            {inferringModels ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Database className="h-3.5 w-3.5 mr-1" />}
+            Inferir Modelos (SKU)
+          </Button>
+          <Button variant="outline" size="sm" onClick={runPipeline} disabled={running || inferringModels}>
+            {running ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
+            Executar Pipeline
+          </Button>
+        </div>
       </div>
 
       {/* Health Score */}
