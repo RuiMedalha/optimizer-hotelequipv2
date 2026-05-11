@@ -128,6 +128,7 @@ SECÇÕES OBRIGATÓRIAS (nesta ordem):
      <p style="font-style:italic; color:#6b7280; margin:0 0 14px;">Resposta aqui.</p>
 
 REGRAS SEO E QUALIDADE:
+${terminologyContext}
 - Keywords naturais no texto, sem stuffing.
 - A primeira frase deve conter a keyword principal do produto em Português de Portugal.
 - OBRIGATÓRIO: Utiliza sinónimos e variações linguísticas do produto ao longo do texto (ex: se é uma 'Campânula', utiliza também 'hotte', 'coifa', 'exaustor').
@@ -135,6 +136,7 @@ REGRAS SEO E QUALIDADE:
 - TRADUÇÃO: NUNCA utilizes termos em Espanhol como "Campana" se o produto for uma "Campânula" ou "Hotte".
 - Inclui variações long-tail nas keywords (ex: "fritadeira a gás 8 litros profissional").
 - Alt-text pensado para pesquisa, não para decoração.
+
 
 FORMATO DE RESPOSTA (JSON puro, sem markdown fences):
 {
