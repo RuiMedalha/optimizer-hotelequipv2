@@ -1326,9 +1326,10 @@ REGRAS OBRIGATÓRIAS:
 - NÃO inventes especificações.
 - Inclui linha/série se aplicável (ex: "Linha 700").
 - Inclui tipo de energia se aplicável (Gás, Elétrico).`,
-          description: `Gera uma descrição otimizada (HTML) que soe humana e natural.
+          description: `Gera uma descrição otimizada (HTML) que soe humana e natural e inclua OBRIGATORIAMENTE sinónimos relevantes para SEO.
 REGRAS DE LINGUAGEM NATURAL — OBRIGATÓRIO:
 - NUNCA soar robótico ou repetitivo. Limitar "HORECA" a máx 1 menção.
+- OTIMIZAÇÃO SEO: Inclui OBRIGATORIAMENTE os sinónimos fornecidos na secção "SINÓNIMOS SEO RELEVANTES" de forma fluída no texto (ex: se o produto é um 'Exaustor', usa também 'hotte', 'coifa' e 'apanha-fumos').
 - Substituir "HORECA" por: "o seu restaurante", "o seu bar", "cozinhas profissionais".
 - Dirigir-se ao cliente: "Perfeito para o seu bar", "A sua equipa vai apreciar".
 - VARIAR CONSTRUÇÕES: Nunca começar parágrafos seguidos com "Este equipamento...".
