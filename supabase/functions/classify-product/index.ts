@@ -164,30 +164,51 @@ Deno.serve(async (req) => {
         }
       }
 
-      if (bestPath && bestPath.includes(" > ")) {
-        // Find the matching category in our catalog using exact full path or most specific overlap
-        const matchingCat = categoryList.find(c => 
-          c.full_path === bestPath ||
-          c.full_path.endsWith(" > " + bestPath) ||
-          bestPath.endsWith(" > " + c.full_path)
-        );
+      if (bestPath) {
+        // Find the matching category in our catalog
+        // We look for a category that contains the most specific name from the consensus path
+        const pathParts = bestPath.split(" > ").map(p => p.trim());
+        const leafCandidate = pathParts[pathParts.length - 1];
         
-        console.log(`[classify] Meilisearch consensus: ${maxVotes} products in "${bestPath}" — skipping AI`);
+        let matchingCat = categoryList.find(c => c.full_path === bestPath);
         
-        return new Response(JSON.stringify({
-          category_id: matchingCat?.id || null,
-          category_name: matchingCat?.full_path || bestPath,
-          confidence_score: 0.95,
-          requires_review: false,
-          alternative_categories: [],
-          reasoning: `Meilisearch consensus: ${maxVotes} similar products in "${bestPath}"`,
-          source: "meilisearch_consensus"
-        }), { 
-          headers: { 
-            ...corsHeaders,
-            "Content-Type": "application/json" 
-          } 
-        });
+        if (!matchingCat) {
+          // If no exact match, look for a category that ends with the leaf or has the most overlapping parts
+          // but respect the database's own hierarchy
+          const candidates = categoryList.filter(c => 
+            c.name === leafCandidate || 
+            pathParts.includes(c.name)
+          );
+          
+          if (candidates.length > 0) {
+            // Pick the one with the longest path (most specific) among those that match the leaf
+            const leafMatches = candidates.filter(c => c.name === leafCandidate);
+            if (leafMatches.length > 0) {
+              matchingCat = leafMatches.reduce((prev, curr) => 
+                (curr.full_path.split(" > ").length > prev.full_path.split(" > ").length) ? curr : prev
+              );
+            }
+          }
+        }
+        
+        if (matchingCat) {
+          console.log(`[classify] Meilisearch consensus: ${maxVotes} products in "${bestPath}". Matched to DB: "${matchingCat.full_path}"`);
+          
+          return new Response(JSON.stringify({
+            category_id: matchingCat.id,
+            category_name: matchingCat.full_path,
+            confidence_score: 0.95,
+            requires_review: false,
+            alternative_categories: [],
+            reasoning: `Meilisearch consensus: ${maxVotes} similar products. Validated against catalog hierarchy.`,
+            source: "meilisearch_consensus"
+          }), { 
+            headers: { 
+              ...corsHeaders,
+              "Content-Type": "application/json" 
+            } 
+          });
+        }
       }
     }
 
