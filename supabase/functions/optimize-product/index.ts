@@ -1737,6 +1737,10 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
               required: ["category_id", "category_name", "confidence_score"]
             }
           };
+          toolProperties.optimization_notes = {
+            type: "string",
+            description: "Preencher APENAS se tiveres dúvidas sobre a classificação do produto. Ex: 'Vitrine 1500 vidro curvo — não foi possível determinar se é pastelaria ou charcutaria'. Deixar vazio se sem dúvidas."
+          };
           requiredFields.push("suggested_category", "suggested_categories");
         }
         // Only generate focus keywords in phase 1 (or when no phase is set)
