@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
     // 3. Fetch some successfully categorized products to use as examples (Few-Shot Prompting)
     const { data: examples } = await supabase
       .from("products")
-      .select("original_title, category")
+      .select("original_title, optimized_title, category")
       .not("category", "is", null)
       .eq("workspace_id", workspace_id)
       .limit(15);
