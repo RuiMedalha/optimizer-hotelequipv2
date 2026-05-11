@@ -38,7 +38,7 @@ async function findSimilarInMeilisearch(
       .map((h: any) => ({
         title: h.title || "",
         category: Array.isArray(h.categories) && h.categories.length > 0
-          ? [...h.categories].reverse().join(" > ")
+          ? h.categories.join(" > ")
           : "",
       }));
   } catch {
