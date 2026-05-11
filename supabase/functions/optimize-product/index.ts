@@ -886,34 +886,12 @@ serve(async (req) => {
         if (!inferredModel && product.sku) {
           const sku = product.sku;
           
-          // Lógica de fallback padrão para otimização automática
-          const lastHyphen = sku.lastIndexOf('-');
-          const lastDot = sku.lastIndexOf('.');
-          const lastUnderscore = sku.lastIndexOf('_');
-          const lastSlash = sku.lastIndexOf('/');
-          const lastSepIndex = Math.max(lastHyphen, lastDot, lastUnderscore, lastSlash);
-          
-          if (lastSepIndex !== -1 && lastSepIndex > 0) {
-            const before = sku.substring(0, lastSepIndex);
-            const after = sku.substring(lastSepIndex + 1);
-            
-            const hasDigitsBefore = /\d/.test(before);
-            const isLikelySuffix = after.length <= 6 || /^\d+$/.test(after) || /^(V|BT|TN|HC|R\d+|TR|BT|TNV|BTV)$/i.test(after);
-            
-            if (hasDigitsBefore && isLikelySuffix) {
-              inferredModel = before;
-            } else {
-              inferredModel = sku;
-            }
+          // Se o SKU tem mais de 2 caracteres, removemos as 2 primeiras letras (o prefixo do fornecedor)
+          // para obter o modelo de origem puro.
+          if (sku && sku.length > 2) {
+            inferredModel = sku.substring(2);
           } else {
-            // Se o SKU tem o formato EUXXXXX (onde EU é o prefixo de 2 letras), 
-            // tentamos extrair o modelo removendo o prefixo e o sufixo de 2 letras se não houver separadores.
-            if (sku.length > 4) {
-               // Ex: EU3072V -> 3072
-               inferredModel = sku.substring(2, sku.length - 2);
-            } else {
-               inferredModel = sku;
-            }
+            inferredModel = sku;
           }
           console.log(`🤖 [optimize-product] Inferred model for ${sku}: ${inferredModel}`);
         }
