@@ -3124,6 +3124,52 @@ const ProductsPage = () => {
         open={logsOpen}
         onOpenChange={setLogsOpen}
       />
+      
+      <Dialog open={showInferModelDialog} onOpenChange={setShowInferModelDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Inferir Modelo do SKU</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Esta ação irá definir o campo "Modelo" removendo as 2 primeiras letras do SKU para os produtos selecionados.
+            </p>
+            <div className="flex flex-col gap-3">
+              <Button 
+                onClick={() => {
+                  handleInferModels(true);
+                  setShowInferModelDialog(false);
+                }}
+                className="justify-start gap-2 h-auto py-3 px-4"
+                variant="outline"
+              >
+                <div className="text-left">
+                  <div className="font-semibold text-sm">Apenas produtos sem modelo</div>
+                  <div className="text-[11px] text-muted-foreground">Não altera produtos que já têm modelo definido.</div>
+                </div>
+              </Button>
+              <Button 
+                onClick={() => {
+                  handleInferModels(false);
+                  setShowInferModelDialog(false);
+                }}
+                className="justify-start gap-2 h-auto py-3 px-4"
+                variant="outline"
+              >
+                <div className="text-left">
+                  <div className="font-semibold text-sm">Todos os produtos selecionados</div>
+                  <div className="text-[11px] text-muted-foreground text-destructive">Atenção: Irá sobrescrever modelos existentes.</div>
+                </div>
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" size="sm" onClick={() => setShowInferModelDialog(false)}>
+              Cancelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
