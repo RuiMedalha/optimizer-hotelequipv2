@@ -1359,8 +1359,19 @@ const ProductsPage = () => {
                       .upload(storagePath, blob, { contentType, upsert: true });
                     
                     if (uploadError) {
-                      console.warn(`Storage upload failed:`, uploadError);
+                      const msg = `Browser storage upload failed: ${uploadError.message}`;
+                      console.warn(msg, uploadError);
                       totalFailed++;
+                      
+                      await supabase.from("catalog_operation_errors").insert({
+                        workspace_id: activeWorkspace.id,
+                        user_id: (await supabase.auth.getUser()).data.user?.id,
+                        operation_type: 'image_migration_browser',
+                        sku: product.sku || product.id,
+                        product_id: product.id,
+                        error_message: msg,
+                        error_detail: { url, storagePath, error: uploadError, phase: 'browser_upload' }
+                      });
                       continue;
                     }
                     
