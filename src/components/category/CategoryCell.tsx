@@ -46,9 +46,10 @@ export function CategoryCell({ product, onSelectSuggestion, currentOverride, cur
                     <TooltipTrigger asChild>
                       <span className={cn(
                         "text-xs block transition-colors cursor-help break-words max-w-full",
-                        product.category ? "text-foreground font-medium" : "text-muted-foreground italic"
+                        (currentOverride || product.category) ? "text-foreground font-medium" : "text-muted-foreground italic",
+                        currentOverride && "text-success font-bold"
                       )}>
-                        {product.category || "Sem categoria"}
+                        {currentOverride || product.category || "Sem categoria"}
                       </span>
                     </TooltipTrigger>
                     {product.category && (
