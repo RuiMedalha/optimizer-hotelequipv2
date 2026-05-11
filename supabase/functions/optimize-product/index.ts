@@ -1732,9 +1732,8 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
               if (faqMatch) {
                 const faqHtml = faqMatch[1];
                 const qas = [];
-                // More lenient regex for Q&A pairs (matches bold/strong for questions, italic/em for answers)
-                // Also matches plain <p> tags if they follow the pattern
-                const qRegex = /<(?:p|strong|b)[^>]*>(.*?)<\/(?:p|strong|b)>\s*<(?:p|em|i)[^>]*>(.*?)<\/(?:p|em|i)>/gi;
+                // More lenient regex for Q&A pairs (matches bold/strong for questions, then the following paragraph for answers)
+                const qRegex = /<(?:p|strong|b)[^>]*>(.*?)<\/(?:p|strong|b)>\s*<(?:p|em|i|span)[^>]*>(.*?)<\/(?:p|em|i|span)>/gi;
                 let m;
                 while ((m = qRegex.exec(faqHtml)) !== null) {
                   const q = m[1].replace(/<[^>]*>/g, "").trim();
@@ -1757,9 +1756,9 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           const hadFaqPlaceholder = /\{\{faq\}\}/i.test(optimized.optimized_description);
           // Replace {{faq}} with actual FAQ HTML if we have FAQ data
           if (optimized.faq && Array.isArray(optimized.faq) && optimized.faq.length > 0) {
-            const limitedFaq = optimized.faq.slice(0, 5);
-            const faqHtml = limitedFaq.map((f: any) =>
-              `<p style="font-weight:bold; margin:0 0 4px; color:#2c2c2c;">${f.question}</p>\n<p style="font-style:italic; color:#6b7280; margin:0 0 14px;">${f.answer}</p>`
+            const allFaqs = optimized.faq;
+            const faqHtml = allFaqs.map((f: any) =>
+              `<p style="font-weight:bold; margin:0 0 4px; color:#2c2c2c;">${f.question}</p>\n<p style="margin:0 0 16px; color:#374151; line-height:1.6;">${f.answer}</p>`
             ).join("\n");
             optimized.optimized_description = optimized.optimized_description.replace(/\{\{faq\}\}/gi, faqHtml);
 
