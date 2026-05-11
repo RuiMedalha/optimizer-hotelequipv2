@@ -73,11 +73,17 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
   const getEffectiveSuggestion = (p: CategoryProduct) => overrides[p.id] || p.suggested_category;
 
   const candidates = useMemo(() => {
-    // If small pre-filtered list (from user selection), show all regardless of status
-    if (products.length > 0 && products.length <= 100) return products;
+    // If a small-ish list is passed (likely from user selection), show everything
+    if (products.length > 0 && products.length <= 2000) return products;
+    
     if (showAllProducts) return products;
+    
+    // Show products needing confirmation: 
+    // 1. Has suggested category different from current
+    // 2. OR current category is empty
     return products.filter(p => 
-      p.suggested_category && p.suggested_category !== p.category
+      (p.suggested_category && p.suggested_category !== p.category) || 
+      (!p.category)
     );
   }, [products, showAllProducts]);
 
@@ -97,11 +103,14 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
 
   const filtered = useMemo(() => {
     // Limit processing to first 500 candidates if no search query to keep UI snappy
-    const itemsToFilter = searchQuery ? candidates : candidates.slice(0, 500);
+    // If we have a small pre-filtered list (selection), show everything
+    const itemsToFilter = (searchQuery || products.length <= 2000) ? candidates : candidates.slice(0, 500);
     
     return itemsToFilter.filter(p => {
       if (filterCategory !== "all" && (p.category || "—") !== filterCategory) return false;
-      if (!showAllProducts) {
+      
+      // If NOT in selection mode and showAllProducts is false, apply suggested category filter
+      if (!showAllProducts && products.length > 2000) {
         if (filterSuggestedCategory !== "all" && (p.suggested_category || "—") !== filterSuggestedCategory) return false;
       }
       if (filterSource !== "all" && (p.source_file || "") !== filterSource) return false;
