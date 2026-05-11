@@ -56,6 +56,7 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
   const [isApproving, setIsApproving] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
   const [classifyingIds, setClassifyingIds] = useState<Set<string>>(new Set());
+  const [isBulkClassifying, setIsBulkClassifying] = useState(false);
   const [acceptingIds, setAcceptingIds] = useState<Set<string>>(new Set());
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [overrideConfidences, setOverrideConfidences] = useState<Record<string, number>>({});
@@ -211,6 +212,88 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
     }
   };
 
+  const handleBulkClassify = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    setIsBulkClassifying(true);
+    let count = 0;
+    
+    // Use a small concurrency limit to not overwhelm the system
+    const batchSize = 5;
+    
+    try {
+      for (let i = 0; i < ids.length; i += batchSize) {
+        const batch = ids.slice(i, i + batchSize);
+        await Promise.all(batch.map(async (id) => {
+          const product = products.find(p => p.id === id);
+          if (!product) return;
+          
+          setClassifyingIds(prev => new Set(prev).add(id));
+          try {
+            const { data, error } = await supabase.functions.invoke("classify-product", {
+              body: { 
+                workspace_id: product.workspace_id,
+                product: {
+                  title: product.optimized_title || product.original_title,
+                  original_title: product.original_title,
+                  optimized_title: product.optimized_title,
+                  description: product.optimized_description || product.original_description,
+                  original_description: product.original_description,
+                  short_description: product.short_description,
+                  brand: product.brand,
+                  sku: product.sku,
+                  technical_specs: product.technical_specs,
+                  attributes: product.attributes,
+                  supplier: product.supplier_name,
+                  useMeilisearch: true
+                }
+              }
+            });
+
+            if (error) throw error;
+
+            if (data?.category_name) {
+              const { error: updateError } = await supabase
+                .from("products")
+                .update({
+                  suggested_category: data.category_name,
+                  suggested_categories: [
+                    { category_name: data.category_name, confidence_score: data.confidence_score, reasoning: data.reasoning },
+                    ...(data.alternative_categories || [])
+                  ]
+                })
+                .eq("id", id);
+
+              if (updateError) throw updateError;
+              
+              setOverrides(prev => ({ ...prev, [id]: data.category_name }));
+              if (data.confidence_score) {
+                setOverrideConfidences(prev => ({ ...prev, [id]: Math.round(data.confidence_score * 100) }));
+              }
+              setSelected(prev => new Set([...prev, id]));
+              count++;
+            }
+          } catch (err) {
+            console.error(`Error classifying ${id}:`, err);
+          } finally {
+            setClassifyingIds(prev => {
+              const next = new Set(prev);
+              next.delete(id);
+              return next;
+            });
+          }
+        }));
+      }
+      
+      toast.success(`${count} produtos re-classificados com Meilisearch`);
+      qc.invalidateQueries({ queryKey: ["category-review-candidates"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+    } catch (err: any) {
+      toast.error(`Erro na classificação em massa: ${err.message}`);
+    } finally {
+      setIsBulkClassifying(false);
+    }
+  };
+
   const batchUpdate = async (ids: string[], approve: boolean) => {
     const batchSize = 100;
     for (let i = 0; i < ids.length; i += batchSize) {
@@ -341,31 +424,32 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
               <Button
                 variant="outline"
                 size="sm"
+                className="gap-2 bg-primary/5 border-primary/20 hover:bg-primary/10"
+                disabled={isBusy || isBulkClassifying || filtered.length === 0}
+                onClick={() => handleBulkClassify(filtered.slice(0, 100).map(p => p.id))}
+              >
+                {isBulkClassifying ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Wand2 className="w-4 h-4 text-primary" />
+                )}
+                Recalcular 100 com Meilisearch
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => {
                   const highConfidence = filtered.filter(p => {
-                    const confidence = (p as any).suggested_category_confidence || (p.suggested_categories?.[0]?.confidence_score ? p.suggested_categories[0].confidence_score * 100 : 0);
+                    const confidence = overrideConfidences[p.id] || (p as any).suggested_category_confidence || (p.suggested_categories?.[0]?.confidence_score ? p.suggested_categories[0].confidence_score * 100 : 0);
                     return confidence >= 80;
                   });
                   setSelected(new Set(highConfidence.map(p => p.id)));
                 }}
               >
                 Sel. ≥80% ({filtered.filter(p => {
-                  const confidence = (p as any).suggested_category_confidence || (p.suggested_categories?.[0]?.confidence_score ? p.suggested_categories[0].confidence_score * 100 : 0);
+                  const confidence = overrideConfidences[p.id] || (p as any).suggested_category_confidence || (p.suggested_categories?.[0]?.confidence_score ? p.suggested_categories[0].confidence_score * 100 : 0);
                   return confidence >= 80;
                 }).length})
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={isBusy || filtered.length === 0}
-                onClick={async () => {
-                  for (const p of filtered.slice(0, 20)) {
-                    await handleClassify(p.id);
-                  }
-                  toast.success(`${Math.min(filtered.length, 20)} produtos recalculados`);
-                }}
-              >
-                🔍 Recalcular Todos ({Math.min(filtered.length, 20)})
               </Button>
           </div>
         </DialogHeader>
