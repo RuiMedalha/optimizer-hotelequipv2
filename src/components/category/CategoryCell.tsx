@@ -72,7 +72,14 @@ export function CategoryCell({ product, onSelectSuggestion, currentOverride, cur
                 <div className="flex items-start gap-1.5 p-1.5 bg-success/10 border border-success/30 rounded-md shadow-sm">
                   <Check className="w-3.5 h-3.5 text-success mt-0.5 shrink-0" />
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-[10px] font-bold text-success uppercase tracking-wider">Vai aprovar:</span>
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-[10px] font-bold text-success uppercase tracking-wider">Vai aprovar:</span>
+                      {currentOverrideConfidence && (
+                        <Badge variant="outline" className="text-[9px] h-3.5 px-1 border-success/30 text-success bg-success/5 font-bold">
+                          {currentOverrideConfidence}% Confiança
+                        </Badge>
+                      )}
+                    </div>
                     <span className="text-[11px] text-success font-semibold leading-tight break-words">
                       {currentOverride}
                     </span>
