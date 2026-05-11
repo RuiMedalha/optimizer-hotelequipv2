@@ -880,6 +880,24 @@ serve(async (req) => {
             }
           }
         }
+        
+        // === AUTO-INFER MODEL FROM SKU IF MISSING ===
+        let inferredModel = product.model;
+        if (!inferredModel && product.sku) {
+          const parts = product.sku.split(/[-._]/);
+          if (parts.length > 1) {
+            const lastPart = parts[parts.length - 1];
+            // If the last part is short (<=3 chars) or numeric, it's likely a suffix
+            if (lastPart.length <= 3 || /^\d+$/.test(lastPart)) {
+              inferredModel = product.sku.substring(0, product.sku.lastIndexOf(product.sku.includes('-') ? '-' : product.sku.includes('.') ? '.' : '_'));
+            } else {
+              inferredModel = product.sku;
+            }
+          } else {
+            inferredModel = product.sku;
+          }
+          console.log(`🤖 [optimize-product] Inferred model for ${product.sku}: ${inferredModel}`);
+        }
 
         // 1. HYBRID RAG: keyword + trigram + family search with reranking
         // OPTIMIZATION: Skip RAG/scraping in phases 2 and 3 — context already available from phase 1
