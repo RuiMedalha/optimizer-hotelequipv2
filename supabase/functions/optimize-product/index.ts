@@ -888,17 +888,30 @@ serve(async (req) => {
           const lastHyphen = sku.lastIndexOf('-');
           const lastDot = sku.lastIndexOf('.');
           const lastUnderscore = sku.lastIndexOf('_');
-          const lastSepIndex = Math.max(lastHyphen, lastDot, lastUnderscore);
+          const lastSlash = sku.lastIndexOf('/');
+          const lastSepIndex = Math.max(lastHyphen, lastDot, lastUnderscore, lastSlash);
           
           if (lastSepIndex !== -1 && lastSepIndex > 0) {
-            const lastPart = sku.substring(lastSepIndex + 1);
-            if (lastPart.length <= 3 || /^\d+$/.test(lastPart)) {
-              inferredModel = sku.substring(0, lastSepIndex);
+            const before = sku.substring(0, lastSepIndex);
+            const after = sku.substring(lastSepIndex + 1);
+            
+            // Se a parte anterior tem dígitos e a parte posterior parece um sufixo (curta ou variante comum)
+            const hasDigitsBefore = /\d/.test(before);
+            const isLikelySuffix = after.length <= 6 || /^\d+$/.test(after) || /^(V|BT|TN|HC|R\d+|TR|BT|TNV|BTV)$/i.test(after);
+            
+            if (hasDigitsBefore && isLikelySuffix) {
+              inferredModel = before;
             } else {
               inferredModel = sku;
             }
           } else {
-            inferredModel = sku;
+            // Caso especial sem separador: ex: EU3072V -> EU3072
+            const match = sku.match(/^(.*?\d+)([A-Z])$/i);
+            if (match) {
+              inferredModel = match[1];
+            } else {
+              inferredModel = sku;
+            }
           }
           console.log(`🤖 [optimize-product] Inferred model for ${sku}: ${inferredModel}`);
         }
