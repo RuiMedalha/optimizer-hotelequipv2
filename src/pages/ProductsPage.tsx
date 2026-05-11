@@ -1168,19 +1168,51 @@ const ProductsPage = () => {
             <p className="text-muted-foreground text-xs sm:text-sm mt-0.5">{totalCount} produtos no total</p>
           </div>
           <Select onValueChange={(val) => {
+            if (val === "clear") {
+              setSelected(new Set());
+              setAllPagesSelected(false);
+              toast.info("Seleção limpa");
+              return;
+            }
+            if (val === "optimized") {
+              const ids = (allProductsLight ?? [])
+                .filter((p: any) => p.status === "optimized")
+                .map(p => p.id);
+              setSelected(new Set(ids));
+              setAllPagesSelected(true);
+              toast.info(`${ids.length} produtos otimizados (prontos) selecionados`);
+              return;
+            }
+            if (val === "needs_review") {
+              const ids = (allProductsLight ?? [])
+                .filter((p: any) => 
+                  p.status === "needs_review" || 
+                  (p.suggested_category && p.suggested_category !== p.category)
+                )
+                .map(p => p.id);
+              setSelected(new Set(ids));
+              setAllPagesSelected(true);
+              toast.info(`${ids.length} produtos para revisão selecionados`);
+              return;
+            }
             const count = parseInt(val);
-            const ids = filtered.slice(0, count).map(p => p.id);
-            setSelected(new Set(ids));
-            toast.info(`${ids.length} produtos selecionados`);
+            if (!isNaN(count)) {
+              const ids = filtered.slice(0, count).map(p => p.id);
+              setSelected(new Set(ids));
+              toast.info(`${ids.length} produtos selecionados`);
+            }
           }}>
-            <SelectTrigger className="w-[140px] sm:w-[180px] h-8 sm:h-9 text-xs sm:text-sm shrink-0">
+            <SelectTrigger className="w-[140px] sm:w-[200px] h-8 sm:h-9 text-xs sm:text-sm shrink-0">
               <SelectValue placeholder="Selecionar rápido..." />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="20">Primeiros 20</SelectItem>
               <SelectItem value="50">Primeiros 50</SelectItem>
               <SelectItem value="100">Primeiros 100</SelectItem>
-              <SelectItem value={String(filtered.length)}>Todos ({filtered.length})</SelectItem>
+              <SelectItem value={String(filtered.length)}>Todos visíveis ({filtered.length})</SelectItem>
+              <SelectItem value="optimized" className="text-success font-medium">Prontos p/ Publicar (Otimizados)</SelectItem>
+              <SelectItem value="needs_review" className="text-amber-600 font-medium">Para Rever Categorias (IA)</SelectItem>
+              <SelectItem value="clear" className="text-destructive">Limpar Seleção</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -2048,6 +2080,41 @@ const ProductsPage = () => {
               <span className="font-medium text-foreground">{publishedCount}</span>
               {" "}produtos publicados já migrados
             </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-7 bg-primary/10 border-primary/20 text-primary hover:bg-primary/20"
+                onClick={() => {
+                  const ids = (allProductsLight ?? [])
+                    .filter((p: any) => p.status === "optimized")
+                    .map(p => p.id);
+                  setSelected(new Set(ids));
+                  setAllPagesSelected(true);
+                  toast.info(`${ids.length} produtos otimizados selecionados para publicação`);
+                }}
+              >
+                Selecionar Prontos p/ Publicar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-7 bg-amber-500/10 border-amber-500/20 text-amber-600 hover:bg-amber-500/20"
+                onClick={() => {
+                  const ids = (allProductsLight ?? [])
+                    .filter((p: any) => 
+                      p.status === "needs_review" || 
+                      (p.suggested_category && p.suggested_category !== p.category)
+                    )
+                    .map(p => p.id);
+                  setSelected(new Set(ids));
+                  setAllPagesSelected(true);
+                  toast.info(`${ids.length} produtos para revisão selecionados`);
+                }}
+              >
+                Selecionar Para Rever
+              </Button>
+            </div>
             <span className="text-sm font-medium text-primary">{migrationPct}%</span>
             <Progress value={migrationPct} className="w-24 h-1.5" />
           </div>
