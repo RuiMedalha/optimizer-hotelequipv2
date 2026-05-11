@@ -1367,15 +1367,19 @@ const ProductsPage = () => {
                       console.warn(msg, uploadError);
                       totalFailed++;
                       
-                      await supabase.from("catalog_operation_errors").insert({
-                        workspace_id: activeWorkspace.id,
-                        user_id: (await supabase.auth.getUser()).data.user?.id,
-                        operation_type: 'image_migration_browser',
-                        sku: product.sku || product.id,
-                        product_id: product.id,
-                        error_message: msg,
-                        error_detail: { url, storagePath, error: uploadError, phase: 'browser_upload' }
-                      });
+                      const { data: userData } = await supabase.auth.getUser();
+                      if (userData.user) {
+                        const errorData: any = {
+                          workspace_id: activeWorkspace.id,
+                          user_id: userData.user.id,
+                          operation_type: 'image_migration_browser',
+                          sku: product.sku || product.id,
+                          product_id: product.id,
+                          error_message: msg,
+                          error_detail: { url, storagePath, error: uploadError, phase: 'browser_upload' }
+                        };
+                        await supabase.from("catalog_operation_errors").insert(errorData);
+                      }
                       continue;
                     }
                     
