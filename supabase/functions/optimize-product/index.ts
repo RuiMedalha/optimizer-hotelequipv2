@@ -1464,14 +1464,14 @@ REGRAS OBRIGATÓRIAS:
           // Use semantic matching to find best candidate categories
           const catPaths = existingCategories.map(c => c.full_path);
           const semanticMatches = findSemanticCategory(
-            product.original_title || "",
+            product.title || product.original_title || "",
             product.category || product.original_description || "",
             catPaths
           );
 
           // Query Meilisearch for similar products
           const similarProducts = await findSimilarProductsInMeilisearch(
-            product.original_title || "",
+            product.title || product.original_title || "",
             product.short_description || ""
           );
 
