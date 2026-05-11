@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Search, Check, X, Edit, Sparkles, Loader2, Download, Send, Trash2, Settings2, Save, GitBranch, Layers, Plus, Ban, Filter, ChevronDown, ChevronRight, Rocket, XCircle, List, Network, Globe, Copy, AlertTriangle, ImageIcon, Camera, GitCompare, Wand2, Tag } from "lucide-react";
+import { Search, Check, X, Edit, Sparkles, Loader2, Download, Send, Trash2, Settings2, Save, GitBranch, Layers, Plus, Ban, Filter, ChevronDown, ChevronRight, Rocket, XCircle, List, Network, Globe, Copy, AlertTriangle, ImageIcon, Camera, GitCompare, Wand2, Tag, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useProducts, useAllProductIds, useUpdateProductStatus, useProductFilterOptions, type Product, type ProductFilters } from "@/hooks/useProducts";
@@ -116,6 +116,8 @@ function generateImageAltText(productTitle: string, index: number, imageUrl: str
 const ProductsPage = () => {
   const [showBrandInput, setShowBrandInput] = useState(false);
   const [bulkBrandValue, setBulkBrandValue] = useState("");
+  const [isInferringModels, setIsInferringModels] = useState(false);
+  const [showInferModelDialog, setShowInferModelDialog] = useState(false);
   const { activeWorkspace, toggleVariableProducts } = useWorkspaceContext();
   const qc = useQueryClient();
   useRepairAttributes();
@@ -539,6 +541,57 @@ const ProductsPage = () => {
       setSelected(new Set());
     } catch (err: any) {
       toast.error(err.message);
+    }
+  };
+  
+  const handleInferModels = async (onlyMissing: boolean = true) => {
+    if (selected.size === 0 || !activeWorkspace) return;
+    
+    setIsInferringModels(true);
+    const selectedIds = Array.from(selected);
+    
+    try {
+      // Fetch relevant products
+      let query = supabase
+        .from("products")
+        .select("id, sku, model")
+        .in("id", selectedIds);
+        
+      if (onlyMissing) {
+        query = query.is("model", null);
+      }
+      
+      const { data: productsToUpdate, error: fetchError } = await query;
+      
+      if (fetchError) throw fetchError;
+      if (!productsToUpdate || productsToUpdate.length === 0) {
+        toast.info(onlyMissing ? "Todos os produtos selecionados já possuem modelo." : "Nenhum produto selecionado para atualizar.");
+        return;
+      }
+      
+      const updates = productsToUpdate.map(p => {
+        const sku = p.sku || "";
+        // Remove as 2 primeiras letras do SKU
+        const suggested = sku.length > 2 ? sku.substring(2) : sku;
+        return { id: p.id, model: suggested };
+      });
+      
+      // Batch update
+      const batchSize = 50;
+      for (let i = 0; i < updates.length; i += batchSize) {
+        const batch = updates.slice(i, i + batchSize);
+        const { error: updateError } = await supabase.from("products").upsert(batch as any);
+        if (updateError) throw updateError;
+      }
+      
+      toast.success(`${updates.length} modelos inferidos com sucesso.`);
+      qc.invalidateQueries({ queryKey: ["products"] });
+      setSelected(new Set());
+    } catch (error: any) {
+      console.error("Erro ao inferir modelos:", error);
+      toast.error("Erro ao inferir modelos: " + error.message);
+    } finally {
+      setIsInferringModels(false);
     }
   };
 
@@ -1531,6 +1584,16 @@ const ProductsPage = () => {
                 setShowExportDialog(true);
               }}>
                 <Download className="w-3.5 h-3.5 mr-1" /> <span className="hidden sm:inline">Exportar Seleção </span>({selected.size})
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-8"
+                onClick={() => setShowInferModelDialog(true)}
+                disabled={selected.size === 0 || isInferringModels}
+              >
+                {isInferringModels ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Database className="w-3.5 h-3.5 mr-1" />}
+                <span className="hidden sm:inline">Inferir Modelo</span> ({selected.size})
               </Button>
             </>
           )}
@@ -3061,6 +3124,52 @@ const ProductsPage = () => {
         open={logsOpen}
         onOpenChange={setLogsOpen}
       />
+      
+      <Dialog open={showInferModelDialog} onOpenChange={setShowInferModelDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Inferir Modelo do SKU</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Esta ação irá definir o campo "Modelo" removendo as 2 primeiras letras do SKU para os produtos selecionados.
+            </p>
+            <div className="flex flex-col gap-3">
+              <Button 
+                onClick={() => {
+                  handleInferModels(true);
+                  setShowInferModelDialog(false);
+                }}
+                className="justify-start gap-2 h-auto py-3 px-4"
+                variant="outline"
+              >
+                <div className="text-left">
+                  <div className="font-semibold text-sm">Apenas produtos sem modelo</div>
+                  <div className="text-[11px] text-muted-foreground">Não altera produtos que já têm modelo definido.</div>
+                </div>
+              </Button>
+              <Button 
+                onClick={() => {
+                  handleInferModels(false);
+                  setShowInferModelDialog(false);
+                }}
+                className="justify-start gap-2 h-auto py-3 px-4"
+                variant="outline"
+              >
+                <div className="text-left">
+                  <div className="font-semibold text-sm">Todos os produtos selecionados</div>
+                  <div className="text-[11px] text-muted-foreground text-destructive">Atenção: Irá sobrescrever modelos existentes.</div>
+                </div>
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" size="sm" onClick={() => setShowInferModelDialog(false)}>
+              Cancelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
