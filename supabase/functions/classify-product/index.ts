@@ -166,7 +166,12 @@ Deno.serve(async (req) => {
               alternative_categories: [],
               reasoning: `Meilisearch consensus: ${votes} similar published products in this category`,
               source: "meilisearch_consensus"
-            }), { headers: { "Content-Type": "application/json" } });
+            }), { 
+              headers: { 
+                ...corsHeaders,
+                "Content-Type": "application/json" 
+              } 
+            });
           }
         }
       }
