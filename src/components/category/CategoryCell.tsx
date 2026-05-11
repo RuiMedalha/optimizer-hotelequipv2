@@ -21,7 +21,11 @@ export function CategoryCell({ product, onSelectSuggestion, currentOverride }: P
 
   const handleSelect = (categoryId: string, categoryName: string, source: string) => {
     const isCorrection = suggestions && suggestions[0]?.category_id !== categoryId;
-    confirmCategory({ categoryId, categoryName, isCorrection });
+    if (onSelectSuggestion) {
+      onSelectSuggestion(categoryName);
+    } else {
+      confirmCategory({ categoryId, categoryName, isCorrection });
+    }
     setOpen(false);
     setShowManual(false);
   };
