@@ -58,6 +58,7 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
   const [classifyingIds, setClassifyingIds] = useState<Set<string>>(new Set());
   const [acceptingIds, setAcceptingIds] = useState<Set<string>>(new Set());
   const [overrides, setOverrides] = useState<Record<string, string>>({});
+  const [overrideConfidences, setOverrideConfidences] = useState<Record<string, number>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [localSearchQuery, setLocalSearchQuery] = useState("");
 
@@ -194,6 +195,9 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
       // Auto-apply as override so UI updates immediately
       if (data?.category_name) {
         setOverrides(prev => ({ ...prev, [id]: data.category_name }));
+        if (data.confidence_score) {
+          setOverrideConfidences(prev => ({ ...prev, [id]: Math.round(data.confidence_score * 100) }));
+        }
         setSelected(prev => new Set([...prev, id]));
       }
     } catch (err: any) {
@@ -208,7 +212,7 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
   };
 
   const batchUpdate = async (ids: string[], approve: boolean) => {
-    const batchSize = 200;
+    const batchSize = 100;
     for (let i = 0; i < ids.length; i += batchSize) {
       const batch = ids.slice(i, i + batchSize);
       const prods = candidates.filter(p => batch.includes(p.id));
@@ -217,6 +221,9 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
         for (const p of prods) {
           const finalCategory = getEffectiveSuggestion(p);
           if (!finalCategory) continue;
+
+          // Find the category info in suggested_categories to get the ID if possible
+          const suggestionInfo = p.suggested_categories?.find(s => s.category_name === finalCategory);
 
           const { error } = await supabase
             .from("products")
@@ -482,11 +489,15 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                         <TableCell className="py-4">
                           <CategoryCell 
                             product={p} 
-                            onSelectSuggestion={(catName) => {
+                            onSelectSuggestion={(catName, confidence) => {
                               setOverrides(prev => ({ ...prev, [p.id]: catName }));
+                              if (confidence) {
+                                setOverrideConfidences(prev => ({ ...prev, [p.id]: confidence }));
+                              }
                               setSelected(prev => new Set([...prev, p.id]));
                             }}
                             currentOverride={overrides[p.id]}
+                            currentOverrideConfidence={overrideConfidences[p.id]}
                           />
                         </TableCell>
                         <TableCell>
@@ -589,6 +600,9 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                                        qc.invalidateQueries({ queryKey: ["products"] });
                                        // Also auto-apply as override so UI updates immediately without waiting for refetch
                                        setOverrides(prev => ({ ...prev, [p.id]: data.category_name }));
+                                       if (data.confidence_score) {
+                                         setOverrideConfidences(prev => ({ ...prev, [p.id]: Math.round(data.confidence_score * 100) }));
+                                       }
                                        setSelected(prev => new Set([...prev, p.id]));
                                     }
                                   } catch (err: any) {

@@ -10,19 +10,20 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 interface Props {
   product: any;
-  onSelectSuggestion?: (categoryName: string) => void;
+  onSelectSuggestion?: (categoryName: string, confidence?: number) => void;
   currentOverride?: string | null;
+  currentOverrideConfidence?: number;
 }
 
-export function CategoryCell({ product, onSelectSuggestion, currentOverride }: Props) {
+export function CategoryCell({ product, onSelectSuggestion, currentOverride, currentOverrideConfidence }: Props) {
   const [open, setOpen] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const { suggestions, isLoading, confirmCategory, isConfirming } = useCategoryLearning(product);
 
-  const handleSelect = (categoryId: string, categoryName: string, source: string) => {
+  const handleSelect = (categoryId: string, categoryName: string, source: string, confidence?: number) => {
     const isCorrection = suggestions && suggestions[0]?.category_id !== categoryId;
     if (onSelectSuggestion) {
-      onSelectSuggestion(categoryName);
+      onSelectSuggestion(categoryName, confidence);
     } else {
       confirmCategory({ categoryId, categoryName, isCorrection });
     }
@@ -71,7 +72,14 @@ export function CategoryCell({ product, onSelectSuggestion, currentOverride }: P
                 <div className="flex items-start gap-1.5 p-1.5 bg-success/10 border border-success/30 rounded-md shadow-sm">
                   <Check className="w-3.5 h-3.5 text-success mt-0.5 shrink-0" />
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-[10px] font-bold text-success uppercase tracking-wider">Vai aprovar:</span>
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-[10px] font-bold text-success uppercase tracking-wider">Vai aprovar:</span>
+                      {currentOverrideConfidence && (
+                        <Badge variant="outline" className="text-[9px] h-3.5 px-1 border-success/30 text-success bg-success/5 font-bold">
+                          {currentOverrideConfidence}% Confiança
+                        </Badge>
+                      )}
+                    </div>
                     <span className="text-[11px] text-success font-semibold leading-tight break-words">
                       {currentOverride}
                     </span>
@@ -95,9 +103,9 @@ export function CategoryCell({ product, onSelectSuggestion, currentOverride }: P
                           onClick={(e) => {
                             e.stopPropagation();
                             if (onSelectSuggestion) {
-                              onSelectSuggestion(primarySuggestion.category_name);
+                              onSelectSuggestion(primarySuggestion.category_name, primarySuggestion.confidence);
                             } else {
-                              handleSelect(primarySuggestion.category_id, primarySuggestion.category_name, primarySuggestion.source);
+                              handleSelect(primarySuggestion.category_id, primarySuggestion.category_name, primarySuggestion.source, primarySuggestion.confidence);
                             }
                           }}
                         >
@@ -134,9 +142,9 @@ export function CategoryCell({ product, onSelectSuggestion, currentOverride }: P
                           onClick={(e) => {
                             e.stopPropagation();
                             if (onSelectSuggestion) {
-                              onSelectSuggestion(secondarySuggestion.category_name);
+                              onSelectSuggestion(secondarySuggestion.category_name, secondarySuggestion.confidence);
                             } else {
-                              handleSelect(secondarySuggestion.category_id, secondarySuggestion.category_name, secondarySuggestion.source);
+                              handleSelect(secondarySuggestion.category_id, secondarySuggestion.category_name, secondarySuggestion.source, secondarySuggestion.confidence);
                             }
                           }}
                         >
@@ -168,7 +176,7 @@ export function CategoryCell({ product, onSelectSuggestion, currentOverride }: P
                           className="flex items-start gap-1.5 text-[10px] text-destructive font-bold bg-destructive/5 border border-destructive/20 p-1.5 rounded cursor-help hover:bg-destructive/10 transition-all"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleSelect(primarySuggestion.category_id, primarySuggestion.category_name, primarySuggestion.source);
+                            handleSelect(primarySuggestion.category_id, primarySuggestion.category_name, primarySuggestion.source, primarySuggestion.confidence);
                           }}
                         >
                           <MousePointer2 className="w-3 h-3 mt-0.5 shrink-0 rotate-45" />
@@ -216,7 +224,7 @@ export function CategoryCell({ product, onSelectSuggestion, currentOverride }: P
                     "w-full text-left p-2 rounded-md hover:bg-muted transition-colors flex flex-col gap-0.5 relative group",
                     s.category_name === product.category && "bg-primary/5 ring-1 ring-primary/20"
                   )}
-                  onClick={() => handleSelect(s.category_id, s.category_name, s.source)}
+                  onClick={() => handleSelect(s.category_id, s.category_name, s.source, s.confidence)}
                   disabled={isConfirming}
                 >
                   <div className="flex items-center justify-between gap-2">
