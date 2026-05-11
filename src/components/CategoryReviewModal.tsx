@@ -365,7 +365,7 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
     setIsApproving(true);
     try {
       await batchUpdate(ids, true);
-      toast.success(`${ids.length} categoria(s) aprovada(s) com sucesso!`);
+      toast.success(`${ids.length} categoria(s) aprovada(s)! Use o botão "Selecionar Prontos" no painel para publicar.`);
       qc.invalidateQueries({ queryKey: ["products"] });
       qc.invalidateQueries({ queryKey: ["all-product-ids"] });
       qc.invalidateQueries({ queryKey: ["product-filter-options"] });
