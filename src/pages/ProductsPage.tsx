@@ -1154,8 +1154,9 @@ const ProductsPage = () => {
             onClick={() => setShowCategoryReview(true)}
           >
             <Wand2 className="w-3.5 h-3.5 mr-1" />
-            Rever Categorias IA
+            {selected.size > 0 ? `Rever Categorias IA (${selected.size} sel.)` : "Rever Categorias IA"}
             {(() => {
+              if (selected.size > 0) return "";
               const catCount = (allProductsLight ?? []).filter((p: any) => p && p.suggested_category && p.suggested_category !== p.category).length;
               return catCount > 0 ? ` (${catCount})` : "";
             })()}
@@ -3046,7 +3047,11 @@ const ProductsPage = () => {
       <CategoryReviewModal
         open={showCategoryReview}
         onOpenChange={setShowCategoryReview}
-        products={(allProductsLight ?? []) as any}
+        products={(
+          selected.size > 0
+            ? (allProductsLight ?? []).filter((p: any) => selected.has(p.id))
+            : (allProductsLight ?? [])
+        ) as any}
       />
       <PublishLogsModal
         jobId={activePublishJob?.id ?? null}
