@@ -35,12 +35,26 @@ async function findSimilarInMeilisearch(
     const data = await resp.json();
     return (data.hits || [])
       .filter((h: any) => h.categories?.length > 0)
-      .map((h: any) => ({
-        title: h.title || "",
-        category: Array.isArray(h.categories) && h.categories.length > 0
-          ? h.categories.join(" > ")
-          : "",
-      }));
+      .map((h: any) => {
+        let categoryPath = "";
+        if (Array.isArray(h.categories)) {
+          // If it's a single string that looks like a path, use it
+          if (h.categories.length === 1 && h.categories[0].includes("&gt;")) {
+            categoryPath = h.categories[0].replace(/&gt;/g, " > ");
+          } else if (h.categories.length === 1 && h.categories[0].includes(" > ")) {
+            categoryPath = h.categories[0];
+          } else {
+            // It's an array of category names. We'll return it as a joined string for now,
+            // but the consensus logic will be improved to handle this.
+            categoryPath = h.categories.join(" > ");
+          }
+        }
+        return {
+          title: h.title || "",
+          category: categoryPath,
+          raw_categories: Array.isArray(h.categories) ? h.categories : [h.categories]
+        };
+      });
   } catch {
     return [];
   }
