@@ -20,10 +20,10 @@ export function CategoryCell({ product, onSelectSuggestion, currentOverride, cur
   const [showManual, setShowManual] = useState(false);
   const { suggestions, isLoading, confirmCategory, isConfirming } = useCategoryLearning(product);
 
-  const handleSelect = (categoryId: string, categoryName: string, source: string) => {
+  const handleSelect = (categoryId: string, categoryName: string, source: string, confidence?: number) => {
     const isCorrection = suggestions && suggestions[0]?.category_id !== categoryId;
     if (onSelectSuggestion) {
-      onSelectSuggestion(categoryName);
+      onSelectSuggestion(categoryName, confidence);
     } else {
       confirmCategory({ categoryId, categoryName, isCorrection });
     }
