@@ -537,7 +537,9 @@ function OperationErrorsTable() {
                   </TableCell>
                   <TableCell className="max-w-md">
                     <p className="text-xs font-medium text-destructive">{err.error_message}</p>
-                    {err.error_detail?.hint && <p className="text-[10px] text-muted-foreground mt-0.5">{err.error_detail.hint}</p>}
+                    {err.error_detail && typeof err.error_detail === 'object' && 'hint' in err.error_detail && (
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{(err.error_detail as any).hint}</p>
+                    )}
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {formatDistanceToNow(new Date(err.created_at), { addSuffix: true, locale: pt })}
