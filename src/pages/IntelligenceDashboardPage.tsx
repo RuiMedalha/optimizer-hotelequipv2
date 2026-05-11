@@ -206,6 +206,7 @@ export default function IntelligenceDashboardPage() {
         <TabsList>
           <TabsTrigger value="brain" className="gap-1.5"><Brain className="w-3.5 h-3.5" /> Catalog Brain</TabsTrigger>
           <TabsTrigger value="agents" className="gap-1.5"><Bot className="w-3.5 h-3.5" /> Agentes</TabsTrigger>
+          <TabsTrigger value="errors" className="gap-1.5"><XCircle className="w-3.5 h-3.5" /> Erros de Operação</TabsTrigger>
           <TabsTrigger value="alerts" className="gap-1.5">
             <AlertTriangle className="w-3.5 h-3.5" /> Alertas
             {alerts.length > 0 && <Badge variant="destructive" className="ml-1 h-5 px-1.5 text-[10px]">{alerts.length}</Badge>}
