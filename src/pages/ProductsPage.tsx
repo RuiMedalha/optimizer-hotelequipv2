@@ -140,7 +140,11 @@ const ProductsPage = () => {
         if (!map[row.product_id]) map[row.product_id] = { hasOptimized: false, hasLifestyle: false };
         const key = (row.s3_key || "").toLowerCase();
         if (key.includes("lifestyle")) map[row.product_id].hasLifestyle = true;
-        else map[row.product_id].hasOptimized = true;
+        // Only mark as optimized if the s3_key contains "optimizada" (AI background removal)
+        // Images migrated from suppliers are NOT considered optimized
+        else if (key.includes("optimizada") || key.includes("background") || key.includes("processed")) {
+          map[row.product_id].hasOptimized = true;
+        }
       }
       return map;
     },
