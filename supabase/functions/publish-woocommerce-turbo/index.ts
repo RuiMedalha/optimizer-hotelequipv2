@@ -974,7 +974,9 @@ Deno.serve(async (req) => {
                 const wpPass = Deno.env.get("WP_APP_PASSWORD");
                 if (wpUser && wpPass) {
                   const wpAuth = btoa(`${wpUser}:${wpPass}`);
-                  await fetch(`${baseUrl}/wp-json/hotelequip/v1/refresh-products`, {
+                  const refreshUrl = `${baseUrl}/wp-json/hotelequip/v1/refresh-products`;
+                  console.log(`[turbo-refresh] Calling refresh for ${allWcIds.length} IDs at ${refreshUrl}`);
+                  const refreshRes = await fetch(refreshUrl, {
                     method: "POST",
                     headers: {
                       "Content-Type": "application/json",
@@ -982,7 +984,11 @@ Deno.serve(async (req) => {
                     },
                     body: JSON.stringify({ ids: allWcIds }),
                   });
+                  const refreshText = await refreshRes.text();
+                  console.log(`[turbo-refresh] Response: ${refreshRes.status}`, refreshText.slice(0, 500));
                   console.log(`[turbo] WP Custom refresh triggered for ${allWcIds.length} IDs`);
+                } else {
+                  console.warn("[turbo-refresh] WP_APP_USERNAME or WP_APP_PASSWORD missing");
                 }
               } catch (wpErr) {
                 console.warn("[turbo] WP Custom refresh trigger failed (non-critical):", wpErr);
