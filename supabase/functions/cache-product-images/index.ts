@@ -59,6 +59,10 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const { productIds, workspaceId, overwrite = false } = body;
+    const authHeader = req.headers.get("Authorization")!;
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user } } = await supabase.auth.getUser(token);
+    const userId = user?.id;
 
     if (!productIds?.length || !workspaceId) {
       throw new Error("productIds and workspaceId are required");
