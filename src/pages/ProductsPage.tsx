@@ -549,6 +549,7 @@ const ProductsPage = () => {
     
     setIsInferringModels(true);
     const selectedIds = Array.from(selected);
+    const { data: { user } } = await supabase.auth.getUser();
     
     try {
       // Fetch relevant products
@@ -571,20 +572,43 @@ const ProductsPage = () => {
       
       const updates = productsToUpdate.map(p => {
         const sku = p.sku || "";
-        // Remove as 2 primeiras letras do SKU
         const suggested = sku.length > 2 ? sku.substring(2) : sku;
-        return { id: p.id, model: suggested };
+        return { 
+          id: p.id, 
+          model: suggested,
+          workspace_id: activeWorkspace.id,
+          user_id: user?.id
+        };
       });
       
       // Batch update
       const batchSize = 50;
+      let successCount = 0;
       for (let i = 0; i < updates.length; i += batchSize) {
         const batch = updates.slice(i, i + batchSize);
         const { error: updateError } = await supabase.from("products").upsert(batch as any);
-        if (updateError) throw updateError;
+        
+        if (updateError) {
+          console.error("Erro no lote de modelos:", updateError);
+          // Log errors to the new table
+          if (user?.id) {
+            const errorLogs = batch.map(item => ({
+              workspace_id: activeWorkspace.id,
+              user_id: user.id,
+              operation_type: 'infer_model',
+              product_id: item.id,
+              sku: productsToUpdate.find(p => p.id === item.id)?.sku,
+              error_message: updateError.message,
+              error_detail: { code: updateError.code, hint: updateError.hint }
+            }));
+            await supabase.from("catalog_operation_errors").insert(errorLogs);
+          }
+          throw updateError;
+        }
+        successCount += batch.length;
       }
       
-      toast.success(`${updates.length} modelos inferidos com sucesso.`);
+      toast.success(`${successCount} modelos inferidos com sucesso.`);
       qc.invalidateQueries({ queryKey: ["products"] });
       setSelected(new Set());
     } catch (error: any) {
