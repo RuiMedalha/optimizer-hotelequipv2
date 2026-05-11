@@ -335,24 +335,9 @@ const ProductsPage = () => {
     }
   }, [pendingOptimizeIds.length]);
 
-  // Fetch count for products with image issues
-  const { data: imageIssueCount } = useQuery({
-    queryKey: ["product-image-issue-count", activeWorkspace?.id],
-    enabled: !!activeWorkspace,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select("id", { count: "exact", head: true })
-        .eq("workspace_id", activeWorkspace!.id)
-        .in("image_status", ["failed", "missing"]);
-      if (error) throw error;
-      return data.length || 0; // Wait, exact count doesn't return in data.length like that with head:true
-    }
-  });
-
   // Re-fetch properly
   const { data: issueCount } = useQuery({
-    queryKey: ["product-image-issue-count-v2", activeWorkspace?.id],
+    queryKey: ["product-image-issue-count-v3", activeWorkspace?.id],
     enabled: !!activeWorkspace,
     queryFn: async () => {
       const { count, error } = await supabase
