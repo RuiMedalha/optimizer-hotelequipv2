@@ -121,6 +121,18 @@ Deno.serve(async (req) => {
     const categoryList = Array.from(uniqueCategoryMap.values());
     const learningExamplesStr = (learningPatterns || []).map(p => `- SKU Prefix: "${p.sku_prefix}" -> Category: "${p.category_path}" (Confidence: ${p.confidence}%)`).join('\n');
 
+    // Query Meilisearch for similar published products
+    const similarProducts = await findSimilarInMeilisearch(
+      product.title || product.original_title || "",
+      product.technical_specs || ""
+    );
+
+    const similarContext = similarProducts.length > 0
+      ? `\nProdutos similares já publicados com categorias correctas:\n${
+          similarProducts.map(p => `- "${p.title}" → ${p.category}`).join("\n")
+        }\n\nUsa estes como referência principal para escolher a categoria.\n`
+      : "";
+
     // Build the prompt
     const systemPrompt = `You are a Product Classification Agent for an e-commerce catalog management system focused on the HORECA sector.
 
@@ -143,6 +155,7 @@ ${learningExamplesStr || "No specific patterns yet."}
 LEARNING EXAMPLES (How existing products are classified):
 ${examples?.map(e => `- Product: "${e.original_title}" -> Category: "${e.category}"`).join('\n') || "No examples available yet."}
 
+${similarContext}
 EXISTING CATEGORIES (Use EXACT "full_path" strings):
 ${categoryList.map(c => `- [${c.id}] ${c.full_path}`).join('\n')}
 
