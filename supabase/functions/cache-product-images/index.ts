@@ -157,8 +157,19 @@ Deno.serve(async (req) => {
             });
 
             if (!resp.ok) {
-              console.warn(`[cache-images] Download failed (${resp.status}) for ${url}`);
+              const msg = `Download failed (${resp.status}) for ${url}`;
+              console.warn(`[cache-images] ${msg}`);
               totalFailed++;
+              
+              await supabase.from("catalog_operation_errors").insert({
+                workspace_id: workspaceId,
+                user_id: userId,
+                operation_type: 'image_migration',
+                sku: product.sku || product.id,
+                product_id: product.id,
+                error_message: msg,
+                error_detail: { url, status: resp.status, phase: 'download' }
+              });
               continue;
             }
 
