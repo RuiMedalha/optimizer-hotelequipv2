@@ -2080,6 +2080,41 @@ const ProductsPage = () => {
               <span className="font-medium text-foreground">{publishedCount}</span>
               {" "}produtos publicados já migrados
             </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-7 bg-primary/10 border-primary/20 text-primary hover:bg-primary/20"
+                onClick={() => {
+                  const ids = (allProductsLight ?? [])
+                    .filter((p: any) => p.status === "optimized")
+                    .map(p => p.id);
+                  setSelected(new Set(ids));
+                  setAllPagesSelected(true);
+                  toast.info(`${ids.length} produtos otimizados selecionados para publicação`);
+                }}
+              >
+                Selecionar Prontos p/ Publicar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-7 bg-amber-500/10 border-amber-500/20 text-amber-600 hover:bg-amber-500/20"
+                onClick={() => {
+                  const ids = (allProductsLight ?? [])
+                    .filter((p: any) => 
+                      p.status === "needs_review" || 
+                      (p.suggested_category && p.suggested_category !== p.category)
+                    )
+                    .map(p => p.id);
+                  setSelected(new Set(ids));
+                  setAllPagesSelected(true);
+                  toast.info(`${ids.length} produtos para revisão selecionados`);
+                }}
+              >
+                Selecionar Para Rever
+              </Button>
+            </div>
             <span className="text-sm font-medium text-primary">{migrationPct}%</span>
             <Progress value={migrationPct} className="w-24 h-1.5" />
           </div>
