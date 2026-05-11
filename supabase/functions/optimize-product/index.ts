@@ -1337,18 +1337,21 @@ IMPORTANTE: Otimiza o conteúdo BASE que será propagado para todas as variaçõ
           title: `Gera um título otimizado para SEO (50-60 chars) em Português de Portugal (PT-PT).
 REGRAS OBRIGATÓRIAS:
 - NUNCA incluas "HORECA" no título.
-- TRADUZ OBRIGATORIAMENTE termos em Espanhol para Português (ex: "Campana" -> "Campânula" ou "Hotte").
+- TERMINOLOGIA PROFISSIONAL: Prioriza termos como "Hotte" em vez de "Campânula" se for para exaustão industrial.
+- TRADUZ OBRIGATORIAMENTE termos em Espanhol para Português (ex: "Campana" -> "Hotte" ou "Campânula").
 - Foco: Tipo de Produto + Característica Distintiva + Dimensão/Capacidade.
 - Usar termo específico se necessário: "Profissional", "Industrial", "Comercial".
 - NÃO incluas marca ou códigos EAN no título.
 - PRESERVA apenas a referência técnica/modelo (ex: "CHST400B") se for a forma principal como o produto é conhecido, integrando-a no fim.
 - NÃO inventes especificações.
 - Inclui linha/série se aplicável (ex: "Linha 700").
-- Inclui tipo de energia se aplicável (Gás, Elétrico).`,
+- Inclui tipo de energia se aplicável (Gás, Elétrico).
+${terminologyContext}`,
           description: `Gera uma descrição otimizada (HTML) que soe humana e natural e inclua OBRIGATORIAMENTE sinónimos relevantes para SEO.
+${terminologyContext}
 REGRAS DE LINGUAGEM NATURAL — OBRIGATÓRIO:
 - NUNCA soar robótico ou repetitivo. Limitar "HORECA" a máx 1 menção.
-- OTIMIZAÇÃO SEO: Inclui OBRIGATORIAMENTE os sinónimos fornecidos na secção "SINÓNIMOS SEO RELEVANTES" de forma fluída no texto (ex: se o produto é um 'Exaustor', deves usar também 'hotte', 'coifa' e 'campânula' ao longo da descrição).
+- OTIMIZAÇÃO SEO: Inclui OBRIGATORIAMENTE os sinónimos fornecidos de forma fluída no texto (ex: se o produto é um 'Exaustor', deves usar também 'hotte', 'coifa' e 'campânula' ao longo da descrição).
 - REVISÃO DE TEXTO: Garante que as palavras estão separadas corretamente (ex: NUNCA escrever "hottede", escreve sempre "hotte de").
 - Substituir "HORECA" por: "o seu restaurante", "o seu bar", "cozinhas profissionais".
 - Dirigir-se ao cliente: "Perfeito para o seu bar", "A sua equipa vai apreciar".
