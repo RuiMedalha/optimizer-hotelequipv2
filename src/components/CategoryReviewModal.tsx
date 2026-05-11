@@ -583,8 +583,11 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                                         .eq("id", p.id);
                                       if (updateError) throw updateError;
                                       toast.success(`Sugestão actualizada: ${data.category_name}`);
-                                      qc.invalidateQueries({ queryKey: ["category-review-candidates"] });
-                                      qc.invalidateQueries({ queryKey: ["products"] });
+                                       qc.invalidateQueries({ queryKey: ["category-review-candidates"] });
+                                       qc.invalidateQueries({ queryKey: ["products"] });
+                                       // Also auto-apply as override so UI updates immediately without waiting for refetch
+                                       setOverrides(prev => ({ ...prev, [p.id]: data.category_name }));
+                                       setSelected(prev => new Set([...prev, p.id]));
                                     }
                                   } catch (err: any) {
                                     toast.error(`Erro ao recalcular: ${err.message || JSON.stringify(err)}`);
