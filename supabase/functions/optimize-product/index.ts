@@ -1956,7 +1956,10 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           console.warn(`[optimize-product] ${product.id} → needs_review: ${statusIssues.join("; ")}`);
         }
 
-        const updateData: Record<string, any> = { status: productStatus };
+        const updateData: Record<string, any> = { 
+          status: productStatus,
+          model: inferredModel || null
+        };
         if (optimized.optimized_title) updateData.optimized_title = optimized.optimized_title;
         if (optimized.optimized_description) {
           // POST-PROCESSING: Ensure first H3 contains focus keyword
