@@ -13,7 +13,7 @@ export interface ProductFilters {
   productType?: string;
   sourceFile?: string;
   wooFilter?: string;
-  imageStatus?: "failed" | "missing" | "ok" | "all";
+  imageStatus?: "failed" | "missing" | "ok" | "all" | "any_issue";
   page?: number;
   pageSize?: number;
 }
