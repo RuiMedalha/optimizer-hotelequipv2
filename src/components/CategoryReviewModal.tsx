@@ -25,12 +25,19 @@ interface CategoryProduct {
   id: string;
   sku: string;
   original_title: string;
+  optimized_title?: string;
   category: string | null;
   suggested_category: string | null;
   suggested_categories: CategorySuggestion[] | null;
   source_file: string | null;
   workspace_id: string | null;
   technical_specs?: string;
+  optimized_description?: string;
+  original_description?: string;
+  short_description?: string;
+  brand?: string;
+  attributes?: any;
+  supplier_name?: string;
 }
 
 interface CategoryReviewModalProps {
