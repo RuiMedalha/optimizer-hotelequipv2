@@ -197,8 +197,19 @@ Deno.serve(async (req) => {
               });
 
             if (uploadError) {
-              console.error(`[cache-images] Upload failed for ${storagePath}:`, uploadError);
+              const msg = `Upload failed for ${storagePath}: ${uploadError.message}`;
+              console.error(`[cache-images] ${msg}`);
               totalFailed++;
+              
+              await supabase.from("catalog_operation_errors").insert({
+                workspace_id: workspaceId,
+                user_id: userId,
+                operation_type: 'image_migration',
+                sku: product.sku || product.id,
+                product_id: product.id,
+                error_message: msg,
+                error_detail: { url, storagePath, error: uploadError, phase: 'upload' }
+              });
               continue;
             }
 
