@@ -1424,7 +1424,9 @@ CONTEÚDO NATURAL: NUNCA usar \"HORECA\". Substituir por contextos específicos.
           meta_title: `Gera meta title SEO (máx 60 chars).
 - Keyword principal no início.
 - Inclui \"Comprar\" ou \"Preço\".
-- NÃO incluas marca, códigos EAN ou referências.`,
+- NÃO incluas marca, códigos EAN ou referências.
+\${terminologyForTitle}
+REGRA: NUNCA usar termos "avoid" no meta_title (ex: "Campana", "Fregadero", "Horno", "Freidora"). Usar sempre o termo preferred PT-PT.`,
           meta_description: `Gera meta description SEO (140-155 chars).
 REGRAS OBRIGATÓRIAS:
 - NUNCA usar \"HORECA\". Usar: \"restaurantes\", \"hotéis\", \"bares\".
