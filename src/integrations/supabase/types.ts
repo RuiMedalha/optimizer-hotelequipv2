@@ -3089,6 +3089,48 @@ export type Database = {
           },
         ]
       }
+      catalog_operation_errors: {
+        Row: {
+          created_at: string
+          error_detail: Json | null
+          error_message: string
+          id: string
+          operation_type: string
+          product_id: string | null
+          resolved: boolean
+          sku: string | null
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_detail?: Json | null
+          error_message: string
+          id?: string
+          operation_type: string
+          product_id?: string | null
+          resolved?: boolean
+          sku?: string | null
+          updated_at?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          error_detail?: Json | null
+          error_message?: string
+          id?: string
+          operation_type?: string
+          product_id?: string | null
+          resolved?: boolean
+          sku?: string | null
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       catalog_outcome_tracking: {
         Row: {
           baseline_value: number | null

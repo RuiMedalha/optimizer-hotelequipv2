@@ -2,6 +2,9 @@ import { useIntelligenceDashboard } from "@/hooks/useIntelligenceDashboard";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
 import { useRunBrainOrchestration } from "@/hooks/useCatalogBrain";
 import { useRunAgentCycle, useRunAgentAnalysis } from "@/hooks/useAgents";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -206,6 +209,7 @@ export default function IntelligenceDashboardPage() {
         <TabsList>
           <TabsTrigger value="brain" className="gap-1.5"><Brain className="w-3.5 h-3.5" /> Catalog Brain</TabsTrigger>
           <TabsTrigger value="agents" className="gap-1.5"><Bot className="w-3.5 h-3.5" /> Agentes</TabsTrigger>
+          <TabsTrigger value="errors" className="gap-1.5"><XCircle className="w-3.5 h-3.5" /> Erros de Operação</TabsTrigger>
           <TabsTrigger value="alerts" className="gap-1.5">
             <AlertTriangle className="w-3.5 h-3.5" /> Alertas
             {alerts.length > 0 && <Badge variant="destructive" className="ml-1 h-5 px-1.5 text-[10px]">{alerts.length}</Badge>}
@@ -287,6 +291,11 @@ export default function IntelligenceDashboardPage() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* Erros de Operação Tab */}
+        <TabsContent value="errors">
+          <OperationErrorsTable />
         </TabsContent>
 
         {/* Alerts Tab */}
@@ -439,5 +448,113 @@ function PipelineRow({ label, run, issues, highIssues, opportunities, revenue }:
         )}
       </div>
     </div>
+  );
+}
+
+function OperationErrorsTable() {
+  const { activeWorkspace } = useWorkspaceContext();
+  const qc = useQueryClient();
+  const { data: errors, isLoading, refetch } = useQuery({
+    queryKey: ["catalog-operation-errors", activeWorkspace?.id],
+    enabled: !!activeWorkspace?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("catalog_operation_errors")
+        .select("*")
+        .eq("workspace_id", activeWorkspace!.id)
+        .eq("resolved", false)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const deleteError = async (id: string) => {
+    const { error } = await supabase
+      .from("catalog_operation_errors")
+      .delete()
+      .eq("id", id);
+    if (error) {
+      toast.error("Erro ao eliminar log");
+    } else {
+      toast.success("Log eliminado");
+      refetch();
+    }
+  };
+
+  const clearAll = async () => {
+    if (!activeWorkspace?.id) return;
+    const { error } = await supabase
+      .from("catalog_operation_errors")
+      .delete()
+      .eq("workspace_id", activeWorkspace.id);
+    if (error) {
+      toast.error("Erro ao limpar logs");
+    } else {
+      toast.success("Logs limpos");
+      refetch();
+    }
+  };
+
+  if (isLoading) return <div className="p-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto" /></div>;
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="text-sm">Registo de Erros Críticos</CardTitle>
+        {errors && errors.length > 0 && (
+          <Button variant="ghost" size="sm" onClick={clearAll} className="text-destructive hover:text-destructive text-xs h-7">
+            <RefreshCw className="w-3 h-3 mr-1" /> Limpar Tudo
+          </Button>
+        )}
+      </CardHeader>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Operação</TableHead>
+              <TableHead>Produto/SKU</TableHead>
+              <TableHead>Mensagem de Erro</TableHead>
+              <TableHead>Data</TableHead>
+              <TableHead></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {!errors || errors.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  Sem erros registados.
+                </TableCell>
+              </TableRow>
+            ) : (
+              errors.map((err) => (
+                <TableRow key={err.id}>
+                  <TableCell>
+                    <Badge variant="outline" className="capitalize text-[10px]">{err.operation_type.replace(/_/g, ' ')}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-xs font-mono">{err.sku || "—"}</div>
+                  </TableCell>
+                  <TableCell className="max-w-md">
+                    <p className="text-xs font-medium text-destructive">{err.error_message}</p>
+                    {err.error_detail && typeof err.error_detail === 'object' && 'hint' in err.error_detail && (
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{(err.error_detail as any).hint}</p>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {formatDistanceToNow(new Date(err.created_at), { addSuffix: true, locale: pt })}
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteError(err.id)}>
+                      <XCircle className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }
