@@ -601,9 +601,11 @@ Deno.serve(async (req) => {
         const { data: insertedData, error: insertErr } = await supabase
           .from("products")
           .insert(batch)
-          .select("id, sku, woocommerce_id");
+          .select("id, sku, woocommerce_id, user_id, workspace_id");
 
         if (insertErr) {
+          console.error(`Insert batch error details:`, JSON.stringify(insertErr));
+          console.log(`First item user_id: ${batch[0]?.user_id}, workspace_id: ${batch[0]?.workspace_id}`);
           console.error(`Insert batch error:`, insertErr);
           // Track individual errors for this batch and log to central table
           for (const wp of batchWps) {
