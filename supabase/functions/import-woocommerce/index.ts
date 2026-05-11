@@ -315,11 +315,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    // We need service role to insert into operation_errors bypassing RLS restrictions
-    // but we still pass auth header for auditing
-    const supabase = createClient(
+    // Use service role key to bypass RLS for logging errors
+    const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    // Regular client for product operations (respecting user RLS)
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } }
     );
 
