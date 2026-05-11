@@ -9919,6 +9919,7 @@ export type Database = {
           suggested_category: string | null
           supplier_description: string | null
           supplier_id: string | null
+          supplier_name: string | null
           supplier_ref: string | null
           supplier_short_description: string | null
           supplier_title: string | null
@@ -9984,6 +9985,7 @@ export type Database = {
           suggested_category?: string | null
           supplier_description?: string | null
           supplier_id?: string | null
+          supplier_name?: string | null
           supplier_ref?: string | null
           supplier_short_description?: string | null
           supplier_title?: string | null
@@ -10051,6 +10053,7 @@ export type Database = {
           suggested_category?: string | null
           supplier_description?: string | null
           supplier_id?: string | null
+          supplier_name?: string | null
           supplier_ref?: string | null
           supplier_short_description?: string | null
           supplier_title?: string | null
