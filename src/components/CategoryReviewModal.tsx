@@ -482,7 +482,7 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                             currentOverride={overrides[p.id]}
                           />
                           {overrides[p.id] && (
-                            <p className="text-[10px] text-success mt-1 font-medium">
+                            <p className="text-[10px] text-success mt-1 font-medium break-words max-w-[500px]" title={overrides[p.id]}>
                               ✓ Vai aprovar: {overrides[p.id]}
                             </p>
                           )}
