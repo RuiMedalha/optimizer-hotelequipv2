@@ -880,6 +880,28 @@ serve(async (req) => {
             }
           }
         }
+        
+        // === AUTO-INFER MODEL FROM SKU IF MISSING ===
+        let inferredModel = product.model;
+        if (!inferredModel && product.sku) {
+          const sku = product.sku;
+          const lastHyphen = sku.lastIndexOf('-');
+          const lastDot = sku.lastIndexOf('.');
+          const lastUnderscore = sku.lastIndexOf('_');
+          const lastSepIndex = Math.max(lastHyphen, lastDot, lastUnderscore);
+          
+          if (lastSepIndex !== -1 && lastSepIndex > 0) {
+            const lastPart = sku.substring(lastSepIndex + 1);
+            if (lastPart.length <= 3 || /^\d+$/.test(lastPart)) {
+              inferredModel = sku.substring(0, lastSepIndex);
+            } else {
+              inferredModel = sku;
+            }
+          } else {
+            inferredModel = sku;
+          }
+          console.log(`🤖 [optimize-product] Inferred model for ${sku}: ${inferredModel}`);
+        }
 
         // 1. HYBRID RAG: keyword + trigram + family search with reranking
         // OPTIMIZATION: Skip RAG/scraping in phases 2 and 3 — context already available from phase 1
@@ -1938,7 +1960,10 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           console.warn(`[optimize-product] ${product.id} → needs_review: ${statusIssues.join("; ")}`);
         }
 
-        const updateData: Record<string, any> = { status: productStatus };
+        const updateData: Record<string, any> = { 
+          status: productStatus,
+          model: inferredModel || null
+        };
         if (optimized.optimized_title) updateData.optimized_title = optimized.optimized_title;
         if (optimized.optimized_description) {
           // POST-PROCESSING: Ensure first H3 contains focus keyword

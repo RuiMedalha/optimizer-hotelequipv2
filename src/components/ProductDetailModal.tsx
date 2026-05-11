@@ -128,6 +128,7 @@ export function ProductDetailModal({ product, onClose }: Props) {
           category: product.category ?? "",
           focus_keyword: (Array.isArray(product.focus_keyword) ? product.focus_keyword : []).join(", "),
           brand: product.brand ?? "",
+          model: product.model ?? "",
         });
       setHasChanges(false);
     }
@@ -167,6 +168,7 @@ export function ProductDetailModal({ product, onClose }: Props) {
       category: editData.category || null,
       focus_keyword: editData.focus_keyword ? editData.focus_keyword.split(",").map((t: string) => t.trim()).filter(Boolean) : null,
       brand: editData.brand || null,
+      model: editData.model || null,
     };
 
     if (product.image_urls && product.image_urls.length > 0) {
@@ -288,14 +290,51 @@ export function ProductDetailModal({ product, onClose }: Props) {
               value={editData.optimized_title}
               onChange={(v) => handleFieldChange("optimized_title", v)}
             />
-            <div className="space-y-1">
-              <label className="text-xs font-medium">Marca</label>
-              <Input
-                value={editData.brand ?? ""}
-                onChange={e => handleFieldChange("brand", e.target.value)}
-                placeholder="Ex: TEFCOLD, Hendi, Magnus..."
-                className="text-sm"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Marca</label>
+                <Input
+                  value={editData.brand ?? ""}
+                  onChange={e => handleFieldChange("brand", e.target.value)}
+                  placeholder="Ex: TEFCOLD, Hendi, Magnus..."
+                  className="text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium">Modelo</label>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-5 px-1.5 text-[10px] text-primary hover:text-primary/80"
+                    onClick={() => {
+                      if (!product.sku) return;
+                      const sku = product.sku;
+                      const lastHyphen = sku.lastIndexOf('-');
+                      const lastDot = sku.lastIndexOf('.');
+                      const lastUnderscore = sku.lastIndexOf('_');
+                      const lastSepIndex = Math.max(lastHyphen, lastDot, lastUnderscore);
+                      
+                      let suggested = sku;
+                      if (lastSepIndex !== -1 && lastSepIndex > 0) {
+                        const lastPart = sku.substring(lastSepIndex + 1);
+                        if (lastPart.length <= 3 || /^\d+$/.test(lastPart)) {
+                          suggested = sku.substring(0, lastSepIndex);
+                        }
+                      }
+                      handleFieldChange("model", suggested);
+                    }}
+                  >
+                    Sugerir do SKU
+                  </Button>
+                </div>
+                <Input
+                  value={editData.model ?? ""}
+                  onChange={e => handleFieldChange("model", e.target.value)}
+                  placeholder="Ex: EU1613, CR-201..."
+                  className="text-sm font-mono"
+                />
+              </div>
             </div>
             <EditableComparison
               label="Descrição Curta"
