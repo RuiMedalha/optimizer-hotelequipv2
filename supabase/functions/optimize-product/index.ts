@@ -1490,7 +1490,16 @@ REGRAS OBRIGATÓRIAS:
 
           const similarContext = similarProducts.length > 0
             ? `\n\nPRODUTOS SIMILARES JÁ PUBLICADOS (referência principal):\n${
-                similarProducts.map(p => `- "${p.title}" → ${p.category}`).join("\n")
+                similarProducts.map(p => {
+                  let path = p.category;
+                  // Se o Meilisearch trouxer um caminho incompleto (apenas 1 nível), 
+                  // tenta encontrar o caminho completo na nossa taxonomia local
+                  if (!path.includes(">")) {
+                    const match = existingCategories.find(c => c.full_path.endsWith(path));
+                    if (match) path = match.full_path;
+                  }
+                  return `- "${p.title}" → ${path}`;
+                }).join("\n")
               }`
             : "";
 
@@ -1499,7 +1508,7 @@ REGRAS OBRIGATÓRIAS:
           const catsToUse = hierarchicalCats.length > 0 ? hierarchicalCats : existingCategories;
           
           const catList = catsToUse.length > 0
-            ? `\n\nCATEGORIAS DISPONÍVEIS (usa APENAS uma destas):\n${catsToUse.map(c => `- [${c.id}] ${c.full_path}`).join("\n")}`
+            ? `\n\nCATEGORIAS DISPONÍVEIS (usa APENAS uma destas - escolhe o nó folha mais específico):\n${catsToUse.map(c => `- [${c.id}] ${c.full_path}`).join("\n")}`
             : "";
           const semanticHint = semanticMatches.length > 0
             ? `\n\nCATEGORIAS MAIS RELEVANTES (por análise semântica): ${semanticMatches.join(", ")}`
