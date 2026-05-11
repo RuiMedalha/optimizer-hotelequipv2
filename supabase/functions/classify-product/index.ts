@@ -150,7 +150,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      if (bestPath) {
+      if (bestPath && bestPath.includes(" > ")) {
         // Find the matching category in our catalog using exact full path or most specific overlap
         const matchingCat = categoryList.find(c => 
           c.full_path === bestPath ||
