@@ -188,7 +188,14 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
       if (updateError) throw updateError;
 
       toast.success("Produto re-classificado pela IA");
-      qc.invalidateQueries({ queryKey: ["all-product-ids"] });
+      qc.invalidateQueries({ queryKey: ["category-review-candidates"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      
+      // Auto-apply as override so UI updates immediately
+      if (data?.category_name) {
+        setOverrides(prev => ({ ...prev, [id]: data.category_name }));
+        setSelected(prev => new Set([...prev, id]));
+      }
     } catch (err: any) {
       toast.error(`Erro ao classificar: ${err.message}`);
     } finally {
