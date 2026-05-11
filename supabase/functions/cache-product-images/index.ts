@@ -210,9 +210,24 @@ Deno.serve(async (req) => {
             productChanged = true;
             totalCached++;
 
-          } catch (err) {
+          } catch (err: any) {
             console.error(`[cache-images] Exception processing ${url}:`, err);
             totalFailed++;
+            
+            // Log to catalog_operation_errors
+            try {
+              await supabase.from("catalog_operation_errors").insert({
+                workspace_id: workspaceId,
+                user_id: userId,
+                operation_type: 'image_migration',
+                sku: product.sku || product.id,
+                product_id: product.id,
+                error_message: `Falha ao migrar imagem: ${err.message || 'Erro desconhecido'}`,
+                error_detail: { url, phase: 'download_upload', error: err }
+              });
+            } catch (logErr) {
+              console.error("[cache-images] Failed to log error to DB:", logErr);
+            }
           }
         }
 
