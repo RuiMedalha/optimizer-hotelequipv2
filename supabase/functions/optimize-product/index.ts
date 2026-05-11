@@ -1420,12 +1420,13 @@ Em ambos os casos: usar contextos reais (buffet de hotel, cafetaria, restaurante
 REGRA HTML: O div raiz <div class="product-description"> DEVE ser fechado com </div> no final. Verificar que cada <div> aberto tem o seu </div> correspondente.`,
 
           short_description: `Gera uma descrição curta (máx 160 chars) para listagens.
-PROIBIDO: "HORECA" em qualquer forma. Substituir por: "restaurantes", "cozinhas profissionais", "hotelaria", "cafetarias". PROIBIDO começar com "Otimize" ou "Potencie".`,
+PROIBIDO: "HORECA" em qualquer forma. Substituir por: "restaurantes", "cozinhas profissionais", "hotelaria", "cafetarias". PROIBIDO começar com "Otimize" ou "Potencie".
+PROIBIDO: "HORECA" em qualquer forma → usar "restaurantes", "cozinhas profissionais", "hotelaria". PROIBIDO começar com "Otimize" ou "Potencie".`,
           meta_title: `Gera meta title SEO (máx 60 chars).
 - Keyword principal no início.
 - Inclui \"Comprar\" ou \"Preço\".
 - NÃO incluas marca, códigos EAN ou referências.
-\${terminologyForTitle}
+${terminologyForTitle}
 REGRA: NUNCA usar termos "avoid" no meta_title (ex: "Campana", "Fregadero", "Horno", "Freidora"). Usar sempre o termo preferred PT-PT.`,
           meta_description: `Gera meta description SEO (140-155 chars).
 REGRAS OBRIGATÓRIAS:
@@ -1433,14 +1434,9 @@ REGRAS OBRIGATÓRIAS:
 - Dirigir-se ao cliente: \"para o seu restaurante\", \"ideal para o seu bar\".
 - Benefício concreto + contexto específico + call-to-action (ex: \"Entrega 24-48h\").
 - NÃO incluas marca. Usa linguagem que gere cliques.
-\${terminologyForTitle}
-REGRA: NUNCA usar "HORECA" na meta_description. NUNCA usar termos "avoid". Substituir por contextos específicos: "restaurantes", "hotéis", "cozinhas profissionais".`,
-          meta_description: `Gera meta description SEO (140-155 chars).
-REGRAS OBRIGATÓRIAS:
-- NUNCA usar \"HORECA\". Usar: \"restaurantes\", \"hotéis\", \"bares\".
-- Dirigir-se ao cliente: \"para o seu restaurante\", \"ideal para o seu bar\".
-- Benefício concreto + contexto específico + call-to-action (ex: \"Entrega 24-48h\").
-- NÃO incluas marca. Usa linguagem que gere cliques.`,
+${terminologyForTitle}
+REGRA: NUNCA usar "HORECA" na meta_description. NUNCA usar termos "avoid". Substituir por contextos específicos: "restaurantes", "hotéis", "cozinhas profissionais".
+PROIBIDO começar com "Otimize", "Potencie", "Descubra". PROIBIDO usar "HORECA". Começar com benefício directo ou facto técnico do produto.`,
           seo_slug: `Gera um slug SEO-friendly.
 REGRAS OBRIGATÓRIAS:
 - Lowercase, sem acentos, com hífens
@@ -1449,9 +1445,10 @@ REGRAS OBRIGATÓRIAS:
 - NÃO incluas códigos EAN ou referências no slug
 - Máx 5-7 palavras
 - Exemplo: fritadeira-gas-linha-700-8-litros
-\${terminologyForTitle}
+${terminologyForTitle}
 REGRA: NUNCA usar termos "avoid" no slug (ex: "campana", "fregadero", "horno", "freidora"). O slug usa sempre o termo PT-PT preferred em lowercase sem acentos.`,
-          tags: `${terminologyForTags}\nPROIBIDO nas tags: "HORECA", "horeca". Usar: "restaurante", "cozinha profissional", "hotelaria".`,
+          tags: `${terminologyForTags}\nPROIBIDO nas tags: "HORECA", "horeca". Usar: "restaurante", "cozinha profissional", "hotelaria".
+PROIBIDO nas tags: "HORECA", "horeca" → substituir por "restaurante", "cozinha profissional", "hotelaria".`,
           price: `Sugere um preço otimizado.
 REGRAS:
 - Mantém o preço original se parecer correto para o mercado
