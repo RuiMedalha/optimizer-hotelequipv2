@@ -81,7 +81,7 @@ ESTRUTURA short_description:
 - Deve funcionar como snippet em listagens de produtos
 
 ESTRUTURA long_description (HTML com estilos inline para compatibilidade WooCommerce):
-Envolve TUDO num div raiz: <div class="product-description" style="font-size:15px; line-height:1.65; color:#2c2c2c;">
+Envolve TUDO num div raiz: <div class="product-description" style="font-size:15px; line-height:1.65; color:#2c2c2c;"> ... </div> (Obrigatório fechar o div no final).
 
 Cada secção é um div com classe própria e margin-bottom:22px. Usa h2 para secções principais e h3 para subsecções, com este estilo:
 H2 (secções principais): style="margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;"
