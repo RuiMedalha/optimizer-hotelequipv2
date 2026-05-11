@@ -1327,8 +1327,20 @@ const ProductsPage = () => {
                     // Browser fetch — uses user's residential IP, bypasses CDN blocks
                     const resp = await fetch(url);
                     if (!resp.ok) {
-                      console.warn(`Browser fetch failed for ${url}: ${resp.status}`);
+                      const msg = `Browser fetch failed for ${url}: ${resp.status}`;
+                      console.warn(msg);
                       totalFailed++;
+                      
+                      // Log error to database
+                      await supabase.from("catalog_operation_errors").insert({
+                        workspace_id: activeWorkspace.id,
+                        user_id: (await supabase.auth.getUser()).data.user?.id,
+                        operation_type: 'image_migration_browser',
+                        sku: product.sku || product.id,
+                        product_id: product.id,
+                        error_message: msg,
+                        error_detail: { url, status: resp.status, phase: 'browser_fetch' }
+                      });
                       continue;
                     }
                     
