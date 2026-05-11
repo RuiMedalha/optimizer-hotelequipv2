@@ -15,7 +15,7 @@ interface Props {
   currentOverrideConfidence?: number;
 }
 
-export function CategoryCell({ product, onSelectSuggestion, currentOverride }: Props) {
+export function CategoryCell({ product, onSelectSuggestion, currentOverride, currentOverrideConfidence }: Props) {
   const [open, setOpen] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const { suggestions, isLoading, confirmCategory, isConfirming } = useCategoryLearning(product);
