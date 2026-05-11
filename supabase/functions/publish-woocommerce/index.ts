@@ -1676,9 +1676,15 @@ async function enrichWithExtraContent(
   let desc = String(wooProduct.description || product.optimized_description || product.original_description || "");
   desc = desc.replace(/<!-- HOTELEQUIP:FAQ_START -->[\s\S]*?<!-- HOTELEQUIP:FAQ_END -->/gi, "");
   desc = desc.replace(/<div[^>]*class=["']hotelequip-faq["'][\s\S]*?<\/div>/gi, "");
-  desc = desc.replace(/<div[^>]*class=["']product-faq["'][\s\S]*?<\/div>\s*(<\/div>)?/gi, "");
+  desc = desc.replace(/<div[^>]*class=["']product-faq["'][\s\S]*?<\/div>/gi, "");
   desc = desc.replace(/<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->[\s\S]*?<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->/gi, "");
   desc = desc.replace(/<div[^>]*class=["']uso-profissional[^"']*["'][\s\S]*?<\/div>/gi, "");
+  
+  // Ensure product-description is closed if it exists but is not closed at the end
+  if (desc.includes('class="product-description"') && !desc.trim().endsWith('</div>')) {
+    desc = desc.trim() + "</div>";
+  }
+  
   wooProduct.description = desc.trim();
 
   // ── FAQ ──
