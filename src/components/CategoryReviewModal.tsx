@@ -49,6 +49,7 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
   const [isApproving, setIsApproving] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
   const [classifyingIds, setClassifyingIds] = useState<Set<string>>(new Set());
+  const [acceptingIds, setAcceptingIds] = useState<Set<string>>(new Set());
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [localSearchQuery, setLocalSearchQuery] = useState("");
@@ -290,16 +291,32 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
               Revisão de Categorias IA
               <Badge variant="secondary" className="text-xs">{candidates.length} produtos</Badge>
             </DialogTitle>
-            <div className="flex items-center gap-3 bg-muted/50 px-4 py-2 rounded-full border">
-              <Switch 
-                id="show-all" 
-                checked={showAllProducts} 
-                onCheckedChange={setShowAllProducts} 
-              />
-              <Label htmlFor="show-all" className="text-xs font-medium cursor-pointer">
-                {showAllProducts ? "Ver Todos os Produtos" : "Ver Apenas Pendentes"}
-              </Label>
-            </div>
+              <div className="flex items-center gap-3 bg-muted/50 px-4 py-2 rounded-full border">
+                <Switch 
+                  id="show-all" 
+                  checked={showAllProducts} 
+                  onCheckedChange={setShowAllProducts} 
+                />
+                <Label htmlFor="show-all" className="text-xs font-medium cursor-pointer">
+                  {showAllProducts ? "Ver Todos os Produtos" : "Ver Apenas Pendentes"}
+                </Label>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const highConfidence = filtered.filter(p => {
+                    const confidence = (p as any).suggested_category_confidence || (p.suggested_categories?.[0]?.confidence_score ? p.suggested_categories[0].confidence_score * 100 : 0);
+                    return confidence >= 80;
+                  });
+                  setSelected(new Set(highConfidence.map(p => p.id)));
+                }}
+              >
+                Sel. ≥80% ({filtered.filter(p => {
+                  const confidence = (p as any).suggested_category_confidence || (p.suggested_categories?.[0]?.confidence_score ? p.suggested_categories[0].confidence_score * 100 : 0);
+                  return confidence >= 80;
+                }).length})
+              </Button>
           </div>
         </DialogHeader>
 
@@ -427,6 +444,42 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className={cn("text-xs h-7 px-2", selected.has(p.id) && "text-success")}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleOne(p.id);
+                              }}
+                            >
+                              ✓
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-xs h-7 px-2 text-success hover:bg-success/10"
+                              disabled={acceptingIds.has(p.id) || isBusy}
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                setAcceptingIds(prev => new Set([...prev, p.id]));
+                                try {
+                                  await batchUpdate([p.id], true);
+                                  toast.success("Categoria aprovada!");
+                                  qc.invalidateQueries({ queryKey: ["products"] });
+                                } catch (err: any) {
+                                  toast.error(`Erro: ${err.message}`);
+                                } finally {
+                                  setAcceptingIds(prev => {
+                                    const n = new Set(prev);
+                                    n.delete(p.id);
+                                    return n;
+                                  });
+                                }
+                              }}
+                            >
+                              {acceptingIds.has(p.id) ? "..." : "Aceitar"}
+                            </Button>
                             {p.suggested_category && !isClassifying && (
                               <Button 
                                 variant="outline" 
@@ -465,6 +518,14 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
         <DialogFooter className="p-6 border-t bg-muted/10">
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full justify-between">
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isBusy || filtered.length === 0}
+                onClick={() => setSelected(new Set(filtered.map(p => p.id)))}
+              >
+                Sel. Todas ({filtered.length})
+              </Button>
               <Button
                 variant="default"
                 disabled={isBusy || selected.size === 0}
