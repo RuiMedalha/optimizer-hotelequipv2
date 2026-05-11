@@ -1636,7 +1636,25 @@ REGRAS OBRIGATÓRIAS:
           fieldInstructions.push(`CATEGORIA SUGERIDA:\n${getFieldPrompt("category", "Escolhe a categoria mais específica da lista.")}${similarContext}${catList}${semanticHint}${patternHints}${accessoryRule}${noCatHint}`);
         }
 
-        const defaultPrompt = `Optimiza o seguinte produto de e-commerce para SEO e conversão em português europeu.
+        const analysisPhase = `FASE 1 — ANÁLISE DO PRODUTO (executar ANTES de gerar qualquer campo):
+Lê o título original E a descrição original do fornecedor na íntegra.
+Com base nessa leitura, determina o tipo real do produto antes de gerar qualquer conteúdo.
+
+REGRAS DE INTERPRETAÇÃO OBRIGATÓRIAS:
+- "patas/pés reguláveis" + bancada superior → móvel autoportante → usar "Móvel de Prateleiras Inox" ou "Módulo Neutro Inox" (NUNCA "Estante")
+- "fixação à parede" sem patas → mural → usar "Prateleira Mural Inox"
+- "ciclos de lavagem / capot / porta frontal" → máquina automática → "Máquina de Lavar Loiça Industrial"
+- "cuba/pia" + patas + sem ciclos → bancada com cuba → "Bancada com Cuba Inox" ou "Lavadouro Inox"
+- "Campana/Campânula" + turbina + filtros → "Hotte Exaustora"
+- "Vitrina" + vidro curvo sem referência a produto concreto → ambíguo → usar "Vitrine Refrigerada" + preencher optimization_notes
+- Se o título em espanhol contradiz a descrição → confiar na descrição, não no título
+- NUNCA traduzir o título do fornecedor directamente — o título optimizado deve reflectir o tipo real do produto
+
+FASE 2 — Só depois desta análise, gera os campos optimizados com os termos correctos em PT-PT.`;
+
+        const defaultPrompt = `${analysisPhase}
+
+Optimiza o seguinte produto de e-commerce para SEO e conversão em português europeu.
 
 ${productInfo}${knowledgeContext}${supplierContext}${catalogContext}
 
@@ -1877,6 +1895,17 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           console.warn("[optimize-product] output quality issues:", outputIssues);
         }
         const optimized = finalOptimized;
+
+        // POST-PROCESS: Fix duplicated h3 in Secção 1
+        // Handles em dash —, en dash –, and regular hyphen -
+        if (typeof optimized.optimized_description === "string") {
+          optimized.optimized_description = optimized.optimized_description.replace(
+            /(<h3[^>]*>)([^<]+?)[—–\-]([^<]+?)[—–\-]\s*Principais Vantagens(<\/h3>)/gi,
+            (_match, open, _part1, part2, close) => {
+              return `${open}${part2.trim()} — Principais Vantagens${close}`;
+            }
+          );
+        }
 
         // POST-PROCESS: Fix duplicated h3 title in Secção 1
         if (typeof optimized.optimized_description === "string") {
