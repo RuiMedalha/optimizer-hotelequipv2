@@ -43,7 +43,7 @@ export function CategoryCell({ product, onSelectSuggestion, currentOverride }: P
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span className={cn(
-                      "text-xs truncate max-w-[160px] block transition-colors cursor-help",
+                      "text-xs truncate max-w-[300px] block transition-colors cursor-help",
                       product.category ? "text-foreground font-medium" : "text-muted-foreground italic"
                     )}>
                       {product.category || "Sem categoria"}
