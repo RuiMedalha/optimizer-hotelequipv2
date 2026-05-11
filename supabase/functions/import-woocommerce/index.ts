@@ -180,6 +180,8 @@ function normalizeWooProduct(
     BRAND_ATTR_NAMES.has(a.name.toLowerCase())
   );
   const supplierRef = brandAttr?.options?.[0] || null;
+  const supplierName = supplierRef; // For now, use the brand as the supplier name
+
 
   // SEO from meta_data (Rank Math / Yoast / SEOPress)
   const seoTitle = metaGet(meta, SEO_TITLE_KEYS);
