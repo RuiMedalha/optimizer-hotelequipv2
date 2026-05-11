@@ -222,6 +222,8 @@ function normalizeWooProduct(
     woocommerce_id: wp.id,
     source_file: "woocommerce-import",
     supplier_ref: supplierRef,
+    supplier_name: supplierName,
+
     attributes: attrs.length > 0 ? attrs : null,
     tags: tags.length > 0 ? tags : null,
     technical_specs: buildTechSpecs(wp),
