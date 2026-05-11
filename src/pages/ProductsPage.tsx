@@ -1480,6 +1480,19 @@ const ProductsPage = () => {
             <Download className="w-3.5 h-3.5 mr-1" />
             Migrar Imagens{selected.size > 0 ? ` (${selected.size})` : ""}
           </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant={imageIssueFilter ? "destructive" : "outline"}
+            size="sm"
+            className="h-8 gap-1.5"
+            onClick={() => setImageIssueFilter(!imageIssueFilter)}
+          >
+            <Camera className={cn("w-3.5 h-3.5", imageIssueFilter ? "text-white" : "text-destructive")} />
+            <span className={imageIssueFilter ? "text-white" : ""}>
+              Sem Imagem ({issueCount || 0})
+            </span>
+          </Button>
+
           <Button
             size="sm"
             variant="outline"
@@ -1516,6 +1529,7 @@ const ProductsPage = () => {
             {isEnriching ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Globe className="w-3.5 h-3.5 mr-1" />}
             <span className="hidden sm:inline">Enriquecer </span>Web{selected.size > 0 ? ` (${selected.size})` : ""}
           </Button>
+        </div>
           <div className="flex items-center gap-1">
             <Select value={selectedImageModel} onValueChange={setSelectedImageModel}>
               <SelectTrigger className="h-8 text-xs w-[180px]">
