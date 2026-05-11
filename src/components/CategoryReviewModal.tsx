@@ -444,6 +444,42 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className={cn("text-xs h-7 px-2", selected.has(p.id) && "text-success")}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleOne(p.id);
+                              }}
+                            >
+                              ✓
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-xs h-7 px-2 text-success hover:bg-success/10"
+                              disabled={acceptingIds.has(p.id) || isBusy}
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                setAcceptingIds(prev => new Set([...prev, p.id]));
+                                try {
+                                  await batchUpdate([p.id], true);
+                                  toast.success("Categoria aprovada!");
+                                  qc.invalidateQueries({ queryKey: ["products"] });
+                                } catch (err: any) {
+                                  toast.error(`Erro: ${err.message}`);
+                                } finally {
+                                  setAcceptingIds(prev => {
+                                    const n = new Set(prev);
+                                    n.delete(p.id);
+                                    return n;
+                                  });
+                                }
+                              }}
+                            >
+                              {acceptingIds.has(p.id) ? "..." : "Aceitar"}
+                            </Button>
                             {p.suggested_category && !isClassifying && (
                               <Button 
                                 variant="outline" 
