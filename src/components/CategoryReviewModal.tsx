@@ -25,12 +25,19 @@ interface CategoryProduct {
   id: string;
   sku: string;
   original_title: string;
+  optimized_title?: string;
   category: string | null;
   suggested_category: string | null;
   suggested_categories: CategorySuggestion[] | null;
   source_file: string | null;
   workspace_id: string | null;
   technical_specs?: string;
+  optimized_description?: string;
+  original_description?: string;
+  short_description?: string;
+  brand?: string;
+  attributes?: any;
+  supplier_name?: string;
 }
 
 interface CategoryReviewModalProps {
@@ -141,9 +148,18 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
         body: { 
           workspace_id: product.workspace_id,
           product: {
-            title: product.original_title,
+            title: product.optimized_title || product.original_title,
             original_title: product.original_title,
-            technical_specs: product.technical_specs
+            optimized_title: product.optimized_title,
+            description: product.optimized_description || product.original_description,
+            original_description: product.original_description,
+            short_description: product.short_description,
+            brand: product.brand,
+            sku: product.sku,
+            technical_specs: product.technical_specs,
+            attributes: product.attributes,
+            supplier: product.supplier_name,
+            useMeilisearch: true
           }
         }
       });
@@ -518,9 +534,17 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                                       body: {
                                         workspace_id: p.workspace_id,
                                         product: {
-                                          title: p.original_title,
+                                          title: p.optimized_title || p.original_title,
                                           original_title: p.original_title,
+                                          optimized_title: p.optimized_title,
+                                          description: p.optimized_description || p.original_description,
+                                          original_description: p.original_description,
+                                          short_description: p.short_description,
+                                          brand: p.brand,
+                                          sku: p.sku,
                                           technical_specs: p.technical_specs,
+                                          attributes: p.attributes,
+                                          supplier: p.supplier_name,
                                           useMeilisearch: true
                                         }
                                       }
