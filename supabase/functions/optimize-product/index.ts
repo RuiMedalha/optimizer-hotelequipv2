@@ -1234,6 +1234,13 @@ IMPORTANTE: Otimiza o conteúdo BASE que será propagado para todas as variaçõ
           );
         }
 
+        // === FASE 1.1: Extração de Sinónimos SEO ===
+        const productSynonyms = getSynonymsForProduct(product.original_title || product.optimized_title || "");
+        const synonymsContext = productSynonyms.length > 0
+          ? `\n\nSINÓNIMOS SEO RELEVANTES (inclui estes termos naturalmente na descrição para melhorar o SEO):\n${productSynonyms.join(", ")}`
+          : "";
+        console.log(`🔍 [optimize-product] Found ${productSynonyms.length} synonyms for "${product.sku || product.id}"`);
+
         const productInfo = `Produto original:
 - Título: ${product.original_title || "N/A"}
 - Descrição: ${descClean.cleaned || "N/A"}
@@ -1244,7 +1251,7 @@ IMPORTANTE: Otimiza o conteúdo BASE que será propagado para todas as variaçõ
 - SKU: ${product.sku || "N/A"}
 - Ref. Fornecedor: ${product.supplier_ref || "N/A"}
 - Tipo: ${product.product_type || "simple"}
-- Atributos: ${JSON.stringify(product.attributes || [])}${parentContext}${variationsContext}${
+- Atributos: ${JSON.stringify(product.attributes || [])}${parentContext}${variationsContext}${synonymsContext}${
   (phase === 2 || phase === 3) ? `\n\nDADOS JÁ OTIMIZADOS (Fase anterior):
 - Título Otimizado: ${product.optimized_title || "N/A"}
 - Descrição Otimizada: ${(product.optimized_description || "").substring(0, 500) || "N/A"}
