@@ -519,6 +519,14 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full justify-between">
             <div className="flex items-center gap-2">
               <Button
+                variant="outline"
+                size="sm"
+                disabled={isBusy || filtered.length === 0}
+                onClick={() => setSelected(new Set(filtered.map(p => p.id)))}
+              >
+                Sel. Todas ({filtered.length})
+              </Button>
+              <Button
                 variant="default"
                 disabled={isBusy || selected.size === 0}
                 onClick={() => handleApprove(Array.from(selected))}
