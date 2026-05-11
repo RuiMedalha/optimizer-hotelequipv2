@@ -2143,7 +2143,7 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
 
         const { error: updateError } = await supabase
           .from("products")
-          .update(updateData)
+          .update({ ...updateData, optimization_notes: optimized.optimization_notes || null })
           .eq("id", product.id);
 
         if (updateError) {
