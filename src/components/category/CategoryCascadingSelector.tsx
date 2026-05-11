@@ -227,7 +227,10 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [], workspa
               onClick={() => {
                 const finalId = level3 || level2 || level1;
                 if (finalId) {
-                  onSelect({ id: finalId, name: getLabel(finalId) });
+                  let fullName = getLabel(level1);
+                  if (level2) fullName += " > " + getLabel(level2);
+                  if (level3) fullName += " > " + getLabel(level3);
+                  onSelect({ id: finalId, name: fullName });
                 }
               }}
             >
