@@ -1405,8 +1405,11 @@ ESTRUTURA OBRIGATÓRIA:
 Envolve TUDO num div: <div class="product-description" style="font-size:15px; line-height:1.65; color:#2c2c2c;"> ... </div> (Obrigatório fechar o div no final).
 Usa h3 com OBRIGATÓRIO — Todos os h3 DEVEM ter EXACTAMENTE este style, sem excepção: style="margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;"
 
-1. <div class="product-benefits" style="margin-bottom:22px;"> com <h3>[Keyword curta, máx 4-5 palavras, NÃO repetir nome completo] — Principais Vantagens</h3>
-REGRA: CORRECTO: "Fritadeira Industrial — Principais Vantagens" | ERRADO: "fritadeira gás 20L — Fritadeira Industrial 20L — Principais Vantagens"
+1. <div class="product-benefits" style="margin-bottom:22px;"> com <h3>[Keyword curta do produto — máx 5 palavras] — Principais Vantagens</h3>
+REGRA ABSOLUTA: Apenas UM segmento antes de "— Principais Vantagens". 
+CORRECTO: "Hotte Exaustora 1200mm — Principais Vantagens"
+ERRADO: "hotte exaustora profissional — Hotte Júnior Snack 1200mm — Principais Vantagens"
+Se a focus keyword já aparece antes do "—", NÃO a repetir depois.
 2. <div class="product-applications" style="margin-bottom:22px;"> com <h3>Aplicações</h3> (Contextos concretos: "buffet de hotel", "cafetaria movimentada")
 FORMATO INTELIGENTE — escolhe conforme o produto:
 - Equipamentos principais (vitrines, fornos, fritadeiras, máquinas de lavar, grelhadores): 1-2 parágrafos em PROSA FLUÍDA, SEM bullet points.
