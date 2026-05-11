@@ -38,8 +38,26 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+    // Fetch business terminology for prompt context
+    const { data: terminologyData } = await supabase
+      .from("business_terminology")
+      .select("term, type, replacement, category")
+      .or(`workspace_id.eq.${workspace_id},is_global.eq.true`);
+
+    const preferredTerms = (terminologyData || []).filter(t => t.type === 'preferred');
+    const avoidTerms = (terminologyData || []).filter(t => t.type === 'avoid');
+    const synonymTerms = (terminologyData || []).filter(t => t.type === 'synonym');
+
+    const terminologyContext = `
+CONTEXTO DE NEGÓCIO E TERMINOLOGIA (SEMPRE PRIORIZAR):
+- TERMOS PREFERENCIAIS: ${preferredTerms.map(t => `${t.term} (usar em ${t.category || "geral"})`).join(", ")}
+- TERMOS A EVITAR: ${avoidTerms.map(t => `${t.term} -> substituir por ${t.replacement}`).join(", ")}
+- SINÓNIMOS RELEVANTES: ${synonymTerms.map(t => `${t.term} -> ${t.replacement}`).join(", ")}
+`.trim();
+
     // Selecionar variação aleatória para diversidade
     const toneVariation = TONE_VARIATIONS[Math.floor(Math.random() * TONE_VARIATIONS.length)];
+
     const openingStyle = OPENING_STYLES[Math.floor(Math.random() * OPENING_STYLES.length)];
 
     const langInstruction = lang === "pt" ? "Português de Portugal (pt-PT)" 
