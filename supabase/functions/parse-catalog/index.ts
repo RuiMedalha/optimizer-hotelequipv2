@@ -422,13 +422,14 @@ function buildProductData(p: Record<string, unknown>, onlyMapped: boolean, mappe
         baseModel = sku.substring(prefix.length);
       }
     }
-    if (skuSuffix) {
-      const suffix = String(skuSuffix).trim();
-      if (baseModel.toUpperCase().endsWith(suffix.toUpperCase())) {
-        baseModel = baseModel.substring(0, baseModel.length - suffix.length);
-      }
+    
+    // NOVO: Se o modelo foi extraído do SKU retirando o prefixo, 
+    // agora retiramos também o sufixo (os últimos 2 caracteres) como solicitado.
+    if (baseModel.length > 2) {
+      modeloVal = baseModel.substring(0, baseModel.length - 2);
+    } else {
+      modeloVal = baseModel;
     }
-    modeloVal = baseModel;
   }
 
   // Apply model suffix
