@@ -1332,15 +1332,18 @@ const ProductsPage = () => {
                       totalFailed++;
                       
                       // Log error to database
-                      await supabase.from("catalog_operation_errors").insert({
-                        workspace_id: activeWorkspace.id,
-                        user_id: (await supabase.auth.getUser()).data.user?.id,
-                        operation_type: 'image_migration_browser',
-                        sku: product.sku || product.id,
-                        product_id: product.id,
-                        error_message: msg,
-                        error_detail: { url, status: resp.status, phase: 'browser_fetch' }
-                      });
+                      const { data: userData } = await supabase.auth.getUser();
+                      if (userData.user) {
+                        await supabase.from("catalog_operation_errors").insert({
+                          workspace_id: activeWorkspace.id,
+                          user_id: userData.user.id,
+                          operation_type: 'image_migration_browser',
+                          sku: product.sku || product.id,
+                          product_id: product.id,
+                          error_message: msg,
+                          error_detail: { url, status: resp.status, phase: 'browser_fetch' }
+                        });
+                      }
                       continue;
                     }
                     
