@@ -861,6 +861,23 @@ serve(async (req) => {
       }
     }
 
+    // 13. Fetch business terminology for prompt context
+    const { data: terminologyData } = await supabase
+      .from("business_terminology")
+      .select("term, type, replacement, category")
+      .or(`workspace_id.eq.${workspaceId},is_global.eq.true`);
+
+    const preferredTerms = (terminologyData || []).filter(t => t.type === 'preferred');
+    const avoidTerms = (terminologyData || []).filter(t => t.type === 'avoid');
+    const synonymTerms = (terminologyData || []).filter(t => t.type === 'synonym');
+
+    const terminologyContext = `
+CONTEXTO DE NEGÓCIO E TERMINOLOGIA (SEMPRE PRIORIZAR):
+- TERMOS PREFERENCIAIS: ${preferredTerms.map(t => `${t.term} (usar em ${t.category || "geral"})`).join(", ")}
+- TERMOS A EVITAR: ${avoidTerms.map(t => `${t.term} -> substituir por ${t.replacement}`).join(", ")}
+- SINÓNIMOS RELEVANTES: ${synonymTerms.map(t => `${t.term} -> ${t.replacement}`).join(", ")}
+`.trim();
+
     const results: any[] = [];
 
     // Process products in parallel batches of 2 (reduced to avoid WORKER_LIMIT)
