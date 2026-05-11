@@ -329,11 +329,12 @@ serve(async (req) => {
       "pasta": ["cozedor de massa", "pasta cooker"],
       "arroz": ["rice cooker", "cozedor de arroz"],
       // Exaustão / ventilação
-      "exaustor": ["apanha fumos", "apanha-fumos", "hotte", "coifa", "hood", "extractor hood", "exaustão", "campânula", "campanula"],
-      "apanha-fumos": ["exaustor", "hotte", "coifa", "hood", "extractor hood", "campânula", "campanula"],
-      "hotte": ["exaustor", "apanha fumos", "coifa", "hood", "extractor hood", "campânula", "campanula"],
-      "campânula": ["exaustor", "hotte", "coifa", "apanha fumos", "hood", "extractor hood", "campanula"],
-      "campanula": ["exaustor", "hotte", "coifa", "apanha fumos", "hood", "extractor hood", "campânula"],
+      "exaustor": ["apanha fumos", "apanha-fumos", "hotte", "coifa", "hood", "extractor hood", "exaustão", "campânula", "campanula", "campana"],
+      "apanha-fumos": ["exaustor", "hotte", "coifa", "hood", "extractor hood", "campânula", "campanula", "campana"],
+      "hotte": ["exaustor", "apanha fumos", "coifa", "hood", "extractor hood", "campânula", "campanula", "campana"],
+      "campânula": ["exaustor", "hotte", "coifa", "apanha fumos", "hood", "extractor hood", "campanula", "campana"],
+      "campanula": ["exaustor", "hotte", "coifa", "apanha fumos", "hood", "extractor hood", "campânula", "campana"],
+      "campana": ["exaustor", "hotte", "coifa", "apanha fumos", "hood", "extractor hood", "campânula", "campanula"],
       // Bancadas e mobiliário inox
       "bancada": ["mesa de trabalho", "bancada inox", "work table", "worktable", "mesa inox"],
       "lavatório": ["lavatorio", "pia", "sink", "lava-mãos", "lava maos"],
@@ -1319,17 +1320,19 @@ IMPORTANTE: Otimiza o conteúdo BASE que será propagado para todas as variaçõ
           title: `Gera um título otimizado para SEO (50-60 chars) em Português de Portugal (PT-PT).
 REGRAS OBRIGATÓRIAS:
 - NUNCA incluas "HORECA" no título.
+- TRADUZ OBRIGATORIAMENTE termos em Espanhol para Português (ex: "Campana" -> "Campânula" ou "Hotte").
 - Foco: Tipo de Produto + Característica Distintiva + Dimensão/Capacidade.
 - Usar termo específico se necessário: "Profissional", "Industrial", "Comercial".
 - NÃO incluas marca ou códigos EAN no título.
-- PRESERVA a referência técnica/modelo se for a forma principal como o produto é conhecido (ex: "CHST400B"), mas integra-a de forma natural no fim.
+- PRESERVA apenas a referência técnica/modelo (ex: "CHST400B") se for a forma principal como o produto é conhecido, integrando-a no fim.
 - NÃO inventes especificações.
 - Inclui linha/série se aplicável (ex: "Linha 700").
 - Inclui tipo de energia se aplicável (Gás, Elétrico).`,
           description: `Gera uma descrição otimizada (HTML) que soe humana e natural e inclua OBRIGATORIAMENTE sinónimos relevantes para SEO.
 REGRAS DE LINGUAGEM NATURAL — OBRIGATÓRIO:
 - NUNCA soar robótico ou repetitivo. Limitar "HORECA" a máx 1 menção.
-- OTIMIZAÇÃO SEO: Inclui OBRIGATORIAMENTE os sinónimos fornecidos na secção "SINÓNIMOS SEO RELEVANTES" de forma fluída no texto (ex: se o produto é um 'Exaustor', usa também 'hotte', 'coifa' e 'apanha-fumos').
+- OTIMIZAÇÃO SEO: Inclui OBRIGATORIAMENTE os sinónimos fornecidos na secção "SINÓNIMOS SEO RELEVANTES" de forma fluída no texto (ex: se o produto é um 'Exaustor', deves usar também 'hotte', 'coifa' e 'campânula' ao longo da descrição).
+- REVISÃO DE TEXTO: Garante que as palavras estão separadas corretamente (ex: NUNCA escrever "hottede", escreve sempre "hotte de").
 - Substituir "HORECA" por: "o seu restaurante", "o seu bar", "cozinhas profissionais".
 - Dirigir-se ao cliente: "Perfeito para o seu bar", "A sua equipa vai apreciar".
 - VARIAR CONSTRUÇÕES: Nunca começar parágrafos seguidos com "Este equipamento...".
@@ -1339,10 +1342,10 @@ ESTRUTURA OBRIGATÓRIA:
 Envolve TUDO num div: <div class="product-description" style="font-size:15px; line-height:1.65; color:#2c2c2c;"> ... </div> (Obrigatório fechar o div no final).
 Usa h3 com style="margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;"
 
-1. <div class="product-benefits" style="margin-bottom:22px;"> com <h3>[Focus Keyword] — Principais Vantagens</h3>
+1. <div class="product-benefits" style="margin-bottom:22px;"> com <h3>[Focus Keyword em Português] — Principais Vantagens</h3>
 2. <div class="product-applications" style="margin-bottom:22px;"> com <h3>Aplicações</h3> (Contextos concretos: "buffet de hotel", "cafetaria movimentada")
-3. <div class="product-specs" style="margin-bottom:22px;"> com <h3>Características Técnicas</h3> (Tabela HTML completa com TODAS as especificações, exceto Marca, Modelo e EAN que ficam noutra aba)
-4. <div class="product-faq" style="margin-bottom:22px;"> com <h3>Perguntas Frequentes</h3> (EXATAMENTE 5 perguntas)`,
+3. <div class="product-specs" style="margin-bottom:22px;"> com <h3>Características Técnicas</h3> (Tabela HTML completa com TODAS as especificações, exceto Marca, Modelo e EAN)
+4. <div class="product-faq" style="margin-bottom:22px;"> com <h3>Perguntas Frequentes</h3> (EXATAMENTE 5 perguntas detalhadas) (NUNCA uses "Campana" nas perguntas se o produto for uma Campânula)`,
 
           short_description: `Gera uma descrição curta (máx 160 chars) para listagens.
 CONTEÚDO NATURAL: NUNCA usar \"HORECA\". Substituir por contextos específicos.`,
