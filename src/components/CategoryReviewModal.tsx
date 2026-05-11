@@ -148,9 +148,18 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
         body: { 
           workspace_id: product.workspace_id,
           product: {
-            title: product.original_title,
+            title: product.optimized_title || product.original_title,
             original_title: product.original_title,
-            technical_specs: product.technical_specs
+            optimized_title: product.optimized_title,
+            description: product.optimized_description || product.original_description,
+            original_description: product.original_description,
+            short_description: product.short_description,
+            brand: product.brand,
+            sku: product.sku,
+            technical_specs: product.technical_specs,
+            attributes: product.attributes,
+            supplier: product.supplier_name,
+            useMeilisearch: true
           }
         }
       });
