@@ -176,7 +176,7 @@ export function CategoryCell({ product, onSelectSuggestion, currentOverride, cur
                           className="flex items-start gap-1.5 text-[10px] text-destructive font-bold bg-destructive/5 border border-destructive/20 p-1.5 rounded cursor-help hover:bg-destructive/10 transition-all"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleSelect(primarySuggestion.category_id, primarySuggestion.category_name, primarySuggestion.source);
+                            handleSelect(primarySuggestion.category_id, primarySuggestion.category_name, primarySuggestion.source, primarySuggestion.confidence);
                           }}
                         >
                           <MousePointer2 className="w-3 h-3 mt-0.5 shrink-0 rotate-45" />
