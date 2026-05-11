@@ -38,141 +38,162 @@ export function CategoryCell({ product, onSelectSuggestion, currentOverride }: P
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <div className="group cursor-pointer">
-            <div className="flex items-center gap-1 min-w-0">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className={cn(
-                      "text-xs truncate max-w-[300px] block transition-colors cursor-help",
-                      product.category ? "text-foreground font-medium" : "text-muted-foreground italic"
-                    )}>
-                      {product.category || "Sem categoria"}
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1 min-w-0">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className={cn(
+                        "text-xs block transition-colors cursor-help break-words max-w-full",
+                        product.category ? "text-foreground font-medium" : "text-muted-foreground italic"
+                      )}>
+                        {product.category || "Sem categoria"}
+                      </span>
+                    </TooltipTrigger>
+                    {product.category && (
+                      <TooltipContent side="top" className="max-w-md break-words">
+                        <p className="text-xs">
+                          {product.category.split(' > ').map((part: string, i: number, arr: string[]) => (
+                            <span key={i}>
+                              <span className="font-medium">{part}</span>
+                              {i < arr.length - 1 && <span className="text-muted-foreground mx-1">→</span>}
+                            </span>
+                          ))}
+                        </p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
+                <ChevronDown className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+
+              {currentOverride && (
+                <div className="flex items-start gap-1.5 p-1.5 bg-success/10 border border-success/30 rounded-md shadow-sm">
+                  <Check className="w-3.5 h-3.5 text-success mt-0.5 shrink-0" />
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] font-bold text-success uppercase tracking-wider">Vai aprovar:</span>
+                    <span className="text-[11px] text-success font-semibold leading-tight break-words">
+                      {currentOverride}
                     </span>
-                  </TooltipTrigger>
-                  {product.category && (
-                    <TooltipContent side="top" className="max-w-md break-words">
-                      <p className="text-xs">
-                        {product.category.split(' > ').map((part: string, i: number, arr: string[]) => (
-                          <span key={i}>
-                            <span className="font-medium">{part}</span>
-                            {i < arr.length - 1 && <span className="text-muted-foreground mx-1">→</span>}
-                          </span>
-                        ))}
-                      </p>
-                    </TooltipContent>
-                  )}
-                </Tooltip>
-              </TooltipProvider>
-              <ChevronDown className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Suggestions indicators below the main category */}
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {!product.category && primarySuggestion && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div 
-                        className={cn(
-                          "flex items-center gap-1.5 text-[10px] text-primary font-bold bg-primary/5 border border-primary/20 px-2 py-0.5 rounded transition-all shadow-sm",
-                          onSelectSuggestion ? "cursor-pointer hover:bg-primary/10" : "cursor-help",
-                          currentOverride === primarySuggestion.category_name && "ring-2 ring-success border-success bg-success/10"
-                        )}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onSelectSuggestion) {
-                            onSelectSuggestion(primarySuggestion.category_name);
-                          } else {
+            {!currentOverride && (
+              <div className="mt-1.5 flex flex-col gap-1.5">
+                {!product.category && primarySuggestion && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div 
+                          className={cn(
+                            "flex items-start gap-1.5 text-[10px] text-primary font-bold bg-primary/5 border border-primary/20 p-1.5 rounded transition-all shadow-sm hover:bg-primary/10",
+                            onSelectSuggestion ? "cursor-pointer" : "cursor-help"
+                          )}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onSelectSuggestion) {
+                              onSelectSuggestion(primarySuggestion.category_name);
+                            } else {
+                              handleSelect(primarySuggestion.category_id, primarySuggestion.category_name, primarySuggestion.source);
+                            }
+                          }}
+                        >
+                          <Sparkles className="w-3 h-3 mt-0.5 shrink-0" />
+                          <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                            <span className="leading-tight break-words">{primarySuggestion.category_name}</span>
+                            <span className="text-[9px] opacity-70" title="Pontuação de confiança">⭐ {primarySuggestion.confidence}% confiança</span>
+                          </div>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-md break-words">
+                        <p className="text-xs">
+                          {primarySuggestion.category_name.split(' > ').map((part: string, i: number, arr: string[]) => (
+                            <span key={i}>
+                              <span className="font-medium">{part}</span>
+                              {i < arr.length - 1 && <span className="text-muted-foreground mx-1">→</span>}
+                            </span>
+                          ))}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+
+                {secondarySuggestion && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div 
+                          className={cn(
+                            "flex items-start gap-1.5 text-[10px] text-orange-600 font-bold bg-orange-50 border border-orange-200 p-1.5 rounded transition-all shadow-sm hover:bg-orange-100",
+                            onSelectSuggestion ? "cursor-pointer" : "cursor-help"
+                          )}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onSelectSuggestion) {
+                              onSelectSuggestion(secondarySuggestion.category_name);
+                            } else {
+                              handleSelect(secondarySuggestion.category_id, secondarySuggestion.category_name, secondarySuggestion.source);
+                            }
+                          }}
+                        >
+                          <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                            <span className="leading-tight break-words">{secondarySuggestion.category_name}</span>
+                            <span className="text-[9px] opacity-70" title="Pontuação de confiança">⭐ {secondarySuggestion.confidence}% confiança</span>
+                          </div>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-md break-words">
+                        <p className="text-xs">
+                          {secondarySuggestion.category_name.split(' > ').map((part: string, i: number, arr: string[]) => (
+                            <span key={i}>
+                              <span className="font-medium">{part}</span>
+                              {i < arr.length - 1 && <span className="text-muted-foreground mx-1">→</span>}
+                            </span>
+                          ))}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+
+                {product.category && primarySuggestion && primarySuggestion.category_name !== product.category && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div 
+                          className="flex items-start gap-1.5 text-[10px] text-destructive font-bold bg-destructive/5 border border-destructive/20 p-1.5 rounded cursor-help hover:bg-destructive/10 transition-all"
+                          onClick={(e) => {
+                            e.stopPropagation();
                             handleSelect(primarySuggestion.category_id, primarySuggestion.category_name, primarySuggestion.source);
-                          }
-                        }}
-                      >
-                        <Sparkles className="w-2.5 h-2.5" />
-                        <span className="truncate max-w-[250px]">{primarySuggestion.category_name}</span>
-                        <span className="ml-1 opacity-70" title="Pontuação de confiança">⭐ {primarySuggestion.confidence}% confiança</span>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-md break-words">
-                      <p className="text-xs">
-                        {primarySuggestion.category_name.split(' > ').map((part: string, i: number, arr: string[]) => (
-                          <span key={i}>
-                            <span className="font-medium">{part}</span>
-                            {i < arr.length - 1 && <span className="text-muted-foreground mx-1">→</span>}
-                          </span>
-                        ))}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-
-              {secondarySuggestion && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div 
-                        className={cn(
-                          "flex items-center gap-1.5 text-[10px] text-orange-600 font-bold bg-orange-50 border border-orange-200 px-2 py-0.5 rounded transition-all shadow-sm",
-                          onSelectSuggestion ? "cursor-pointer hover:bg-orange-100" : "cursor-help",
-                          currentOverride === secondarySuggestion.category_name && "ring-2 ring-success border-success bg-success/10"
-                        )}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onSelectSuggestion) {
-                            onSelectSuggestion(secondarySuggestion.category_name);
-                          } else {
-                            handleSelect(secondarySuggestion.category_id, secondarySuggestion.category_name, secondarySuggestion.source);
-                          }
-                        }}
-                      >
-                        <span className="truncate max-w-[250px]">{secondarySuggestion.category_name}</span>
-                        <span className="ml-1 opacity-70" title="Pontuação de confiança">⭐ {secondarySuggestion.confidence}% confiança</span>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-md break-words">
-                      <p className="text-xs">
-                        {secondarySuggestion.category_name.split(' > ').map((part: string, i: number, arr: string[]) => (
-                          <span key={i}>
-                            <span className="font-medium">{part}</span>
-                            {i < arr.length - 1 && <span className="text-muted-foreground mx-1">→</span>}
-                          </span>
-                        ))}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-
-              {product.category && primarySuggestion && primarySuggestion.category_name !== product.category && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div 
-                        className="flex items-center gap-1.5 text-[10px] text-destructive font-bold bg-destructive/5 border border-destructive/20 px-2 py-0.5 rounded cursor-help hover:bg-destructive/10 transition-all"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSelect(primarySuggestion.category_id, primarySuggestion.category_name, primarySuggestion.source);
-                        }}
-                      >
-                        <MousePointer2 className="w-2.5 h-2.5 rotate-45" />
-                        <span className="truncate max-w-[250px] italic">Corrigir para: {primarySuggestion.category_name}</span>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-md break-words">
-                      <p className="text-xs">
-                        <span className="text-muted-foreground mr-1 italic">Corrigir para:</span>
-                        {primarySuggestion.category_name.split(' > ').map((part: string, i: number, arr: string[]) => (
-                          <span key={i}>
-                            <span className="font-medium">{part}</span>
-                            {i < arr.length - 1 && <span className="text-muted-foreground mx-1">→</span>}
-                          </span>
-                        ))}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </div>
+                          }}
+                        >
+                          <MousePointer2 className="w-3 h-3 mt-0.5 shrink-0 rotate-45" />
+                          <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                            <span className="italic leading-tight break-words text-muted-foreground">Corrigir para:</span>
+                            <span className="leading-tight break-words">{primarySuggestion.category_name}</span>
+                          </div>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-md break-words">
+                        <p className="text-xs">
+                          <span className="text-muted-foreground mr-1 italic">Corrigir para:</span>
+                          {primarySuggestion.category_name.split(' > ').map((part: string, i: number, arr: string[]) => (
+                            <span key={i}>
+                              <span className="font-medium">{part}</span>
+                              {i < arr.length - 1 && <span className="text-muted-foreground mx-1">→</span>}
+                            </span>
+                          ))}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+            )}
           </div>
         </PopoverTrigger>
 

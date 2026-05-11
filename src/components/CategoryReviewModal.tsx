@@ -428,7 +428,7 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                   </TableHead>
                   <TableHead className="text-xs font-bold uppercase tracking-wider text-muted-foreground w-32">SKU / Referência</TableHead>
                   <TableHead className="text-xs font-bold uppercase tracking-wider text-muted-foreground w-64">Produto</TableHead>
-                  <TableHead className="text-xs font-bold uppercase tracking-wider text-muted-foreground min-w-[350px]">Categoria Atual / Sugestões</TableHead>
+                  <TableHead className="text-xs font-bold uppercase tracking-wider text-muted-foreground min-w-[450px]">Categoria Atual / Sugestões</TableHead>
                   <TableHead className="w-10"></TableHead>
                   <TableHead className="text-xs font-bold uppercase tracking-wider text-muted-foreground min-w-[200px]">Ações</TableHead>
                 </TableRow>
@@ -457,7 +457,7 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                     
                     return (
                       <TableRow key={p.id} className={cn(
-                        "transition-colors group h-16",
+                        "transition-colors group min-h-16",
                         selected.has(p.id) && "bg-primary/5",
                         !p.suggested_category && showAllProducts && "opacity-80"
                       )}>
@@ -479,7 +479,7 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="py-4">
                           <CategoryCell 
                             product={p} 
                             onSelectSuggestion={(catName) => {
@@ -488,11 +488,6 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                             }}
                             currentOverride={overrides[p.id]}
                           />
-                          {overrides[p.id] && (
-                            <p className="text-[10px] text-success mt-1 font-medium break-words max-w-[500px]" title={overrides[p.id]}>
-                              ✓ Vai aprovar: {overrides[p.id]}
-                            </p>
-                          )}
                         </TableCell>
                         <TableCell>
                           <ArrowRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary/40 group-hover:translate-x-1 transition-all" />

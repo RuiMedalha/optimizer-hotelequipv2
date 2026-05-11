@@ -24,6 +24,7 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [], workspa
   const [level1, setLevel1] = useState<string | null>(null);
   const [level2, setLevel2] = useState<string | null>(null);
   const [level3, setLevel3] = useState<string | null>(null);
+  const [level4, setLevel4] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   const { data: roots, isLoading: loadingRoots } = useQuery({
@@ -71,11 +72,25 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [], workspa
     }
   });
 
+  const { data: level4Options, isLoading: loadingL4 } = useQuery({
+    queryKey: ["category-sub", level3],
+    enabled: !!level3,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, name, parent_id, workspace_id")
+        .eq("parent_id", level3)
+        .is("workspace_id", null)
+        .order("name");
+      if (error) throw error;
+      return data as Category[];
+    }
+  });
+
   const { data: searchResults, isLoading: loadingSearch } = useQuery({
     queryKey: ["category-search", search],
     enabled: search.length > 1,
     queryFn: async () => {
-      // Use join to get parent name for context
       const { data, error } = await supabase
         .from("categories")
         .select(`
@@ -84,7 +99,13 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [], workspa
           parent_id, 
           workspace_id,
           parent:parent_id (
-            name
+            name,
+            parent:parent_id (
+              name,
+              parent:parent_id (
+                name
+              )
+            )
           )
         `)
         .is("workspace_id", null)
@@ -92,18 +113,31 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [], workspa
         .limit(20);
       if (error) throw error;
       
-      return data.map((cat: any) => ({
-        ...cat,
-        parentName: cat.parent?.name
-      })) as (Category & { parentName?: string })[];
+      return data.map((cat: any) => {
+        const parts = [];
+        if (cat.parent?.parent?.parent?.name) parts.push(cat.parent.parent.parent.name);
+        if (cat.parent?.parent?.name) parts.push(cat.parent.parent.name);
+        if (cat.parent?.name) parts.push(cat.parent.name);
+        parts.push(cat.name);
+        return {
+          ...cat,
+          fullPathName: parts.join(" > ")
+        };
+      }) as (Category & { fullPathName: string })[];
     }
   });
 
-  const isLoading = loadingRoots || loadingL2 || loadingL3;
+  const isLoading = loadingRoots || loadingL2 || loadingL3 || loadingL4;
 
   const getLabel = (catId: string | null): string => {
     if (!catId) return "";
-    const allOptions = [...(roots || []), ...(level2Options || []), ...(level3Options || []), ...(searchResults || [])];
+    const allOptions = [
+      ...(roots || []), 
+      ...(level2Options || []), 
+      ...(level3Options || []), 
+      ...(level4Options || []), 
+      ...(searchResults || [])
+    ];
     const cat = allOptions.find(c => c.id === catId);
     return cat ? cat.name : "";
   };
@@ -129,11 +163,10 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [], workspa
             {searchResults.map(res => (
               <button
                 key={res.id}
-                onClick={() => onSelect({ id: res.id, name: res.parentName ? `${res.parentName} > ${res.name}` : res.name })}
+                onClick={() => onSelect({ id: res.id, name: res.fullPathName })}
                 className="w-full text-left p-2 hover:bg-primary/10 rounded text-[11px] flex flex-col gap-0.5 transition-colors"
               >
-                <span className="font-semibold">{res.name}</span>
-                {res.parentName && <span className="text-[10px] text-muted-foreground italic truncate">em {res.parentName}</span>}
+                <span className="font-semibold break-words">{res.fullPathName}</span>
               </button>
             ))}
           </div>
@@ -153,7 +186,7 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [], workspa
           {/* Level 1 */}
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold uppercase text-muted-foreground px-1">Nível 1</label>
-            <Select value={level1 || ""} onValueChange={(v) => { setLevel1(v); setLevel2(null); setLevel3(null); }}>
+            <Select value={level1 || ""} onValueChange={(v) => { setLevel1(v); setLevel2(null); setLevel3(null); setLevel4(null); }}>
               <SelectTrigger className="h-9">
                 <SelectValue placeholder="Selecione categoria" />
               </SelectTrigger>
@@ -174,7 +207,7 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [], workspa
           {level1 && (
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold uppercase text-muted-foreground px-1">Nível 2</label>
-              <Select value={level2 || ""} onValueChange={(v) => { setLevel2(v); setLevel3(null); }}>
+              <Select value={level2 || ""} onValueChange={(v) => { setLevel2(v); setLevel3(null); setLevel4(null); }}>
                 <SelectTrigger className="h-9 text-left">
                   <SelectValue placeholder={loadingL2 ? "Carregando..." : "Selecione sub-categoria"} />
                 </SelectTrigger>
@@ -199,7 +232,7 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [], workspa
           {level2 && (
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold uppercase text-muted-foreground px-1">Nível 3</label>
-              <Select value={level3 || ""} onValueChange={(v) => setLevel3(v)}>
+              <Select value={level3 || ""} onValueChange={(v) => { setLevel3(v); setLevel4(null); }}>
                 <SelectTrigger className="h-9 text-left">
                   <SelectValue placeholder={loadingL3 ? "Carregando..." : "Selecione detalhe"} />
                 </SelectTrigger>
@@ -220,16 +253,42 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [], workspa
             </div>
           )}
 
+          {/* Level 4 */}
+          {level3 && (
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase text-muted-foreground px-1">Nível 4</label>
+              <Select value={level4 || ""} onValueChange={(v) => setLevel4(v)}>
+                <SelectTrigger className="h-9 text-left">
+                  <SelectValue placeholder={loadingL4 ? "Carregando..." : "Selecione item final"} />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  {level4Options?.map(c => (
+                    <SelectItem key={c.id} value={c.id}>
+                      <div className="flex items-center gap-2">
+                        {c.name}
+                        {suggestedIds.includes(c.id) && <Badge variant="secondary" className="text-[8px] h-4">Sugestão</Badge>}
+                      </div>
+                    </SelectItem>
+                  ))}
+                  {!loadingL4 && (!level4Options || level4Options.length === 0) && (
+                    <div className="p-2 text-center text-xs text-muted-foreground italic">Nenhum sub-item disponível</div>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="pt-2 border-t mt-2">
             <Button 
               className="w-full" 
               disabled={!level1}
               onClick={() => {
-                const finalId = level3 || level2 || level1;
+                const finalId = level4 || level3 || level2 || level1;
                 if (finalId) {
                   let fullName = getLabel(level1);
                   if (level2) fullName += " > " + getLabel(level2);
                   if (level3) fullName += " > " + getLabel(level3);
+                  if (level4) fullName += " > " + getLabel(level4);
                   onSelect({ id: finalId, name: fullName });
                 }
               }}
