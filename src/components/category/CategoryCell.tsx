@@ -10,9 +10,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 interface Props {
   product: any;
+  onSelectSuggestion?: (categoryName: string) => void;
+  currentOverride?: string | null;
 }
 
-export function CategoryCell({ product }: Props) {
+export function CategoryCell({ product, onSelectSuggestion, currentOverride }: Props) {
   const [open, setOpen] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const { suggestions, isLoading, confirmCategory, isConfirming } = useCategoryLearning(product);
@@ -67,15 +69,23 @@ export function CategoryCell({ product }: Props) {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div 
-                        className="flex items-center gap-1.5 text-[10px] text-primary font-bold bg-primary/5 border border-primary/20 px-2 py-0.5 rounded cursor-help hover:bg-primary/10 transition-all shadow-sm"
+                        className={cn(
+                          "flex items-center gap-1.5 text-[10px] text-primary font-bold bg-primary/5 border border-primary/20 px-2 py-0.5 rounded transition-all shadow-sm",
+                          onSelectSuggestion ? "cursor-pointer hover:bg-primary/10" : "cursor-help",
+                          currentOverride === primarySuggestion.category_name && "ring-2 ring-success border-success bg-success/10"
+                        )}
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleSelect(primarySuggestion.category_id, primarySuggestion.category_name, primarySuggestion.source);
+                          if (onSelectSuggestion) {
+                            onSelectSuggestion(primarySuggestion.category_name);
+                          } else {
+                            handleSelect(primarySuggestion.category_id, primarySuggestion.category_name, primarySuggestion.source);
+                          }
                         }}
                       >
                         <Sparkles className="w-2.5 h-2.5" />
                         <span className="truncate max-w-[150px]">{primarySuggestion.category_name}</span>
-                        <span className="ml-1 opacity-70">{primarySuggestion.confidence}%</span>
+                        <span className="ml-1 opacity-70" title="Pontuação de confiança">⭐ {primarySuggestion.confidence}% confiança</span>
                       </div>
                     </TooltipTrigger>
                     <TooltipContent side="top" className="max-w-md break-words">
@@ -97,14 +107,22 @@ export function CategoryCell({ product }: Props) {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div 
-                        className="flex items-center gap-1.5 text-[10px] text-orange-600 font-bold bg-orange-50 border border-orange-200 px-2 py-0.5 rounded cursor-help hover:bg-orange-100 transition-all shadow-sm"
+                        className={cn(
+                          "flex items-center gap-1.5 text-[10px] text-orange-600 font-bold bg-orange-50 border border-orange-200 px-2 py-0.5 rounded transition-all shadow-sm",
+                          onSelectSuggestion ? "cursor-pointer hover:bg-orange-100" : "cursor-help",
+                          currentOverride === secondarySuggestion.category_name && "ring-2 ring-success border-success bg-success/10"
+                        )}
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleSelect(secondarySuggestion.category_id, secondarySuggestion.category_name, secondarySuggestion.source);
+                          if (onSelectSuggestion) {
+                            onSelectSuggestion(secondarySuggestion.category_name);
+                          } else {
+                            handleSelect(secondarySuggestion.category_id, secondarySuggestion.category_name, secondarySuggestion.source);
+                          }
                         }}
                       >
                         <span className="truncate max-w-[150px]">{secondarySuggestion.category_name}</span>
-                        <span className="ml-1 opacity-70">{secondarySuggestion.confidence}%</span>
+                        <span className="ml-1 opacity-70" title="Pontuação de confiança">⭐ {secondarySuggestion.confidence}% confiança</span>
                       </div>
                     </TooltipTrigger>
                     <TooltipContent side="top" className="max-w-md break-words">
