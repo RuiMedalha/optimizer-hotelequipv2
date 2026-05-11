@@ -315,6 +315,8 @@ Deno.serve(async (req) => {
       });
     }
 
+    // We need service role to insert into operation_errors bypassing RLS restrictions
+    // but we still pass auth header for auditing
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -609,9 +611,10 @@ Deno.serve(async (req) => {
               phase: "insert",
             });
 
-            // Persist to central error log
+            // Persist to central error log using service role client
             try {
-              await supabase.from("catalog_operation_errors").insert({
+              console.log(`Logging insert error for SKU ${sku}`);
+              const { error: logErr } = await supabase.from("catalog_operation_errors").insert({
                 workspace_id: workspaceId,
                 user_id: userId,
                 operation_type: 'woocommerce_import',
@@ -619,8 +622,9 @@ Deno.serve(async (req) => {
                 error_message: errMsg,
                 error_detail: { phase: 'insert', woo_id: wp.id, name: wp.name }
               });
-            } catch (logErr) {
-              console.error("Failed to persist import error:", logErr);
+              if (logErr) console.error("Error inserting to catalog_operation_errors:", logErr);
+            } catch (err) {
+              console.error("Exception logging error:", err);
             }
           }
           continue;
@@ -683,7 +687,8 @@ Deno.serve(async (req) => {
 
               // Persist to central error log
               try {
-                await supabase.from("catalog_operation_errors").insert({
+                console.log(`Logging variation error for SKU ${vi.sku}`);
+                const { error: logErr } = await supabase.from("catalog_operation_errors").insert({
                   workspace_id: workspaceId,
                   user_id: userId,
                   operation_type: 'woocommerce_import_variation',
@@ -691,8 +696,9 @@ Deno.serve(async (req) => {
                   error_message: errMsg,
                   error_detail: { phase: 'variation', parent_id: wooParentId }
                 });
-              } catch (logErr) {
-                console.error("Failed to persist variation import error:", logErr);
+                if (logErr) console.error("Error inserting variation error:", logErr);
+              } catch (err) {
+                console.error("Exception logging variation error:", err);
               }
             }
           } else {
