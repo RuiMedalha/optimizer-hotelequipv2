@@ -195,6 +195,9 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
       // Auto-apply as override so UI updates immediately
       if (data?.category_name) {
         setOverrides(prev => ({ ...prev, [id]: data.category_name }));
+        if (data.confidence_score) {
+          setOverrideConfidences(prev => ({ ...prev, [id]: Math.round(data.confidence_score * 100) }));
+        }
         setSelected(prev => new Set([...prev, id]));
       }
     } catch (err: any) {
