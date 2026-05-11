@@ -38,8 +38,26 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+    // Fetch business terminology for prompt context
+    const { data: terminologyData } = await supabase
+      .from("business_terminology")
+      .select("term, type, replacement, category")
+      .or(`workspace_id.eq.${workspace_id},is_global.eq.true`);
+
+    const preferredTerms = (terminologyData || []).filter(t => t.type === 'preferred');
+    const avoidTerms = (terminologyData || []).filter(t => t.type === 'avoid');
+    const synonymTerms = (terminologyData || []).filter(t => t.type === 'synonym');
+
+    const terminologyContext = `
+CONTEXTO DE NEGÓCIO E TERMINOLOGIA (SEMPRE PRIORIZAR):
+- TERMOS PREFERENCIAIS: ${preferredTerms.map(t => `${t.term} (usar em ${t.category || "geral"})`).join(", ")}
+- TERMOS A EVITAR: ${avoidTerms.map(t => `${t.term} -> substituir por ${t.replacement}`).join(", ")}
+- SINÓNIMOS RELEVANTES: ${synonymTerms.map(t => `${t.term} -> ${t.replacement}`).join(", ")}
+`.trim();
+
     // Selecionar variação aleatória para diversidade
     const toneVariation = TONE_VARIATIONS[Math.floor(Math.random() * TONE_VARIATIONS.length)];
+
     const openingStyle = OPENING_STYLES[Math.floor(Math.random() * OPENING_STYLES.length)];
 
     const langInstruction = lang === "pt" ? "Português de Portugal (pt-PT)" 
@@ -110,6 +128,7 @@ SECÇÕES OBRIGATÓRIAS (nesta ordem):
      <p style="font-style:italic; color:#6b7280; margin:0 0 14px;">Resposta aqui.</p>
 
 REGRAS SEO E QUALIDADE:
+${terminologyContext}
 - Keywords naturais no texto, sem stuffing.
 - A primeira frase deve conter a keyword principal do produto em Português de Portugal.
 - OBRIGATÓRIO: Utiliza sinónimos e variações linguísticas do produto ao longo do texto (ex: se é uma 'Campânula', utiliza também 'hotte', 'coifa', 'exaustor').
@@ -117,6 +136,7 @@ REGRAS SEO E QUALIDADE:
 - TRADUÇÃO: NUNCA utilizes termos em Espanhol como "Campana" se o produto for uma "Campânula" ou "Hotte".
 - Inclui variações long-tail nas keywords (ex: "fritadeira a gás 8 litros profissional").
 - Alt-text pensado para pesquisa, não para decoração.
+
 
 FORMATO DE RESPOSTA (JSON puro, sem markdown fences):
 {

@@ -1737,6 +1737,50 @@ export type Database = {
           },
         ]
       }
+      business_terminology: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          id: string
+          is_global: boolean | null
+          replacement: string | null
+          term: string
+          type: string | null
+          updated_at: string | null
+          workspace_id: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          is_global?: boolean | null
+          replacement?: string | null
+          term: string
+          type?: string | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          is_global?: boolean | null
+          replacement?: string | null
+          term?: string
+          type?: string | null
+          updated_at?: string | null
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_terminology_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       canonical_assembly_logs: {
         Row: {
           assembly_step: string
