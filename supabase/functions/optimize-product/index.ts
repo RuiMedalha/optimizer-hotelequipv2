@@ -1724,19 +1724,28 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
         }
 
         if (typeof optimized.optimized_description === "string") {
-          // --- FAQ EXTRACTION (if structured data is missing but HTML has it) ---
-          if ((!optimized.faq || !Array.isArray(optimized.faq) || optimized.faq.length === 0) && optimized.optimized_description.includes("product-faq")) {
+          // --- FAQ EXTRACTION (Always try to sync structured FAQ with HTML description FAQ if present) ---
+          if (optimized.optimized_description.includes("product-faq")) {
             try {
-              const faqMatch = optimized.optimized_description.match(/<div class="product-faq"[\s\S]*?>([\s\S]*?)<\/div>\s*<\/div>/i);
+              // More lenient regex to match the product-faq div, regardless of outer divs
+              const faqMatch = optimized.optimized_description.match(/<div[^>]*class=["']product-faq["'][^>]*>([\s\S]*?)(?:<\/div>\s*<\/div>|<\/div>\s*$)/i);
               if (faqMatch) {
                 const faqHtml = faqMatch[1];
                 const qas = [];
-                const pMatches = faqHtml.matchAll(/<p style="font-weight:bold[^>]*>(.*?)<\/p>\s*<p style="font-style:italic[^>]*>(.*?)<\/p>/gi);
-                for (const m of pMatches) {
-                  if (m[1] && m[2]) qas.push({ question: m[1].trim(), answer: m[2].trim() });
+                // More lenient regex for Q&A pairs (matches bold/strong for questions, italic/em for answers)
+                // Also matches plain <p> tags if they follow the pattern
+                const qRegex = /<(?:p|strong|b)[^>]*>(.*?)<\/(?:p|strong|b)>\s*<(?:p|em|i)[^>]*>(.*?)<\/(?:p|em|i)>/gi;
+                let m;
+                while ((m = qRegex.exec(faqHtml)) !== null) {
+                  const q = m[1].replace(/<[^>]*>/g, "").trim();
+                  const a = m[2].replace(/<[^>]*>/g, "").trim();
+                  if (q && a && q.length > 5) {
+                    qas.push({ question: q, answer: a });
+                  }
                 }
+                
                 if (qas.length > 0) {
-                  console.log(`[optimize-product] Extracted ${qas.length} FAQs from HTML description`);
+                  console.log(`[optimize-product] Synced ${qas.length} FAQs from HTML description to structured field`);
                   optimized.faq = qas;
                 }
               }
