@@ -1786,7 +1786,7 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
             if (!hadFaqPlaceholder && !hasFaqWrapperAfter) {
               // Ensure we're inside the root div
               const endsWithRootClose = /(<\/div>)\s*$/.test(optimized.optimized_description);
-              const faqBlock = `<div class="product-faq" style="margin-bottom:22px;"><h3 style="margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;">Perguntas Frequentes</h3><div style="margin-top:10px; background:#fcfcfd; border:1px solid #e5e7eb; border-radius:8px; padding:14px 16px;">\n${faqHtml}\n</div></div>`;
+              const faqBlock = `<div class="product-faq" style="margin-top:24px; margin-bottom:22px;"><h3 style="margin:0 0 12px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;">Perguntas Frequentes</h3>\n${faqHtml}\n</div>`;
               if (endsWithRootClose) {
                 // Insert FAQ before the closing root </div>
                 optimized.optimized_description = optimized.optimized_description.replace(
