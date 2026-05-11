@@ -59,6 +59,10 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const { productIds, workspaceId, overwrite = false } = body;
+    const authHeader = req.headers.get("Authorization")!;
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user } } = await supabase.auth.getUser(token);
+    const userId = user?.id;
 
     if (!productIds?.length || !workspaceId) {
       throw new Error("productIds and workspaceId are required");
@@ -153,8 +157,19 @@ Deno.serve(async (req) => {
             });
 
             if (!resp.ok) {
-              console.warn(`[cache-images] Download failed (${resp.status}) for ${url}`);
+              const msg = `Download failed (${resp.status}) for ${url}`;
+              console.warn(`[cache-images] ${msg}`);
               totalFailed++;
+              
+              await supabase.from("catalog_operation_errors").insert({
+                workspace_id: workspaceId,
+                user_id: userId,
+                operation_type: 'image_migration',
+                sku: product.sku || product.id,
+                product_id: product.id,
+                error_message: msg,
+                error_detail: { url, status: resp.status, phase: 'download' }
+              });
               continue;
             }
 
@@ -182,8 +197,19 @@ Deno.serve(async (req) => {
               });
 
             if (uploadError) {
-              console.error(`[cache-images] Upload failed for ${storagePath}:`, uploadError);
+              const msg = `Upload failed for ${storagePath}: ${uploadError.message}`;
+              console.error(`[cache-images] ${msg}`);
               totalFailed++;
+              
+              await supabase.from("catalog_operation_errors").insert({
+                workspace_id: workspaceId,
+                user_id: userId,
+                operation_type: 'image_migration',
+                sku: product.sku || product.id,
+                product_id: product.id,
+                error_message: msg,
+                error_detail: { url, storagePath, error: uploadError, phase: 'upload' }
+              });
               continue;
             }
 
@@ -206,9 +232,24 @@ Deno.serve(async (req) => {
             productChanged = true;
             totalCached++;
 
-          } catch (err) {
+          } catch (err: any) {
             console.error(`[cache-images] Exception processing ${url}:`, err);
             totalFailed++;
+            
+            // Log to catalog_operation_errors
+            try {
+              await supabase.from("catalog_operation_errors").insert({
+                workspace_id: workspaceId,
+                user_id: userId,
+                operation_type: 'image_migration',
+                sku: product.sku || product.id,
+                product_id: product.id,
+                error_message: `Falha ao migrar imagem: ${err.message || 'Erro desconhecido'}`,
+                error_detail: { url, phase: 'download_upload', error: err }
+              });
+            } catch (logErr) {
+              console.error("[cache-images] Failed to log error to DB:", logErr);
+            }
           }
         }
 
