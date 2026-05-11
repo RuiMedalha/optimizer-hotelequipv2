@@ -435,9 +435,14 @@ function buildConsolidatedPayload(
     // Rule 2 & 3: Strip existing FAQ and Uso Profissional HTML
     desc = desc.replace(/<!-- HOTELEQUIP:FAQ_START -->[\s\S]*?<!-- HOTELEQUIP:FAQ_END -->/gi, "");
     desc = desc.replace(/<div[^>]*class=["']hotelequip-faq["'][\s\S]*?<\/div>/gi, "");
-    desc = desc.replace(/<div[^>]*class=["']product-faq["'][\s\S]*?<\/div>\s*(<\/div>)?/gi, "");
+    desc = desc.replace(/<div[^>]*class=["']product-faq["'][\s\S]*?<\/div>/gi, "");
     desc = desc.replace(/<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->[\s\S]*?<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->/gi, "");
     desc = desc.replace(/<div[^>]*class=["']uso-profissional[^"']*["'][\s\S]*?<\/div>/gi, "");
+
+    // Ensure product-description is closed if it exists but is not closed at the end
+    if (desc.includes('class="product-description"') && !desc.trim().endsWith('</div>')) {
+      desc = desc.trim() + "</div>";
+    }
 
     // Rule 3: Add Uso Profissional if requested
     if (has("uso_profissional_in_description") && usoData && usoData.publish_enabled) {
