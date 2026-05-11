@@ -37,6 +37,45 @@ function validateNaturalLanguage(content: string, fieldName: string): void {
   }
 }
 
+async function findSimilarProductsInMeilisearch(
+  title: string,
+  shortDesc: string
+): Promise<Array<{ title: string; category: string; brand: string }>> {
+  const MEILI_URL = "https://search.palamenta.com.pt";
+  const MEILI_KEY = "ed7cabcddd7aeeed55e18972f4ec98dccd3c27bf78cb82962d04e1661778011e";
+  const INDEX = "products_stage";
+
+  const query = `${title} ${shortDesc}`.trim().substring(0, 200);
+
+  try {
+    const resp = await fetch(`${MEILI_URL}/indexes/${INDEX}/search`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${MEILI_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        q: query,
+        limit: 8,
+        attributesToRetrieve: ["title", "categories", "brand_names"],
+      }),
+    });
+
+    if (!resp.ok) return [];
+
+    const data = await resp.json();
+    return (data.hits || [])
+      .filter((h: any) => h.categories?.length > 0)
+      .map((h: any) => ({
+        title: h.title || "",
+        category: Array.isArray(h.categories) ? h.categories[0] : "",
+        brand: Array.isArray(h.brand_names) ? h.brand_names[0] : "",
+      }));
+  } catch {
+    return [];
+  }
+}
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
