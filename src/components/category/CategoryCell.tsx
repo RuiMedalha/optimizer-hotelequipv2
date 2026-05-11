@@ -224,7 +224,7 @@ export function CategoryCell({ product, onSelectSuggestion, currentOverride, cur
                     "w-full text-left p-2 rounded-md hover:bg-muted transition-colors flex flex-col gap-0.5 relative group",
                     s.category_name === product.category && "bg-primary/5 ring-1 ring-primary/20"
                   )}
-                  onClick={() => handleSelect(s.category_id, s.category_name, s.source)}
+                  onClick={() => handleSelect(s.category_id, s.category_name, s.source, s.confidence)}
                   disabled={isConfirming}
                 >
                   <div className="flex items-center justify-between gap-2">
