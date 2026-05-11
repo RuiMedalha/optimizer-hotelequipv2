@@ -10,8 +10,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 
 interface Props {
   product: any;
-  onSelectSuggestion?: (categoryName: string) => void;
+  onSelectSuggestion?: (categoryName: string, confidence?: number) => void;
   currentOverride?: string | null;
+  currentOverrideConfidence?: number;
 }
 
 export function CategoryCell({ product, onSelectSuggestion, currentOverride }: Props) {
