@@ -1420,12 +1420,13 @@ Em ambos os casos: usar contextos reais (buffet de hotel, cafetaria, restaurante
 REGRA HTML: O div raiz <div class="product-description"> DEVE ser fechado com </div> no final. Verificar que cada <div> aberto tem o seu </div> correspondente.`,
 
           short_description: `Gera uma descrição curta (máx 160 chars) para listagens.
-PROIBIDO: "HORECA" em qualquer forma. Substituir por: "restaurantes", "cozinhas profissionais", "hotelaria", "cafetarias". PROIBIDO começar com "Otimize" ou "Potencie".`,
+PROIBIDO: "HORECA" em qualquer forma. Substituir por: "restaurantes", "cozinhas profissionais", "hotelaria", "cafetarias". PROIBIDO começar com "Otimize" ou "Potencie".
+PROIBIDO: "HORECA" em qualquer forma → usar "restaurantes", "cozinhas profissionais", "hotelaria". PROIBIDO começar com "Otimize" ou "Potencie".`,
           meta_title: `Gera meta title SEO (máx 60 chars).
 - Keyword principal no início.
 - Inclui \"Comprar\" ou \"Preço\".
 - NÃO incluas marca, códigos EAN ou referências.
-\${terminologyForTitle}
+${terminologyForTitle}
 REGRA: NUNCA usar termos "avoid" no meta_title (ex: "Campana", "Fregadero", "Horno", "Freidora"). Usar sempre o termo preferred PT-PT.`,
           meta_description: `Gera meta description SEO (140-155 chars).
 REGRAS OBRIGATÓRIAS:
@@ -1433,14 +1434,9 @@ REGRAS OBRIGATÓRIAS:
 - Dirigir-se ao cliente: \"para o seu restaurante\", \"ideal para o seu bar\".
 - Benefício concreto + contexto específico + call-to-action (ex: \"Entrega 24-48h\").
 - NÃO incluas marca. Usa linguagem que gere cliques.
-\${terminologyForTitle}
-REGRA: NUNCA usar "HORECA" na meta_description. NUNCA usar termos "avoid". Substituir por contextos específicos: "restaurantes", "hotéis", "cozinhas profissionais".`,
-          meta_description: `Gera meta description SEO (140-155 chars).
-REGRAS OBRIGATÓRIAS:
-- NUNCA usar \"HORECA\". Usar: \"restaurantes\", \"hotéis\", \"bares\".
-- Dirigir-se ao cliente: \"para o seu restaurante\", \"ideal para o seu bar\".
-- Benefício concreto + contexto específico + call-to-action (ex: \"Entrega 24-48h\").
-- NÃO incluas marca. Usa linguagem que gere cliques.`,
+${terminologyForTitle}
+REGRA: NUNCA usar "HORECA" na meta_description. NUNCA usar termos "avoid". Substituir por contextos específicos: "restaurantes", "hotéis", "cozinhas profissionais".
+PROIBIDO começar com "Otimize", "Potencie", "Descubra". PROIBIDO usar "HORECA". Começar com benefício directo ou facto técnico do produto.`,
           seo_slug: `Gera um slug SEO-friendly.
 REGRAS OBRIGATÓRIAS:
 - Lowercase, sem acentos, com hífens
@@ -1449,9 +1445,10 @@ REGRAS OBRIGATÓRIAS:
 - NÃO incluas códigos EAN ou referências no slug
 - Máx 5-7 palavras
 - Exemplo: fritadeira-gas-linha-700-8-litros
-\${terminologyForTitle}
+${terminologyForTitle}
 REGRA: NUNCA usar termos "avoid" no slug (ex: "campana", "fregadero", "horno", "freidora"). O slug usa sempre o termo PT-PT preferred em lowercase sem acentos.`,
-          tags: `${terminologyForTags}\nPROIBIDO nas tags: "HORECA", "horeca". Usar: "restaurante", "cozinha profissional", "hotelaria".`,
+          tags: `${terminologyForTags}\nPROIBIDO nas tags: "HORECA", "horeca". Usar: "restaurante", "cozinha profissional", "hotelaria".
+PROIBIDO nas tags: "HORECA", "horeca" → substituir por "restaurante", "cozinha profissional", "hotelaria".`,
           price: `Sugere um preço otimizado.
 REGRAS:
 - Mantém o preço original se parecer correto para o mercado
@@ -1636,7 +1633,25 @@ REGRAS OBRIGATÓRIAS:
           fieldInstructions.push(`CATEGORIA SUGERIDA:\n${getFieldPrompt("category", "Escolhe a categoria mais específica da lista.")}${similarContext}${catList}${semanticHint}${patternHints}${accessoryRule}${noCatHint}`);
         }
 
-        const defaultPrompt = `Optimiza o seguinte produto de e-commerce para SEO e conversão em português europeu.
+        const analysisPhase = `FASE 1 — ANÁLISE DO PRODUTO (executar ANTES de gerar qualquer campo):
+Lê o título original E a descrição original do fornecedor na íntegra.
+Com base nessa leitura, determina o tipo real do produto antes de gerar qualquer conteúdo.
+
+REGRAS DE INTERPRETAÇÃO OBRIGATÓRIAS:
+- "patas/pés reguláveis" + bancada superior → móvel autoportante → usar "Móvel de Prateleiras Inox" ou "Módulo Neutro Inox" (NUNCA "Estante")
+- "fixação à parede" sem patas → mural → usar "Prateleira Mural Inox"
+- "ciclos de lavagem / capot / porta frontal" → máquina automática → "Máquina de Lavar Loiça Industrial"
+- "cuba/pia" + patas + sem ciclos → bancada com cuba → "Bancada com Cuba Inox" ou "Lavadouro Inox"
+- "Campana/Campânula" + turbina + filtros → "Hotte Exaustora"
+- "Vitrina" + vidro curvo sem referência a produto concreto → ambíguo → usar "Vitrine Refrigerada" + preencher optimization_notes
+- Se o título em espanhol contradiz a descrição → confiar na descrição, não no título
+- NUNCA traduzir o título do fornecedor directamente — o título optimizado deve reflectir o tipo real do produto
+
+FASE 2 — Só depois desta análise, gera os campos optimizados com os termos correctos em PT-PT.`;
+
+        const defaultPrompt = `${analysisPhase}
+
+Optimiza o seguinte produto de e-commerce para SEO e conversão em português europeu.
 
 ${productInfo}${knowledgeContext}${supplierContext}${catalogContext}
 
@@ -1768,7 +1783,7 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           modelOverride: chosenModel.model,
           providerOverride: chosenModel.provider,
           ...(promptTemplateId ? { promptTemplateId } : {}),
-          systemPrompt: "És um especialista em e-commerce e SEO. Responde APENAS com a tool call pedida, sem texto adicional. Mantém sempre as características técnicas do produto NUMA TABELA HTML separada do texto comercial na aba 'Características'. Traduz tudo para português europeu.\n\nREGRAS CRÍTICAS DE CONTEÚDO:\n- Na tabela HTML de especificações (aba Características), inclui TODA a informação técnica disponível.\n- NUNCA coloques Marca, Modelo ou EAN na tabela HTML da descrição, pois esses dados são injetados automaticamente noutra aba.\n- PRECISÃO TÉCNICA: Respeita rigorosamente os dados técnicos fornecidos (especificações e descrição original). NUNCA inventes ou assumas capacidades que não estão explícitas. Em caso de dúvida, mantém o valor original.\n\nREGRAS DE QUALIDADE DE ESCRITA:\n- Escreve sempre em português europeu (PT-PT), nunca em português do Brasil.\n- HUMANIZAÇÃO E VARIABILIDADE: Evita repetições robóticas. Usa sinónimos inteligentes para termos técnicos e de negócio (ex: em vez de repetir sempre 'cozinha profissional', usa 'ambiente gastronómico', 'espaço de confeção', 'unidade de restauração').\n- SINÓNIMOS E FLUIDEZ: Enriquece as descrições (longa e curta) com vocabulário variado. Alterna entre termos como 'equipamento', 'maquinaria', 'solução profissional', 'sistema de alto rendimento'.\n- Mantém um tom profissional e orientado a vendas B2B para setor HORECA e hotelaria.\n- Nunca cortes frases a meio — cada campo deve terminar com pontuação completa.\n- Nunca mistures a tabela técnica com o texto descritivo — a tabela vai SEMPRE separada.\n- ABERTURA ÚNICA: Primeiro parágrafo NUNCA repete a ideia do título. Começa com facto técnico ou benefício directo.\n- PROIBIDO começar qualquer parágrafo ou campo com: \"Otimize\", \"Potencie\", \"Descubra\", \"Conheça\", \"Apresentamos\", \"Esta é a solução perfeita\", \"Maximize\", \"Revolucione\", \"Transforme\".\n- PROIBIDO repetir estrutura: se parágrafo 1 começa com \"Este\", parágrafo 2 NÃO pode começar com \"Este\", \"Esta\", \"O equipamento\", \"O produto\".\n- VARIEDADE DE ABERTURA: usar \"Concebido para...\", \"Com capacidade para...\", \"Ideal para cozinhas que...\", \"Quando o volume de trabalho exige...\".\n- REGRA DE HONESTIDADE: Se não conseguires determinar o tipo exacto do produto (ex: vitrine ambígua entre pastelaria e charcutaria), usa um termo genérico seguro e preenche optimization_notes with a dúvida.\n- TERMOS PROIBIDOS: \"cocção\"→\"confeção\"; \"fast casual\"→\"restauração rápida\"; \"buffet line\"→\"linha de buffet\"; \"lanchonete\"→\"snack-bar\"; \"geladeira\"→\"frigorífico\"; \"cardápio\"→\"ementa\"; \"garçom\"→\"empregado de mesa\"; \"projetada/projetado\" → \"concebida/concebido\" ou \"desenhada/desenhado\"; \"chato/chata\" quando tradução de \"chafado\" → usar \"chanfrado\" ou \"rebatido\"; .\n- TERMOS ACEITES (gíria profissional PT-PT legítima): \"catering\", \"buffet\", \"take-away\", \"snack-bar\", \"food service\" são correctos. \"coffee shop\" é aceitável nas tags; no título/descrição preferir \"café\" ou \"pastelaria\".\n- HÍFEN: \"take-away\" e \"snack-bar\" escrevem-se SEMPRE with hífen no título e descrição.",
+          systemPrompt: "És um especialista em e-commerce e SEO. Responde APENAS com a tool call pedida, sem texto adicional. Mantém sempre as características técnicas do produto NUMA TABELA HTML separada do texto comercial na aba 'Características'. Traduz tudo para português europeu.\n\nREGRAS CRÍTICAS DE CONTEÚDO:\n- Na tabela HTML de especificações (aba Características), inclui TODA a informação técnica disponível.\n- NUNCA coloques Marca, Modelo ou EAN na tabela HTML da descrição, pois esses dados são injetados automaticamente noutra aba.\n- PRECISÃO TÉCNICA: Respeita rigorosamente os dados técnicos fornecidos (especificações e descrição original). NUNCA inventes ou assumas capacidades que não estão explícitas. Em caso de dúvida, mantém o valor original.\n\nREGRAS DE QUALIDADE DE ESCRITA:\n- Escreve sempre em português europeu (PT-PT), nunca em português do Brasil.\n- HUMANIZAÇÃO E VARIABILIDADE: Evita repetições robóticas. Usa sinónimos inteligentes para termos técnicos e de negócio (ex: em vez de repetir sempre 'cozinha profissional', usa 'ambiente gastronómico', 'espaço de confeção', 'unidade de restauração').\n- SINÓNIMOS E FLUIDEZ: Enriquece as descrições (longa e curta) com vocabulário variado. Alterna entre termos como 'equipamento', 'maquinaria', 'solução profissional', 'sistema de alto rendimento'.\n- Mantém um tom profissional e orientado a vendas B2B para setor HORECA e hotelaria.\n- Nunca cortes frases a meio — cada campo deve terminar com pontuação completa.\n- Nunca mistures a tabela técnica com o texto descritivo — a tabela vai SEMPRE separada.\n- ABERTURA ÚNICA: Primeiro parágrafo NUNCA repete a ideia do título. Começa com facto técnico ou benefício directo.\n- PROIBIDO começar qualquer parágrafo ou campo com: \"Otimize\", \"Potencie\", \"Descubra\", \"Conheça\", \"Apresentamos\", \"Esta é a solução perfeita\", \"Maximize\", \"Revolucione\", \"Transforme\".\n- PROIBIDO repetir estrutura: se parágrafo 1 começa com \"Este\", parágrafo 2 NÃO pode começar com \"Este\", \"Esta\", \"O equipamento\", \"O produto\".\n- VARIEDADE DE ABERTURA: usar \"Concebido para...\", \"Com capacidade para...\", \"Ideal para cozinhas que...\", \"Quando o volume de trabalho exige...\".\n- REGRA DE HONESTIDADE: Se não conseguires determinar o tipo exacto do produto (ex: vitrine ambígua entre pastelaria e charcutaria), usa um termo genérico seguro e preenche optimization_notes with a dúvida.\n- TERMOS PROIBIDOS: \"cocção\"→\"confeção\"; \"fast casual\"→\"restauração rápida\"; \"buffet line\"→\"linha de buffet\"; \"lanchonete\"→\"snack-bar\"; \"geladeira\"→\"frigorífico\"; \"cardápio\"→\"ementa\"; \"garçom\"→\"empregado de mesa\"; \"projetada/projetado\" → \"concebida/concebido\" ou \"desenhada/desenhado\"; \"chato/chata\" quando tradução de \"chafado\" → usar \"chanfrado\" ou \"rebatido\"; .\n- TERMOS ACEITES (gíria profissional PT-PT legítima): \"catering\", \"buffet\", \"take-away\", \"snack-bar\", \"food service\" são correctos. \"coffee shop\" é aceitável nas tags; no título/descrição preferir \"café\" ou \"pastelaria\".\n- HÍFEN: \"take-away\" e \"snack-bar\" escrevem-se SEMPRE with hífen no título e descrição.\n- PROIBIDO em qualquer campo: \"HORECA\" → usar \"restaurantes\", \"hotéis\", \"cozinhas profissionais\".\n- PROIBIDO começar qualquer campo com: \"Otimize\", \"Potencie\", \"Descubra\", \"Conheça\", \"Maximize\", \"Revolucione\", \"Transforme\".\n- TERMOS BRASILEIROS PROIBIDOS: \"projetada/projetado\"→\"concebida/concebido\"; \"chato/chata\" quando tradução de \"chafado\"→\"chanfrado\"; \"otimize\"→não usar.\n- NUNCA traduzir título do fornecedor directamente — analisar descrição completa antes de determinar o tipo do produto.",
           messages: [{ role: "user", content: finalPrompt }],
           options: {
             tools: [
@@ -1877,6 +1892,17 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           console.warn("[optimize-product] output quality issues:", outputIssues);
         }
         const optimized = finalOptimized;
+
+        // POST-PROCESS: Fix duplicated h3 in Secção 1
+        // Handles em dash —, en dash –, and regular hyphen -
+        if (typeof optimized.optimized_description === "string") {
+          optimized.optimized_description = optimized.optimized_description.replace(
+            /(<h3[^>]*>)([^<]+?)[—–\-]([^<]+?)[—–\-]\s*Principais Vantagens(<\/h3>)/gi,
+            (_match, open, _part1, part2, close) => {
+              return `${open}${part2.trim()} — Principais Vantagens${close}`;
+            }
+          );
+        }
 
         // POST-PROCESS: Fix duplicated h3 title in Secção 1
         if (typeof optimized.optimized_description === "string") {
