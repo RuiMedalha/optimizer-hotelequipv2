@@ -21,7 +21,11 @@ export function CategoryCell({ product, onSelectSuggestion, currentOverride }: P
 
   const handleSelect = (categoryId: string, categoryName: string, source: string) => {
     const isCorrection = suggestions && suggestions[0]?.category_id !== categoryId;
-    confirmCategory({ categoryId, categoryName, isCorrection });
+    if (onSelectSuggestion) {
+      onSelectSuggestion(categoryName);
+    } else {
+      confirmCategory({ categoryId, categoryName, isCorrection });
+    }
     setOpen(false);
     setShowManual(false);
   };
@@ -39,7 +43,7 @@ export function CategoryCell({ product, onSelectSuggestion, currentOverride }: P
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <span className={cn(
-                      "text-xs truncate max-w-[160px] block transition-colors cursor-help",
+                      "text-xs truncate max-w-[300px] block transition-colors cursor-help",
                       product.category ? "text-foreground font-medium" : "text-muted-foreground italic"
                     )}>
                       {product.category || "Sem categoria"}
@@ -84,7 +88,7 @@ export function CategoryCell({ product, onSelectSuggestion, currentOverride }: P
                         }}
                       >
                         <Sparkles className="w-2.5 h-2.5" />
-                        <span className="truncate max-w-[150px]">{primarySuggestion.category_name}</span>
+                        <span className="truncate max-w-[250px]">{primarySuggestion.category_name}</span>
                         <span className="ml-1 opacity-70" title="Pontuação de confiança">⭐ {primarySuggestion.confidence}% confiança</span>
                       </div>
                     </TooltipTrigger>
@@ -121,7 +125,7 @@ export function CategoryCell({ product, onSelectSuggestion, currentOverride }: P
                           }
                         }}
                       >
-                        <span className="truncate max-w-[150px]">{secondarySuggestion.category_name}</span>
+                        <span className="truncate max-w-[250px]">{secondarySuggestion.category_name}</span>
                         <span className="ml-1 opacity-70" title="Pontuação de confiança">⭐ {secondarySuggestion.confidence}% confiança</span>
                       </div>
                     </TooltipTrigger>
@@ -151,7 +155,7 @@ export function CategoryCell({ product, onSelectSuggestion, currentOverride }: P
                         }}
                       >
                         <MousePointer2 className="w-2.5 h-2.5 rotate-45" />
-                        <span className="truncate max-w-[150px] italic">Corrigir para: {primarySuggestion.category_name}</span>
+                        <span className="truncate max-w-[250px] italic">Corrigir para: {primarySuggestion.category_name}</span>
                       </div>
                     </TooltipTrigger>
                     <TooltipContent side="top" className="max-w-md break-words">
