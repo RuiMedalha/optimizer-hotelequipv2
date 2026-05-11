@@ -694,7 +694,7 @@ Deno.serve(async (req) => {
               // Persist to central error log
               try {
                 console.log(`Logging variation error for SKU ${vi.sku}`);
-                const { error: logErr } = await supabase.from("catalog_operation_errors").insert({
+                const { error: logErr } = await supabaseAdmin.from("catalog_operation_errors").insert({
                   workspace_id: workspaceId,
                   user_id: userId,
                   operation_type: 'woocommerce_import_variation',
