@@ -197,7 +197,7 @@ CRITICAL RULES:
    - If description or title mentions freezing, "congelação", "congelador", "congelado", "freezer", "negativo", or negative temperatures (e.g., "-18°C", "-20°C"), prioritize "CONGELAÇÃO" or the relevant sub-path within "FRIO COMERCIAL" if it contains freezing units.
 5. ACCESSORY DETECTION: If the product is an accessory (e.g., "Estante", "Prateleira", "Grelha", "Cesto", "Shelf", "Kit", "Suporte", "Acessório"), you MUST look for the "Acessorios" sub-category within the correct top-level category.
 6. MISMATCH PROTECTION: If the products from Meilisearch have completely different titles from the target product, IGNORE their categories and rely on the Taxonomy and your internal logic.
-7. SUGGESTIONS: Provide up to 3 alternative categories if relevant.`;
+7. SUGGESTIONS: Provide up to 3 alternative categories if relevant.
 
 LEARNING PATTERNS (Strong indicators based on SKU prefix):
 ${learningExamplesStr || "No specific patterns yet."}
