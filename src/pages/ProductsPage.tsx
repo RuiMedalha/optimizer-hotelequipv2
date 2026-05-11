@@ -116,6 +116,7 @@ function generateImageAltText(productTitle: string, index: number, imageUrl: str
 const ProductsPage = () => {
   const [showBrandInput, setShowBrandInput] = useState(false);
   const [bulkBrandValue, setBulkBrandValue] = useState("");
+  const [isInferringModels, setIsInferringModels] = useState(false);
   const { activeWorkspace, toggleVariableProducts } = useWorkspaceContext();
   const qc = useQueryClient();
   useRepairAttributes();
