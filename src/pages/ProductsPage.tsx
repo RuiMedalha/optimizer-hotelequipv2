@@ -1334,7 +1334,7 @@ const ProductsPage = () => {
                       // Log error to database
                       const { data: userData } = await supabase.auth.getUser();
                       if (userData.user) {
-                        await supabase.from("catalog_operation_errors").insert({
+                        const errorData: any = {
                           workspace_id: activeWorkspace.id,
                           user_id: userData.user.id,
                           operation_type: 'image_migration_browser',
@@ -1342,7 +1342,8 @@ const ProductsPage = () => {
                           product_id: product.id,
                           error_message: msg,
                           error_detail: { url, status: resp.status, phase: 'browser_fetch' }
-                        });
+                        };
+                        await supabase.from("catalog_operation_errors").insert(errorData);
                       }
                       continue;
                     }
