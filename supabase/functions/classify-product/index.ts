@@ -91,7 +91,7 @@ Deno.serve(async (req) => {
     // 3. Fetch some successfully categorized products to use as examples (Few-Shot Prompting)
     const { data: examples } = await supabase
       .from("products")
-      .select("original_title, category")
+      .select("original_title, optimized_title, category")
       .not("category", "is", null)
       .eq("workspace_id", workspace_id)
       .limit(15);
@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
 
     // Query Meilisearch for similar published products
     const similarProducts = await findSimilarInMeilisearch(
-      product.title || product.original_title || "",
+      product.optimized_title || product.title || product.original_title || "",
       product.technical_specs || ""
     );
     
@@ -217,7 +217,7 @@ LEARNING PATTERNS (Strong indicators based on SKU prefix):
 ${learningExamplesStr || "No specific patterns yet."}
 
 LEARNING EXAMPLES (How existing products are classified):
-${examples?.map(e => `- Product: "${e.original_title}" -> Category: "${e.category}"`).join('\n') || "No examples available yet."}
+${(examples || []).map(e => `- Product: "${e.optimized_title || e.original_title}" -> Category: "${e.category}"`).join('\n') || "No examples available yet."}
 
 ${similarContext}
 EXISTING CATEGORIES (Use EXACT "full_path" strings):
@@ -237,8 +237,9 @@ You MUST respond with valid JSON only. Use this exact schema:
 
     const userPrompt = `Classify this product:
 
-Title: ${product.title || product.original_title || "N/A"}
-Description: ${product.description || product.original_description || "N/A"}
+Optimized Title (PT-PT): ${product.optimized_title || product.title || "N/A"}
+Original Title (Source): ${product.original_title || "N/A"}
+Description: ${product.optimized_description || product.description || product.original_description || "N/A"}
 Brand: ${product.brand || "N/A"}
 Supplier: ${product.supplier || "N/A"}
 Technical Specs: ${product.technical_specs || product.specifications || "N/A"}

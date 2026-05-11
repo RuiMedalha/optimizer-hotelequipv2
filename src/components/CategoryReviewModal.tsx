@@ -562,11 +562,16 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                         <TableCell className="font-mono text-[11px] font-medium text-muted-foreground">{p.sku}</TableCell>
                         <TableCell className="max-w-[300px]">
                           <div className="flex flex-col gap-0.5">
-                            <span className="text-xs font-semibold leading-tight group-hover:text-primary transition-colors line-clamp-2" title={p.original_title}>
-                              {p.original_title}
+                            <span className="text-xs font-semibold leading-tight group-hover:text-primary transition-colors line-clamp-2" title={p.optimized_title || p.original_title}>
+                              {p.optimized_title || p.original_title}
                             </span>
+                            {p.optimized_title && p.optimized_title !== p.original_title && (
+                              <span className="text-[10px] text-muted-foreground/60 italic line-clamp-1" title={`Original: ${p.original_title}`}>
+                                {p.original_title}
+                              </span>
+                            )}
                             {p.source_file && (
-                              <span className="text-[9px] text-muted-foreground truncate">{p.source_file}</span>
+                              <span className="text-[9px] text-muted-foreground truncate opacity-70">{p.source_file}</span>
                             )}
                           </div>
                         </TableCell>
