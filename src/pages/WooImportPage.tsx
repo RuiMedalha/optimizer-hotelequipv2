@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Download, Loader2, ShoppingCart, Package, Filter, CheckCircle, AlertTriangle } from "lucide-react";
+import { Download, Loader2, ShoppingCart, Package, Filter, CheckCircle, AlertTriangle, TrendingUp } from "lucide-react";
 import { WooSiteSelector } from "@/components/WooSiteSelector";
 import { WooCategoryMapper, type CategoryMapping } from "@/components/WooCategoryMapper";
 import { WooImportErrorReport } from "@/components/WooImportErrorReport";
