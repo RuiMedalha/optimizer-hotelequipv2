@@ -1740,7 +1740,9 @@ export type Database = {
       business_terminology: {
         Row: {
           category: string | null
+          context: string | null
           created_at: string | null
+          disambiguation: string | null
           id: string
           is_global: boolean | null
           replacement: string | null
@@ -1751,7 +1753,9 @@ export type Database = {
         }
         Insert: {
           category?: string | null
+          context?: string | null
           created_at?: string | null
+          disambiguation?: string | null
           id?: string
           is_global?: boolean | null
           replacement?: string | null
@@ -1762,7 +1766,9 @@ export type Database = {
         }
         Update: {
           category?: string | null
+          context?: string | null
           created_at?: string | null
+          disambiguation?: string | null
           id?: string
           is_global?: boolean | null
           replacement?: string | null
@@ -9936,6 +9942,7 @@ export type Database = {
           meta_description: string | null
           meta_title: string | null
           model: string | null
+          optimization_notes: string | null
           optimized_description: string | null
           optimized_price: number | null
           optimized_sale_price: number | null
@@ -10003,6 +10010,7 @@ export type Database = {
           meta_description?: string | null
           meta_title?: string | null
           model?: string | null
+          optimization_notes?: string | null
           optimized_description?: string | null
           optimized_price?: number | null
           optimized_sale_price?: number | null
@@ -10072,6 +10080,7 @@ export type Database = {
           meta_description?: string | null
           meta_title?: string | null
           model?: string | null
+          optimization_notes?: string | null
           optimized_description?: string | null
           optimized_price?: number | null
           optimized_sale_price?: number | null
