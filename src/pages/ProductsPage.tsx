@@ -211,6 +211,7 @@ const ProductsPage = () => {
   const [includeUsoProfissional, setIncludeUsoProfissional] = useState(false);
   const [usoProfissionalInDescription, setUsoProfissionalInDescription] = useState(true);
   const [usoProfissionalInCustomField, setUsoProfissionalInCustomField] = useState(false);
+  const [imageIssueFilter, setImageIssueFilter] = useState(false);
   // Modo granular: "off" | "optimize_only" | "lifestyle_only" | "optimize_and_lifestyle"
   // Persistido em localStorage; default = "optimize_only" (mais rápido, sem perda).
   const [imageProcessingMode, setImageProcessingMode] = useState<ImageProcessingMode>(() => {
@@ -298,6 +299,7 @@ const ProductsPage = () => {
     productType: productTypeFilter,
     sourceFile: sourceFileFilter,
     wooFilter,
+    imageStatus: imageIssueFilter ? "any_issue" : "all",
     page: currentPage,
     pageSize: PAGE_SIZE,
   };
@@ -332,6 +334,21 @@ const ProductsPage = () => {
       setBackgroundMode(true);
     }
   }, [pendingOptimizeIds.length]);
+
+  // Re-fetch properly
+  const { data: issueCount } = useQuery({
+    queryKey: ["product-image-issue-count-v3", activeWorkspace?.id],
+    enabled: !!activeWorkspace,
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("products")
+        .select("*", { count: "exact", head: true })
+        .eq("workspace_id", activeWorkspace!.id)
+        .in("image_status", ["failed", "missing"]);
+      if (error) throw error;
+      return count || 0;
+    }
+  });
 
   const getProductPhases = useCallback((p: Product) => {
     const p1 = !!(p.optimized_title || p.optimized_description || p.optimized_short_description);
@@ -1463,6 +1480,19 @@ const ProductsPage = () => {
             <Download className="w-3.5 h-3.5 mr-1" />
             Migrar Imagens{selected.size > 0 ? ` (${selected.size})` : ""}
           </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            variant={imageIssueFilter ? "destructive" : "outline"}
+            size="sm"
+            className="h-8 gap-1.5"
+            onClick={() => setImageIssueFilter(!imageIssueFilter)}
+          >
+            <Camera className={cn("w-3.5 h-3.5", imageIssueFilter ? "text-white" : "text-destructive")} />
+            <span className={imageIssueFilter ? "text-white" : ""}>
+              Sem Imagem ({issueCount || 0})
+            </span>
+          </Button>
+
           <Button
             size="sm"
             variant="outline"
@@ -1499,6 +1529,7 @@ const ProductsPage = () => {
             {isEnriching ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Globe className="w-3.5 h-3.5 mr-1" />}
             <span className="hidden sm:inline">Enriquecer </span>Web{selected.size > 0 ? ` (${selected.size})` : ""}
           </Button>
+        </div>
           <div className="flex items-center gap-1">
             <Select value={selectedImageModel} onValueChange={setSelectedImageModel}>
               <SelectTrigger className="h-8 text-xs w-[180px]">

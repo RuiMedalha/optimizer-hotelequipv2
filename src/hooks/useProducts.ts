@@ -13,6 +13,7 @@ export interface ProductFilters {
   productType?: string;
   sourceFile?: string;
   wooFilter?: string;
+  imageStatus?: "failed" | "missing" | "ok" | "all" | "any_issue";
   page?: number;
   pageSize?: number;
 }
@@ -38,6 +39,7 @@ export function useProducts(filters: ProductFilters = {}) {
     productType = "all",
     sourceFile = "all",
     wooFilter = "all",
+    imageStatus = "all",
     page = 1,
     pageSize = 100,
   } = filters;
@@ -52,6 +54,7 @@ export function useProducts(filters: ProductFilters = {}) {
       productType,
       sourceFile,
       wooFilter,
+      imageStatus,
       page,
       pageSize,
     ],
@@ -65,6 +68,7 @@ export function useProducts(filters: ProductFilters = {}) {
         _product_type: productType,
         _source_file: sourceFile,
         _woo_filter: wooFilter,
+        _image_status: imageStatus,
         _page: page,
         _page_size: pageSize,
       });

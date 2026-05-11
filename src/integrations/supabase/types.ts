@@ -9936,6 +9936,7 @@ export type Database = {
           focus_keyword: string[] | null
           id: string
           image_alt_texts: Json | null
+          image_status: string | null
           image_urls: string[] | null
           is_discontinued: boolean | null
           locked_for_publish: boolean | null
@@ -10004,6 +10005,7 @@ export type Database = {
           focus_keyword?: string[] | null
           id?: string
           image_alt_texts?: Json | null
+          image_status?: string | null
           image_urls?: string[] | null
           is_discontinued?: boolean | null
           locked_for_publish?: boolean | null
@@ -10074,6 +10076,7 @@ export type Database = {
           focus_keyword?: string[] | null
           id?: string
           image_alt_texts?: Json | null
+          image_status?: string | null
           image_urls?: string[] | null
           is_discontinued?: boolean | null
           locked_for_publish?: boolean | null
@@ -15081,20 +15084,36 @@ export type Database = {
           status: string
         }[]
       }
-      get_products_page: {
-        Args: {
-          _category?: string
-          _page?: number
-          _page_size?: number
-          _product_type?: string
-          _search?: string
-          _source_file?: string
-          _status?: string
-          _woo_filter?: string
-          _workspace_id: string
-        }
-        Returns: Json[]
-      }
+      get_products_page:
+        | {
+            Args: {
+              _category?: string
+              _page?: number
+              _page_size?: number
+              _product_type?: string
+              _search?: string
+              _source_file?: string
+              _status?: string
+              _woo_filter?: string
+              _workspace_id: string
+            }
+            Returns: Json[]
+          }
+        | {
+            Args: {
+              _category?: string
+              _image_status?: string
+              _page?: number
+              _page_size?: number
+              _product_type?: string
+              _search?: string
+              _source_file?: string
+              _status?: string
+              _woo_filter?: string
+              _workspace_id: string
+            }
+            Returns: Json[]
+          }
       get_simulation_run_workspace_id: {
         Args: { _run_id: string }
         Returns: string

@@ -597,8 +597,8 @@ INFORMAÇÃO DO PRODUTO:
                   processedUrls.push(lifestyleUrl);
 
                   // Generate alt text for the lifestyle image
-                  const productName = product.original_title || product.sku || "produto";
-                  const lifestyleAlt = normalizeAltText(await generateAltText(lifestyleUrl, productName)) || buildFallbackAltText(productName, nextSortOrder, (product.image_urls?.length ?? 0) + 1);
+                  const productName2 = product.original_title || product.sku || "produto";
+                  const lifestyleAlt = normalizeAltText(await generateAltText(lifestyleUrl, productName2)) || buildFallbackAltText(productName2, nextSortOrder, (product.image_urls?.length ?? 0) + 1);
                   console.log(`🏷️ [lifestyle] Alt text generated: "${lifestyleAlt}" for ${productId}`);
 
                   await sb.from("images").insert({
@@ -706,8 +706,8 @@ INFORMAÇÃO DO PRODUTO:
                 processedUrls.push(urlData.publicUrl);
 
                 // Generate alt text for the optimized image
-                const productName = product.original_title || product.sku || "produto";
-                  const optimizedAlt = normalizeAltText(await generateAltText(urlData.publicUrl, productName)) || buildFallbackAltText(productName, i, product.image_urls?.length ?? 1);
+                const productName3 = product.original_title || product.sku || "produto";
+                const optimizedAlt = normalizeAltText(await generateAltText(urlData.publicUrl, productName3)) || buildFallbackAltText(productName3, i, product.image_urls?.length ?? 1);
                 console.log(`🏷️ [optimize] Alt text generated: "${optimizedAlt}" for ${productId} image ${i}`);
 
                 // Update images table
@@ -735,6 +735,8 @@ INFORMAÇÃO DO PRODUTO:
             // Keep original URL but record that this image failed
             processedUrls.push(originalUrl);
             imageErrors.push({ index: i, url: originalUrl, error: errMsg });
+            // Update image_status to failed when an image fails to process
+            await sb.from("products").update({ image_status: "failed" }).eq("id", productId);
           }
         }
 
@@ -781,7 +783,7 @@ INFORMAÇÃO DO PRODUTO:
               if (!merged.includes(url)) merged.push(url);
             }
 
-            await sb.from("products").update({ image_urls: merged }).eq("id", fid);
+            await sb.from("products").update({ image_urls: merged, image_status: "ok" }).eq("id", fid);
 
             if (fid !== productId) {
               for (const url of lifestyleUrls) {
@@ -821,7 +823,7 @@ INFORMAÇÃO DO PRODUTO:
             for (const url of newGeneratedUrls) {
               if (!merged.includes(url)) merged.push(url);
             }
-            await sb.from("products").update({ image_urls: merged }).eq("id", productId);
+            await sb.from("products").update({ image_urls: merged, image_status: "ok" }).eq("id", productId);
             console.log(`📸 Appended ${newGeneratedUrls.length} optimized images for ${productId}. Total: ${merged.length}`);
           }
         }
@@ -834,6 +836,8 @@ INFORMAÇÃO DO PRODUTO:
           await sb.rpc("increment_image_credits", {
             _workspace_id: workspaceId,
           });
+          // Mark image_status as ok on successful processing
+          await sb.from("products").update({ image_status: "ok" }).eq("id", productId);
         }
 
         results.push({
@@ -846,6 +850,12 @@ INFORMAÇÃO DO PRODUTO:
         });
       } catch (prodErr) {
         console.error(`Error processing product ${productId}:`, prodErr);
+        // Update image_status to failed when the whole product processing fails
+        try {
+          await sb.from("products").update({ image_status: "failed" }).eq("id", productId);
+        } catch (statusErr) {
+          console.warn(`Failed to update image_status for ${productId}:`, statusErr);
+        }
         results.push({
           productId,
           status: "error",

@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Check, X, ExternalLink, RotateCcw, History, Send, ArrowUpRight, Shuffle, AlertTriangle, Brain, BookOpen, Globe, Database, Loader2, BarChart3, Columns, GitBranch, PackageSearch, ImageIcon, Sparkles, Camera, ShieldCheck, ClipboardCheck, Languages, Eye, Plus, Trash2 } from "lucide-react";
+import { Check, X, ExternalLink, RotateCcw, History, Send, ArrowUpRight, Shuffle, AlertTriangle, Brain, BookOpen, Globe, Database, Loader2, BarChart3, Columns, GitBranch, PackageSearch, ImageIcon, Sparkles, Camera, ShieldCheck, ClipboardCheck, Languages, Eye, Plus, Trash2, Save } from "lucide-react";
 import { useProcessImages } from "@/hooks/useProcessImages";
 import { useActiveImageModels } from "@/hooks/useAiProviderCenter";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 import type { Product } from "@/hooks/useProducts";
 import { useAllProductIds } from "@/hooks/useProducts";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUpdateProduct } from "@/hooks/useUpdateProduct";
 import { useUpdateProductStatus } from "@/hooks/useProducts";
 import { useProductVersions, useRestoreVersion, type ProductVersion } from "@/hooks/useProductVersions";
@@ -39,13 +39,22 @@ import { useProductLocalizations, useTranslateProduct, useApproveLocalization, S
 import { useAuth } from "@/hooks/auth-context";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CategoryCell } from "./category/CategoryCell";
+import { toast } from "sonner";
 
 interface Props {
   product: Product | null;
   onClose: () => void;
 }
 
-export function ProductDetailModal({ product, onClose }: Props) {
+export function ProductDetailModal({ product: initialProduct, onClose }: Props) {
+  // Use a local product state to handle internal updates like image URL saves
+  const [product, setProduct] = useState<Product | null>(initialProduct);
+  
+  // Sync local state when prop changes
+  useEffect(() => {
+    setProduct(initialProduct);
+  }, [initialProduct]);
+
   const { data: allProducts } = useAllProductIds();
   const updateProduct = useUpdateProduct();
   const updateStatus = useUpdateProductStatus();
@@ -58,6 +67,9 @@ export function ProductDetailModal({ product, onClose }: Props) {
   const IMAGE_MODELS = useActiveImageModels();
   const [selectedImageModel, setSelectedImageModel] = useState<string>("default");
   const [selectedImagePromptTemplate, setSelectedImagePromptTemplate] = useState<string>("active");
+  const [newImageUrl, setNewImageUrl] = useState("");
+  const [isRetryingImage, setIsRetryingImage] = useState(false);
+  const qc = useQueryClient();
 
   // Fetch image prompt templates so the user can pick one for Lifestyle re-runs from inside the modal
   const { data: imagePromptTemplates } = useQuery({
@@ -280,6 +292,101 @@ export function ProductDetailModal({ product, onClose }: Props) {
               }}
               isPublishing={publishWoo.isPending}
             />
+          )}
+
+          {/* IMAGE STATUS WARNING BANNER */}
+          {(product.image_status === "failed" || product.image_status === "missing") && (
+            <Alert variant="destructive" className="mt-4">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="space-y-3">
+                <div className="flex flex-col gap-1">
+                  <span className="font-semibold">
+                    {product.image_status === "failed" ? "⚠️ Falha ao descarregar imagem" : "⚠️ Produto sem imagens"}
+                  </span>
+                  {product.image_urls?.[0] && (
+                    <span className="text-xs opacity-90 break-all font-mono">
+                      URL original: {product.image_urls[0]}
+                    </span>
+                  )}
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Input 
+                    placeholder="Colar novo URL da imagem..." 
+                    className="h-8 bg-background text-foreground"
+                    value={newImageUrl}
+                    onChange={(e) => setNewImageUrl(e.target.value)}
+                  />
+                  <Button 
+                    size="sm" 
+                    className="h-8 shrink-0"
+                    onClick={async () => {
+                      if (!newImageUrl) return;
+                      try {
+                        const { error } = await supabase
+                          .from("products")
+                          .update({ 
+                            image_urls: [newImageUrl],
+                            image_status: "ok"
+                          })
+                          .eq("id", product.id);
+                        
+                        if (error) throw error;
+                        
+                        toast.success("URL da imagem guardado com sucesso!");
+                        setProduct(prev => prev ? { ...prev, image_urls: [newImageUrl], image_status: "ok" } : null);
+                        qc.invalidateQueries({ queryKey: ["products"] });
+                        setNewImageUrl("");
+                      } catch (err: any) {
+                        toast.error("Erro ao guardar URL: " + err.message);
+                      }
+                    }}
+                  >
+                    <Save className="w-3.5 h-3.5 mr-1" /> Guardar URL
+                  </Button>
+                  
+                  {product.image_urls?.[0] && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 shrink-0 bg-background"
+                      disabled={isRetryingImage}
+                      onClick={async () => {
+                        setIsRetryingImage(true);
+                        try {
+                          const { data, error } = await supabase.functions.invoke("cache-product-images", {
+                            body: { productIds: [product.id], workspaceId: activeWorkspace?.id, overwrite: true }
+                          });
+                          
+                          if (error) throw error;
+                          
+                          if (data?.failed > 0) {
+                            toast.error("Tentativa falhou novamente. Verifique o URL ou tente um novo.");
+                          } else {
+                            toast.success("Imagem recuperada com sucesso!");
+                            // Re-fetch product data to update UI
+                            const { data: updatedProd } = await supabase
+                              .from("products")
+                              .select("*")
+                              .eq("id", product.id)
+                              .single();
+                            if (updatedProd) setProduct(updatedProd);
+                            qc.invalidateQueries({ queryKey: ["products"] });
+                          }
+                        } catch (err: any) {
+                          toast.error("Erro ao tentar novamente: " + err.message);
+                        } finally {
+                          setIsRetryingImage(false);
+                        }
+                      }}
+                    >
+                      {isRetryingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5 mr-1" />}
+                      Tentar novamente
+                    </Button>
+                  )}
+                </div>
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* TEXTOS TAB */}
