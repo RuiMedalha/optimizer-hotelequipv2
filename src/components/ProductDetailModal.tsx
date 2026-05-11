@@ -392,46 +392,7 @@ export function ProductDetailModal({ product: initialProduct, onClose }: Props) 
                     >
                       <Save className="w-3.5 h-3.5 mr-1" /> Guardar URLs
                     </Button>
-                  
-                  {product.image_urls?.[0] && (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 shrink-0 bg-background"
-                      disabled={isRetryingImage}
-                      onClick={async () => {
-                        setIsRetryingImage(true);
-                        try {
-                          const { data, error } = await supabase.functions.invoke("cache-product-images", {
-                            body: { productIds: [product.id], workspaceId: activeWorkspace?.id, overwrite: true }
-                          });
-                          
-                          if (error) throw error;
-                          
-                          if (data?.failed > 0) {
-                            toast.error("Tentativa falhou novamente. Verifique o URL ou tente um novo.");
-                          } else {
-                            toast.success("Imagem recuperada com sucesso!");
-                            // Re-fetch product data to update UI
-                            const { data: updatedProd } = await supabase
-                              .from("products")
-                              .select("*")
-                              .eq("id", product.id)
-                              .single();
-                            if (updatedProd) setProduct(updatedProd);
-                            qc.invalidateQueries({ queryKey: ["products"] });
-                          }
-                        } catch (err: any) {
-                          toast.error("Erro ao tentar novamente: " + err.message);
-                        } finally {
-                          setIsRetryingImage(false);
-                        }
-                      }}
-                    >
-                      {isRetryingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5 mr-1" />}
-                      Tentar novamente
-                    </Button>
-                  )}
+                  </div>
                 </div>
               </AlertDescription>
             </Alert>
