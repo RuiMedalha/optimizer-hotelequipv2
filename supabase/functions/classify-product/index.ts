@@ -131,49 +131,49 @@ Deno.serve(async (req) => {
     
     // MEILISEARCH CONSENSUS CHECK — if 3+ similar products agree on same category, use it directly
     if (similarProducts.length >= 3) {
-      // Count category votes
+      // Count specific category path votes
       const categoryVotes = new Map<string, number>();
       for (const sp of similarProducts) {
         if (sp.category) {
-          const topLevel = sp.category.split(" > ").slice(0, 2).join(" > ");
-          categoryVotes.set(topLevel, (categoryVotes.get(topLevel) || 0) + 1);
+          categoryVotes.set(sp.category, (categoryVotes.get(sp.category) || 0) + 1);
         }
       }
       
-      // Find if any category has majority (>= 3 votes)
-      for (const [cat, votes] of categoryVotes.entries()) {
-        if (votes >= 3) {
-          // Find the most specific category from Meilisearch that matches
-          const bestMatch = similarProducts
-            .filter(sp => sp.category.startsWith(cat.split(" > ")[0]))
-            .sort((a, b) => b.category.length - a.category.length)[0];
-          
-          if (bestMatch) {
-            // Find the matching category in our catalog
-            const matchingCat = categoryList.find(c => 
-              c.full_path === bestMatch.category ||
-              c.full_path.includes(bestMatch.category) ||
-              bestMatch.category.includes(c.full_path)
-            );
-            
-            console.log(`[classify] Meilisearch consensus: ${votes} products in "${bestMatch.category}" — skipping AI`);
-            
-            return new Response(JSON.stringify({
-              category_id: matchingCat?.id || null,
-              category_name: matchingCat?.full_path || bestMatch.category,
-              confidence_score: 0.95,
-              requires_review: false,
-              alternative_categories: [],
-              reasoning: `Meilisearch consensus: ${votes} similar published products in this category`,
-              source: "meilisearch_consensus"
-            }), { 
-              headers: { 
-                ...corsHeaders,
-                "Content-Type": "application/json" 
-              } 
-            });
-          }
+      // Find if any category has consensus (>= 3 votes)
+      let bestPath = "";
+      let maxVotes = 0;
+
+      for (const [path, votes] of categoryVotes.entries()) {
+        if (votes >= 3 && votes > maxVotes) {
+          bestPath = path;
+          maxVotes = votes;
         }
+      }
+
+      if (bestPath) {
+        // Find the matching category in our catalog using exact full path or most specific overlap
+        const matchingCat = categoryList.find(c => 
+          c.full_path === bestPath ||
+          c.full_path.endsWith(" > " + bestPath) ||
+          bestPath.endsWith(" > " + c.full_path)
+        );
+        
+        console.log(`[classify] Meilisearch consensus: ${maxVotes} products in "${bestPath}" — skipping AI`);
+        
+        return new Response(JSON.stringify({
+          category_id: matchingCat?.id || null,
+          category_name: matchingCat?.full_path || bestPath,
+          confidence_score: 0.95,
+          requires_review: false,
+          alternative_categories: [],
+          reasoning: `Meilisearch consensus: ${maxVotes} similar products in "${bestPath}"`,
+          source: "meilisearch_consensus"
+        }), { 
+          headers: { 
+            ...corsHeaders,
+            "Content-Type": "application/json" 
+          } 
+        });
       }
     }
 
