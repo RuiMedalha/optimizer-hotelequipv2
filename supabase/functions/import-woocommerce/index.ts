@@ -180,6 +180,8 @@ function normalizeWooProduct(
     BRAND_ATTR_NAMES.has(a.name.toLowerCase())
   );
   const supplierRef = brandAttr?.options?.[0] || null;
+  const supplierName = supplierRef; // For now, use the brand as the supplier name
+
 
   // SEO from meta_data (Rank Math / Yoast / SEOPress)
   const seoTitle = metaGet(meta, SEO_TITLE_KEYS);
@@ -220,6 +222,8 @@ function normalizeWooProduct(
     woocommerce_id: wp.id,
     source_file: "woocommerce-import",
     supplier_ref: supplierRef,
+    supplier_name: supplierName,
+
     attributes: attrs.length > 0 ? attrs : null,
     tags: tags.length > 0 ? tags : null,
     technical_specs: buildTechSpecs(wp),
@@ -604,9 +608,9 @@ Deno.serve(async (req) => {
           .select("id, sku, woocommerce_id, user_id, workspace_id");
 
         if (insertErr) {
-          console.error(`Insert batch error details:`, JSON.stringify(insertErr));
-          console.log(`First item user_id: ${batch[0]?.user_id}, workspace_id: ${batch[0]?.workspace_id}`);
-          console.error(`Insert batch error:`, insertErr);
+          console.error(`Insert batch error at index ${i}:`, JSON.stringify(insertErr));
+          const errMsg = insertErr.message || "Erro ao inserir lote";
+
           // Track individual errors for this batch and log to central table
           for (const wp of batchWps) {
             const sku = wp.sku || String(wp.id);
