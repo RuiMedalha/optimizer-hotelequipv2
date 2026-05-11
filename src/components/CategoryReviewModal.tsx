@@ -425,15 +425,15 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                 variant="outline"
                 size="sm"
                 className="gap-2 bg-primary/5 border-primary/20 hover:bg-primary/10"
-                disabled={isBusy || isBulkClassifying || filtered.length === 0}
-                onClick={() => handleBulkClassify(filtered.slice(0, 100).map(p => p.id))}
+                disabled={isBusy || isBulkClassifying || selected.size === 0}
+                onClick={() => handleBulkClassify(Array.from(selected))}
               >
                 {isBulkClassifying ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <Wand2 className="w-4 h-4 text-primary" />
                 )}
-                Recalcular 100 com Meilisearch
+                Recalcular Selecionados ({selected.size}) com Meilisearch
               </Button>
               <Button
                 variant="outline"
