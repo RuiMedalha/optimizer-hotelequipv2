@@ -291,16 +291,32 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
               Revisão de Categorias IA
               <Badge variant="secondary" className="text-xs">{candidates.length} produtos</Badge>
             </DialogTitle>
-            <div className="flex items-center gap-3 bg-muted/50 px-4 py-2 rounded-full border">
-              <Switch 
-                id="show-all" 
-                checked={showAllProducts} 
-                onCheckedChange={setShowAllProducts} 
-              />
-              <Label htmlFor="show-all" className="text-xs font-medium cursor-pointer">
-                {showAllProducts ? "Ver Todos os Produtos" : "Ver Apenas Pendentes"}
-              </Label>
-            </div>
+              <div className="flex items-center gap-3 bg-muted/50 px-4 py-2 rounded-full border">
+                <Switch 
+                  id="show-all" 
+                  checked={showAllProducts} 
+                  onCheckedChange={setShowAllProducts} 
+                />
+                <Label htmlFor="show-all" className="text-xs font-medium cursor-pointer">
+                  {showAllProducts ? "Ver Todos os Produtos" : "Ver Apenas Pendentes"}
+                </Label>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const highConfidence = filtered.filter(p => {
+                    const confidence = (p as any).suggested_category_confidence || (p.suggested_categories?.[0]?.confidence_score ? p.suggested_categories[0].confidence_score * 100 : 0);
+                    return confidence >= 80;
+                  });
+                  setSelected(new Set(highConfidence.map(p => p.id)));
+                }}
+              >
+                Sel. ≥80% ({filtered.filter(p => {
+                  const confidence = (p as any).suggested_category_confidence || (p.suggested_categories?.[0]?.confidence_score ? p.suggested_categories[0].confidence_score * 100 : 0);
+                  return confidence >= 80;
+                }).length})
+              </Button>
           </div>
         </DialogHeader>
 
