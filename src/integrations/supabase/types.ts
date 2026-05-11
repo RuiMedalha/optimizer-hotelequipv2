@@ -9936,6 +9936,7 @@ export type Database = {
           focus_keyword: string[] | null
           id: string
           image_alt_texts: Json | null
+          image_status: string | null
           image_urls: string[] | null
           is_discontinued: boolean | null
           locked_for_publish: boolean | null
@@ -10004,6 +10005,7 @@ export type Database = {
           focus_keyword?: string[] | null
           id?: string
           image_alt_texts?: Json | null
+          image_status?: string | null
           image_urls?: string[] | null
           is_discontinued?: boolean | null
           locked_for_publish?: boolean | null
@@ -10074,6 +10076,7 @@ export type Database = {
           focus_keyword?: string[] | null
           id?: string
           image_alt_texts?: Json | null
+          image_status?: string | null
           image_urls?: string[] | null
           is_discontinued?: boolean | null
           locked_for_publish?: boolean | null
