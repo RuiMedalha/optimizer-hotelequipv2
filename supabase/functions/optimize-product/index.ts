@@ -1756,8 +1756,8 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           const hadFaqPlaceholder = /\{\{faq\}\}/i.test(optimized.optimized_description);
           // Replace {{faq}} with actual FAQ HTML if we have FAQ data
           if (optimized.faq && Array.isArray(optimized.faq) && optimized.faq.length > 0) {
-            const allFaqs = optimized.faq;
-            const faqHtml = allFaqs.map((f: any) =>
+            const limitedFaqs = optimized.faq.slice(0, 5);
+            const faqHtml = limitedFaqs.map((f: any) =>
               `<p style="font-weight:bold; margin:0 0 4px; color:#2c2c2c;">${f.question}</p>\n<p style="margin:0 0 16px; color:#374151; line-height:1.6;">${f.answer}</p>`
             ).join("\n");
             optimized.optimized_description = optimized.optimized_description.replace(/\{\{faq\}\}/gi, faqHtml);

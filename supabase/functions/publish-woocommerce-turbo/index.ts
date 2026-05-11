@@ -332,9 +332,9 @@ async function fetchUsoProfissional(supabase: any, productId: string): Promise<s
   return null; 
 }
 
-function buildFaqHtml(faq: any[]): string {
-  if (!Array.isArray(faq) || faq.length === 0) return "";
-  const items = faq.map((item: any) => {
+ function buildFaqHtml(faq: any[]): string {
+   if (!Array.isArray(faq) || faq.length === 0) return "";
+   const items = faq.slice(0, 5).map((item: any) => {
     const q = typeof item === "string" ? item : (item?.question || item?.q || "");
     const a = typeof item === "string" ? "" : (item?.answer || item?.a || "");
     if (!q) return "";
