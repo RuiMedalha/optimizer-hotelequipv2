@@ -161,6 +161,12 @@ Deno.serve(async (req) => {
               console.warn(`[cache-images] ${msg}`);
               totalFailed++;
               
+              // STEP 2: Update product image_status to 'failed' on error
+              await supabase
+                .from("products")
+                .update({ image_status: "failed" })
+                .eq("id", product.id);
+
               await supabase.from("catalog_operation_errors").insert({
                 workspace_id: workspaceId,
                 user_id: userId,
@@ -236,6 +242,12 @@ Deno.serve(async (req) => {
             console.error(`[cache-images] Exception processing ${url}:`, err);
             totalFailed++;
             
+            // STEP 2: Update product image_status to 'failed' on error
+            await supabase
+              .from("products")
+              .update({ image_status: "failed" })
+              .eq("id", product.id);
+
             // Log to catalog_operation_errors
             try {
               await supabase.from("catalog_operation_errors").insert({
@@ -257,7 +269,10 @@ Deno.serve(async (req) => {
         if (productChanged) {
           await supabase
             .from("products")
-            .update({ image_urls: newImageUrls })
+            .update({ 
+              image_urls: newImageUrls,
+              image_status: "ok" // STEP 2: Set to ok on success
+            })
             .eq("id", product.id);
         }
         totalProcessed++;

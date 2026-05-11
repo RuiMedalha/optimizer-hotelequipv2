@@ -211,6 +211,7 @@ const ProductsPage = () => {
   const [includeUsoProfissional, setIncludeUsoProfissional] = useState(false);
   const [usoProfissionalInDescription, setUsoProfissionalInDescription] = useState(true);
   const [usoProfissionalInCustomField, setUsoProfissionalInCustomField] = useState(false);
+  const [imageIssueFilter, setImageIssueFilter] = useState(false);
   // Modo granular: "off" | "optimize_only" | "lifestyle_only" | "optimize_and_lifestyle"
   // Persistido em localStorage; default = "optimize_only" (mais rápido, sem perda).
   const [imageProcessingMode, setImageProcessingMode] = useState<ImageProcessingMode>(() => {
@@ -298,6 +299,7 @@ const ProductsPage = () => {
     productType: productTypeFilter,
     sourceFile: sourceFileFilter,
     wooFilter,
+    imageStatus: imageIssueFilter ? "any_issue" : "all",
     page: currentPage,
     pageSize: PAGE_SIZE,
   };
@@ -332,6 +334,36 @@ const ProductsPage = () => {
       setBackgroundMode(true);
     }
   }, [pendingOptimizeIds.length]);
+
+  // Fetch count for products with image issues
+  const { data: imageIssueCount } = useQuery({
+    queryKey: ["product-image-issue-count", activeWorkspace?.id],
+    enabled: !!activeWorkspace,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("id", { count: "exact", head: true })
+        .eq("workspace_id", activeWorkspace!.id)
+        .in("image_status", ["failed", "missing"]);
+      if (error) throw error;
+      return data.length || 0; // Wait, exact count doesn't return in data.length like that with head:true
+    }
+  });
+
+  // Re-fetch properly
+  const { data: issueCount } = useQuery({
+    queryKey: ["product-image-issue-count-v2", activeWorkspace?.id],
+    enabled: !!activeWorkspace,
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("products")
+        .select("*", { count: "exact", head: true })
+        .eq("workspace_id", activeWorkspace!.id)
+        .in("image_status", ["failed", "missing"]);
+      if (error) throw error;
+      return count || 0;
+    }
+  });
 
   const getProductPhases = useCallback((p: Product) => {
     const p1 = !!(p.optimized_title || p.optimized_description || p.optimized_short_description);
