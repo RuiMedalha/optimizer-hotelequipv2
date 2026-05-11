@@ -1784,11 +1784,12 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
               if (faqMatch) {
                 const faqHtml = faqMatch[1];
                 const qas = [];
-                // More lenient regex for Q&A pairs (matches bold/strong for questions, then the following paragraph for answers)
-                const qRegex = /<(?:p|strong|b)[^>]*>(.*?)<\/(?:p|strong|b)>\s*<(?:p|em|i|span)[^>]*>(.*?)<\/(?:p|em|i|span)>/gi;
+                // Match: <p><strong>Question</strong></p><p>Answer</p>
+                // OR: <p>P: Question</p><p>R: Answer</p>
+                const qRegex = /<p[^>]*>(?:<strong[^>]*>|<b[^>]*>)?\s*(?:\d+\.\s*)?(.*?)(?:<\/strong>|<\/b>)?\s*<\/p>\s*<p[^>]*>(?!(?:<strong|<b))([^<][^]*?)<\/p>/gi;
                 let m;
                 while ((m = qRegex.exec(faqHtml)) !== null) {
-                  const q = m[1].replace(/<[^>]*>/g, "").trim();
+                  const q = m[1].replace(/<[^>]*>/g, "").replace(/^\d+\.\s*/, "").trim();
                   const a = m[2].replace(/<[^>]*>/g, "").trim();
                   if (q && a && q.length > 5) {
                     qas.push({ question: q, answer: a });
