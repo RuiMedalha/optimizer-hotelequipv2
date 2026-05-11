@@ -597,14 +597,31 @@ Deno.serve(async (req) => {
 
         if (insertErr) {
           console.error(`Insert batch error:`, insertErr);
-          // Track individual errors for this batch
+          // Track individual errors for this batch and log to central table
           for (const wp of batchWps) {
+            const sku = wp.sku || String(wp.id);
+            const errMsg = insertErr.message || "Erro ao inserir";
+            
             importErrors.push({
-              sku: wp.sku || String(wp.id),
+              sku,
               title: wp.name || "",
-              error: insertErr.message || "Erro ao inserir",
+              error: errMsg,
               phase: "insert",
             });
+
+            // Persist to central error log
+            try {
+              await supabase.from("catalog_operation_errors").insert({
+                workspace_id: workspaceId,
+                user_id: userId,
+                operation_type: 'woocommerce_import',
+                sku: sku,
+                error_message: errMsg,
+                error_detail: { phase: 'insert', woo_id: wp.id, name: wp.name }
+              });
+            } catch (logErr) {
+              console.error("Failed to persist import error:", logErr);
+            }
           }
           continue;
         }
@@ -656,12 +673,27 @@ Deno.serve(async (req) => {
           if (vErr) {
             console.error(`Variation insert error for parent ${wooParentId}:`, vErr);
             for (const vi of batch) {
+              const errMsg = vErr.message || "Erro ao inserir variação";
               importErrors.push({
                 sku: vi.sku || "",
                 title: vi.original_title || "",
-                error: vErr.message || "Erro ao inserir variação",
+                error: errMsg,
                 phase: "variation",
               });
+
+              // Persist to central error log
+              try {
+                await supabase.from("catalog_operation_errors").insert({
+                  workspace_id: workspaceId,
+                  user_id: userId,
+                  operation_type: 'woocommerce_import_variation',
+                  sku: vi.sku,
+                  error_message: errMsg,
+                  error_detail: { phase: 'variation', parent_id: wooParentId }
+                });
+              } catch (logErr) {
+                console.error("Failed to persist variation import error:", logErr);
+              }
             }
           } else {
             variationsInserted += vData?.length || 0;
