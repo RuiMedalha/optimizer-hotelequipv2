@@ -486,11 +486,15 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                         <TableCell className="py-4">
                           <CategoryCell 
                             product={p} 
-                            onSelectSuggestion={(catName) => {
+                            onSelectSuggestion={(catName, confidence) => {
                               setOverrides(prev => ({ ...prev, [p.id]: catName }));
+                              if (confidence) {
+                                setOverrideConfidences(prev => ({ ...prev, [p.id]: confidence }));
+                              }
                               setSelected(prev => new Set([...prev, p.id]));
                             }}
                             currentOverride={overrides[p.id]}
+                            currentOverrideConfidence={overrideConfidences[p.id]}
                           />
                         </TableCell>
                         <TableCell>
