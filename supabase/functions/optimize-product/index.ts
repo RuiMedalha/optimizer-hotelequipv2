@@ -884,19 +884,23 @@ serve(async (req) => {
         // === AUTO-INFER MODEL FROM SKU IF MISSING ===
         let inferredModel = product.model;
         if (!inferredModel && product.sku) {
-          const parts = product.sku.split(/[-._]/);
-          if (parts.length > 1) {
-            const lastPart = parts[parts.length - 1];
-            // If the last part is short (<=3 chars) or numeric, it's likely a suffix
+          const sku = product.sku;
+          const lastHyphen = sku.lastIndexOf('-');
+          const lastDot = sku.lastIndexOf('.');
+          const lastUnderscore = sku.lastIndexOf('_');
+          const lastSepIndex = Math.max(lastHyphen, lastDot, lastUnderscore);
+          
+          if (lastSepIndex !== -1 && lastSepIndex > 0) {
+            const lastPart = sku.substring(lastSepIndex + 1);
             if (lastPart.length <= 3 || /^\d+$/.test(lastPart)) {
-              inferredModel = product.sku.substring(0, product.sku.lastIndexOf(product.sku.includes('-') ? '-' : product.sku.includes('.') ? '.' : '_'));
+              inferredModel = sku.substring(0, lastSepIndex);
             } else {
-              inferredModel = product.sku;
+              inferredModel = sku;
             }
           } else {
-            inferredModel = product.sku;
+            inferredModel = sku;
           }
-          console.log(`🤖 [optimize-product] Inferred model for ${product.sku}: ${inferredModel}`);
+          console.log(`🤖 [optimize-product] Inferred model for ${sku}: ${inferredModel}`);
         }
 
         // 1. HYBRID RAG: keyword + trigram + family search with reranking
