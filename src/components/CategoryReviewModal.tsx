@@ -208,7 +208,7 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
   };
 
   const batchUpdate = async (ids: string[], approve: boolean) => {
-    const batchSize = 200;
+    const batchSize = 100;
     for (let i = 0; i < ids.length; i += batchSize) {
       const batch = ids.slice(i, i + batchSize);
       const prods = candidates.filter(p => batch.includes(p.id));
@@ -217,6 +217,9 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
         for (const p of prods) {
           const finalCategory = getEffectiveSuggestion(p);
           if (!finalCategory) continue;
+
+          // Find the category info in suggested_categories to get the ID if possible
+          const suggestionInfo = p.suggested_categories?.find(s => s.category_name === finalCategory);
 
           const { error } = await supabase
             .from("products")
