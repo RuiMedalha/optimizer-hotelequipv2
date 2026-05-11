@@ -534,9 +534,17 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                                       body: {
                                         workspace_id: p.workspace_id,
                                         product: {
-                                          title: p.original_title,
+                                          title: p.optimized_title || p.original_title,
                                           original_title: p.original_title,
+                                          optimized_title: p.optimized_title,
+                                          description: p.optimized_description || p.original_description,
+                                          original_description: p.original_description,
+                                          short_description: p.short_description,
+                                          brand: p.brand,
+                                          sku: p.sku,
                                           technical_specs: p.technical_specs,
+                                          attributes: p.attributes,
+                                          supplier: p.supplier_name,
                                           useMeilisearch: true
                                         }
                                       }
