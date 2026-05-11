@@ -35,12 +35,26 @@ async function findSimilarInMeilisearch(
     const data = await resp.json();
     return (data.hits || [])
       .filter((h: any) => h.categories?.length > 0)
-      .map((h: any) => ({
-        title: h.title || "",
-        category: Array.isArray(h.categories) && h.categories.length > 0
-          ? h.categories.join(" > ")
-          : "",
-      }));
+      .map((h: any) => {
+        let categoryPath = "";
+        if (Array.isArray(h.categories)) {
+          // If it's a single string that looks like a path, use it
+          if (h.categories.length === 1 && h.categories[0].includes("&gt;")) {
+            categoryPath = h.categories[0].replace(/&gt;/g, " > ");
+          } else if (h.categories.length === 1 && h.categories[0].includes(" > ")) {
+            categoryPath = h.categories[0];
+          } else {
+            // It's an array of category names. We'll return it as a joined string for now,
+            // but the consensus logic will be improved to handle this.
+            categoryPath = h.categories.join(" > ");
+          }
+        }
+        return {
+          title: h.title || "",
+          category: categoryPath,
+          raw_categories: Array.isArray(h.categories) ? h.categories : [h.categories]
+        };
+      });
   } catch {
     return [];
   }
@@ -150,30 +164,47 @@ Deno.serve(async (req) => {
         }
       }
 
-      if (bestPath && bestPath.includes(" > ")) {
-        // Find the matching category in our catalog using exact full path or most specific overlap
-        const matchingCat = categoryList.find(c => 
-          c.full_path === bestPath ||
-          c.full_path.endsWith(" > " + bestPath) ||
-          bestPath.endsWith(" > " + c.full_path)
-        );
+      if (bestPath) {
+        const pathParts = bestPath.split(" > ").map(p => p.trim());
         
-        console.log(`[classify] Meilisearch consensus: ${maxVotes} products in "${bestPath}" — skipping AI`);
+        let matchingCat = categoryList.find(c => c.full_path === bestPath);
         
-        return new Response(JSON.stringify({
-          category_id: matchingCat?.id || null,
-          category_name: matchingCat?.full_path || bestPath,
-          confidence_score: 0.95,
-          requires_review: false,
-          alternative_categories: [],
-          reasoning: `Meilisearch consensus: ${maxVotes} similar products in "${bestPath}"`,
-          source: "meilisearch_consensus"
-        }), { 
-          headers: { 
-            ...corsHeaders,
-            "Content-Type": "application/json" 
-          } 
-        });
+        if (!matchingCat) {
+          // If no exact match, find the category from pathParts that is the most specific (deepest) in our DB
+          let deepestCat = null;
+          let maxDepth = -1;
+          
+          for (const part of pathParts) {
+            const matches = categoryList.filter(c => c.name === part);
+            for (const m of matches) {
+              const depth = m.full_path.split(" > ").length;
+              if (depth > maxDepth) {
+                maxDepth = depth;
+                deepestCat = m;
+              }
+            }
+          }
+          matchingCat = deepestCat;
+        }
+        
+        if (matchingCat) {
+          console.log(`[classify] Meilisearch consensus: ${maxVotes} products in "${bestPath}". Matched to deepest DB cat: "${matchingCat.full_path}"`);
+          
+          return new Response(JSON.stringify({
+            category_id: matchingCat.id,
+            category_name: matchingCat.full_path,
+            confidence_score: 0.95,
+            requires_review: false,
+            alternative_categories: [],
+            reasoning: `Meilisearch consensus: ${maxVotes} similar products. Reconstructed hierarchy using catalog database.`,
+            source: "meilisearch_consensus"
+          }), { 
+            headers: { 
+              ...corsHeaders,
+              "Content-Type": "application/json" 
+            } 
+          });
+        }
       }
     }
 
