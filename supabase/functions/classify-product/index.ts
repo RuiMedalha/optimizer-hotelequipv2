@@ -216,6 +216,7 @@ CRITICAL RULES:
 5. ACCESSORY DETECTION: If the product is an accessory (e.g., "Estante", "Prateleira", "Grelha", "Cesto", "Shelf", "Kit", "Suporte", "Acessório"), you MUST look for the "Acessorios" sub-category within the correct top-level category.
 6. MISMATCH PROTECTION: If the products from Meilisearch have completely different titles from the target product, IGNORE their categories and rely on the Taxonomy and your internal logic.
 7. SUGGESTIONS: Provide up to 3 alternative categories if relevant.
+8. KEYWORD ALIGNMENT: If the product title contains specific keywords (e.g., "Kebab", "Pizza", "Wok"), prioritize categories that explicitly mention these terms over broader combined categories (e.g., choose "Assadores Kebab" instead of "Assadores de Frangos e Kebab" if the product is exclusively for Kebab).
 
 LEARNING PATTERNS (Strong indicators based on SKU prefix):
 ${learningExamplesStr || "No specific patterns yet."}
