@@ -290,6 +290,11 @@ export default function IntelligenceDashboardPage() {
           </div>
         </TabsContent>
 
+        {/* Erros de Operação Tab */}
+        <TabsContent value="errors">
+          <OperationErrorsTable />
+        </TabsContent>
+
         {/* Alerts Tab */}
         <TabsContent value="alerts">
           {alerts.length === 0 ? (
