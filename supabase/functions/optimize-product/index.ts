@@ -1432,7 +1432,9 @@ REGRAS OBRIGATÓRIAS:
 - NUNCA usar \"HORECA\". Usar: \"restaurantes\", \"hotéis\", \"bares\".
 - Dirigir-se ao cliente: \"para o seu restaurante\", \"ideal para o seu bar\".
 - Benefício concreto + contexto específico + call-to-action (ex: \"Entrega 24-48h\").
-- NÃO incluas marca. Usa linguagem que gere cliques.`,
+- NÃO incluas marca. Usa linguagem que gere cliques.
+\${terminologyForTitle}
+REGRA: NUNCA usar "HORECA" na meta_description. NUNCA usar termos "avoid". Substituir por contextos específicos: "restaurantes", "hotéis", "cozinhas profissionais".`,
           meta_description: `Gera meta description SEO (140-155 chars).
 REGRAS OBRIGATÓRIAS:
 - NUNCA usar \"HORECA\". Usar: \"restaurantes\", \"hotéis\", \"bares\".
