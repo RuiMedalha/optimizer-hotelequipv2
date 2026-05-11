@@ -885,6 +885,8 @@ serve(async (req) => {
         let inferredModel = product.model;
         if (!inferredModel && product.sku) {
           const sku = product.sku;
+          
+          // Lógica de fallback padrão para otimização automática
           const lastHyphen = sku.lastIndexOf('-');
           const lastDot = sku.lastIndexOf('.');
           const lastUnderscore = sku.lastIndexOf('_');
@@ -895,7 +897,6 @@ serve(async (req) => {
             const before = sku.substring(0, lastSepIndex);
             const after = sku.substring(lastSepIndex + 1);
             
-            // Se a parte anterior tem dígitos e a parte posterior parece um sufixo (curta ou variante comum)
             const hasDigitsBefore = /\d/.test(before);
             const isLikelySuffix = after.length <= 6 || /^\d+$/.test(after) || /^(V|BT|TN|HC|R\d+|TR|BT|TNV|BTV)$/i.test(after);
             
@@ -905,12 +906,13 @@ serve(async (req) => {
               inferredModel = sku;
             }
           } else {
-            // Caso especial sem separador: ex: EU3072V -> EU3072
-            const match = sku.match(/^(.*?\d+)([A-Z])$/i);
-            if (match) {
-              inferredModel = match[1];
+            // Se o SKU tem o formato EUXXXXX (onde EU é o prefixo de 2 letras), 
+            // tentamos extrair o modelo removendo o prefixo e o sufixo de 2 letras se não houver separadores.
+            if (sku.length > 4) {
+               // Ex: EU3072V -> 3072
+               inferredModel = sku.substring(2, sku.length - 2);
             } else {
-              inferredModel = sku;
+               inferredModel = sku;
             }
           }
           console.log(`🤖 [optimize-product] Inferred model for ${sku}: ${inferredModel}`);
