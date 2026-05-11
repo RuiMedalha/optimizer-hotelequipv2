@@ -143,9 +143,9 @@ Deno.serve(async (req) => {
       product.technical_specs || ""
     );
     
+    let consensusHint = "";
     // MEILISEARCH CONSENSUS CHECK — if 3+ similar products agree on same category, use it directly
     if (similarProducts.length >= 3) {
-      // Count specific category path votes
       const categoryVotes = new Map<string, number>();
       for (const sp of similarProducts) {
         if (sp.category) {
@@ -153,7 +153,6 @@ Deno.serve(async (req) => {
         }
       }
       
-      // Find if any category has consensus (>= 3 votes)
       let bestPath = "";
       let maxVotes = 0;
 
@@ -166,14 +165,11 @@ Deno.serve(async (req) => {
 
       if (bestPath) {
         const pathParts = bestPath.split(" > ").map(p => p.trim());
-        
         let matchingCat = categoryList.find(c => c.full_path === bestPath);
         
         if (!matchingCat) {
-          // If no exact match, find the category from pathParts that is the most specific (deepest) in our DB
           let deepestCat = null;
           let maxDepth = -1;
-          
           for (const part of pathParts) {
             const matches = categoryList.filter(c => c.name === part);
             for (const m of matches) {
@@ -189,17 +185,16 @@ Deno.serve(async (req) => {
         
         if (matchingCat) {
           console.log(`[classify] Meilisearch consensus found: ${maxVotes} products in "${bestPath}". Passing as hint to AI.`);
-          // Instead of returning immediately, we'll pass this as a strong hint to the AI
-          similarContext += `\nMEILISEARCH CONSENSUS: ${maxVotes} similar products were found in category "${matchingCat.full_path}". Consider this as the most likely correct category unless the product features suggest otherwise.\n`;
+          consensusHint = `\nMEILISEARCH CONSENSUS: ${maxVotes} similar products were found in category "${matchingCat.full_path}". Consider this as the most likely correct category unless the product features suggest otherwise.\n`;
         }
       }
     }
 
-    const similarContext = similarProducts.length > 0
+    const similarContext = (similarProducts.length > 0
       ? `\nProdutos similares já publicados com categorias correctas:\n${
           similarProducts.map(p => `- "${p.title}" → ${p.category}`).join("\n")
         }\n\nUsa estes como referência principal para escolher a categoria.\n`
-      : "";
+      : "") + consensusHint;
 
     // Build the prompt
     const systemPrompt = `You are a Product Classification Agent for an e-commerce catalog management system focused on the HORECA sector.
