@@ -329,9 +329,11 @@ serve(async (req) => {
       "pasta": ["cozedor de massa", "pasta cooker"],
       "arroz": ["rice cooker", "cozedor de arroz"],
       // Exaustão / ventilação
-      "exaustor": ["apanha fumos", "apanha-fumos", "hotte", "coifa", "hood", "extractor hood", "exaustão", "campânula"],
-      "apanha-fumos": ["exaustor", "hotte", "coifa", "hood", "extractor hood", "campânula"],
-      "hotte": ["exaustor", "apanha fumos", "coifa", "hood", "extractor hood"],
+      "exaustor": ["apanha fumos", "apanha-fumos", "hotte", "coifa", "hood", "extractor hood", "exaustão", "campânula", "campanula"],
+      "apanha-fumos": ["exaustor", "hotte", "coifa", "hood", "extractor hood", "campânula", "campanula"],
+      "hotte": ["exaustor", "apanha fumos", "coifa", "hood", "extractor hood", "campânula", "campanula"],
+      "campânula": ["exaustor", "hotte", "coifa", "apanha fumos", "hood", "extractor hood", "campanula"],
+      "campanula": ["exaustor", "hotte", "coifa", "apanha fumos", "hood", "extractor hood", "campânula"],
       // Bancadas e mobiliário inox
       "bancada": ["mesa de trabalho", "bancada inox", "work table", "worktable", "mesa inox"],
       "lavatório": ["lavatorio", "pia", "sink", "lava-mãos", "lava maos"],
@@ -356,6 +358,29 @@ serve(async (req) => {
         .replace(/[^a-z0-9\s>]/g, " ")
         .replace(/\s+/g, " ")
         .trim();
+    }
+
+    function getSynonymsForProduct(productTitle: string): string[] {
+      const normalized = normalizeForCategoryMatch(productTitle);
+      const words = normalized.split(" ").filter(w => w.length >= 3);
+      const foundSyns = new Set<string>();
+      
+      for (const word of words) {
+        // Check direct key
+        if (CATEGORY_SYNONYMS[word]) {
+          CATEGORY_SYNONYMS[word].forEach(s => foundSyns.add(s));
+        }
+        // Check if word is a synonym of something else
+        for (const [key, syns] of Object.entries(CATEGORY_SYNONYMS)) {
+          if (syns.includes(word)) {
+            foundSyns.add(key);
+            syns.forEach(s => {
+              if (s !== word) foundSyns.add(s);
+            });
+          }
+        }
+      }
+      return Array.from(foundSyns);
     }
 
     function findSemanticCategory(productTitle: string, productCategory: string, existingCats: string[]): string[] {
