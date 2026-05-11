@@ -437,7 +437,19 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                           </div>
                         </TableCell>
                         <TableCell>
-                          <CategoryCell product={p} />
+                          <CategoryCell 
+                            product={p} 
+                            onSelectSuggestion={(catName) => {
+                              setOverrides(prev => ({ ...prev, [p.id]: catName }));
+                              setSelected(prev => new Set([...prev, p.id]));
+                            }}
+                            currentOverride={overrides[p.id]}
+                          />
+                          {overrides[p.id] && (
+                            <p className="text-[10px] text-success mt-1 font-medium">
+                              ✓ Vai aprovar: {overrides[p.id]}
+                            </p>
+                          )}
                         </TableCell>
                         <TableCell>
                           <ArrowRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary/40 group-hover:translate-x-1 transition-all" />
@@ -489,6 +501,55 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                               >
                                 <RefreshCw className="w-3 h-3" />
                                 Recalcular IA
+                              </Button>
+                            )}
+                            {p.suggested_category && !isClassifying && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-xs h-7 px-2 gap-1"
+                                disabled={classifyingIds.has(p.id) || isBusy}
+                                title="Recalcular categoria usando Meilisearch + IA"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  setClassifyingIds(prev => new Set([...prev, p.id]));
+                                  try {
+                                    const { data, error } = await supabase.functions.invoke("classify-product", {
+                                      body: {
+                                        workspace_id: p.workspace_id,
+                                        product: {
+                                          title: p.original_title,
+                                          original_title: p.original_title,
+                                          technical_specs: p.technical_specs,
+                                          useMeilisearch: true
+                                        }
+                                      }
+                                    });
+                                    if (error) throw error;
+                                    if (data?.category_name) {
+                                      const { error: updateError } = await supabase
+                                        .from("products")
+                                        .update({
+                                          suggested_category: data.category_name,
+                                          suggested_categories: [
+                                            { category_name: data.category_name, confidence_score: data.confidence_score, reasoning: data.reasoning },
+                                            ...(data.alternative_categories || [])
+                                          ]
+                                        })
+                                        .eq("id", p.id);
+                                      if (updateError) throw updateError;
+                                      toast.success(`Sugestão actualizada: ${data.category_name}`);
+                                      qc.invalidateQueries({ queryKey: ["category-review-candidates"] });
+                                      qc.invalidateQueries({ queryKey: ["products"] });
+                                    }
+                                  } catch (err: any) {
+                                    toast.error("Erro ao recalcular");
+                                  } finally {
+                                    setClassifyingIds(prev => { const n = new Set(prev); n.delete(p.id); return n; });
+                                  }
+                                }}
+                              >
+                                {classifyingIds.has(p.id) ? "..." : "🔍 Meili"}
                               </Button>
                             )}
                             {!p.suggested_category && (
