@@ -430,7 +430,7 @@ const UploadPage = () => {
                                 onCheckedChange={(checked) => setAutoModelFromSku(file.id, checked === true)}
                               />
                               <Label htmlFor={`autoModel-${file.id}`} className="text-[10px] font-medium cursor-pointer">
-                                Usar SKU s/ prefixo e s/ sufixo (últimos 2 caracteres) como Modelo
+                                Usar SKU s/ prefixo (2 primeiras letras) como Modelo
                               </Label>
                             </div>
                           </div>

@@ -421,15 +421,11 @@ function buildProductData(p: Record<string, unknown>, onlyMapped: boolean, mappe
       if (sku.toUpperCase().startsWith(prefix.toUpperCase())) {
         baseModel = sku.substring(prefix.length);
       }
+    } else if (sku.length > 2) {
+      // Se não houver prefixo definido, assume que as 2 primeiras letras são o sufixo/marca
+      baseModel = sku.substring(2);
     }
-    
-    // NOVO: Se o modelo foi extraído do SKU retirando o prefixo, 
-    // agora retiramos também o sufixo (os últimos 2 caracteres) como solicitado.
-    if (baseModel.length > 2) {
-      modeloVal = baseModel.substring(0, baseModel.length - 2);
-    } else {
-      modeloVal = baseModel;
-    }
+    modeloVal = baseModel;
   }
 
   // Apply model suffix
