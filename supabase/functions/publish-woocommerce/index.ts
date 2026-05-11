@@ -3060,6 +3060,7 @@ async function wooCacheRefresh(baseUrl: string, auth: string, productId: number 
       const wpUser = Deno.env.get("WP_APP_USERNAME");
       const wpPass = Deno.env.get("WP_APP_PASSWORD");
       if (wpUser && wpPass) {
+        console.log(`[refresh] Using WP_APP_USERNAME: ${wpUser.slice(0, 2)}... (length: ${wpUser.length}), WP_APP_PASSWORD length: ${wpPass.length}`);
         const wpAuth = btoa(`${wpUser}:${wpPass}`);
         const refreshUrl = `${baseUrl}/wp-json/hotelequip/v1/refresh-products`;
         console.log(`[refresh] Calling refresh for IDs: ${wcId} at ${refreshUrl}`);
