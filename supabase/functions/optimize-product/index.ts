@@ -68,7 +68,9 @@ async function findSimilarProductsInMeilisearch(
       .filter((h: any) => h.categories?.length > 0)
       .map((h: any) => ({
         title: h.title || "",
-        category: Array.isArray(h.categories) ? h.categories[0] : "",
+        category: Array.isArray(h.categories) && h.categories.length > 0
+          ? [...h.categories].reverse().join(" > ")
+          : "",
         brand: Array.isArray(h.brand_names) ? h.brand_names[0] : "",
       }));
   } catch {
