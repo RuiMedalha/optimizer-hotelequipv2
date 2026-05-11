@@ -316,10 +316,10 @@ Deno.serve(async (req) => {
     }
 
     // Use service role key to bypass RLS for logging errors
+    // DO NOT pass Authorization header here so it stays as a true service role client
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
     // Regular client for product operations (respecting user RLS)
@@ -601,9 +601,11 @@ Deno.serve(async (req) => {
         const { data: insertedData, error: insertErr } = await supabase
           .from("products")
           .insert(batch)
-          .select("id, sku, woocommerce_id");
+          .select("id, sku, woocommerce_id, user_id, workspace_id");
 
         if (insertErr) {
+          console.error(`Insert batch error details:`, JSON.stringify(insertErr));
+          console.log(`First item user_id: ${batch[0]?.user_id}, workspace_id: ${batch[0]?.workspace_id}`);
           console.error(`Insert batch error:`, insertErr);
           // Track individual errors for this batch and log to central table
           for (const wp of batchWps) {
