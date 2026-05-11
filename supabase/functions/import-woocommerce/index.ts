@@ -620,7 +620,7 @@ Deno.serve(async (req) => {
             // Persist to central error log using service role client
             try {
               console.log(`Logging insert error for SKU ${sku}`);
-              const { error: logErr } = await supabase.from("catalog_operation_errors").insert({
+              const { error: logErr } = await supabaseAdmin.from("catalog_operation_errors").insert({
                 workspace_id: workspaceId,
                 user_id: userId,
                 operation_type: 'woocommerce_import',
