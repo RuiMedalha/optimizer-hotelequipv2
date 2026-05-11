@@ -1448,7 +1448,9 @@ REGRAS OBRIGATÓRIAS:
 - NÃO incluas marca no slug
 - NÃO incluas códigos EAN ou referências no slug
 - Máx 5-7 palavras
-- Exemplo: fritadeira-gas-linha-700-8-litros`,
+- Exemplo: fritadeira-gas-linha-700-8-litros
+\${terminologyForTitle}
+REGRA: NUNCA usar termos "avoid" no slug (ex: "campana", "fregadero", "horno", "freidora"). O slug usa sempre o termo PT-PT preferred em lowercase sem acentos.`,
           tags: `${terminologyForTags}`,
           price: `Sugere um preço otimizado.
 REGRAS:
