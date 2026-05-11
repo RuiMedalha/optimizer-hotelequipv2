@@ -253,16 +253,42 @@ export function CategoryCascadingSelector({ onSelect, suggestedIds = [], workspa
             </div>
           )}
 
+          {/* Level 4 */}
+          {level3 && (
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase text-muted-foreground px-1">Nível 4</label>
+              <Select value={level4 || ""} onValueChange={(v) => setLevel4(v)}>
+                <SelectTrigger className="h-9 text-left">
+                  <SelectValue placeholder={loadingL4 ? "Carregando..." : "Selecione item final"} />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  {level4Options?.map(c => (
+                    <SelectItem key={c.id} value={c.id}>
+                      <div className="flex items-center gap-2">
+                        {c.name}
+                        {suggestedIds.includes(c.id) && <Badge variant="secondary" className="text-[8px] h-4">Sugestão</Badge>}
+                      </div>
+                    </SelectItem>
+                  ))}
+                  {!loadingL4 && (!level4Options || level4Options.length === 0) && (
+                    <div className="p-2 text-center text-xs text-muted-foreground italic">Nenhum sub-item disponível</div>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div className="pt-2 border-t mt-2">
             <Button 
               className="w-full" 
               disabled={!level1}
               onClick={() => {
-                const finalId = level3 || level2 || level1;
+                const finalId = level4 || level3 || level2 || level1;
                 if (finalId) {
                   let fullName = getLabel(level1);
                   if (level2) fullName += " > " + getLabel(level2);
                   if (level3) fullName += " > " + getLabel(level3);
+                  if (level4) fullName += " > " + getLabel(level4);
                   onSelect({ id: finalId, name: fullName });
                 }
               }}
