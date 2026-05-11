@@ -13,6 +13,7 @@ import { Download, Loader2, ShoppingCart, Package, Filter, CheckCircle, AlertTri
 import { WooSiteSelector } from "@/components/WooSiteSelector";
 import { WooCategoryMapper, type CategoryMapping } from "@/components/WooCategoryMapper";
 import { WooImportErrorReport } from "@/components/WooImportErrorReport";
+import { useNavigate } from "react-router-dom";
 
 import { useWooSites } from "@/hooks/useWooSites";
 import { SessionBadge } from "@/components/SessionBadge";
