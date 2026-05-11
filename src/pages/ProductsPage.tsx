@@ -3047,7 +3047,11 @@ const ProductsPage = () => {
       <CategoryReviewModal
         open={showCategoryReview}
         onOpenChange={setShowCategoryReview}
-        products={(allProductsLight ?? []) as any}
+        products={(
+          selected.size > 0
+            ? (allProductsLight ?? []).filter((p: any) => selected.has(p.id))
+            : (allProductsLight ?? [])
+        ) as any}
       />
       <PublishLogsModal
         jobId={activePublishJob?.id ?? null}
