@@ -340,6 +340,19 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                   return confidence >= 80;
                 }).length})
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isBusy || filtered.length === 0}
+                onClick={async () => {
+                  for (const p of filtered.slice(0, 20)) {
+                    await handleClassify(p.id);
+                  }
+                  toast.success(`${Math.min(filtered.length, 20)} produtos recalculados`);
+                }}
+              >
+                🔍 Recalcular Todos ({Math.min(filtered.length, 20)})
+              </Button>
           </div>
         </DialogHeader>
 
@@ -515,7 +528,7 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                             >
                               {acceptingIds.has(p.id) ? "..." : "Aceitar"}
                             </Button>
-                            {p.suggested_category && !isClassifying && (
+                            {!isClassifying && (
                               <Button 
                                 variant="outline" 
                                 size="sm" 
@@ -526,7 +539,7 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                                 Recalcular IA
                               </Button>
                             )}
-                            {p.suggested_category && !isClassifying && (
+                            {!isClassifying && (
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -574,7 +587,8 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                                       qc.invalidateQueries({ queryKey: ["products"] });
                                     }
                                   } catch (err: any) {
-                                    toast.error("Erro ao recalcular");
+                                    toast.error(`Erro ao recalcular: ${err.message || JSON.stringify(err)}`);
+                                    console.error("[Meili] classify-product error:", err);
                                   } finally {
                                     setClassifyingIds(prev => { const n = new Set(prev); n.delete(p.id); return n; });
                                   }
