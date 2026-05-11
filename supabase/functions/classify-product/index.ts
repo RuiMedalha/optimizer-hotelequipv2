@@ -5,6 +5,45 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+
+async function findSimilarInMeilisearch(
+  title: string,
+  specs?: string
+): Promise<Array<{ title: string; category: string }>> {
+  const MEILI_URL = "https://search.palamenta.com.pt";
+  const MEILI_KEY = "ed7cabcddd7aeeed55e18972f4ec98dccd3c27bf78cb82962d04e1661778011e";
+  const INDEX = "products_stage";
+
+  const query = `${title} ${specs || ""}`.trim().substring(0, 200);
+
+  try {
+    const resp = await fetch(`${MEILI_URL}/indexes/${INDEX}/search`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${MEILI_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        q: query,
+        limit: 8,
+        attributesToRetrieve: ["title", "categories", "brand_names"],
+      }),
+    });
+
+    if (!resp.ok) return [];
+
+    const data = await resp.json();
+    return (data.hits || [])
+      .filter((h: any) => h.categories?.length > 0)
+      .map((h: any) => ({
+        title: h.title || "",
+        category: Array.isArray(h.categories) ? h.categories[0] : "",
+      }));
+  } catch {
+    return [];
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -82,6 +121,18 @@ Deno.serve(async (req) => {
     const categoryList = Array.from(uniqueCategoryMap.values());
     const learningExamplesStr = (learningPatterns || []).map(p => `- SKU Prefix: "${p.sku_prefix}" -> Category: "${p.category_path}" (Confidence: ${p.confidence}%)`).join('\n');
 
+    // Query Meilisearch for similar published products
+    const similarProducts = await findSimilarInMeilisearch(
+      product.title || product.original_title || "",
+      product.technical_specs || ""
+    );
+
+    const similarContext = similarProducts.length > 0
+      ? `\nProdutos similares já publicados com categorias correctas:\n${
+          similarProducts.map(p => `- "${p.title}" → ${p.category}`).join("\n")
+        }\n\nUsa estes como referência principal para escolher a categoria.\n`
+      : "";
+
     // Build the prompt
     const systemPrompt = `You are a Product Classification Agent for an e-commerce catalog management system focused on the HORECA sector.
 
@@ -104,6 +155,7 @@ ${learningExamplesStr || "No specific patterns yet."}
 LEARNING EXAMPLES (How existing products are classified):
 ${examples?.map(e => `- Product: "${e.original_title}" -> Category: "${e.category}"`).join('\n') || "No examples available yet."}
 
+${similarContext}
 EXISTING CATEGORIES (Use EXACT "full_path" strings):
 ${categoryList.map(c => `- [${c.id}] ${c.full_path}`).join('\n')}
 
