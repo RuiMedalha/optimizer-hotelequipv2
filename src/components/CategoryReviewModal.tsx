@@ -597,6 +597,9 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
                                        qc.invalidateQueries({ queryKey: ["products"] });
                                        // Also auto-apply as override so UI updates immediately without waiting for refetch
                                        setOverrides(prev => ({ ...prev, [p.id]: data.category_name }));
+                                       if (data.confidence_score) {
+                                         setOverrideConfidences(prev => ({ ...prev, [p.id]: Math.round(data.confidence_score * 100) }));
+                                       }
                                        setSelected(prev => new Set([...prev, p.id]));
                                     }
                                   } catch (err: any) {
