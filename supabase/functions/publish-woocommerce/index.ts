@@ -2104,7 +2104,7 @@ async function buildBasePayload(
       wooProduct.weight = weightMatch[1].replace(',', '.');
     }
 
-    // ── Technical Specs (Marca, Modelo, EAN) for Simple Products ──
+    // ── Technical Specs (Marca, Modelo, EAN only as requested by user) ──
     const technicalFields: Array<{ name: string; value: string }> = [];
     const brand = product.brand || (Array.isArray(product.attributes) ? product.attributes.find((a: any) => ["marca", "brand"].includes(String(a.name).toLowerCase()))?.value : null);
     if (brand) technicalFields.push({ name: "Marca", value: String(brand) });
@@ -2112,13 +2112,14 @@ async function buildBasePayload(
     const model = product.model || (Array.isArray(product.attributes) ? product.attributes.find((a: any) => ["modelo", "model"].includes(String(a.name).toLowerCase()))?.value : null);
     if (model) technicalFields.push({ name: "Modelo", value: String(model) });
     
-    const ean = product.sku || (Array.isArray(product.attributes) ? product.attributes.find((a: any) => ["ean", "ean13", "gtin", "barcode"].includes(String(a.name).toLowerCase()))?.value : null);
-    if (ean && /^\d{8,14}$/.test(String(ean))) technicalFields.push({ name: "EAN", value: String(ean) });
+    const ean = product.ean || (Array.isArray(product.attributes) ? product.attributes.find((a: any) => ["ean", "ean13", "gtin", "barcode", "sku"].includes(String(a.name).toLowerCase()))?.value : null);
+    if (ean) technicalFields.push({ name: "EAN", value: String(ean) });
 
     if (technicalFields.length > 0) {
-      const specsHtml = `<table style="width:100%; border-collapse:collapse;">${technicalFields.map(f => `<tr><td style="padding:8px; border:1px solid #eee;"><strong>${f.name}</strong></td><td style="padding:8px; border:1px solid #eee;">${f.value}</td></tr>`).join("")}</table>`;
+      const specsHtml = `<table style="width:100%; border-collapse:collapse;">${technicalFields.map(f => `<tr><td style="padding:8px; border:1px solid #eee; width:30%;"><strong>${f.name}</strong></td><td style="padding:8px; border:1px solid #eee;">${f.value}</td></tr>`).join("")}</table>`;
       
       const existingMeta = (wooProduct.meta_data as any[]) || [];
+      // Support for XStore/Standard custom tabs
       existingMeta.push({ key: "_product_specs", value: specsHtml });
       existingMeta.push({ key: "et_custom_tab1_title", value: "Dados Técnicos" });
       existingMeta.push({ key: "et_custom_tab1_content", value: specsHtml });

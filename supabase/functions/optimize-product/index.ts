@@ -1227,19 +1227,19 @@ REGRAS OBRIGATÓRIAS:
 - Inclui tipo de energia se aplicável (Gás, Elétrico).`,
           description: `Gera uma descrição otimizada (HTML) que soe humana e natural.
 REGRAS DE LINGUAGEM NATURAL — OBRIGATÓRIO:
-- NUNCA soar robótico ou repetitivo. Limitar \"HORECA\" a máx 1 menção.
-- Substituir \"HORECA\" por: \"o seu restaurante\", \"o seu bar\", \"cozinhas profissionais\".
-- Dirigir-se ao cliente: \"Perfeito para o seu bar\", \"A sua equipa vai apreciar\".
-- VARIAR CONSTRUÇÕES: Nunca começar parágrafos seguidos com \"Este equipamento...\".
+- NUNCA soar robótico ou repetitivo. Limitar "HORECA" a máx 1 menção.
+- Substituir "HORECA" por: "o seu restaurante", "o seu bar", "cozinhas profissionais".
+- Dirigir-se ao cliente: "Perfeito para o seu bar", "A sua equipa vai apreciar".
+- VARIAR CONSTRUÇÕES: Nunca começar parágrafos seguidos com "Este equipamento...".
 - BENEFÍCIOS REAIS: Impacto no negócio (custos, ruído, rapidez) em vez de apenas specs.
 
 ESTRUTURA OBRIGATÓRIA:
 Envolve TUDO num div: <div class="product-description" style="font-size:15px; line-height:1.65; color:#2c2c2c;"> ... </div> (Obrigatório fechar o div no final).
-Usa h3 com style=\"margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;\"
+Usa h3 com style="margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;"
 
 1. <div class="product-benefits" style="margin-bottom:22px;"> com <h3>[Focus Keyword] — Principais Vantagens</h3>
-2. <div class="product-applications" style="margin-bottom:22px;"> com <h3>Aplicações</h3> (Contextos concretos: \"buffet de hotel\", \"cafetaria movimentada\")
-3. <div class="product-specs" style="margin-bottom:22px;"> com <h3>Especificações Técnicas</h3> (Tabela HTML)
+2. <div class="product-applications" style="margin-bottom:22px;"> com <h3>Aplicações</h3> (Contextos concretos: "buffet de hotel", "cafetaria movimentada")
+3. <div class="product-specs" style="margin-bottom:22px;"> com <h3>Características Técnicas</h3> (Tabela HTML completa com TODAS as especificações, exceto Marca, Modelo e EAN que ficam noutra aba)
 4. <div class="product-faq" style="margin-bottom:22px;"> com <h3>Perguntas Frequentes</h3> (EXATAMENTE 5 perguntas)`,
 
           short_description: `Gera uma descrição curta (máx 160 chars) para listagens.
@@ -1561,7 +1561,7 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           modelOverride: chosenModel.model,
           providerOverride: chosenModel.provider,
           ...(promptTemplateId ? { promptTemplateId } : {}),
-          systemPrompt: "És um especialista em e-commerce e SEO. Responde APENAS com a tool call pedida, sem texto adicional. Mantém sempre as características técnicas do produto NUMA TABELA HTML separada do texto comercial. Traduz tudo para português europeu.\n\nREGRAS DE QUALIDADE DE ESCRITA:\n- Escreve sempre em português europeu (PT-PT), nunca em português do Brasil\n- Mantém um tom profissional e orientado a vendas B2B para setor HORECA e hotelaria\n- Nunca cortes frases a meio — cada campo deve terminar com pontuação completa\n- Nunca mistures a tabela técnica com o texto descritivo — a tabela vai SEMPRE separada",
+          systemPrompt: "És um especialista em e-commerce e SEO. Responde APENAS com a tool call pedida, sem texto adicional. Mantém sempre as características técnicas do produto NUMA TABELA HTML separada do texto comercial na aba 'Características'. Traduz tudo para português europeu.\n\nREGRAS CRÍTICAS DE CONTEÚDO:\n- Na tabela HTML de especificações (aba Características), inclui TODA a informação técnica disponível.\n- NUNCA coloques Marca, Modelo ou EAN na tabela HTML da descrição, pois esses dados são injetados automaticamente noutra aba.\n\nREGRAS DE QUALIDADE DE ESCRITA:\n- Escreve sempre em português europeu (PT-PT), nunca em português do Brasil\n- Mantém um tom profissional e orientado a vendas B2B para setor HORECA e hotelaria\n- Nunca cortes frases a meio — cada campo deve terminar com pontuação completa\n- Nunca mistures a tabela técnica com o texto descritivo — a tabela vai SEMPRE separada",
           messages: [{ role: "user", content: finalPrompt }],
           options: {
             tools: [
