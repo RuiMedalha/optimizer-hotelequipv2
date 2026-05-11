@@ -237,8 +237,9 @@ You MUST respond with valid JSON only. Use this exact schema:
 
     const userPrompt = `Classify this product:
 
-Title: ${product.title || product.original_title || "N/A"}
-Description: ${product.description || product.original_description || "N/A"}
+Optimized Title (PT-PT): ${product.optimized_title || product.title || "N/A"}
+Original Title (Source): ${product.original_title || "N/A"}
+Description: ${product.optimized_description || product.description || product.original_description || "N/A"}
 Brand: ${product.brand || "N/A"}
 Supplier: ${product.supplier || "N/A"}
 Technical Specs: ${product.technical_specs || product.specifications || "N/A"}
