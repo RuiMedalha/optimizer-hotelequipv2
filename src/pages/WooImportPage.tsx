@@ -9,10 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Download, Loader2, ShoppingCart, Package, Filter, CheckCircle, AlertTriangle } from "lucide-react";
+import { Download, Loader2, ShoppingCart, Package, Filter, CheckCircle, AlertTriangle, TrendingUp } from "lucide-react";
 import { WooSiteSelector } from "@/components/WooSiteSelector";
 import { WooCategoryMapper, type CategoryMapping } from "@/components/WooCategoryMapper";
 import { WooImportErrorReport } from "@/components/WooImportErrorReport";
+import { useNavigate } from "react-router-dom";
 
 import { useWooSites } from "@/hooks/useWooSites";
 import { SessionBadge } from "@/components/SessionBadge";
@@ -26,6 +27,7 @@ const WooImportPage = () => {
   const { data: attributes, isLoading: loadingAttrs } = useWooAttributes(!!activeWorkspace);
   const { data: internalTree, flat: internalFlat } = useCategoryTree();
   const { importProducts, isImporting, result } = useWooImport();
+  const navigate = useNavigate();
 
   const [filters, setFilters] = useState<WooImportFilters>({});
   const [selectedAttribute, setSelectedAttribute] = useState<string>("");
@@ -379,7 +381,18 @@ const WooImportPage = () => {
                   </p>
                 )}
                 {result.errors && result.errors.length > 0 && (
-                  <WooImportErrorReport errors={result.errors} />
+                  <div className="space-y-3">
+                    <WooImportErrorReport errors={result.errors} />
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full text-xs gap-2"
+                      onClick={() => navigate("/command-center")}
+                    >
+                      <TrendingUp className="w-3.5 h-3.5" />
+                      Ver todos os erros no Command Center
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>
