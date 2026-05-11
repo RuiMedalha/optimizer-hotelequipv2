@@ -381,7 +381,18 @@ const WooImportPage = () => {
                   </p>
                 )}
                 {result.errors && result.errors.length > 0 && (
-                  <WooImportErrorReport errors={result.errors} />
+                  <div className="space-y-3">
+                    <WooImportErrorReport errors={result.errors} />
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full text-xs gap-2"
+                      onClick={() => navigate("/command-center")}
+                    >
+                      <TrendingUp className="w-3.5 h-3.5" />
+                      Ver todos os erros no Command Center
+                    </Button>
+                  </div>
                 )}
               </div>
             </div>
