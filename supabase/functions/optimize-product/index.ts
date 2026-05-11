@@ -1371,6 +1371,11 @@ IMPORTANTE: Otimiza o conteúdo BASE que será propagado para todas as variaçõ
 
         // Build field-specific instructions using per-field prompts
         // Default prompts match the frontend defaults in useFieldPrompts.ts
+        const productCat = product.category || '';
+        const terminologyForTitle = buildTerminologyPrompt('title', productCat);
+        const terminologyForDescription = buildTerminologyPrompt('description', productCat);
+        const terminologyForTags = buildTerminologyPrompt('tags', productCat);
+
         const DEFAULT_FIELD_PROMPTS: Record<string, string> = {
           title: `Gera um título otimizado para SEO (50-60 chars) em Português de Portugal (PT-PT).
 REGRAS OBRIGATÓRIAS:
@@ -1384,9 +1389,9 @@ REGRAS OBRIGATÓRIAS:
 - NÃO inventes especificações.
 - Inclui linha/série se aplicável (ex: "Linha 700").
 - Inclui tipo de energia se aplicável (Gás, Elétrico).
-${terminologyContext}`,
+${terminologyForTitle}\nREGRAS TÍTULO: Dimensões sempre abreviadas no título (20L, 600mm, GN 1/1). Nunca marca, EAN, HORECA. "Fregadero" → verificar estrutura antes de traduzir. "Vitrina" → ler descrição completa antes de classificar.`,
           description: `Gera uma descrição otimizada (HTML) que soe humana e natural e inclua OBRIGATORIAMENTE sinónimos relevantes para SEO.
-${terminologyContext}
+${terminologyForDescription}\nREGRAS ANTI-REPETIÇÃO: Se o título usa termo X, a descrição usa os sinónimos de X — NUNCA o mesmo termo do título no primeiro parágrafo. Máximo 1 sinónimo por parágrafo. Nunca o mesmo sinónimo 2x em toda a descrição.\nTERMOS PROIBIDOS (brasileirismos e erros): "cocção"→"confeção"; "lanchonete"→"snack-bar"; "geladeira"→"frigorífico"; "cardápio"→"ementa"; "garçom"→"empregado de mesa"; "fast casual"→"restauração rápida"; "buffet line"→"linha de buffet".
 REGRAS DE LINGUAGEM NATURAL — OBRIGATÓRIO:
 - NUNCA soar robótico ou repetitivo. Limitar "HORECA" a máx 1 menção.
 - OTIMIZAÇÃO SEO: Inclui OBRIGATORIAMENTE os sinónimos fornecidos de forma fluída no texto (ex: se o produto é um 'Exaustor', deves usar também 'hotte', 'coifa' e 'campânula' ao longo da descrição).
@@ -1398,12 +1403,18 @@ REGRAS DE LINGUAGEM NATURAL — OBRIGATÓRIO:
 
 ESTRUTURA OBRIGATÓRIA:
 Envolve TUDO num div: <div class="product-description" style="font-size:15px; line-height:1.65; color:#2c2c2c;"> ... </div> (Obrigatório fechar o div no final).
-Usa h3 com style="margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;"
+Usa h3 com OBRIGATÓRIO — Todos os h3 DEVEM ter EXACTAMENTE este style, sem excepção: style="margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;"
 
-1. <div class="product-benefits" style="margin-bottom:22px;"> com <h3>[Focus Keyword em Português] — Principais Vantagens</h3>
+1. <div class="product-benefits" style="margin-bottom:22px;"> com <h3>[Keyword curta, máx 4-5 palavras, NÃO repetir nome completo] — Principais Vantagens</h3>
+REGRA: CORRECTO: "Fritadeira Industrial — Principais Vantagens" | ERRADO: "fritadeira gás 20L — Fritadeira Industrial 20L — Principais Vantagens"
 2. <div class="product-applications" style="margin-bottom:22px;"> com <h3>Aplicações</h3> (Contextos concretos: "buffet de hotel", "cafetaria movimentada")
+FORMATO INTELIGENTE — escolhe conforme o produto:
+- Equipamentos principais (vitrines, fornos, fritadeiras, máquinas de lavar, grelhadores): 1-2 parágrafos em PROSA FLUÍDA, SEM bullet points.
+- Produtos simples/versáteis (cubas GN, talheres, acessórios, utensílios): lista curta com 4-5 bullets é aceitável.
+Em ambos os casos: usar contextos reais (buffet de hotel, cafetaria, restaurante, catering, fast food, snack-bar).
 3. <div class="product-specs" style="margin-bottom:22px;"> com <h3>Características Técnicas</h3> (Tabela HTML completa com TODAS as especificações, exceto Marca, Modelo e EAN)
-4. <div class="product-faq" style="margin-bottom:22px;"> com <h3>Perguntas Frequentes</h3> (EXATAMENTE 5 perguntas detalhadas) (NUNCA uses "Campana" nas perguntas se o produto for uma Campânula)`,
+4. <div class="product-faq" style="margin-bottom:22px;"> com <h3>Perguntas Frequentes</h3> (EXATAMENTE 5 perguntas detalhadas) (NUNCA uses "Campana" nas perguntas se o produto for uma Campânula)
+REGRA HTML: O div raiz <div class="product-description"> DEVE ser fechado com </div> no final. Verificar que cada <div> aberto tem o seu </div> correspondente.`,
 
           short_description: `Gera uma descrição curta (máx 160 chars) para listagens.
 CONTEÚDO NATURAL: NUNCA usar \"HORECA\". Substituir por contextos específicos.`,
@@ -1411,6 +1422,12 @@ CONTEÚDO NATURAL: NUNCA usar \"HORECA\". Substituir por contextos específicos.
 - Keyword principal no início.
 - Inclui \"Comprar\" ou \"Preço\".
 - NÃO incluas marca, códigos EAN ou referências.`,
+          meta_description: `Gera meta description SEO (140-155 chars).
+REGRAS OBRIGATÓRIAS:
+- NUNCA usar \"HORECA\". Usar: \"restaurantes\", \"hotéis\", \"bares\".
+- Dirigir-se ao cliente: \"para o seu restaurante\", \"ideal para o seu bar\".
+- Benefício concreto + contexto específico + call-to-action (ex: \"Entrega 24-48h\").
+- NÃO incluas marca. Usa linguagem que gere cliques.`,
           meta_description: `Gera meta description SEO (140-155 chars).
 REGRAS OBRIGATÓRIAS:
 - NUNCA usar \"HORECA\". Usar: \"restaurantes\", \"hotéis\", \"bares\".
@@ -1425,29 +1442,7 @@ REGRAS OBRIGATÓRIAS:
 - NÃO incluas códigos EAN ou referências no slug
 - Máx 5-7 palavras
 - Exemplo: fritadeira-gas-linha-700-8-litros`,
-          tags: `Gera 6-10 tags relevantes (incluindo sinónimos de pesquisa).
-REGRAS OBRIGATÓRIAS:
-- Inclui categoria principal (ex: "fritadeira")
-- Inclui tipo de energia (ex: "gás", "elétrico")
-- Inclui linha/série (ex: "linha 700")
-- Inclui aplicação (ex: "restaurante", "hotelaria")
-- NUNCA usar "HORECA" em tags se puder ser evitado (preferir termos específicos)
-- NÃO incluas códigos EAN ou referências como tags
-- OBRIGATÓRIO: Inclui SINÓNIMOS PT e INTERNACIONAIS pelos quais o cliente pode pesquisar.
-  Exemplos de mapeamento (aplica o que for relevante ao produto):
-   • Exaustor → "apanha-fumos", "hotte", "coifa", "extractor hood"
-   • Fogão → "placa", "cooker"
-   • Forno combinado → "combi", "forno convetor"
-   • Grelhador → "plancha", "chapa", "griddle", "grill"
-   • Vitrine → "expositor", "display"
-   • Frigorífico → "refrigerador", "armário refrigerado"
-   • Congelador → "freezer", "abatedor"
-   • Lava-louça → "máquina de lavar loiça", "dishwasher"
-   • Cortador → "fiambreira", "slicer"
-   • Bancada → "mesa de trabalho", "mesa inox"
-   • Máquina de gelo → "fabricador de gelo", "ice maker"
-   • Liquidificador → "blender", "triturador"
-- Sempre que existir um termo técnico em PT, adiciona o equivalente popular ou regional`,
+          tags: `${terminologyForTags}`,
           price: `Sugere um preço otimizado.
 REGRAS:
 - Mantém o preço original se parecer correto para o mercado
