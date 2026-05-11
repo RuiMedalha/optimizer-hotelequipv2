@@ -128,6 +128,49 @@ Deno.serve(async (req) => {
       product.title || product.original_title || "",
       product.technical_specs || ""
     );
+    
+    // MEILISEARCH CONSENSUS CHECK — if 3+ similar products agree on same category, use it directly
+    if (similarProducts.length >= 3) {
+      // Count category votes
+      const categoryVotes = new Map<string, number>();
+      for (const sp of similarProducts) {
+        if (sp.category) {
+          const topLevel = sp.category.split(" > ").slice(0, 2).join(" > ");
+          categoryVotes.set(topLevel, (categoryVotes.get(topLevel) || 0) + 1);
+        }
+      }
+      
+      // Find if any category has majority (>= 3 votes)
+      for (const [cat, votes] of categoryVotes.entries()) {
+        if (votes >= 3) {
+          // Find the most specific category from Meilisearch that matches
+          const bestMatch = similarProducts
+            .filter(sp => sp.category.startsWith(cat.split(" > ")[0]))
+            .sort((a, b) => b.category.length - a.category.length)[0];
+          
+          if (bestMatch) {
+            // Find the matching category in our catalog
+            const matchingCat = categoryList.find(c => 
+              c.full_path === bestMatch.category ||
+              c.full_path.includes(bestMatch.category) ||
+              bestMatch.category.includes(c.full_path)
+            );
+            
+            console.log(`[classify] Meilisearch consensus: ${votes} products in "${bestMatch.category}" — skipping AI`);
+            
+            return new Response(JSON.stringify({
+              category_id: matchingCat?.id || null,
+              category_name: matchingCat?.full_path || bestMatch.category,
+              confidence_score: 0.95,
+              requires_review: false,
+              alternative_categories: [],
+              reasoning: `Meilisearch consensus: ${votes} similar published products in this category`,
+              source: "meilisearch_consensus"
+            }), { headers: { "Content-Type": "application/json" } });
+          }
+        }
+      }
+    }
 
     const similarContext = similarProducts.length > 0
       ? `\nProdutos similares já publicados com categorias correctas:\n${
