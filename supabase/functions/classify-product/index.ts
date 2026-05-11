@@ -188,22 +188,9 @@ Deno.serve(async (req) => {
         }
         
         if (matchingCat) {
-          console.log(`[classify] Meilisearch consensus: ${maxVotes} products in "${bestPath}". Matched to deepest DB cat: "${matchingCat.full_path}"`);
-          
-          return new Response(JSON.stringify({
-            category_id: matchingCat.id,
-            category_name: matchingCat.full_path,
-            confidence_score: 0.95,
-            requires_review: false,
-            alternative_categories: [],
-            reasoning: `Meilisearch consensus: ${maxVotes} similar products. Reconstructed hierarchy using catalog database.`,
-            source: "meilisearch_consensus"
-          }), { 
-            headers: { 
-              ...corsHeaders,
-              "Content-Type": "application/json" 
-            } 
-          });
+          console.log(`[classify] Meilisearch consensus found: ${maxVotes} products in "${bestPath}". Passing as hint to AI.`);
+          // Instead of returning immediately, we'll pass this as a strong hint to the AI
+          similarContext += `\nMEILISEARCH CONSENSUS: ${maxVotes} similar products were found in category "${matchingCat.full_path}". Consider this as the most likely correct category unless the product features suggest otherwise.\n`;
         }
       }
     }
@@ -229,6 +216,7 @@ CRITICAL RULES:
 5. ACCESSORY DETECTION: If the product is an accessory (e.g., "Estante", "Prateleira", "Grelha", "Cesto", "Shelf", "Kit", "Suporte", "Acessório"), you MUST look for the "Acessorios" sub-category within the correct top-level category.
 6. MISMATCH PROTECTION: If the products from Meilisearch have completely different titles from the target product, IGNORE their categories and rely on the Taxonomy and your internal logic.
 7. SUGGESTIONS: Provide up to 3 alternative categories if relevant.
+8. KEYWORD ALIGNMENT: If the product title contains specific keywords (e.g., "Kebab", "Pizza", "Wok"), prioritize categories that explicitly mention these terms over broader combined categories (e.g., choose "Assadores Kebab" instead of "Assadores de Frangos e Kebab" if the product is exclusively for Kebab).
 
 LEARNING PATTERNS (Strong indicators based on SKU prefix):
 ${learningExamplesStr || "No specific patterns yet."}

@@ -1395,9 +1395,12 @@ REGRAS OBRIGATÓRIAS:
 - Devolve apenas um array de strings ["CE", "HACCP"]
 - Se não encontrares nada, devolve apenas ["CE"]
 - NUNCA inventes certificações que não estejam implícitas ou explícitas`,
-          category: `Analisa o produto e sugere a melhor categoria e subcategoria.
+          category: `Analisa o produto e sugere a melhor categoria e subcategoria da taxonomia fornecida.
 REGRAS OBRIGATÓRIAS:
-- Usa o formato "Categoria > Subcategoria" (ex: "Cozinha > Fritadeiras")
+- Usa o formato "Categoria > Subcategoria" (ex: "Cozinha > Fritadeiras").
+- ESPECIFICIDADE: Escolhe sempre o nó mais profundo (folha).
+- ALINHAMENTO DE KEYWORDS: Se o título contém "Kebab", prefere "Assadores Kebab" em vez de "Assadores de Frangos e Kebab".
+- MEILISEARCH: Usa os produtos similares como guia, mas se a nossa taxonomia local tiver uma categoria mais específica para o termo principal do produto, usa a local.
 - Se o produto for um acessório, extra ou peça de substituição (ex: estante, prateleira, grelha, cesto), procura OBRIGATORIAMENTE uma subcategoria chamada "Acessorios" dentro do setor correto.
 - Se a categoria atual parecer incorreta, sugere uma melhor baseada nas CATEGORIAS DISPONÍVEIS listadas abaixo.
 - Prioriza categorias que já existam no catálogo.
