@@ -542,6 +542,57 @@ const ProductsPage = () => {
       toast.error(err.message);
     }
   };
+  
+  const handleInferModels = async (onlyMissing: boolean = true) => {
+    if (selected.size === 0 || !activeWorkspace) return;
+    
+    setIsInferringModels(true);
+    const selectedIds = Array.from(selected);
+    
+    try {
+      // Fetch relevant products
+      let query = supabase
+        .from("products")
+        .select("id, sku, model")
+        .in("id", selectedIds);
+        
+      if (onlyMissing) {
+        query = query.is("model", null);
+      }
+      
+      const { data: productsToUpdate, error: fetchError } = await query;
+      
+      if (fetchError) throw fetchError;
+      if (!productsToUpdate || productsToUpdate.length === 0) {
+        toast.info(onlyMissing ? "Todos os produtos selecionados já possuem modelo." : "Nenhum produto selecionado para atualizar.");
+        return;
+      }
+      
+      const updates = productsToUpdate.map(p => {
+        const sku = p.sku || "";
+        // Remove as 2 primeiras letras do SKU
+        const suggested = sku.length > 2 ? sku.substring(2) : sku;
+        return { id: p.id, model: suggested };
+      });
+      
+      // Batch update
+      const batchSize = 50;
+      for (let i = 0; i < updates.length; i += batchSize) {
+        const batch = updates.slice(i, i + batchSize);
+        const { error: updateError } = await supabase.from("products").upsert(batch as any);
+        if (updateError) throw updateError;
+      }
+      
+      toast.success(`${updates.length} modelos inferidos com sucesso.`);
+      qc.invalidateQueries({ queryKey: ["products"] });
+      setSelected(new Set());
+    } catch (error: any) {
+      console.error("Erro ao inferir modelos:", error);
+      toast.error("Erro ao inferir modelos: " + error.message);
+    } finally {
+      setIsInferringModels(false);
+    }
+  };
 
   const handleOptimizeClick = (ids: string[]) => {
     // Excluir descontinuados da otimização
