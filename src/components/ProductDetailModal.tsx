@@ -128,6 +128,7 @@ export function ProductDetailModal({ product, onClose }: Props) {
           category: product.category ?? "",
           focus_keyword: (Array.isArray(product.focus_keyword) ? product.focus_keyword : []).join(", "),
           brand: product.brand ?? "",
+          model: product.model ?? "",
         });
       setHasChanges(false);
     }
