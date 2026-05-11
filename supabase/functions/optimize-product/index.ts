@@ -1378,6 +1378,17 @@ REGRAS OBRIGATÓRIAS:
           return fieldPrompts[`prompt_field_${key}`] || DEFAULT_FIELD_PROMPTS[key] || fallback;
         };
 
+        // If description already has FAQ section, extract from there instead of generating new ones
+        if (
+          fields.includes("faq") &&
+          typeof product.optimized_description === "string" &&
+          product.optimized_description.includes("product-faq")
+        ) {
+          // Remove faq from fields — will be extracted from existing description
+          fields = fields.filter((f: string) => f !== "faq");
+          console.log("[optimize-product] FAQ will be extracted from existing description, not regenerated");
+        }
+
         const fieldInstructions: string[] = [];
         if (fields.includes("title")) fieldInstructions.push(`TÍTULO:\n${getFieldPrompt("title", "Um título otimizado")}`);
         if (fields.includes("description")) {
@@ -1769,7 +1780,8 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
         // === PLACEHOLDER RESOLUTION: resolve known template placeholders before saving ===
         const PLACEHOLDER_REGEX = /\{\{[^}]+\}\}/g;
         if (
-          (fields.includes("faq") && typeof optimized.optimized_description !== "string")
+          (fields.includes("faq") || (typeof product.optimized_description === "string" && product.optimized_description.includes("product-faq"))) 
+          && typeof optimized.optimized_description !== "string"
           && typeof product.optimized_description === "string"
         ) {
           optimized.optimized_description = product.optimized_description;
