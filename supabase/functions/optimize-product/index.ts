@@ -864,19 +864,57 @@ serve(async (req) => {
     // 13. Fetch business terminology for prompt context
     const { data: terminologyData } = await supabase
       .from("business_terminology")
-      .select("term, type, replacement, category")
+      .select("term, type, replacement, category, context, disambiguation")
       .or(`workspace_id.eq.${workspaceId},is_global.eq.true`);
 
-    const preferredTerms = (terminologyData || []).filter(t => t.type === 'preferred');
-    const avoidTerms = (terminologyData || []).filter(t => t.type === 'avoid');
-    const synonymTerms = (terminologyData || []).filter(t => t.type === 'synonym');
+    const buildTerminologyPrompt = (
+      contextFilter: 'title' | 'description' | 'tags',
+      productCategory: string
+    ): string => {
+      const relevantTerms = (terminologyData || []).filter((t: any) => {
+        const contextMatch = !t.context || t.context === 'all' || t.context === contextFilter;
+        const categoryMatch = !t.category ||
+          productCategory.toLowerCase().includes(t.category.toLowerCase()) ||
+          t.category.toLowerCase().includes(productCategory.toLowerCase().split('>')[0].trim());
+        return contextMatch && categoryMatch;
+      });
 
-    const terminologyContext = `
-CONTEXTO DE NEGÓCIO E TERMINOLOGIA (SEMPRE PRIORIZAR):
-- TERMOS PREFERENCIAIS: ${preferredTerms.map(t => `${t.term} (usar em ${t.category || "geral"})`).join(", ")}
-- TERMOS A EVITAR: ${avoidTerms.map(t => `${t.term} -> substituir por ${t.replacement}`).join(", ")}
-- SINÓNIMOS RELEVANTES: ${synonymTerms.map(t => `${t.term} -> ${t.replacement}`).join(", ")}
-`.trim();
+      const avoid = relevantTerms.filter((t: any) => t.type === 'avoid');
+      const preferred = relevantTerms.filter((t: any) => t.type === 'preferred');
+      const synonyms = relevantTerms.filter((t: any) => t.type === 'synonym');
+
+      const lines: string[] = [];
+
+      if (avoid.length > 0) {
+        lines.push('TERMOS PROIBIDOS (substituir obrigatoriamente):');
+        avoid.forEach((t: any) => {
+          const rep = t.replacement === 'CONTEXT_DEPENDENT'
+            ? '[ver regra de desambiguação abaixo]'
+            : `"${t.replacement}"`;
+          const note = t.disambiguation ? `\n     ⚠ REGRA: ${t.disambiguation}` : '';
+          lines.push(`  ✗ "${t.term}" → ${rep}${note}`);
+        });
+      }
+
+      if (preferred.length > 0) {
+        lines.push('\nTERMOS PREFERENCIAIS:');
+        preferred.forEach((t: any) => {
+          const note = t.disambiguation ? ` [${t.disambiguation}]` : '';
+          lines.push(`  ✓ "${t.term}"${note}`);
+        });
+      }
+
+      if (synonyms.length > 0 && contextFilter !== 'title') {
+        lines.push('\nSINÓNIMOS (distribuir 1 por parágrafo, nunca repetir o termo do título):');
+        synonyms.forEach((t: any) => lines.push(`  ≈ "${t.term}"`));
+      }
+
+      if (contextFilter === 'tags') {
+        lines.push('\nREGRAS TAGS: nunca repetir o título exacto | máx 15 tags | incluir variações com dimensão (ex: "fritadeira 20l") | termos EN/ES de pesquisa profissional | para termos com hífen incluir SEMPRE as duas formas: com e sem hífen (ex: "snack-bar" e "snack bar", "take-away" e "take away")');
+      }
+
+      return lines.join('\n');
+    };
 
     const results: any[] = [];
 
