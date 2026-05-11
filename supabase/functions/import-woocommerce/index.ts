@@ -608,9 +608,9 @@ Deno.serve(async (req) => {
           .select("id, sku, woocommerce_id, user_id, workspace_id");
 
         if (insertErr) {
-          console.error(`Insert batch error details:`, JSON.stringify(insertErr));
-          console.log(`First item user_id: ${batch[0]?.user_id}, workspace_id: ${batch[0]?.workspace_id}`);
-          console.error(`Insert batch error:`, insertErr);
+          console.error(`Insert batch error at index ${i}:`, JSON.stringify(insertErr));
+          const errMsg = insertErr.message || "Erro ao inserir lote";
+
           // Track individual errors for this batch and log to central table
           for (const wp of batchWps) {
             const sku = wp.sku || String(wp.id);
