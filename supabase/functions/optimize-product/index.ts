@@ -2055,6 +2055,23 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
           return { id: product.id, status: "error" as const, error: updateError.message };
         }
 
+        // --- AUTOMATIC CATEGORY APPLICATION ---
+        // If the AI suggested a category and it differs from the current one, update it automatically.
+        if (optimized.suggested_category && optimized.suggested_category !== product.category) {
+          console.log(`🏷️ Auto-applying suggested category for ${product.sku}: "${product.category}" → "${optimized.suggested_category}"`);
+          const { error: catUpdateError } = await supabase
+            .from("products")
+            .update({ category: optimized.suggested_category })
+            .eq("id", product.id);
+          
+          if (catUpdateError) {
+            console.error(`⚠️ Failed to auto-apply category for ${product.id}:`, catUpdateError);
+          } else {
+            // Update the local product object so that variation propagation uses the new category
+            product.category = optimized.suggested_category;
+          }
+        }
+
         // === PROPAGATE TO VARIATIONS if this is a variable product ===
         if (product.product_type === "variable") {
           const { data: variations } = await supabase
