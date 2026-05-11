@@ -142,9 +142,9 @@ export function CategoryCell({ product, onSelectSuggestion, currentOverride, cur
                           onClick={(e) => {
                             e.stopPropagation();
                             if (onSelectSuggestion) {
-                              onSelectSuggestion(secondarySuggestion.category_name);
+                              onSelectSuggestion(secondarySuggestion.category_name, secondarySuggestion.confidence);
                             } else {
-                              handleSelect(secondarySuggestion.category_id, secondarySuggestion.category_name, secondarySuggestion.source);
+                              handleSelect(secondarySuggestion.category_id, secondarySuggestion.category_name, secondarySuggestion.source, secondarySuggestion.confidence);
                             }
                           }}
                         >
