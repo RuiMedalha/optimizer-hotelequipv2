@@ -950,7 +950,7 @@ Deno.serve(async (req) => {
             }
           }
 
-          // Trigger refresh triggers (n8n + WordPress Custom REST)
+          // Trigger refresh triggers (n8n)
           try {
             // Collect all WC IDs from this batch
             const batchWcIds = batchResp?.create?.map((r: any) => r.id).filter(Boolean) || [];
@@ -971,33 +971,6 @@ Deno.serve(async (req) => {
                 });
               } catch (n8nErr) {
                 console.warn("[turbo] n8n refresh trigger failed (non-critical):", n8nErr);
-              }
-
-              // 2. WordPress Custom REST trigger
-              try {
-                const wpUser = Deno.env.get("WP_APP_USERNAME");
-                const wpPass = Deno.env.get("WP_APP_PASSWORD");
-                if (wpUser && wpPass) {
-                  console.log(`[turbo-refresh] Using WP_APP_USERNAME: ${wpUser.slice(0, 2)}... (length: ${wpUser.length}), WP_APP_PASSWORD length: ${wpPass.length}`);
-                  const wpAuth = btoa(`${wpUser}:${wpPass}`);
-                  const refreshUrl = `${baseUrl}/wp-json/hotelequip/v1/refresh-products`;
-                  console.log(`[turbo-refresh] Calling refresh for ${allWcIds.length} IDs at ${refreshUrl}`);
-                  const refreshRes = await fetch(refreshUrl, {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      "Authorization": `Basic ${wpAuth}`,
-                    },
-                    body: JSON.stringify({ ids: allWcIds }),
-                  });
-                  const refreshText = await refreshRes.text();
-                  console.log(`[turbo-refresh] Response: ${refreshRes.status}`, refreshText.slice(0, 500));
-                  console.log(`[turbo] WP Custom refresh triggered for ${allWcIds.length} IDs`);
-                } else {
-                  console.warn("[turbo-refresh] WP_APP_USERNAME or WP_APP_PASSWORD missing");
-                }
-              } catch (wpErr) {
-                console.warn("[turbo] WP Custom refresh trigger failed (non-critical):", wpErr);
               }
             }
           } catch (refreshErr) {
