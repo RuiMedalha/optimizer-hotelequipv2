@@ -309,17 +309,17 @@ export function ProductDetailModal({ product, onClose }: Props) {
                     className="h-5 px-1.5 text-[10px] text-primary hover:text-primary/80"
                     onClick={() => {
                       if (!product.sku) return;
-                      // Logic: remove suffix after last - . or _ if it's short or numeric
                       const sku = product.sku;
-                      const parts = sku.split(/[-._]/);
+                      const lastHyphen = sku.lastIndexOf('-');
+                      const lastDot = sku.lastIndexOf('.');
+                      const lastUnderscore = sku.lastIndexOf('_');
+                      const lastSepIndex = Math.max(lastHyphen, lastDot, lastUnderscore);
+                      
                       let suggested = sku;
-                      if (parts.length > 1) {
-                        const lastPart = parts[parts.length - 1];
+                      if (lastSepIndex !== -1 && lastSepIndex > 0) {
+                        const lastPart = sku.substring(lastSepIndex + 1);
                         if (lastPart.length <= 3 || /^\d+$/.test(lastPart)) {
-                          suggested = sku.substring(0, sku.lastIndexOf(sku.includes('-') ? '-' : sku.includes('.') ? '.' : '_'));
-                        } else if (parts.length > 2) {
-                           // Try one more level if the last part wasn't a suffix but maybe the one before was? 
-                           // No, let's keep it simple as requested.
+                          suggested = sku.substring(0, lastSepIndex);
                         }
                       }
                       handleFieldChange("model", suggested);
