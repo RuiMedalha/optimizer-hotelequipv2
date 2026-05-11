@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
 
     // Query Meilisearch for similar published products
     const similarProducts = await findSimilarInMeilisearch(
-      product.title || product.original_title || "",
+      product.optimized_title || product.title || product.original_title || "",
       product.technical_specs || ""
     );
     
