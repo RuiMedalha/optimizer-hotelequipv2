@@ -103,11 +103,14 @@ export function CategoryReviewModal({ open, onOpenChange, products }: CategoryRe
 
   const filtered = useMemo(() => {
     // Limit processing to first 500 candidates if no search query to keep UI snappy
-    const itemsToFilter = searchQuery ? candidates : candidates.slice(0, 500);
+    // If we have a small pre-filtered list (selection), show everything
+    const itemsToFilter = (searchQuery || products.length <= 2000) ? candidates : candidates.slice(0, 500);
     
     return itemsToFilter.filter(p => {
       if (filterCategory !== "all" && (p.category || "—") !== filterCategory) return false;
-      if (!showAllProducts) {
+      
+      // If NOT in selection mode and showAllProducts is false, apply suggested category filter
+      if (!showAllProducts && products.length > 2000) {
         if (filterSuggestedCategory !== "all" && (p.suggested_category || "—") !== filterSuggestedCategory) return false;
       }
       if (filterSource !== "all" && (p.source_file || "") !== filterSource) return false;
