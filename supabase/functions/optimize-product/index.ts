@@ -37,6 +37,45 @@ function validateNaturalLanguage(content: string, fieldName: string): void {
   }
 }
 
+async function findSimilarProductsInMeilisearch(
+  title: string,
+  shortDesc: string
+): Promise<Array<{ title: string; category: string; brand: string }>> {
+  const MEILI_URL = "https://search.palamenta.com.pt";
+  const MEILI_KEY = "ed7cabcddd7aeeed55e18972f4ec98dccd3c27bf78cb82962d04e1661778011e";
+  const INDEX = "products_stage";
+
+  const query = `${title} ${shortDesc}`.trim().substring(0, 200);
+
+  try {
+    const resp = await fetch(`${MEILI_URL}/indexes/${INDEX}/search`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${MEILI_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        q: query,
+        limit: 8,
+        attributesToRetrieve: ["title", "categories", "brand_names"],
+      }),
+    });
+
+    if (!resp.ok) return [];
+
+    const data = await resp.json();
+    return (data.hits || [])
+      .filter((h: any) => h.categories?.length > 0)
+      .map((h: any) => ({
+        title: h.title || "",
+        category: Array.isArray(h.categories) ? h.categories[0] : "",
+        brand: Array.isArray(h.brand_names) ? h.brand_names[0] : "",
+      }));
+  } catch {
+    return [];
+  }
+}
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1416,21 +1455,34 @@ REGRAS OBRIGATÓRIAS:
             product.category || product.original_description || "",
             catPaths
           );
+
+          // Query Meilisearch for similar products
+          const similarProducts = await findSimilarProductsInMeilisearch(
+            product.original_title || "",
+            product.short_description || ""
+          );
+
+          const similarContext = similarProducts.length > 0
+            ? `\n\nPRODUTOS SIMILARES JÁ PUBLICADOS (referência principal):\n${
+                similarProducts.map(p => `- "${p.title}" → ${p.category}`).join("\n")
+              }`
+            : "";
+
           // Prefer hierarchical categories (with ">") for better context
           const hierarchicalCats = existingCategories.filter(c => c.full_path.includes(">"));
           const catsToUse = hierarchicalCats.length > 0 ? hierarchicalCats : existingCategories;
           
           const catList = catsToUse.length > 0
-            ? `\nCATEGORIAS DISPONÍVEIS (usa APENAS uma destas, NÃO inventes novas):\n${catsToUse.map(c => `- [${c.id}] ${c.full_path}`).join("\n")}`
+            ? `\n\nCATEGORIAS DISPONÍVEIS (usa APENAS uma destas):\n${catsToUse.map(c => `- [${c.id}] ${c.full_path}`).join("\n")}`
             : "";
           const semanticHint = semanticMatches.length > 0
-            ? `\nCATEGORIAS MAIS RELEVANTES (por análise semântica): ${semanticMatches.join(", ")}`
+            ? `\n\nCATEGORIAS MAIS RELEVANTES (por análise semântica): ${semanticMatches.join(", ")}`
             : "";
           const noCatHint = !product.category 
-            ? "\nATENÇÃO: Este produto NÃO tem categoria atribuída. Analisa o título, descrição e especificações técnicas para sugerir a categoria mais adequada da lista."
+            ? "\n\nATENÇÃO: Este produto NÃO tem categoria atribuída. Analisa os dados para sugerir a melhor categoria da lista."
             : "";
-          const accessoryRule = "\nREGRA DE ACESSÓRIOS: Se o produto for uma peça, extra ou acessório (ex: estante, prateleira, cesto, kit, shelf), deves SEMPRE procurar uma subcategoria 'Acessorios' dentro da categoria principal (ex: 'FRIO COMERCIAL > Acessorios').";
-          fieldInstructions.push(`CATEGORIA SUGERIDA:\n${getFieldPrompt("category", "Analisa o produto e escolhe a categoria mais específica da lista.")}${catList}${semanticHint}${patternHints}${accessoryRule}${noCatHint}`);
+          const accessoryRule = "\n\nREGRA DE ACESSÓRIOS: Se o produto for uma peça ou extra, escolhe OBRIGATORIAMENTE uma subcategoria 'Acessorios'.";
+          fieldInstructions.push(`CATEGORIA SUGERIDA:\n${getFieldPrompt("category", "Escolhe a categoria mais específica da lista.")}${similarContext}${catList}${semanticHint}${patternHints}${accessoryRule}${noCatHint}`);
         }
 
         const defaultPrompt = `Optimiza o seguinte produto de e-commerce para SEO e conversão em português europeu.
