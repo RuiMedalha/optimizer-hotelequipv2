@@ -110,10 +110,11 @@ SECÇÕES OBRIGATÓRIAS (nesta ordem):
      <p style="font-style:italic; color:#6b7280; margin:0 0 14px;">Resposta aqui.</p>
 
 REGRAS SEO:
-- Keywords naturais no texto, sem stuffing
-- A primeira frase deve conter a keyword principal do produto
-- Inclui variações long-tail nas keywords (ex: "fritadeira a gás 8 litros profissional")
-- Alt-text pensado para pesquisa, não para decoração
+- Keywords naturais no texto, sem stuffing.
+- A primeira frase deve conter a keyword principal do produto.
+- OBRIGATÓRIO: Utiliza sinónimos e variações linguísticas do produto ao longo do texto (ex: se é uma 'Campânula', usa também 'hotte', 'coifa', 'exaustor').
+- Inclui variações long-tail nas keywords (ex: "fritadeira a gás 8 litros profissional").
+- Alt-text pensado para pesquisa, não para decoração.
 
 FORMATO DE RESPOSTA (JSON puro, sem markdown fences):
 {

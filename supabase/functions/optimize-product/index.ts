@@ -329,9 +329,11 @@ serve(async (req) => {
       "pasta": ["cozedor de massa", "pasta cooker"],
       "arroz": ["rice cooker", "cozedor de arroz"],
       // Exaustão / ventilação
-      "exaustor": ["apanha fumos", "apanha-fumos", "hotte", "coifa", "hood", "extractor hood", "exaustão", "campânula"],
-      "apanha-fumos": ["exaustor", "hotte", "coifa", "hood", "extractor hood", "campânula"],
-      "hotte": ["exaustor", "apanha fumos", "coifa", "hood", "extractor hood"],
+      "exaustor": ["apanha fumos", "apanha-fumos", "hotte", "coifa", "hood", "extractor hood", "exaustão", "campânula", "campanula"],
+      "apanha-fumos": ["exaustor", "hotte", "coifa", "hood", "extractor hood", "campânula", "campanula"],
+      "hotte": ["exaustor", "apanha fumos", "coifa", "hood", "extractor hood", "campânula", "campanula"],
+      "campânula": ["exaustor", "hotte", "coifa", "apanha fumos", "hood", "extractor hood", "campanula"],
+      "campanula": ["exaustor", "hotte", "coifa", "apanha fumos", "hood", "extractor hood", "campânula"],
       // Bancadas e mobiliário inox
       "bancada": ["mesa de trabalho", "bancada inox", "work table", "worktable", "mesa inox"],
       "lavatório": ["lavatorio", "pia", "sink", "lava-mãos", "lava maos"],
@@ -356,6 +358,29 @@ serve(async (req) => {
         .replace(/[^a-z0-9\s>]/g, " ")
         .replace(/\s+/g, " ")
         .trim();
+    }
+
+    function getSynonymsForProduct(productTitle: string): string[] {
+      const normalized = normalizeForCategoryMatch(productTitle);
+      const words = normalized.split(" ").filter(w => w.length >= 3);
+      const foundSyns = new Set<string>();
+      
+      for (const word of words) {
+        // Check direct key
+        if (CATEGORY_SYNONYMS[word]) {
+          CATEGORY_SYNONYMS[word].forEach(s => foundSyns.add(s));
+        }
+        // Check if word is a synonym of something else
+        for (const [key, syns] of Object.entries(CATEGORY_SYNONYMS)) {
+          if (syns.includes(word)) {
+            foundSyns.add(key);
+            syns.forEach(s => {
+              if (s !== word) foundSyns.add(s);
+            });
+          }
+        }
+      }
+      return Array.from(foundSyns);
     }
 
     function findSemanticCategory(productTitle: string, productCategory: string, existingCats: string[]): string[] {
@@ -1209,6 +1234,13 @@ IMPORTANTE: Otimiza o conteúdo BASE que será propagado para todas as variaçõ
           );
         }
 
+        // === FASE 1.1: Extração de Sinónimos SEO ===
+        const productSynonyms = getSynonymsForProduct(product.original_title || product.optimized_title || "");
+        const synonymsContext = productSynonyms.length > 0
+          ? `\n\nSINÓNIMOS SEO RELEVANTES (inclui estes termos naturalmente na descrição para melhorar o SEO):\n${productSynonyms.join(", ")}`
+          : "";
+        console.log(`🔍 [optimize-product] Found ${productSynonyms.length} synonyms for "${product.sku || product.id}"`);
+
         const productInfo = `Produto original:
 - Título: ${product.original_title || "N/A"}
 - Descrição: ${descClean.cleaned || "N/A"}
@@ -1219,7 +1251,7 @@ IMPORTANTE: Otimiza o conteúdo BASE que será propagado para todas as variaçõ
 - SKU: ${product.sku || "N/A"}
 - Ref. Fornecedor: ${product.supplier_ref || "N/A"}
 - Tipo: ${product.product_type || "simple"}
-- Atributos: ${JSON.stringify(product.attributes || [])}${parentContext}${variationsContext}${
+- Atributos: ${JSON.stringify(product.attributes || [])}${parentContext}${variationsContext}${synonymsContext}${
   (phase === 2 || phase === 3) ? `\n\nDADOS JÁ OTIMIZADOS (Fase anterior):
 - Título Otimizado: ${product.optimized_title || "N/A"}
 - Descrição Otimizada: ${(product.optimized_description || "").substring(0, 500) || "N/A"}
@@ -1294,9 +1326,10 @@ REGRAS OBRIGATÓRIAS:
 - NÃO inventes especificações.
 - Inclui linha/série se aplicável (ex: "Linha 700").
 - Inclui tipo de energia se aplicável (Gás, Elétrico).`,
-          description: `Gera uma descrição otimizada (HTML) que soe humana e natural.
+          description: `Gera uma descrição otimizada (HTML) que soe humana e natural e inclua OBRIGATORIAMENTE sinónimos relevantes para SEO.
 REGRAS DE LINGUAGEM NATURAL — OBRIGATÓRIO:
 - NUNCA soar robótico ou repetitivo. Limitar "HORECA" a máx 1 menção.
+- OTIMIZAÇÃO SEO: Inclui OBRIGATORIAMENTE os sinónimos fornecidos na secção "SINÓNIMOS SEO RELEVANTES" de forma fluída no texto (ex: se o produto é um 'Exaustor', usa também 'hotte', 'coifa' e 'apanha-fumos').
 - Substituir "HORECA" por: "o seu restaurante", "o seu bar", "cozinhas profissionais".
 - Dirigir-se ao cliente: "Perfeito para o seu bar", "A sua equipa vai apreciar".
 - VARIAR CONSTRUÇÕES: Nunca começar parágrafos seguidos com "Este equipamento...".
