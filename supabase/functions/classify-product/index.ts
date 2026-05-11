@@ -38,7 +38,7 @@ async function findSimilarInMeilisearch(
       .map((h: any) => ({
         title: h.title || "",
         category: Array.isArray(h.categories) && h.categories.length > 0
-          ? [...h.categories].reverse().join(" > ")
+          ? h.categories.join(" > ")
           : "",
       }));
   } catch {
@@ -150,7 +150,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      if (bestPath) {
+      if (bestPath && bestPath.includes(" > ")) {
         // Find the matching category in our catalog using exact full path or most specific overlap
         const matchingCat = categoryList.find(c => 
           c.full_path === bestPath ||
@@ -186,18 +186,18 @@ Deno.serve(async (req) => {
     // Build the prompt
     const systemPrompt = `You are a Product Classification Agent for an e-commerce catalog management system focused on the HORECA sector.
 
-Your task: classify a raw product into the most specific correct category from the existing taxonomy provided.
+Your task: classify a raw product into the MOST SPECIFIC correct category from the existing taxonomy provided.
 
 CRITICAL RULES:
-1. You MUST ONLY use categories that ALREADY EXIST in the catalog taxonomy provided below.
-2. DO NOT invent new category names, do not fix typos, and do not truncate the hierarchy.
-3. ALWAYS provide the FULL path starting from the root (e.g., "FRIO COMERCIAL > Armarios > Expositores > Bebidas/Cerveja").
+1. SPECIFICITY IS MANDATORY: Never provide just a top-level category (like "CONFEÇÃO" or "FRIO COMERCIAL") if there are subcategories available. You MUST navigate the hierarchy to the leaf node (e.g., "CONFEÇÃO > Fogões > Fogões de Bancada").
+2. taxonomy accuracy: You MUST ONLY use categories that ALREADY EXIST in the catalog taxonomy provided below.
+3. DO NOT truncate the hierarchy. ALWAYS provide the FULL path starting from the root.
 4. TEMPERATURE DETECTION: 
    - If description or title mentions cooling, refrigerated, "frio", "frigorífico", "chiller", "refrigeração", "refrigerado", "positivo", or positive temperatures (e.g., "0°C", "+2°C"), the category MUST start with "FRIO COMERCIAL".
    - If description or title mentions freezing, "congelação", "congelador", "congelado", "freezer", "negativo", or negative temperatures (e.g., "-18°C", "-20°C"), prioritize "CONGELAÇÃO" or the relevant sub-path within "FRIO COMERCIAL" if it contains freezing units.
 5. ACCESSORY DETECTION: If the product is an accessory (e.g., "Estante", "Prateleira", "Grelha", "Cesto", "Shelf", "Kit", "Suporte", "Acessório"), you MUST look for the "Acessorios" sub-category within the correct top-level category.
-6. Choose the MOST SPECIFIC category possible (the leaf node).
-7. Suggest up to 3 alternative categories from the list if relevant.
+6. MISMATCH PROTECTION: If the products from Meilisearch have completely different titles from the target product, IGNORE their categories and rely on the Taxonomy and your internal logic.
+7. SUGGESTIONS: Provide up to 3 alternative categories if relevant.
 
 LEARNING PATTERNS (Strong indicators based on SKU prefix):
 ${learningExamplesStr || "No specific patterns yet."}
