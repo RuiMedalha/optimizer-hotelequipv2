@@ -310,40 +310,88 @@ export function ProductDetailModal({ product: initialProduct, onClose }: Props) 
                   )}
                 </div>
                 
-                <div className="flex items-center gap-2">
-                  <Input 
-                    placeholder="Colar novo URL da imagem..." 
-                    className="h-8 bg-background text-foreground"
+                <div className="space-y-3">
+                  <Textarea 
+                    placeholder="Colar URLs das imagens (uma por linha ou separadas por vírgula)..." 
+                    className="min-h-[80px] bg-background text-foreground text-xs"
                     value={newImageUrl}
                     onChange={(e) => setNewImageUrl(e.target.value)}
                   />
-                  <Button 
-                    size="sm" 
-                    className="h-8 shrink-0"
-                    onClick={async () => {
-                      if (!newImageUrl) return;
-                      try {
-                        const { error } = await supabase
-                          .from("products")
-                          .update({ 
-                            image_urls: [newImageUrl],
-                            image_status: "ok"
-                          })
-                          .eq("id", product.id);
-                        
-                        if (error) throw error;
-                        
-                        toast.success("URL da imagem guardado com sucesso!");
-                        setProduct(prev => prev ? { ...prev, image_urls: [newImageUrl], image_status: "ok" } : null);
-                        qc.invalidateQueries({ queryKey: ["products"] });
-                        setNewImageUrl("");
-                      } catch (err: any) {
-                        toast.error("Erro ao guardar URL: " + err.message);
+                  
+                  {newImageUrl && (
+                    <div className="flex flex-wrap gap-2 p-2 bg-muted/30 rounded-md border border-dashed">
+                      {newImageUrl.split(/[\n,]+/)
+                        .map(url => url.trim())
+                        .filter(url => url.startsWith("http"))
+                        .map((url, idx) => (
+                          <div key={idx} className="relative group">
+                            <img 
+                              src={url} 
+                              alt={`Preview ${idx + 1}`}
+                              className="w-[50px] h-[50px] rounded border object-cover bg-background"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = "https://placehold.co/50x50?text=Error";
+                              }}
+                            />
+                            <div className="absolute -top-1 -right-1 bg-background rounded-full border shadow-sm hidden group-hover:block">
+                              <span className="text-[8px] px-1 font-mono">{idx + 1}</span>
+                            </div>
+                          </div>
+                        ))
                       }
-                    }}
-                  >
-                    <Save className="w-3.5 h-3.5 mr-1" /> Guardar URL
-                  </Button>
+                      {newImageUrl.split(/[\n,]+/).map(url => url.trim()).filter(url => url.startsWith("http")).length === 0 && (
+                        <p className="text-[10px] text-muted-foreground italic w-full text-center py-2">
+                          Nenhum URL válido detectado...
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      size="sm" 
+                      className="h-8 shrink-0"
+                      onClick={async () => {
+                        if (!newImageUrl) return;
+                        try {
+                          const urls = newImageUrl
+                            .split(/[\n,]+/)
+                            .map(url => url.trim())
+                            .filter(url => url.startsWith("http"));
+
+                          if (urls.length === 0) {
+                            toast.error("Nenhum URL válido encontrado.");
+                            return;
+                          }
+
+                          const { error } = await supabase
+                            .from("products")
+                            .update({ 
+                              image_urls: urls,
+                              image_status: "ok",
+                              image_migration_status: Object.fromEntries(urls.map(u => [u, "ok"]))
+                            })
+                            .eq("id", product.id);
+                          
+                          if (error) throw error;
+                          
+                          toast.success(`${urls.length} URL(s) de imagem guardados com sucesso!`);
+                          setProduct(prev => prev ? { 
+                            ...prev, 
+                            image_urls: urls, 
+                            image_status: "ok",
+                            image_migration_status: Object.fromEntries(urls.map(u => [u, "ok"]))
+                          } : null);
+                          qc.invalidateQueries({ queryKey: ["products"] });
+                          qc.invalidateQueries({ queryKey: ["product-images", product.id] });
+                          setNewImageUrl("");
+                        } catch (err: any) {
+                          toast.error("Erro ao guardar URLs: " + err.message);
+                        }
+                      }}
+                    >
+                      <Save className="w-3.5 h-3.5 mr-1" /> Guardar URLs
+                    </Button>
                   
                   {product.image_urls?.[0] && (
                     <Button 
