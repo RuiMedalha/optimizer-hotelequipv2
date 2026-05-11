@@ -165,34 +165,30 @@ Deno.serve(async (req) => {
       }
 
       if (bestPath) {
-        // Find the matching category in our catalog
-        // We look for a category that contains the most specific name from the consensus path
         const pathParts = bestPath.split(" > ").map(p => p.trim());
-        const leafCandidate = pathParts[pathParts.length - 1];
         
         let matchingCat = categoryList.find(c => c.full_path === bestPath);
         
         if (!matchingCat) {
-          // If no exact match, look for a category that ends with the leaf or has the most overlapping parts
-          // but respect the database's own hierarchy
-          const candidates = categoryList.filter(c => 
-            c.name === leafCandidate || 
-            pathParts.includes(c.name)
-          );
+          // If no exact match, find the category from pathParts that is the most specific (deepest) in our DB
+          let deepestCat = null;
+          let maxDepth = -1;
           
-          if (candidates.length > 0) {
-            // Pick the one with the longest path (most specific) among those that match the leaf
-            const leafMatches = candidates.filter(c => c.name === leafCandidate);
-            if (leafMatches.length > 0) {
-              matchingCat = leafMatches.reduce((prev, curr) => 
-                (curr.full_path.split(" > ").length > prev.full_path.split(" > ").length) ? curr : prev
-              );
+          for (const part of pathParts) {
+            const matches = categoryList.filter(c => c.name === part);
+            for (const m of matches) {
+              const depth = m.full_path.split(" > ").length;
+              if (depth > maxDepth) {
+                maxDepth = depth;
+                deepestCat = m;
+              }
             }
           }
+          matchingCat = deepestCat;
         }
         
         if (matchingCat) {
-          console.log(`[classify] Meilisearch consensus: ${maxVotes} products in "${bestPath}". Matched to DB: "${matchingCat.full_path}"`);
+          console.log(`[classify] Meilisearch consensus: ${maxVotes} products in "${bestPath}". Matched to deepest DB cat: "${matchingCat.full_path}"`);
           
           return new Response(JSON.stringify({
             category_id: matchingCat.id,
@@ -200,7 +196,7 @@ Deno.serve(async (req) => {
             confidence_score: 0.95,
             requires_review: false,
             alternative_categories: [],
-            reasoning: `Meilisearch consensus: ${maxVotes} similar products. Validated against catalog hierarchy.`,
+            reasoning: `Meilisearch consensus: ${maxVotes} similar products. Reconstructed hierarchy using catalog database.`,
             source: "meilisearch_consensus"
           }), { 
             headers: { 
