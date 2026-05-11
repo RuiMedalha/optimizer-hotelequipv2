@@ -3060,8 +3060,11 @@ async function wooCacheRefresh(baseUrl: string, auth: string, productId: number 
       const wpUser = Deno.env.get("WP_APP_USERNAME");
       const wpPass = Deno.env.get("WP_APP_PASSWORD");
       if (wpUser && wpPass) {
+        console.log(`[refresh] Using WP_APP_USERNAME: ${wpUser.slice(0, 2)}... (length: ${wpUser.length}), WP_APP_PASSWORD length: ${wpPass.length}`);
         const wpAuth = btoa(`${wpUser}:${wpPass}`);
-        await fetch(`${baseUrl}/wp-json/hotelequip/v1/refresh-products`, {
+        const refreshUrl = `${baseUrl}/wp-json/hotelequip/v1/refresh-products`;
+        console.log(`[refresh] Calling refresh for IDs: ${wcId} at ${refreshUrl}`);
+        const refreshRes = await fetch(refreshUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -3069,7 +3072,11 @@ async function wooCacheRefresh(baseUrl: string, auth: string, productId: number 
           },
           body: JSON.stringify({ ids: [wcId] }),
         });
+        const refreshText = await refreshRes.text();
+        console.log(`[refresh] Response: ${refreshRes.status}`, refreshText.slice(0, 500));
         console.log(`[publish] WP Custom refresh triggered for WC#${wcId}`);
+      } else {
+        console.warn("[refresh] WP_APP_USERNAME or WP_APP_PASSWORD missing");
       }
     } catch (wpErr) {
       console.warn("[publish] WP Custom refresh trigger failed (non-critical):", wpErr);
