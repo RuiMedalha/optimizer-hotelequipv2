@@ -27,6 +27,7 @@ const WooImportPage = () => {
   const { data: attributes, isLoading: loadingAttrs } = useWooAttributes(!!activeWorkspace);
   const { data: internalTree, flat: internalFlat } = useCategoryTree();
   const { importProducts, isImporting, result } = useWooImport();
+  const navigate = useNavigate();
 
   const [filters, setFilters] = useState<WooImportFilters>({});
   const [selectedAttribute, setSelectedAttribute] = useState<string>("");
