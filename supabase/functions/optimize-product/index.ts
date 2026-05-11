@@ -1780,7 +1780,8 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
         // === PLACEHOLDER RESOLUTION: resolve known template placeholders before saving ===
         const PLACEHOLDER_REGEX = /\{\{[^}]+\}\}/g;
         if (
-          (fields.includes("faq") && typeof optimized.optimized_description !== "string")
+          (fields.includes("faq") || (typeof product.optimized_description === "string" && product.optimized_description.includes("product-faq"))) 
+          && typeof optimized.optimized_description !== "string"
           && typeof product.optimized_description === "string"
         ) {
           optimized.optimized_description = product.optimized_description;
