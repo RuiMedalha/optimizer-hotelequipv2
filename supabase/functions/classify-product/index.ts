@@ -217,7 +217,7 @@ LEARNING PATTERNS (Strong indicators based on SKU prefix):
 ${learningExamplesStr || "No specific patterns yet."}
 
 LEARNING EXAMPLES (How existing products are classified):
-${examples?.map(e => `- Product: "${e.original_title}" -> Category: "${e.category}"`).join('\n') || "No examples available yet."}
+${(examples || []).map(e => `- Product: "${e.optimized_title || e.original_title}" -> Category: "${e.category}"`).join('\n') || "No examples available yet."}
 
 ${similarContext}
 EXISTING CATEGORIES (Use EXACT "full_path" strings):
