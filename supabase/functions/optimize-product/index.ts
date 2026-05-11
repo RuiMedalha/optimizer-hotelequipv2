@@ -1227,19 +1227,19 @@ REGRAS OBRIGATÓRIAS:
 - Inclui tipo de energia se aplicável (Gás, Elétrico).`,
           description: `Gera uma descrição otimizada (HTML) que soe humana e natural.
 REGRAS DE LINGUAGEM NATURAL — OBRIGATÓRIO:
-- NUNCA soar robótico ou repetitivo. Limitar \"HORECA\" a máx 1 menção.
-- Substituir \"HORECA\" por: \"o seu restaurante\", \"o seu bar\", \"cozinhas profissionais\".
-- Dirigir-se ao cliente: \"Perfeito para o seu bar\", \"A sua equipa vai apreciar\".
-- VARIAR CONSTRUÇÕES: Nunca começar parágrafos seguidos com \"Este equipamento...\".
+- NUNCA soar robótico ou repetitivo. Limitar "HORECA" a máx 1 menção.
+- Substituir "HORECA" por: "o seu restaurante", "o seu bar", "cozinhas profissionais".
+- Dirigir-se ao cliente: "Perfeito para o seu bar", "A sua equipa vai apreciar".
+- VARIAR CONSTRUÇÕES: Nunca começar parágrafos seguidos com "Este equipamento...".
 - BENEFÍCIOS REAIS: Impacto no negócio (custos, ruído, rapidez) em vez de apenas specs.
 
 ESTRUTURA OBRIGATÓRIA:
 Envolve TUDO num div: <div class="product-description" style="font-size:15px; line-height:1.65; color:#2c2c2c;"> ... </div> (Obrigatório fechar o div no final).
-Usa h3 com style=\"margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;\"
+Usa h3 com style="margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;"
 
 1. <div class="product-benefits" style="margin-bottom:22px;"> com <h3>[Focus Keyword] — Principais Vantagens</h3>
-2. <div class="product-applications" style="margin-bottom:22px;"> com <h3>Aplicações</h3> (Contextos concretos: \"buffet de hotel\", \"cafetaria movimentada\")
-3. <div class="product-specs" style="margin-bottom:22px;"> com <h3>Especificações Técnicas</h3> (Tabela HTML)
+2. <div class="product-applications" style="margin-bottom:22px;"> com <h3>Aplicações</h3> (Contextos concretos: "buffet de hotel", "cafetaria movimentada")
+3. <div class="product-specs" style="margin-bottom:22px;"> com <h3>Características Técnicas</h3> (Tabela HTML completa com TODAS as especificações, exceto Marca, Modelo e EAN que ficam noutra aba)
 4. <div class="product-faq" style="margin-bottom:22px;"> com <h3>Perguntas Frequentes</h3> (EXATAMENTE 5 perguntas)`,
 
           short_description: `Gera uma descrição curta (máx 160 chars) para listagens.
