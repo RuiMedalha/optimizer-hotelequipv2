@@ -88,7 +88,7 @@ export function CategoryCell({ product, onSelectSuggestion, currentOverride }: P
                         }}
                       >
                         <Sparkles className="w-2.5 h-2.5" />
-                        <span className="truncate max-w-[150px]">{primarySuggestion.category_name}</span>
+                        <span className="truncate max-w-[250px]">{primarySuggestion.category_name}</span>
                         <span className="ml-1 opacity-70" title="Pontuação de confiança">⭐ {primarySuggestion.confidence}% confiança</span>
                       </div>
                     </TooltipTrigger>
