@@ -290,14 +290,51 @@ export function ProductDetailModal({ product, onClose }: Props) {
               value={editData.optimized_title}
               onChange={(v) => handleFieldChange("optimized_title", v)}
             />
-            <div className="space-y-1">
-              <label className="text-xs font-medium">Marca</label>
-              <Input
-                value={editData.brand ?? ""}
-                onChange={e => handleFieldChange("brand", e.target.value)}
-                placeholder="Ex: TEFCOLD, Hendi, Magnus..."
-                className="text-sm"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs font-medium">Marca</label>
+                <Input
+                  value={editData.brand ?? ""}
+                  onChange={e => handleFieldChange("brand", e.target.value)}
+                  placeholder="Ex: TEFCOLD, Hendi, Magnus..."
+                  className="text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium">Modelo</label>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-5 px-1.5 text-[10px] text-primary hover:text-primary/80"
+                    onClick={() => {
+                      if (!product.sku) return;
+                      // Logic: remove suffix after last - . or _ if it's short or numeric
+                      const sku = product.sku;
+                      const parts = sku.split(/[-._]/);
+                      let suggested = sku;
+                      if (parts.length > 1) {
+                        const lastPart = parts[parts.length - 1];
+                        if (lastPart.length <= 3 || /^\d+$/.test(lastPart)) {
+                          suggested = sku.substring(0, sku.lastIndexOf(sku.includes('-') ? '-' : sku.includes('.') ? '.' : '_'));
+                        } else if (parts.length > 2) {
+                           // Try one more level if the last part wasn't a suffix but maybe the one before was? 
+                           // No, let's keep it simple as requested.
+                        }
+                      }
+                      handleFieldChange("model", suggested);
+                    }}
+                  >
+                    Sugerir do SKU
+                  </Button>
+                </div>
+                <Input
+                  value={editData.model ?? ""}
+                  onChange={e => handleFieldChange("model", e.target.value)}
+                  placeholder="Ex: EU1613, CR-201..."
+                  className="text-sm font-mono"
+                />
+              </div>
             </div>
             <EditableComparison
               label="Descrição Curta"
