@@ -1585,6 +1585,16 @@ const ProductsPage = () => {
               }}>
                 <Download className="w-3.5 h-3.5 mr-1" /> <span className="hidden sm:inline">Exportar Seleção </span>({selected.size})
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs h-8"
+                onClick={() => setShowInferModelDialog(true)}
+                disabled={selected.size === 0 || isInferringModels}
+              >
+                {isInferringModels ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Database className="w-3.5 h-3.5 mr-1" />}
+                <span className="hidden sm:inline">Inferir Modelo</span> ({selected.size})
+              </Button>
             </>
           )}
           <Button
