@@ -1406,9 +1406,9 @@ ${excelContext}`,
         <CardHeader><CardTitle className="text-sm">Classificar Produtos</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="flex justify-between text-sm">
-            <span>✅ {supplier.publishability_stats?.publish || 0} publicar</span>
-            <span>👁 {supplier.publishability_stats?.review || 0} rever</span>
-            <span>❌ {supplier.publishability_stats?.skip || 0} ignorar</span>
+            <span>✅ {localStats?.publish || 0} publicar</span>
+            <span>👁 {localStats?.review || 0} rever</span>
+            <span>❌ {localStats?.skip || 0} ignorar</span>
           </div>
           {isClassifying && <Progress value={progress} className="h-2" />}
           <Button 
