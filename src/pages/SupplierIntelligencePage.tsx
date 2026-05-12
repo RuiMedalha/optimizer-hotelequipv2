@@ -1045,6 +1045,7 @@ ${excelContext}`,
       setRules(generated);
       toast.success("Regras geradas com base em produtos reais. Revê e guarda.");
     } catch (e: any) {
+      setGeneratingStatus(null);
       toast.error(`Erro ao gerar regras: ${e.message}`);
     } finally {
       setIsGenerating(false);
