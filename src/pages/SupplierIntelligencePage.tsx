@@ -32,7 +32,21 @@ import { SupplierParsingIssues } from "@/components/supplier/SupplierParsingIssu
 import { SupplierChangeFeed } from "@/components/supplier/SupplierChangeFeed";
 
 // --- Supplier Detail View (existing, enhanced) ---
-function SupplierDetail({ supplier, onBack }: { supplier: any; onBack: () => void }) {
+function SupplierDetail({ 
+  supplier, 
+  onBack,
+  showAiPromptModal,
+  setShowAiPromptModal,
+  aiPrompt,
+  setConnectorConfigText
+}: { 
+  supplier: any; 
+  onBack: () => void;
+  showAiPromptModal: boolean;
+  setShowAiPromptModal: (show: boolean) => void;
+  aiPrompt: string;
+  setConnectorConfigText: (text: string) => void;
+}) {
   const { learnPatterns, calculateQuality, buildKnowledgeGraph, updateSupplier, wsId } = useSupplierIntelligence();
   const detail = useSupplierDetail(supplier.id);
 
