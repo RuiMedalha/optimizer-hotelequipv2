@@ -782,73 +782,76 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
   const handleGenerateRules = async () => {
     setIsGenerating(true);
     try {
-      // Step A: Feed analysis
-      const format = supplier.feed_url_csv ? 'csv' : 'xml';
-      const url = format === 'csv' ? supplier.feed_url_csv : supplier.feed_url_xml;
-      
-      let feedSample = "";
-      if (url) {
-        const { data: feedData } = await supabase.functions.invoke('fetch-supplier-feed', {
-          body: { supplierId: supplier.id, workspaceId, format, feedUrl: url }
-        });
-        const rows = feedData?.allRows || feedData?.rows || [];
-        const sample = [...rows.slice(0, 50), ...rows.slice(Math.floor(rows.length/2), Math.floor(rows.length/2) + 50), ...rows.slice(-50)];
-        feedSample = JSON.stringify(sample.map((r: any) => ({
-          title: r.title || r.name || r.original_title,
-          price: r.price || r.original_price,
-          category: r.category,
-          sku: r.sku
-        })));
+      // STEP 1 — Fetch real supplier products (200 varied samples)
+      // First try by supplier_ref
+      let { data: products } = await (supabase
+        .from('products') as any)
+        .select('sku, original_title, original_price, category')
+        .eq('supplier_ref', supplier.id)
+        .not('original_title', 'is', null)
+        .limit(200);
+
+      // Fallback by supplier_name if no products found by ref
+      if (!products || products.length === 0) {
+        const { data: fallbackProducts } = await (supabase
+          .from('products') as any)
+          .select('sku, original_title, original_price, category')
+          .eq('supplier_name', supplier.supplier_name)
+          .not('original_title', 'is', null)
+          .limit(200);
+        products = fallbackProducts;
       }
 
-      // Step B: PDF analysis
-      let pdfContext = "";
-      const { data: chunks } = await (supabase
-        .from('knowledge_chunks') as any)
-        .select('content')
-        .eq('supplier_id', supplier.id)
-        .limit(50);
-      if (chunks?.length) {
-        pdfContext = chunks.map(c => c.content).join("\n---\n");
+      if (!products || products.length === 0) {
+        throw new Error("Não foram encontrados produtos reais para este fornecedor. Importa o feed primeiro.");
       }
 
-      const context = `
-=== FEED SAMPLE ===
-${feedSample}
+      // STEP 2 — Build real context from actual product data
+      const productSample = products.map(p => 
+        `SKU:${p.sku} | ${p.original_title} | €${p.original_price} | ${p.category}`
+      ).join('\n');
 
-=== PDF CONTEXT ===
-${pdfContext}
-      `;
-
+      // STEP 3 — Send to AI with real data
       const { data: aiResponse, error: aiError } = await supabase.functions.invoke('direct-ai-call', {
         body: {
-          prompt: `You are analyzing supplier data to generate publishability rules for hotelequip.pt, a professional restaurant/hotel equipment store in Portugal.
-          
-Strategic categories (publish EVERYTHING): PALAMENTA-MENAGE, BAR E CAFETARIA, FRIO COMERCIAL, CONFEÇÃO, LAVAGEM LOUÇA.
+          systemPrompt: `You are analyzing a real supplier catalog to generate publishability rules for hotelequip.pt (professional restaurant and hotel equipment store in Portugal).
 
-Data: ${context}
+Your task: analyze the ACTUAL products provided and identify:
+1. Words in titles that indicate STANDALONE products a customer buys directly (power_words)
+2. Words in titles that indicate MOUNTING COMPONENTS or SPARE PARTS that should NOT be sold standalone (stop_words)
+3. Categories where EVERYTHING should be published
+4. SKU patterns that always indicate complete assembled products
 
-Return ONLY this JSON structure:
+Focus on the ACTUAL words found in these product titles.
+Do NOT generate generic marketing words.
+
+Return ONLY this JSON, no other text:
 {
-  "power_words": [],
-  "stop_words": [],
-  "strategic_categories": [],
-  "skip_categories": [],
-  "sku_publish_patterns": [],
+  "power_words": [actual words from titles indicating standalone products],
+  "stop_words": [actual words from titles indicating components/parts],
+  "strategic_categories": [category patterns to always publish],
+  "skip_categories": [category patterns to mostly skip],
+  "sku_publish_patterns": [regex for complete product SKUs],
   "min_price_skip": 5,
   "min_price_review": 15,
   "min_price_spare_parts": 50,
-  "notes": "explanation in PT-PT"
+  "notes": "explanation in PT-PT based on actual catalog analysis"
 }`,
-          systemPrompt: "Return ONLY JSON."
+          prompt: `Analyze these ${products.length} real products from this supplier:
+
+${productSample}`,
+          model: "lovable/gemini-2.5-flash"
         }
       });
 
       if (aiError) throw aiError;
       
-      const generated = JSON.parse(aiResponse.text.match(/\{[\s\S]*\}/)[0]);
+      const jsonMatch = aiResponse.text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("A IA não retornou um JSON válido.");
+      
+      const generated = JSON.parse(jsonMatch[0]);
       setRules(generated);
-      toast.success("Regras geradas com sucesso. Revê e guarda.");
+      toast.success("Regras geradas com base em produtos reais. Revê e guarda.");
     } catch (e: any) {
       toast.error(`Erro ao gerar regras: ${e.message}`);
     } finally {
