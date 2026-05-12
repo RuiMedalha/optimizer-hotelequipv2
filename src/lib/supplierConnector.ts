@@ -385,15 +385,32 @@ function applyToRow(
   }
 
   // 10. Post-processing patterns (MOQ extraction)
-  const moqPattern = /QUANTIDADE\s+M[IÍ]NIMA[^:]*:\s*(\d+)/i;
   const moqPatterns = [
-    moqPattern,
+    /QUANTIDADE\s+M[IÍ]NIMA[^:]*:\s*(\d+)/i,
     /QUANTIDADE\s+MINIMA\s+VENDA:\s*(\d+)\s*Unidades/i,
     /QTDE\s+M[IÍ]NIMA:\s*(\d+)/i,
     /MIN\.\s*ORDER:\s*(\d+)/i
   ];
 
-  if (!result.min_order_quantity && result.original_description) {
+  if ((!result.min_order_quantity || result.min_order_quantity === 1)) {
+    // 10a. Try meta_data first (common in WooCommerce source feeds)
+    const meta = row.meta_data || row._meta || [];
+    if (Array.isArray(meta)) {
+      const moqKeys = ["_min_purchase_quantity", "_wc_min_purchase_qty", "minimum_allowed_quantity"];
+      for (const key of moqKeys) {
+        const found = meta.find((m: any) => m.key === key);
+        if (found?.value) {
+          const val = parseInt(String(found.value));
+          if (!isNaN(val) && val > 0) {
+            result.min_order_quantity = val;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  if ((!result.min_order_quantity || result.min_order_quantity === 1) && result.original_description) {
     const desc = stripHtml(result.original_description);
     for (const p of moqPatterns) {
       const m = desc.match(p);
