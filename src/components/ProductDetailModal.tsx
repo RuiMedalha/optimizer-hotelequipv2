@@ -141,6 +141,7 @@ export function ProductDetailModal({ product: initialProduct, onClose }: Props) 
           focus_keyword: (Array.isArray(product.focus_keyword) ? product.focus_keyword : []).join(", "),
           brand: product.brand ?? "",
           model: product.model ?? "",
+          min_order_quantity: product.min_order_quantity ?? 1,
         });
       setHasChanges(false);
     }
@@ -181,6 +182,7 @@ export function ProductDetailModal({ product: initialProduct, onClose }: Props) 
       focus_keyword: editData.focus_keyword ? editData.focus_keyword.split(",").map((t: string) => t.trim()).filter(Boolean) : null,
       brand: editData.brand || null,
       model: editData.model || null,
+      min_order_quantity: editData.min_order_quantity ? Number(editData.min_order_quantity) : 1,
     };
 
     if (product.image_urls && product.image_urls.length > 0) {
@@ -488,6 +490,25 @@ export function ProductDetailModal({ product: initialProduct, onClose }: Props) 
                   onChange={e => handleFieldChange("model", e.target.value)}
                   placeholder="Ex: EU1613, CR-201..."
                   className="text-sm font-mono"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium">Qtd. Mínima de Venda</label>
+                  {Number(editData.min_order_quantity) > 1 && (
+                    <Badge variant="outline" className="h-5 px-1.5 text-[10px] bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
+                      ⚠️ Mínimo: {editData.min_order_quantity} unid.
+                    </Badge>
+                  )}
+                </div>
+                <Input
+                  type="number"
+                  min={1}
+                  value={editData.min_order_quantity ?? 1}
+                  onChange={e => handleFieldChange("min_order_quantity", e.target.value)}
+                  className="text-sm"
                 />
               </div>
             </div>
