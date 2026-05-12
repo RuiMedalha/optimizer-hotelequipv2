@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Search, Check, X, Edit, Sparkles, Loader2, Download, Send, Trash2, Settings2, Save, GitBranch, Layers, Plus, Ban, Filter, ChevronDown, ChevronRight, Rocket, XCircle, List, Network, Globe, Copy, AlertTriangle, ImageIcon, Camera, GitCompare, Wand2, Tag, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useProducts, useAllProductIds, useUpdateProductStatus, useProductFilterOptions, type Product, type ProductFilters } from "@/hooks/useProducts";
+import { useProducts, useAllProductIds, useUpdateProductStatus, useProductFilterOptions, useProductStats, type Product, type ProductFilters } from "@/hooks/useProducts";
 import { useOptimizeProducts, OPTIMIZATION_FIELDS, OPTIMIZATION_PHASES, CancellationToken, type OptimizationField } from "@/hooks/useOptimizeProducts";
 import { useActiveAiModels, useActiveImageModels } from "@/hooks/useAiProviderCenter";
 import { useOptimizationJob } from "@/hooks/useOptimizationJob";
