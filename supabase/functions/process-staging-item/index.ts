@@ -257,17 +257,13 @@ Deno.serve(async (req) => {
           const { data: ws } = await supabase.from("workspaces").select("user_id").eq("id", staging.workspace_id).single();
           if (!ws?.user_id) throw new Error("Workspace owner not found");
 
-          const hasImages = mergeData.image_urls && Array.isArray(mergeData.image_urls) && mergeData.image_urls.length > 0;
-          
           const insertData = {
             ...mergeData,
             sku: sku,
             workspace_id: staging.workspace_id,
             user_id: ws.user_id,
             status: 'pending',
-            workflow_state: hasImages ? 'draft' : 'needs_review',
-            image_status: hasImages ? 'ok' : 'missing',
-            image_review_notes: hasImages ? null : 'Produto sem imagem — adicionar URL manualmente e re-optimizar para gerar alt tag',
+            workflow_state: 'draft',
             origin: 'supplier',
             brand: rawData.brand || defaultBrand,
             model: calculatedModel,

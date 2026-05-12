@@ -9937,7 +9937,6 @@ export type Database = {
           id: string
           image_alt_texts: Json | null
           image_migration_status: Json | null
-          image_review_notes: string | null
           image_status: string | null
           image_urls: string[] | null
           is_discontinued: boolean | null
@@ -10008,7 +10007,6 @@ export type Database = {
           id?: string
           image_alt_texts?: Json | null
           image_migration_status?: Json | null
-          image_review_notes?: string | null
           image_status?: string | null
           image_urls?: string[] | null
           is_discontinued?: boolean | null
@@ -10081,7 +10079,6 @@ export type Database = {
           id?: string
           image_alt_texts?: Json | null
           image_migration_status?: Json | null
-          image_review_notes?: string | null
           image_status?: string | null
           image_urls?: string[] | null
           is_discontinued?: boolean | null
