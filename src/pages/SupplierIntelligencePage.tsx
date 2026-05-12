@@ -859,18 +859,6 @@ ${productSample}`,
     }
   };
 
-      if (aiError) throw aiError;
-      
-      const generated = JSON.parse(aiResponse.text.match(/\{[\s\S]*\}/)[0]);
-      setRules(generated);
-      toast.success("Regras geradas com sucesso. Revê e guarda.");
-    } catch (e: any) {
-      toast.error(`Erro ao gerar regras: ${e.message}`);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
   const handleClassify = async () => {
     if (!rules) return toast.error("Gera e guarda as regras primeiro.");
     setIsClassifying(true);
