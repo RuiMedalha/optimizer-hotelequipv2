@@ -874,6 +874,46 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
     }
   });
 
+  const handleIndexPdf = async () => {
+    setIsIndexing(true);
+    setIndexingProgress(10);
+    try {
+      const { data, error } = await supabase.functions.invoke('build-supplier-knowledge-graph', {
+        body: { supplier_id: supplier.id, workspace_id: workspaceId }
+      });
+      if (error) throw error;
+      setIndexingProgress(100);
+      toast.success("PDF indexado e Knowledge Graph construído.");
+      queryClient.invalidateQueries({ queryKey: ['supplier-sources-status', supplier.id] });
+    } catch (err: any) {
+      toast.error(`Erro na indexação: ${err.message}`);
+    } finally {
+      setIsIndexing(false);
+      setIndexingProgress(0);
+    }
+  };
+
+  const fetchUpdatedStats = async () => {
+    try {
+      const { data: supplierProducts } = await (supabase
+        .from('products') as any)
+        .select('publishability_decision')
+        .eq('supplier_ref', supplier.id);
+        
+      if (supplierProducts) {
+        const stats = {
+          publish: supplierProducts.filter((p: any) => p.publishability_decision === 'publish').length,
+          review: supplierProducts.filter((p: any) => p.publishability_decision === 'review').length,
+          skip: supplierProducts.filter((p: any) => p.publishability_decision === 'skip').length,
+          total: supplierProducts.length
+        };
+        setLocalStats(stats);
+        return stats;
+      }
+    } catch (err) {}
+    return null;
+  };
+
   const handleSaveRules = async () => {
     try {
       const { error } = await (supabase
@@ -881,8 +921,21 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
         .update({ publishability_rules: rules })
         .eq('id', supplier.id);
       if (error) throw error;
+      
+      // Re-fetch supplier profile
+      const { data: updatedSupplier } = await (supabase
+        .from('supplier_profiles') as any)
+        .select('*')
+        .eq('id', supplier.id)
+        .single();
+        
+      if (updatedSupplier) {
+        setRules(updatedSupplier.publishability_rules);
+      }
+      
+      await fetchUpdatedStats();
       setRulesSaved(true);
-      toast.success("Regras guardadas com sucesso.");
+      toast.success("Regras guardadas e estatísticas atualizadas.");
     } catch (e: any) {
       toast.error(`Erro ao guardar: ${e.message}`);
     }
