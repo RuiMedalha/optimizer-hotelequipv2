@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSupplierIntelligence, useSupplierDetail } from "@/hooks/useSupplierIntelligence";
@@ -721,8 +721,11 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
   const [rulesSaved, setRulesSaved] = useState(false);
   const [uploadingPdf, setUploadingPdf] = useState(false);
   const [uploadingExcel, setUploadingExcel] = useState(false);
+  const [isIndexing, setIsIndexing] = useState(false);
+  const [indexingProgress, setIndexingProgress] = useState(0);
   const [generatingStatus, setGeneratingStatus] = useState<string | null>(null);
   const [excelSource, setExcelSource] = useState<string | null>(null);
+  const [localStats, setLocalStats] = useState<any>(supplier.publishability_stats || { publish: 0, review: 0, skip: 0 });
   const queryClient = useQueryClient();
   
   const [rules, setRules] = useState<any>(supplier.publishability_rules || {
@@ -871,6 +874,46 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
     }
   });
 
+  const handleIndexPdf = async () => {
+    setIsIndexing(true);
+    setIndexingProgress(10);
+    try {
+      const { data, error } = await supabase.functions.invoke('build-supplier-knowledge-graph', {
+        body: { supplier_id: supplier.id, workspace_id: workspaceId }
+      });
+      if (error) throw error;
+      setIndexingProgress(100);
+      toast.success("PDF indexado e Knowledge Graph construído.");
+      queryClient.invalidateQueries({ queryKey: ['supplier-sources-status', supplier.id] });
+    } catch (err: any) {
+      toast.error(`Erro na indexação: ${err.message}`);
+    } finally {
+      setIsIndexing(false);
+      setIndexingProgress(0);
+    }
+  };
+
+  const fetchUpdatedStats = async () => {
+    try {
+      const { data: supplierProducts } = await (supabase
+        .from('products') as any)
+        .select('publishability_decision')
+        .eq('supplier_ref', supplier.id);
+        
+      if (supplierProducts) {
+        const stats = {
+          publish: supplierProducts.filter((p: any) => p.publishability_decision === 'publish').length,
+          review: supplierProducts.filter((p: any) => p.publishability_decision === 'review').length,
+          skip: supplierProducts.filter((p: any) => p.publishability_decision === 'skip').length,
+          total: supplierProducts.length
+        };
+        setLocalStats(stats);
+        return stats;
+      }
+    } catch (err) {}
+    return null;
+  };
+
   const handleSaveRules = async () => {
     try {
       const { error } = await (supabase
@@ -878,8 +921,21 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
         .update({ publishability_rules: rules })
         .eq('id', supplier.id);
       if (error) throw error;
+      
+      // Re-fetch supplier profile
+      const { data: updatedSupplier } = await (supabase
+        .from('supplier_profiles') as any)
+        .select('*')
+        .eq('id', supplier.id)
+        .single();
+        
+      if (updatedSupplier) {
+        setRules(updatedSupplier.publishability_rules);
+      }
+      
+      await fetchUpdatedStats();
       setRulesSaved(true);
-      toast.success("Regras guardadas com sucesso.");
+      toast.success("Regras guardadas e estatísticas atualizadas.");
     } catch (e: any) {
       toast.error(`Erro ao guardar: ${e.message}`);
     }
@@ -1003,16 +1059,22 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
       // STEP 3 — Send to AI with real data
       const { data: aiResponse, error: aiError } = await supabase.functions.invoke('direct-ai-call', {
         body: {
-          systemPrompt: `You are analyzing a real supplier catalog to generate publishability rules for hotelequip.pt (professional restaurant and hotel equipment store in Portugal).
+          systemPrompt: `You are analyzing a real supplier catalog for hotelequip.pt, a professional restaurant and hotel equipment store in Portugal.
 
-Your task: analyze the ACTUAL products provided and identify:
-1. Words in titles that indicate STANDALONE products a customer buys directly (power_words)
-2. Words in titles that indicate MOUNTING COMPONENTS or SPARE PARTS that should NOT be sold standalone (stop_words)
-3. Categories where EVERYTHING should be published
-4. SKU patterns that always indicate complete assembled products
+IMPORTANT CONTEXT:
+- Power words = words in product TITLES that indicate the product is a COMPLETE STANDALONE item a customer buys directly
+  Examples: lavamanos, mesa, armario, expositor, carro, vitrina
+  
+- Stop words = words in product TITLES that indicate the product is a MOUNTING COMPONENT or SPARE PART that needs a parent product
+  Examples: tornillo, tuerca, separador, refuerzo, pletina, cartela
 
-Focus on the ACTUAL words found in these product titles.
-Do NOT generate generic marketing words.
+RULES:
+- 'Separador' is a STOP WORD (mounting component) NOT a power word
+- 'Suporte de Jamón' (ham stand) is a standalone product = POWER WORD but 'Suporte' alone as a bracket/bracket = STOP WORD
+- Words like 'tapón', 'sifón', 'válvula' depend on price: if price < €20 = stop word, if price >= €20 = could be published
+
+Analyze the ACTUAL product titles in the data provided.
+Generate specific words that appear in THIS catalog, not generic terms.
 
 Return ONLY this JSON, no other text:
 {
@@ -1020,7 +1082,7 @@ Return ONLY this JSON, no other text:
   "stop_words": [actual words from titles indicating components/parts],
   "strategic_categories": [category patterns to always publish],
   "skip_categories": [category patterns to mostly skip],
-  "sku_publish_patterns": [regex for complete product SKUs],
+  "sku_publish_patterns": ["^91\\d{7}"],
   "min_price_skip": 5,
   "min_price_review": 15,
   "min_price_spare_parts": 50,
@@ -1095,22 +1157,41 @@ ${excelContext}`,
         return { score: 50, reason: 'Ambíguo', decision: 'review' };
       };
 
-      let from = 0;
-      const limit = 100;
+      // Strategy for finding products
+      const getSupplierProducts = async () => {
+        // Strategy 1: match by supplier_ref
+        let { data } = await (supabase.from('products') as any)
+          .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
+          .eq('supplier_ref', supplier.id);
+        
+        if (data?.length > 0) return data;
+        
+        // Strategy 2: match by supplier_name
+        ({ data } = await (supabase.from('products') as any)
+          .select('id, sku, original_title, original_price, category, workflow_state, publishability_decision')
+          .ilike('supplier_name', `%${supplier.supplier_name}%`));
+        
+        if (data?.length > 0) return data;
+        
+        // Strategy 3: match by brand
+        ({ data } = await (supabase.from('products') as any)
+          .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
+          .ilike('brand', `%${supplier.supplier_name}%`));
+          
+        return data || [];
+      };
+
+      const products = await getSupplierProducts();
+      if (products.length === 0) throw new Error("Não foram encontrados produtos para classificar com nenhuma estratégia.");
+
       let total = 0;
       let p: any = { publish: 0, review: 0, skip: 0 };
-
-      while (true) {
-        const { data: products, error } = await (supabase
-          .from('products') as any)
-          .select('id, sku, original_price, original_title, category, workflow_state')
-          .eq('supplier_ref', supplier.id)
-          .range(from, from + limit - 1);
-        
-        if (error) throw error;
-        if (!products.length) break;
-
-        for (const product of products) {
+      
+      // Process in small batches for feedback
+      const batchSize = 50;
+      for (let i = 0; i < products.length; i += batchSize) {
+        const batch = products.slice(i, i + batchSize);
+        for (const product of batch) {
           const result: any = applyRules(product, rules);
           const updates: any = {
             publishability_score: result.score,
@@ -1125,9 +1206,7 @@ ${excelContext}`,
           p[result.decision]++;
           total++;
         }
-        
-        from += limit;
-        setProgress(Math.min(99, Math.round((from / (supplier.publishability_stats?.total || from + 1000)) * 100)));
+        setProgress(Math.round(((i + batch.length) / products.length) * 100));
       }
 
       const stats = { ...p, total, last_run: new Date().toISOString() };
@@ -1136,6 +1215,7 @@ ${excelContext}`,
         publishability_last_run: stats.last_run
       }).eq('id', supplier.id);
       
+      await fetchUpdatedStats();
       queryClient.invalidateQueries({ queryKey: ['supplier-profiles'] });
       toast.success("Classificação concluída.");
       setProgress(100);
@@ -1145,6 +1225,12 @@ ${excelContext}`,
       setIsClassifying(false);
     }
   };
+
+  useEffect(() => {
+    if (supplier.publishability_stats) {
+      setLocalStats(supplier.publishability_stats);
+    }
+  }, [supplier.publishability_stats]);
 
   return (
     <div className="space-y-6">
@@ -1158,19 +1244,31 @@ ${excelContext}`,
               <Badge variant={sourcesStatus?.pdf ? "default" : "secondary"}>
                 PDF {sourcesStatus?.pdf ? "✅" : "❌"}
               </Badge>
-              {sourcesStatus?.pdfIndexed ? (
-                <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                  ✅ PDF indexado 
-                  <button 
-                    onClick={() => queryClient.invalidateQueries({ queryKey: ['supplier-knowledge-graph'] })}
-                    className="text-primary hover:underline flex items-center ml-1"
-                  >
-                    Ver Knowledge Graph <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
-                  </button>
-                </span>
-              ) : sourcesStatus?.pdf ? (
+            {sourcesStatus?.pdfIndexed ? (
+              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                ✅ PDF indexado 
+                <button 
+                  onClick={() => queryClient.invalidateQueries({ queryKey: ['supplier-knowledge-graph'] })}
+                  className="text-primary hover:underline flex items-center ml-1"
+                >
+                  Ver Knowledge Graph <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
+                </button>
+              </span>
+            ) : sourcesStatus?.pdf ? (
+              <div className="flex items-center gap-2">
                 <span className="text-[10px] text-amber-500">Aguardando indexação</span>
-              ) : (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-6 text-[9px] px-2"
+                  onClick={handleIndexPdf}
+                  disabled={isIndexing}
+                >
+                  {isIndexing ? <Loader2 className="w-2.5 h-2.5 animate-spin mr-1" /> : <Network className="w-2.5 h-2.5 mr-1" />}
+                  {isIndexing ? `A indexar ${indexingProgress}%` : "🔄 Indexar Agora"}
+                </Button>
+              </div>
+            ) : (
                 <div className="flex items-center gap-2">
                   <Input 
                     type="file" 
@@ -1314,9 +1412,9 @@ ${excelContext}`,
         <CardHeader><CardTitle className="text-sm">Classificar Produtos</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="flex justify-between text-sm">
-            <span>✅ {supplier.publishability_stats?.publish || 0} publicar</span>
-            <span>👁 {supplier.publishability_stats?.review || 0} rever</span>
-            <span>❌ {supplier.publishability_stats?.skip || 0} ignorar</span>
+            <span>✅ {localStats?.publish || 0} publicar</span>
+            <span>👁 {localStats?.review || 0} rever</span>
+            <span>❌ {localStats?.skip || 0} ignorar</span>
           </div>
           {isClassifying && <Progress value={progress} className="h-2" />}
           <Button 
