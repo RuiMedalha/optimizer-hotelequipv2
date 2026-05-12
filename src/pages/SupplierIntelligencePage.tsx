@@ -1226,6 +1226,12 @@ ${excelContext}`,
     }
   };
 
+  useEffect(() => {
+    if (supplier.publishability_stats) {
+      setLocalStats(supplier.publishability_stats);
+    }
+  }, [supplier.publishability_stats]);
+
   return (
     <div className="space-y-6">
       <Card>
