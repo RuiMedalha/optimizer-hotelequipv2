@@ -1129,6 +1129,12 @@ ${excelContext}`,
         }
       });
 
+      console.log('AI context sizes:', {
+        feedSample: productSample?.length || 0,
+        pdfContext: pdfContext?.length || 0, 
+        excelContext: excelContext?.length || 0
+      });
+
       if (aiError) throw aiError;
       
       setGeneratingStatus(null);
