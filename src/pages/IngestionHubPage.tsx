@@ -1039,7 +1039,7 @@ const IngestionHubPage = () => {
                 </div>
               )}
 
-              {specialFields?.priceFields?.length > 1 && (
+              {specialFields?.priceFields?.length > 0 && (
                 <SpecialFieldsPicker
                   priceFields={specialFields.priceFields}
                   onSelectPrice={(key) => {
