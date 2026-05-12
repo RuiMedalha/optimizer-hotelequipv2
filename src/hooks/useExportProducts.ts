@@ -27,9 +27,12 @@ function safeVal(val: unknown): string {
   return String(val);
 }
 
-function safeValPart(val: unknown, part: 1 | 2): string {
+function safeValPart(val: unknown, part: 1 | 2, keepHtml = false): string {
   if (val == null) return "";
-  const str = String(val).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  let str = String(val);
+  if (!keepHtml) {
+    str = str.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  }
   if (part === 1) return str.substring(0, EXCEL_MAX);
   return str.length > EXCEL_MAX ? str.substring(EXCEL_MAX, EXCEL_MAX * 2) : "";
 }
