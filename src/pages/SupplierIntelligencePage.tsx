@@ -768,8 +768,8 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
 
   const handleSaveRules = async () => {
     try {
-      const { error } = await supabase
-        .from('supplier_profiles')
+      const { error } = await (supabase
+        .from('supplier_profiles') as any)
         .update({ publishability_rules: rules })
         .eq('id', supplier.id);
       if (error) throw error;
