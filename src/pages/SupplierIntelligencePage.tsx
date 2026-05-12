@@ -53,13 +53,9 @@ function SupplierDetail({
   const [feedUrlXml, setFeedUrlXml] = useState(supplier?.feed_url_xml || '');
   const [feedUrlCsv, setFeedUrlCsv] = useState(supplier?.feed_url_csv || '');
   const [feedTestResult, setFeedTestResult] = useState<any>(null);
-  const [connectorConfigText, setConnectorConfigText] = useState(
-    supplier?.connector_config ? JSON.stringify(supplier.connector_config, null, 2) : ''
-  );
   const [configError, setConfigError] = useState<string | null>(null);
   const [connectorTestResult, setConnectorTestResult] = useState<any[]>([]);
-  const [showAiPromptModal, setShowAiPromptModal] = useState(false);
-  const [aiPrompt, setAiPrompt] = useState('');
+  const [testingUrl, setTestingUrl] = useState(false);
   const [testingUrl, setTestingUrl] = useState(false);
 
   const handleTestUrl = (format: 'xml' | 'csv') => async () => {
