@@ -20,6 +20,7 @@ import {
   generateAiPrompt, 
   applyConnectorTransformations, 
   CONNECTOR_PRESETS,
+  detectCsvDelimiter,
   type ConnectorConfig,
   type XmlFormat
 } from '@/lib/supplierConnector';
