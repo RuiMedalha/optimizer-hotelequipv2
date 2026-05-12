@@ -47,7 +47,12 @@ export function ReviewItemCard({ item, onApprove, onReject, onOpen }: Props) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <p className="text-sm font-medium truncate">{title}</p>
-              <Badge variant="outline" className={cn("text-[10px]", sc.color)}>{sc.label}</Badge>
+               <Badge variant="outline" className={cn("text-[10px]", sc.color)}>{sc.label}</Badge>
+              {product?.min_order_quantity > 1 && (
+                <Badge variant="outline" className="text-[10px] bg-yellow-500/10 text-yellow-600 border-yellow-500/20">
+                  ⚠️ Mínimo: {product.min_order_quantity}
+                </Badge>
+              )}
             </div>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               <Badge variant="secondary" className="text-[10px]">{reasonLabels[item.reason] || item.reason}</Badge>

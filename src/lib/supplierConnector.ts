@@ -377,8 +377,38 @@ function applyToRow(
       result[field] = JSON.stringify(result[field]);
     }
   }
-  
+
+  // Parse min_order_quantity as integer
+  if (result.min_order_quantity !== undefined) {
+    const parsedMin = parseInt(String(result.min_order_quantity));
+    result.min_order_quantity = isNaN(parsedMin) ? 1 : parsedMin;
+  }
+
+  // 10. Post-processing patterns (MOQ extraction)
+  const moqPattern = /QUANTIDADE\s+M[IÍ]NIMA[^:]*:\s*(\d+)/i;
+  const moqPatterns = [
+    moqPattern,
+    /QUANTIDADE\s+MINIMA\s+VENDA:\s*(\d+)\s*Unidades/i,
+    /QTDE\s+M[IÍ]NIMA:\s*(\d+)/i,
+    /MIN\.\s*ORDER:\s*(\d+)/i
+  ];
+
+  if (!result.min_order_quantity && result.original_description) {
+    const desc = stripHtml(result.original_description);
+    for (const p of moqPatterns) {
+      const m = desc.match(p);
+      if (m?.[1]) {
+        result.min_order_quantity = parseInt(m[1]);
+        break;
+      }
+    }
+  }
+
   return result;
+}
+
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>?/gm, '');
 }
 
 export function applyConnectorTransformations(
@@ -505,6 +535,7 @@ CAMPOS DESTINO DO SISTEMA (onde os dados vão ser guardados):
 - attributes: objeto JSON com características { "Nome": { "value": "Valor", "unit": "Unidade" } }
 - stock: disponibilidade em stock (número: 1=disponível, 0=indisponível)
 - supplier_ref: referência interna do fornecedor
+- min_order_quantity: quantidade mínima de venda (número inteiro)
 - woocommerce_id: ID do produto no WooCommerce (número inteiro)
 
 TRANSFORMAÇÕES DISPONÍVEIS NO SISTEMA:
@@ -599,7 +630,8 @@ export const CONNECTOR_PRESETS: Record<string, ConnectorConfig> = {
       'g:price': 'original_price',
       'g:availability': 'stock',
       'g:product_type': 'category',
-      'g:custom_label_1': 'supplier_ref'
+      'g:custom_label_1': 'supplier_ref',
+      'Min. order quantity': 'min_order_quantity'
     },
     image_columns: ['g:image_link', 'g:additional_image_link'],
     ignore_fields: [

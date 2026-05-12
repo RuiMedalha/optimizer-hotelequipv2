@@ -1855,6 +1855,14 @@ async function buildBasePayload(
     wooProduct.stock_status = qty > 0 ? "instock" : "outofstock";
   }
 
+  // Minimum Order Quantity meta
+  if (product.min_order_quantity && product.min_order_quantity > 1) {
+    const meta = ensureMeta();
+    meta.push({ key: "_wc_min_purchase_qty", value: String(product.min_order_quantity) });
+    meta.push({ key: "_wc_max_purchase_qty", value: "" });
+    meta.push({ key: "purchase_minimum_quantity", value: String(product.min_order_quantity) });
+  }
+
   // IMPORTANT: Never overwrite the WooCommerce slug/permalink.
   // The seo_slug is metadata only (for Yoast/RankMath); the product URL must remain stable.
   // If you need to set slug on first publish, use the original WooCommerce slug or SKU-based fallback.
