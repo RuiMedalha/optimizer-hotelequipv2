@@ -718,6 +718,9 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
   const [isGenerating, setIsGenerating] = useState(false);
   const [isClassifying, setIsClassifying] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [rulesSaved, setRulesSaved] = useState(false);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [excelSource, setExcelSource] = useState<string | null>(null);
   const queryClient = useQueryClient();
   
   const [rules, setRules] = useState<any>(supplier.publishability_rules || {
