@@ -170,14 +170,6 @@ function productToRow(p: Product, skuPrefix?: string, lookups?: ProductLookups) 
       row[col.header] = categoryPaths.slice(1).join(" | ");
       continue;
     }
-    if (col.key === "attr_ean") {
-      row[col.header] = extractAttrValue(attrs, EAN_ATTR_NAMES);
-      continue;
-    }
-    if (col.key === "attr_modelo") {
-      row[col.header] = extractAttrValue(attrs, MODELO_ATTR_NAMES);
-      continue;
-    }
     if (col.key === "woo_status") {
       row[col.header] = sourceProfile.woo_status ?? "";
       continue;
