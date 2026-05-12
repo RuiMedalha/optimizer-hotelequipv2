@@ -242,19 +242,44 @@ Deno.serve(async (req) => {
           }
           handled = true;
         }
-        else if (action === 'review_visual' && (changeType === 'field_update' || changeType === 'multiple_changes')) {
+        else if ((action === 'review_visual' || action === 'approve_all') && (changeType === 'field_update' || changeType === 'multiple_changes')) {
           if (!effectiveProductId) {
-            await supabase.from("sync_staging").update({ status: 'error', review_notes: 'Produto não encontrado para revisão visual' }).eq("id", staging.id);
-            errorCount++;
-            continue;
+            const sTitle = cleanSupplierValue(rawData.original_title ?? rawData.supplier_title ?? rawData.title);
+            if (!sTitle) {
+              await supabase.from("sync_staging").update({ status: 'error', review_notes: 'Produto não encontrado e sem título para criar novo' }).eq("id", staging.id);
+              errorCount++;
+              continue;
+            }
+
+            const contentPayload = buildUpdatePayload(rawData, {});
+            const price = cleanSupplierValue(rawData.original_price ?? rawData.price ?? rawData.Preço ?? rawData.Publico);
+
+            if (ws?.user_id) {
+              await supabase.from("products").insert({
+                sku: sku,
+                workspace_id: workspaceId,
+                user_id: ws.user_id,
+                workflow_state: 'draft',
+                status: 'pending',
+                origin: 'supplier',
+                original_price: price,
+                is_discontinued: false,
+                ...contentPayload
+              });
+              handled = true;
+            }
+          } else {
+            const contentPayload = buildUpdatePayload(rawData, existingProductData || {});
+            const newPrice = action === 'approve_all' ? cleanSupplierValue(rawData.price || rawData.original_price || rawData.Preço || rawData.Publico) : undefined;
+            
+            await supabase.from("products").update({
+              ...contentPayload,
+              ...(newPrice !== undefined && { original_price: newPrice }),
+              workflow_state: 'draft',
+              updated_at: new Date().toISOString()
+            }).eq("id", effectiveProductId);
+            handled = true;
           }
-          const contentPayload = buildUpdatePayload(rawData, existingProductData || {});
-          await supabase.from("products").update({
-            ...contentPayload,
-            workflow_state: 'draft',
-            updated_at: new Date().toISOString()
-          }).eq("id", effectiveProductId);
-          handled = true;
         }
         else if (action === 'approve_prices' || action === 'approve_prices_only') {
           if (!effectiveProductId) {
@@ -269,23 +294,6 @@ Deno.serve(async (req) => {
               updated_at: new Date().toISOString()
             }).eq("id", effectiveProductId);
           }
-          handled = true;
-        }
-        else if (action === 'approve_all') {
-          if (!effectiveProductId) {
-            await supabase.from("sync_staging").update({ status: 'error', review_notes: 'Produto não encontrado para aprovação total' }).eq("id", staging.id);
-            errorCount++;
-            continue;
-          }
-          const contentPayload = buildUpdatePayload(rawData, existingProductData || {});
-          const newPrice = cleanSupplierValue(rawData.price || rawData.original_price || rawData.Preço || rawData.Publico);
-          
-          await supabase.from("products").update({
-            ...contentPayload,
-            original_price: newPrice !== undefined ? newPrice : (existingProductData?.original_price),
-            workflow_state: 'draft',
-            updated_at: new Date().toISOString()
-          }).eq("id", effectiveProductId);
           handled = true;
         }
 
