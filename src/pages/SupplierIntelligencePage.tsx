@@ -262,6 +262,15 @@ function SupplierDetail({ supplier, onBack }: { supplier: any; onBack: () => voi
                 )}
               </CardContent>
             </Card>
+            <AiPromptModal 
+              isOpen={showAiPromptModal} 
+              onClose={() => setShowAiPromptModal(false)} 
+              prompt={aiPrompt} 
+              supplierId={supplier.id}
+              onApply={(config) => {
+                setConnectorConfigText(JSON.stringify(config, null, 2));
+              }}
+            />
           </div>
         </TabsContent>
 
