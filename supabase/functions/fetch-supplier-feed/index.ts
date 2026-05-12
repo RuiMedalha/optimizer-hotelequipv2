@@ -7,6 +7,13 @@ const corsHeaders = {
 
 // Standalone parsing functions (identical to frontend logic)
 
+function detectCsvDelimiter(text: string): string {
+  const firstLine = text.split('\n')[0] || '';
+  const commaCount = (firstLine.match(/,/g) || []).length;
+  const semicolonCount = (firstLine.match(/;/g) || []).length;
+  return semicolonCount > commaCount ? ';' : ',';
+}
+
 function detectXmlFormat(xmlText: string) {
   if (xmlText.includes('<SHOP>') || xmlText.includes('<SHOPITEM>')) return 'tefcold';
   if (xmlText.includes('base.google.com') || 
