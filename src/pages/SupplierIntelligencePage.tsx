@@ -247,6 +247,19 @@ function SupplierDetail({ supplier, onBack }: { supplier: any; onBack: () => voi
                       <SelectItem value="tefcold_xml">Tefcold (XML proprietário)</SelectItem>
                       <SelectItem value="fricosmos_xml">Fricosmos / Google Merchant (XML)</SelectItem>
                       <SelectItem value="fricosmos_excel_prices">Fricosmos (Excel — só preços)</SelectItem>
+                      
+                      {suppliersWithConfig && suppliersWithConfig.length > 0 && (
+                        <>
+                          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1">
+                            Fornecedores guardados
+                          </div>
+                          {suppliersWithConfig.map((s) => (
+                            <SelectItem key={s.id} value={`saved:${s.id}`}>
+                              {s.supplier_name} (config guardado)
+                            </SelectItem>
+                          ))}
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </CardTitle>
