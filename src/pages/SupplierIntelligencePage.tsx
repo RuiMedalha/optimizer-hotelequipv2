@@ -49,10 +49,15 @@ function SupplierDetail({ supplier, onBack }: { supplier: any; onBack: () => voi
   const [testingUrl, setTestingUrl] = useState(false);
 
   const handleTestUrl = (format: 'xml' | 'csv') => async () => {
+    const directUrl = format === 'csv' ? feedUrlCsv : feedUrlXml;
+    if (!directUrl) {
+      toast.error(`Configura primeiro o URL ${format.toUpperCase()} antes de testar.`);
+      return;
+    }
     setTestingUrl(true);
     try {
       const { data, error } = await supabase.functions.invoke('fetch-supplier-feed', {
-        body: { supplierId: supplier.id, workspaceId: wsId, format }
+        body: { supplierId: supplier.id, workspaceId: wsId, format, feedUrl: directUrl }
       });
       if (error) throw error;
       setFeedTestResult(data);
