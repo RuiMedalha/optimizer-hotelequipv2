@@ -940,7 +940,13 @@ Return ONLY this JSON, no other text:
 }`,
           prompt: `Analyze these ${products.length} real products from this supplier:
 
-${productSample}`,
+${productSample}
+
+=== PDF CONTEXT ===
+${pdfContext}
+
+=== PRICE DISTRIBUTION FROM EXCEL/PRODUCTS ===
+${excelContext}`,
           model: "lovable/gemini-2.5-flash"
         }
       });
