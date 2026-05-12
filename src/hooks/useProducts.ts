@@ -14,6 +14,7 @@ export interface ProductFilters {
   sourceFile?: string;
   wooFilter?: string;
   imageStatus?: "failed" | "missing" | "ok" | "all" | "any_issue";
+  publishabilityDecision?: string;
   page?: number;
   pageSize?: number;
 }
@@ -40,6 +41,7 @@ export function useProducts(filters: ProductFilters = {}) {
     sourceFile = "all",
     wooFilter = "all",
     imageStatus = "all",
+    publishabilityDecision = "all",
     page = 1,
     pageSize = 100,
   } = filters;
@@ -55,6 +57,7 @@ export function useProducts(filters: ProductFilters = {}) {
       sourceFile,
       wooFilter,
       imageStatus,
+      publishabilityDecision,
       page,
       pageSize,
     ],
@@ -69,6 +72,7 @@ export function useProducts(filters: ProductFilters = {}) {
         _source_file: sourceFile,
         _woo_filter: wooFilter,
         _image_status: imageStatus,
+        _publishability_decision: publishabilityDecision,
         _page: page,
         _page_size: pageSize,
       });
@@ -182,9 +186,13 @@ export function useProductStats() {
       if (error) throw error;
 
       let pending = 0, processing = 0, optimized = 0, needs_review = 0, published = 0, failed = 0, discontinued = 0, total = 0;
+      let pub_publish = 0, pub_review = 0, pub_skip = 0, pub_null = 0;
+
       (data || []).forEach((row: any) => {
         const count = Number(row.count);
         total += count;
+        
+        // Status counts
         if (row.status === "pending") pending += count;
         else if (row.status === "processing") processing += count;
         else if (row.status === "optimized") optimized += count;
@@ -192,9 +200,18 @@ export function useProductStats() {
         else if (row.status === "published") published += count;
         else if (row.status === "error") failed += count;
         else if (row.status === "discontinued") discontinued += count;
+
+        // Publishability counts
+        if (row.publishability_decision === "publish") pub_publish += count;
+        else if (row.publishability_decision === "review") pub_review += count;
+        else if (row.publishability_decision === "skip") pub_skip += count;
+        else if (row.publishability_decision === "null") pub_null += count;
       });
 
-      return { pending, processing, optimized, needs_review, published, failed, discontinued, total };
+      return { 
+        pending, processing, optimized, needs_review, published, failed, discontinued, total,
+        publish: pub_publish, review: pub_review, skip: pub_skip, unanalyzed: pub_null
+      };
     },
   });
 }
