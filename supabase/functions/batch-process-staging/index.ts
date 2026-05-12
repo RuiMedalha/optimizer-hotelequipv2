@@ -8,10 +8,19 @@ const corsHeaders = {
 const normalizeSKU = (sku: string): string => {
   if (!sku) return "";
   let normalized = sku.trim().toUpperCase();
+  // Replace slashes with hyphens
   normalized = normalized.replace(/[/\\]/g, "-");
-  normalized = normalized.replace(/\s+/g, "");
+  // Collapse multiple hyphens
   normalized = normalized.replace(/-+/g, "-");
-  normalized = normalized.replace(/^-|-$/g, "");
+  // Remove leading zeros from numeric-only segments
+  normalized = normalized.split('-').map(part => {
+    if (/^\d+$/.test(part)) {
+      const stripped = part.replace(/^0+/, "");
+      return stripped === "" ? "0" : stripped;
+    }
+    return part;
+  }).join('-');
+  
   return normalized || "0";
 };
 
@@ -116,6 +125,7 @@ Deno.serve(async (req) => {
     }
 
     let processedCount = 0;
+    let errorCount = 0;
     const { data: ws } = await supabase.from("workspaces").select("user_id").eq("id", workspaceId).single();
 
     const uniqueJobIds = [...new Set(stagingRecords.map((s: any) => s.ingestion_job_id).filter(Boolean))];
@@ -128,29 +138,25 @@ Deno.serve(async (req) => {
     for (const staging of stagingRecords) {
       try {
         const rawData = staging.proposed_changes || staging.supplier_data || {};
-        
-        // REGRA 3: Validar SKU
         const sku = cleanSupplierValue(rawData.sku || staging.sku_supplier);
+        
         if (!sku) {
+          console.warn(`[batch-process] Skipping staging ${staging.id}: Missing SKU`);
           await supabase.from("sync_staging").update({ status: 'error', review_notes: 'SKU em falta (Regra 3)' }).eq("id", staging.id);
+          errorCount++;
           continue;
         }
 
         const jobConfig = jobConfigMap.get(staging.ingestion_job_id) || {};
-        const defaultBrand = jobConfig.defaultBrand || null;
         const skuPrefix = jobConfig.skuPrefix || "";
         const skuSuffix = jobConfig.skuSuffix || "";
 
-        // Resolução do ID do produto
         let effectiveProductId = staging.existing_product_id;
         let existingProductData = null;
         
         if (!effectiveProductId) {
           const normalizedSkuSupplier = normalizeSKU(sku);
-          const variantsToTry = [
-            sku,
-            normalizedSkuSupplier
-          ];
+          const variantsToTry = [sku, normalizedSkuSupplier];
           if (skuPrefix) variantsToTry.push(skuPrefix + normalizedSkuSupplier);
           if (skuSuffix) variantsToTry.push(normalizedSkuSupplier + skuSuffix);
           if (skuPrefix && skuSuffix) variantsToTry.push(skuPrefix + normalizedSkuSupplier + skuSuffix);
@@ -175,6 +181,8 @@ Deno.serve(async (req) => {
           existingProductData = p;
         }
 
+        let handled = false;
+
         if (action === 'draft_discontinued') {
           if (effectiveProductId) {
             await supabase.from("products").update({
@@ -195,9 +203,7 @@ Deno.serve(async (req) => {
               origin: 'supplier'
             });
           }
-          
-          await supabase.from("sync_staging").delete().eq("id", staging.id);
-          processedCount++;
+          handled = true;
         }
         else if (action === 'create_drafts' && ws?.user_id) {
           const sTitle = cleanSupplierValue(rawData.original_title ?? rawData.supplier_title ?? rawData.title);
@@ -206,6 +212,7 @@ Deno.serve(async (req) => {
 
           if (!sTitle && !existingProductData?.original_title) {
             await supabase.from("sync_staging").update({ status: 'error', review_notes: 'Título em falta' }).eq("id", staging.id);
+            errorCount++;
             continue;
           }
 
@@ -220,7 +227,7 @@ Deno.serve(async (req) => {
               updated_at: new Date().toISOString()
             }).eq("id", effectiveProductId);
           } else {
-            const productToInsert = {
+            await supabase.from("products").insert({
               sku: sku,
               workspace_id: workspaceId,
               user_id: ws.user_id,
@@ -231,26 +238,30 @@ Deno.serve(async (req) => {
               ...(woocommerceId && woocommerceId > 0 && { woocommerce_id: woocommerceId }),
               is_discontinued: false,
               ...contentPayload
-            };
-            await supabase.from("products").insert(productToInsert);
+            });
           }
-
-          await supabase.from("sync_staging").delete().eq("id", staging.id);
-          processedCount++;
+          handled = true;
         }
-        else if (action === 'review_visual' && (changeType === 'field_update' || changeType === 'multiple_changes') && effectiveProductId) {
+        else if (action === 'review_visual' && (changeType === 'field_update' || changeType === 'multiple_changes')) {
+          if (!effectiveProductId) {
+            await supabase.from("sync_staging").update({ status: 'error', review_notes: 'Produto não encontrado para revisão visual' }).eq("id", staging.id);
+            errorCount++;
+            continue;
+          }
           const contentPayload = buildUpdatePayload(rawData, existingProductData || {});
-          
           await supabase.from("products").update({
             ...contentPayload,
             workflow_state: 'draft',
             updated_at: new Date().toISOString()
           }).eq("id", effectiveProductId);
-
-          await supabase.from("sync_staging").delete().eq("id", staging.id);
-          processedCount++;
+          handled = true;
         }
-        else if ((action === 'approve_prices' || action === 'approve_prices_only') && effectiveProductId) {
+        else if (action === 'approve_prices' || action === 'approve_prices_only') {
+          if (!effectiveProductId) {
+            await supabase.from("sync_staging").update({ status: 'error', review_notes: 'Produto não encontrado para aprovação de preço' }).eq("id", staging.id);
+            errorCount++;
+            continue;
+          }
           const newPrice = cleanSupplierValue(rawData.price || rawData.original_price || rawData.Preço || rawData.Publico);
           if (newPrice !== undefined) {
              await supabase.from("products").update({
@@ -258,11 +269,14 @@ Deno.serve(async (req) => {
               updated_at: new Date().toISOString()
             }).eq("id", effectiveProductId);
           }
-          await supabase.from("sync_staging").delete().eq("id", staging.id);
-          processedCount++;
+          handled = true;
         }
-        else if (action === 'approve_all' && effectiveProductId) {
-          // Combine visual review + price approval
+        else if (action === 'approve_all') {
+          if (!effectiveProductId) {
+            await supabase.from("sync_staging").update({ status: 'error', review_notes: 'Produto não encontrado para aprovação total' }).eq("id", staging.id);
+            errorCount++;
+            continue;
+          }
           const contentPayload = buildUpdatePayload(rawData, existingProductData || {});
           const newPrice = cleanSupplierValue(rawData.price || rawData.original_price || rawData.Preço || rawData.Publico);
           
@@ -272,12 +286,21 @@ Deno.serve(async (req) => {
             workflow_state: 'draft',
             updated_at: new Date().toISOString()
           }).eq("id", effectiveProductId);
+          handled = true;
+        }
 
+        if (handled) {
           await supabase.from("sync_staging").delete().eq("id", staging.id);
           processedCount++;
+        } else {
+          console.warn(`[batch-process] Item ${staging.id} was not handled by action ${action}`);
+          await supabase.from("sync_staging").update({ status: 'error', review_notes: `Ação ${action} não processada` }).eq("id", staging.id);
+          errorCount++;
         }
       } catch (err) {
         console.error(`Error processing staging ${staging.id}:`, err);
+        await supabase.from("sync_staging").update({ status: 'error', review_notes: `Erro técnico: ${err.message}` }).eq("id", staging.id);
+        errorCount++;
       }
     }
 
