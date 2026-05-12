@@ -9959,6 +9959,9 @@ export type Database = {
           parent_product_id: string | null
           product_type: string
           professional_use_content: string | null
+          publishability_decision: string | null
+          publishability_reason: string | null
+          publishability_score: number | null
           quality_score: number | null
           sale_price: number | null
           seo_score: number | null
@@ -10032,6 +10035,9 @@ export type Database = {
           parent_product_id?: string | null
           product_type?: string
           professional_use_content?: string | null
+          publishability_decision?: string | null
+          publishability_reason?: string | null
+          publishability_score?: number | null
           quality_score?: number | null
           sale_price?: number | null
           seo_score?: number | null
@@ -10107,6 +10113,9 @@ export type Database = {
           parent_product_id?: string | null
           product_type?: string
           professional_use_content?: string | null
+          publishability_decision?: string | null
+          publishability_reason?: string | null
+          publishability_score?: number | null
           quality_score?: number | null
           sale_price?: number | null
           seo_score?: number | null
@@ -12944,6 +12953,9 @@ export type Database = {
           feed_url_xml: string | null
           id: string
           is_active: boolean | null
+          publishability_last_run: string | null
+          publishability_rules: Json | null
+          publishability_stats: Json | null
           search_url_template: string | null
           supplier_code: string | null
           supplier_name: string
@@ -12963,6 +12975,9 @@ export type Database = {
           feed_url_xml?: string | null
           id?: string
           is_active?: boolean | null
+          publishability_last_run?: string | null
+          publishability_rules?: Json | null
+          publishability_stats?: Json | null
           search_url_template?: string | null
           supplier_code?: string | null
           supplier_name: string
@@ -12982,6 +12997,9 @@ export type Database = {
           feed_url_xml?: string | null
           id?: string
           is_active?: boolean | null
+          publishability_last_run?: string | null
+          publishability_rules?: Json | null
+          publishability_stats?: Json | null
           search_url_template?: string | null
           supplier_code?: string | null
           supplier_name?: string
