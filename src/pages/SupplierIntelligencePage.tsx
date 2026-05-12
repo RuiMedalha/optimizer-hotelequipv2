@@ -795,7 +795,7 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
       const { error: dbError } = await (supabase
         .from('uploaded_files') as any)
         .insert({
-          workspace_id: workspaceId,
+          workspace_id: workspaceId || supplier.workspace_id,
           supplier_id: supplier.id,
           file_name: file.name,
           storage_path: filePath,
@@ -832,7 +832,7 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
       const { error: dbError } = await (supabase
         .from('uploaded_files') as any)
         .insert({
-          workspace_id: workspaceId,
+          workspace_id: workspaceId || supplier.workspace_id,
           supplier_id: supplier.id,
           file_name: file.name,
           storage_path: filePath,
