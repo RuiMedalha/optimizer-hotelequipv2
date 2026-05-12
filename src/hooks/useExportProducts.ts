@@ -221,8 +221,15 @@ function productToRow(p: Product, skuPrefix?: string, lookups?: ProductLookups) 
       row[col.header] = val.map((f: any) => `Q: ${f.question} A: ${f.answer}`).join(" | ");
     } else if ((col.key === "upsell_skus" || col.key === "crosssell_skus") && Array.isArray(val)) {
       row[col.header] = val.map((item: any) => typeof item === "string" ? item : item.sku).filter(Boolean).join(",");
-    } else if (col.key === "image_alt_texts" && Array.isArray(val)) {
-      row[col.header] = val.map((a: any) => a.alt_text).join(" | ");
+    } else if (col.key === "image_alt_texts") {
+      const altTextsObj = (p as any).image_alt_texts;
+      if (altTextsObj && typeof altTextsObj === 'object' && !Array.isArray(altTextsObj)) {
+        row[col.header] = Object.values(altTextsObj).join('\n');
+      } else if (Array.isArray(altTextsObj)) {
+        row[col.header] = altTextsObj.map((a: any) => typeof a === 'string' ? a : (a.alt_text || JSON.stringify(a))).join('\n');
+      } else {
+        row[col.header] = "";
+      }
     } else if (col.key === "attributes" && Array.isArray(val)) {
       const others = val.filter((a: any) => !CRITICAL_ATTR_NAMES.has((a.name ?? "").toLowerCase().trim()));
       row[col.header] = others.map((a: any) => `${a.name}: ${a.value || (a.values || []).join(", ")}`).join(" | ");
