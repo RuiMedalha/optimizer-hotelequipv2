@@ -419,7 +419,7 @@ export function useBatchProcessStaging() {
           
           totalProcessed += data.count;
           remaining = data.remaining;
-          hasMore = remaining > 0 && data.count > 0 && !selectedIds;
+          hasMore = remaining > 0 && (data.count > 0 || (data.errors || 0) > 0) && !selectedIds;
 
           if (hasMore) {
             toast.loading(`Processados ${totalProcessed} produtos. Restam ${remaining}...`, { id: toastId });
