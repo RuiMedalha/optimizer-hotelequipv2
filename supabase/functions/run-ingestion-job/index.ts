@@ -536,6 +536,8 @@ Deno.serve(async (req) => {
           const mapped = item.mapped_data || item.source_data || {};
           const isRawData = !item.mapped_data;
           const productData = buildProductData(mapped, isRawData);
+          if (productData.productId !== undefined) delete productData.productId;
+
           
           if (isSupplierDelta) {
             const { error: stagingErr } = await supabase
