@@ -884,7 +884,10 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
       if (error) throw error;
       setIndexingProgress(100);
       toast.success("PDF indexado e Knowledge Graph construído.");
-      queryClient.invalidateQueries({ queryKey: ['supplier-sources-status', supplier.id] });
+      
+      // Force status refresh
+      await queryClient.invalidateQueries({ queryKey: ['supplier-sources-status', supplier.id] });
+      await queryClient.refetchQueries({ queryKey: ['supplier-sources-status', supplier.id] });
     } catch (err: any) {
       toast.error(`Erro na indexação: ${err.message}`);
     } finally {
