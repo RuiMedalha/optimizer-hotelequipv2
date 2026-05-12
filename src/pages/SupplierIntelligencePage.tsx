@@ -116,12 +116,27 @@ function SupplierDetail({ supplier, onBack }: { supplier: any; onBack: () => voi
     }
   };
 
-  const handleTestConnector = () => {
+  const handleTestConnector = async () => {
     try {
       const config = JSON.parse(connectorConfigText);
-      const rows = feedTestResult?.rows || [];
+      const rows = feedTestResult?.rows || feedTestResult?.allRows || [];
       const format = feedTestResult?.format || 'xml';
-      const transformed = applyConnectorTransformations(rows, config, format);
+      
+      let finalRows = rows;
+      if (format === 'csv' && feedTestResult?.rawText) {
+        const { default: Papa } = await import('papaparse');
+        const autoDelimiter = detectCsvDelimiter(feedTestResult.rawText);
+        const delimiter = config.csv_delimiter || autoDelimiter;
+        
+        const parsed = Papa.parse(feedTestResult.rawText, {
+          delimiter,
+          header: true,
+          skipEmptyLines: true
+        });
+        finalRows = parsed.data;
+      }
+      
+      const transformed = applyConnectorTransformations(finalRows, config, format);
       setConnectorTestResult(transformed.slice(0, 3));
       toast.success('Connector testado com sucesso');
     } catch (e: any) {
