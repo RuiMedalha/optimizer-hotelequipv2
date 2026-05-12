@@ -5,6 +5,31 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const decodeHtmlEntities = (text: string): string => {
+  if (!text || typeof text !== "string") return text;
+  return text
+    .replace(/&#x([0-9A-Fa-f]+);/g, (_, hex) => 
+      String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => 
+      String.fromCharCode(parseInt(dec, 10)))
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&eacute;/g, 'é')
+    .replace(/&agrave;/g, 'à')
+    .replace(/&aacute;/g, 'á')
+    .replace(/&iacute;/g, 'í')
+    .replace(/&oacute;/g, 'ó')
+    .replace(/&uacute;/g, 'ú')
+    .replace(/&ntilde;/g, 'ñ')
+    .replace(/&ccedil;/g, 'ç')
+    .replace(/&atilde;/g, 'ã')
+    .replace(/&otilde;/g, 'õ');
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -99,7 +124,15 @@ Deno.serve(async (req) => {
         for (const [sourceKey, targetKey] of Object.entries(mappings)) {
           const lowerSourceKey = sourceKey.trim().toLowerCase();
           if (normalizedRow[lowerSourceKey] !== undefined && typeof targetKey === "string") {
-            mapped[targetKey] = normalizedRow[lowerSourceKey];
+            let value = normalizedRow[lowerSourceKey];
+            
+            // Decode HTML entities for specific text fields
+            const fieldsToDecode = ["original_title", "original_description", "short_description", "supplier_title", "supplier_description", "category"];
+            if (fieldsToDecode.includes(targetKey)) {
+              value = decodeHtmlEntities(String(value));
+            }
+            
+            mapped[targetKey] = value;
           }
         }
         
@@ -107,10 +140,26 @@ Deno.serve(async (req) => {
         for (const [key, val] of Object.entries(row)) {
           const trimmedKey = key.trim();
           const alreadyMapped = Object.keys(mappings).some(mk => mk.trim().toLowerCase() === trimmedKey.toLowerCase());
-          if (!alreadyMapped) mapped[trimmedKey] = val;
+          if (!alreadyMapped) {
+            let value = val;
+            // Decode HTML entities even for unmapped fields if they are common text fields
+            const fieldsToDecode = ["original_title", "original_description", "short_description", "supplier_title", "supplier_description", "category", "title", "description"];
+            if (fieldsToDecode.includes(trimmedKey.toLowerCase())) {
+              value = decodeHtmlEntities(String(value));
+            }
+            mapped[trimmedKey] = value;
+          }
         }
       } else {
-        Object.assign(mapped, row);
+        // If no mappings, decode fields in the original object
+        for (const [key, val] of Object.entries(row)) {
+          let value = val;
+          const fieldsToDecode = ["original_title", "original_description", "short_description", "supplier_title", "supplier_description", "category", "title", "description"];
+          if (fieldsToDecode.includes(key.toLowerCase())) {
+            value = decodeHtmlEntities(String(value));
+          }
+          mapped[key] = value;
+        }
       }
 
       // ─── Apply SKU Prefix/Suffix & Auto Model ───
