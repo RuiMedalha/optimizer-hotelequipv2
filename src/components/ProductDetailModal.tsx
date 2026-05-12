@@ -142,7 +142,6 @@ export function ProductDetailModal({ product: initialProduct, onClose }: Props) 
           brand: product.brand ?? "",
           model: product.model ?? "",
         });
-      setNewImageUrl(Array.isArray(product.image_urls) ? product.image_urls.join("\n") : "");
       setHasChanges(false);
     }
   }, [product]);
@@ -316,9 +315,8 @@ export function ProductDetailModal({ product: initialProduct, onClose }: Props) 
                 
                 <div className="space-y-3">
                   <Textarea 
-                    placeholder="Cola aqui os URLs das imagens, separados por vírgula ou um por linha.
-Ex: https://exemplo.com/img1.jpg, https://exemplo.com/img2.jpg" 
-                    className="min-h-[100px] bg-background text-foreground text-xs"
+                    placeholder="Colar URLs das imagens (uma por linha ou separadas por vírgula)..." 
+                    className="min-h-[80px] bg-background text-foreground text-xs"
                     value={newImageUrl}
                     onChange={(e) => setNewImageUrl(e.target.value)}
                   />
@@ -381,7 +379,7 @@ Ex: https://exemplo.com/img1.jpg, https://exemplo.com/img2.jpg"
                           
                           if (error) throw error;
                           
-                          toast.success("Imagens guardadas com sucesso");
+                          toast.success(`${urls.length} URL(s) de imagem guardados com sucesso!`);
                           setProduct(prev => prev ? { 
                             ...prev, 
                             image_urls: urls, 
@@ -391,12 +389,13 @@ Ex: https://exemplo.com/img1.jpg, https://exemplo.com/img2.jpg"
                           } : null);
                           qc.invalidateQueries({ queryKey: ["products"] });
                           qc.invalidateQueries({ queryKey: ["product-images", product.id] });
+                          setNewImageUrl("");
                         } catch (err: any) {
                           toast.error("Erro ao guardar URLs: " + err.message);
                         }
                       }}
                     >
-                      <Save className="w-3.5 h-3.5 mr-1" /> 💾 Guardar Imagens
+                      <Save className="w-3.5 h-3.5 mr-1" /> Guardar URLs
                     </Button>
                   </div>
                 </div>
