@@ -142,8 +142,7 @@ Deno.serve(async (req) => {
         
         if (!sku) {
           console.warn(`[batch-process] Item ${staging.id}: Missing SKU`);
-          const { error: upErr } = await supabase.from("sync_staging").update({ status: 'error', review_notes: 'SKU em falta (Regra 3)' }).eq("id", staging.id);
-          if (upErr) console.error(`Failed to update status for ${staging.id}:`, upErr);
+          await supabase.from("sync_staging").update({ status: 'error', review_notes: 'SKU em falta (Regra 3)' }).eq("id", staging.id);
           errorCount++;
           continue;
         }
@@ -162,23 +161,16 @@ Deno.serve(async (req) => {
           if (skuSuffix) variantsToTry.push(normalizedSkuSupplier + skuSuffix);
           if (skuPrefix && skuSuffix) variantsToTry.push(skuPrefix + normalizedSkuSupplier + skuSuffix);
 
-          console.log(`[batch-process] Item ${staging.id} (${sku}): Searching for product in variants:`, variantsToTry);
-
-          const { data: prods, error: pErr } = await supabase
+          const { data: prods } = await supabase
             .from("products")
             .select("id, sku, brand, model, attributes, original_title, original_description, original_price")
             .eq("workspace_id", workspaceId)
             .in("sku", variantsToTry);
           
-          if (pErr) console.error(`Product search error for ${sku}:`, pErr);
-
           if (prods && prods.length > 0) {
             const bestMatch = prods.find(p => p.sku === sku) || prods[0];
             effectiveProductId = bestMatch.id;
             existingProductData = bestMatch;
-            console.log(`[batch-process] Item ${staging.id} (${sku}): Found product ${effectiveProductId}`);
-          } else {
-            console.warn(`[batch-process] Item ${staging.id} (${sku}): Product not found in workspace ${workspaceId}`);
           }
         } else {
            const { data: p } = await supabase
@@ -319,7 +311,6 @@ Deno.serve(async (req) => {
       .in("status", ["pending", "flagged"]);
 
     if (selectedIds && Array.isArray(selectedIds) && selectedIds.length > 0) {
-      // If we processed some selected IDs, we need to check how many of THOSE are left (though usually we process all 500)
       remainingQuery = remainingQuery.in("id", selectedIds);
     } else if (changeType) {
       remainingQuery = remainingQuery.eq("change_type", changeType);
