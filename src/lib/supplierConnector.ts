@@ -19,6 +19,7 @@ export interface ConnectorConfig {
   image_columns?: string[];
   ignore_fields?: string[];
   transformations_needed?: string[];
+  csv_delimiter?: string;
 }
 
 export interface ParsedSupplierData {
