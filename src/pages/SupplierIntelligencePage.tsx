@@ -1037,6 +1037,7 @@ ${excelContext}`,
 
       if (aiError) throw aiError;
       
+      setGeneratingStatus(null);
       const jsonMatch = aiResponse.text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error("A IA não retornou um JSON válido.");
       
