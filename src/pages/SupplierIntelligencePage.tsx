@@ -746,7 +746,7 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
         .from('uploaded_files') as any)
         .select('id')
         .eq('supplier_id', supplier.id)
-        .eq('file_type', 'pdf')
+        .eq('file_type', 'knowledge')
         .limit(1);
 
       const { data: chunks } = await (supabase
@@ -758,7 +758,7 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
       const { data: excel } = await (supabase
         .from('uploaded_files') as any)
         .select('id')
-        .in('file_type', ['xlsx', 'xls', 'excel'])
+        .eq('file_type', 'products')
         .eq('supplier_id', supplier.id)
         .limit(1);
         
@@ -801,7 +801,7 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
           user_id: user?.id,
           file_name: file.name,
           storage_path: filePath,
-          file_type: 'pdf',
+          file_type: 'knowledge',
           file_size: file.size,
           status: 'ready'
         });
@@ -840,7 +840,7 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
           user_id: user?.id,
           file_name: file.name,
           storage_path: filePath,
-          file_type: file.name.endsWith('.csv') ? 'csv' : 'xlsx',
+          file_type: 'products',
           file_size: file.size,
           status: 'ready'
         });
@@ -864,7 +864,7 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
         .from('uploaded_files') as any)
         .select('*')
         .eq('supplier_id', supplier.id)
-        .in('file_type', ['xlsx', 'xls', 'excel', 'csv'])
+        .eq('file_type', 'products')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
@@ -964,7 +964,7 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
         .from('uploaded_files') as any)
         .select('id, file_path, file_name, created_at')
         .eq('entity_id', supplier.id)
-        .in('file_type', ['xlsx', 'xls', 'excel'])
+        .eq('file_type', 'products')
         .order('created_at', { ascending: false })
         .limit(1);
 
