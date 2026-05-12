@@ -1055,8 +1055,33 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
                 over_500: prices.filter(p=>p>=500).length
               }
             });
+        }
+      }
+
+      if (!excelContext) {
+        const { data: priceData } = await (supabase
+          .from('products') as any)
+          .select('original_price, category, original_title')
+          .eq('workspace_id', workspaceId)
+          .not('original_price', 'is', null)
+          .limit(500);
+
+        if (priceData?.length) {
+          const prices = priceData.map((p: any) => Number(p.original_price)).filter((p: number) => p > 0);
+          if (prices.length > 0) {
+            excelContext = JSON.stringify({
+              sample_titles: priceData.slice(0,20).map((p: any) => p.original_title),
+              price_min: Math.min(...prices),
+              price_max: Math.max(...prices),
+              price_avg: Math.round(prices.reduce((a,b)=>a+b,0)/prices.length),
+              under_10: prices.filter(p=>p<10).length,
+              '10_to_50': prices.filter(p=>p>=10&&p<50).length,
+              '50_to_200': prices.filter(p=>p>=50&&p<200).length,
+              over_200: prices.filter(p=>p>=200).length
+            });
           }
         }
+      }
       }
 
       // STEP 3 — Send to AI with real data
