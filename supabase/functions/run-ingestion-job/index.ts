@@ -360,6 +360,7 @@ Deno.serve(async (req) => {
             const pd = buildProductData(mapped, isRawData);
             mergedData = mergeProductData(mergedData, pd);
           }
+          if (mergedData.productId !== undefined) delete mergedData.productId;
           mergedData.sku = sku;
 
           const rawSku = sku;
