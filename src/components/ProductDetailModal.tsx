@@ -347,40 +347,44 @@ export function ProductDetailModal({ product: initialProduct, onClose }: Props) 
                     </div>
                   )}
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Button 
                       size="sm" 
-                      className="h-8 shrink-0"
+                      className="h-8"
                       onClick={async () => {
                         if (!newImageUrl) return;
                         try {
-                          const urls = newImageUrl
+                          const urlsToAdd = newImageUrl
                             .split(/[\n,]+/)
                             .map(url => url.trim())
                             .filter(url => url.startsWith("http"));
 
-                          if (urls.length === 0) {
+                          if (urlsToAdd.length === 0) {
                             toast.error("Nenhum URL válido encontrado.");
                             return;
                           }
 
+                          // Append to existing images instead of overwriting
+                          const currentUrls = Array.isArray(product.image_urls) ? [...product.image_urls] : [];
+                          const combinedUrls = [...new Set([...currentUrls, ...urlsToAdd])];
+
                           const { error } = await supabase
                             .from("products")
                             .update({ 
-                              image_urls: urls,
+                              image_urls: combinedUrls,
                               image_status: "ok",
-                              image_migration_status: Object.fromEntries(urls.map(u => [u, "ok"]))
+                              image_migration_status: Object.fromEntries(combinedUrls.map(u => [u, "ok"]))
                             })
                             .eq("id", product.id);
                           
                           if (error) throw error;
                           
-                          toast.success(`${urls.length} URL(s) de imagem guardados com sucesso!`);
+                          toast.success(`${urlsToAdd.length} URL(s) adicionados com sucesso!`);
                           setProduct(prev => prev ? { 
                             ...prev, 
-                            image_urls: urls, 
+                            image_urls: combinedUrls, 
                             image_status: "ok",
-                            image_migration_status: Object.fromEntries(urls.map(u => [u, "ok"]))
+                            image_migration_status: Object.fromEntries(combinedUrls.map(u => [u, "ok"]))
                           } : null);
                           qc.invalidateQueries({ queryKey: ["products"] });
                           qc.invalidateQueries({ queryKey: ["product-images", product.id] });
@@ -390,7 +394,31 @@ export function ProductDetailModal({ product: initialProduct, onClose }: Props) 
                         }
                       }}
                     >
-                      <Save className="w-3.5 h-3.5 mr-1" /> Guardar URLs
+                      <Save className="w-3.5 h-3.5 mr-1" /> Adicionar URLs
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 border-success/50 text-success hover:bg-success/10 hover:text-success"
+                      onClick={async () => {
+                        try {
+                          const { error } = await supabase
+                            .from("products")
+                            .update({ image_status: "ok" })
+                            .eq("id", product.id);
+                          
+                          if (error) throw error;
+                          
+                          toast.success("Estado das imagens validado com sucesso!");
+                          setProduct(prev => prev ? { ...prev, image_status: "ok" } : null);
+                          qc.invalidateQueries({ queryKey: ["products"] });
+                        } catch (err: any) {
+                          toast.error("Erro ao validar imagens: " + err.message);
+                        }
+                      }}
+                    >
+                      <Check className="w-3.5 h-3.5 mr-1" /> Aceitar imagens atuais
                     </Button>
                   </div>
                 </div>
