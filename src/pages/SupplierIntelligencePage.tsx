@@ -534,15 +534,6 @@ export default function SupplierIntelligencePage() {
     return (
       <div className="p-6 space-y-4">
         <SupplierDetail supplier={selectedSupplier} onBack={() => setSelectedSupplier(null)} />
-        <AiPromptModal 
-          isOpen={showAiPromptModal} 
-          onClose={() => setShowAiPromptModal(false)} 
-          prompt={aiPrompt} 
-          supplierId={selectedSupplier.id}
-          onApply={(config) => {
-            setConnectorConfigText(JSON.stringify(config, null, 2));
-          }}
-        />
       </div>
     );
   }
