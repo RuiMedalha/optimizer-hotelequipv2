@@ -1179,6 +1179,27 @@ const ProductsPage = () => {
   return (
     <div className="p-3 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 animate-fade-in">
       <div className="space-y-3">
+        {issueCount !== undefined && issueCount > 0 && statusFilter !== "error" && !imageIssueFilter && (
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-3 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <ImageIcon className="w-4 h-4 text-amber-600" />
+              <span className="text-sm text-amber-700">
+                Existem <span className="font-bold">{issueCount}</span> produtos com problemas de imagens (falha no download ou sem imagem).
+              </span>
+            </div>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="h-8 text-xs border-amber-500/50 text-amber-700 hover:bg-amber-500/20"
+              onClick={() => {
+                setStatusFilter("all");
+                setImageIssueFilter(true);
+              }}
+            >
+              Ver produtos sem imagem
+            </Button>
+          </div>
+        )}
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
             <h1 className="text-lg sm:text-2xl font-bold text-foreground">Painel de Produtos</h1>
@@ -2189,6 +2210,15 @@ const ProductsPage = () => {
               </Button>
             ))}
           </div>
+          <Button
+            size="sm"
+            variant={imageIssueFilter ? "default" : "outline"}
+            className={cn("text-xs h-7 sm:h-8 px-2 sm:px-3", imageIssueFilter ? "bg-amber-600 hover:bg-amber-700" : "border-amber-500/50 text-amber-700 hover:bg-amber-500/10")}
+            onClick={() => setImageIssueFilter(!imageIssueFilter)}
+          >
+            <ImageIcon className="w-3.5 h-3.5 mr-1" />
+            Sem Imagens {issueCount !== undefined && issueCount > 0 && `(${issueCount})`}
+          </Button>
           <Button
             size="sm"
             variant={showAdvancedFilters ? "secondary" : "outline"}
