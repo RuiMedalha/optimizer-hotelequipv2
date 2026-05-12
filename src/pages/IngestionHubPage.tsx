@@ -108,7 +108,7 @@ const SpecialFieldsPicker = ({
           {priceFields.map(f => (
             <button
               key={f.key}
-              onClick={() => onSelectPrice(f.key)}
+              onClick={() => onSelectPrice(selectedPrice === f.key ? '' : f.key)}
               className={cn(
                 "px-3 py-2 rounded-lg border text-sm transition-all",
                 selectedPrice === f.key
@@ -461,7 +461,8 @@ const IngestionHubPage = () => {
           // Detect special fields for user selection
           const { detectSpecialFields } = await import('@/lib/supplierConnector');
           const special = detectSpecialFields(parsedData, 
-            Object.keys(parsedData[0] || {}).filter(k => !k.startsWith('_'))
+            Object.keys(parsedData[0] || {}).filter(k => !k.startsWith('_')),
+            detectedXmlFormat as any
           );
           setSpecialFields(special);
           // Auto-select the first price field as default
@@ -1038,7 +1039,7 @@ const IngestionHubPage = () => {
                 </div>
               )}
 
-              {specialFields?.priceFields?.length > 1 && (
+              {specialFields?.priceFields?.length > 0 && (
                 <SpecialFieldsPicker
                   priceFields={specialFields.priceFields}
                   onSelectPrice={(key) => {
