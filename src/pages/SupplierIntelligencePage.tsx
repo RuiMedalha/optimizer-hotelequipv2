@@ -647,7 +647,7 @@ const AiPromptModal = ({
       if (error) throw error;
       toast.success("Configuração guardada.");
       onApply(parsedConfig);
-      toast({ title: "Config gerada — revê e clica Guardar" });
+      toast.info("Config gerada — revê e clica Guardar");
       onClose();
     } catch (e: any) {
       toast.error(`Erro: ${e.message}`);
