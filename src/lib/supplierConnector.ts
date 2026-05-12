@@ -142,6 +142,13 @@ export function parseXml(xmlText: string): ParsedSupplierData {
   return { rows, headers, format: 'xml', xmlFormat: fmt, totalRows: rows.length };
 }
 
+export function detectCsvDelimiter(text: string): string {
+  const firstLine = text.split('\n')[0] || '';
+  const commaCount = (firstLine.match(/,/g) || []).length;
+  const semicolonCount = (firstLine.match(/;/g) || []).length;
+  return semicolonCount > commaCount ? ';' : ',';
+}
+
 // ============================================================
 // TRANSFORMATION ENGINE
 // ============================================================
