@@ -721,8 +721,11 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
   const [rulesSaved, setRulesSaved] = useState(false);
   const [uploadingPdf, setUploadingPdf] = useState(false);
   const [uploadingExcel, setUploadingExcel] = useState(false);
+  const [isIndexing, setIsIndexing] = useState(false);
+  const [indexingProgress, setIndexingProgress] = useState(0);
   const [generatingStatus, setGeneratingStatus] = useState<string | null>(null);
   const [excelSource, setExcelSource] = useState<string | null>(null);
+  const [localStats, setLocalStats] = useState<any>(supplier.publishability_stats || { publish: 0, review: 0, skip: 0 });
   const queryClient = useQueryClient();
   
   const [rules, setRules] = useState<any>(supplier.publishability_rules || {
