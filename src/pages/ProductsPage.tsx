@@ -1146,6 +1146,21 @@ const ProductsPage = () => {
               )}
             </>
           )}
+          {product.publishability_decision && (
+            <Badge 
+              variant="outline" 
+              className={cn(
+                "text-[10px] gap-0.5",
+                product.publishability_decision === 'publish' ? "bg-green-500/10 text-green-600 border-green-500/20" :
+                product.publishability_decision === 'review' ? "bg-amber-500/10 text-amber-600 border-amber-500/20" :
+                "bg-red-500/10 text-red-600 border-red-500/20"
+              )}
+              title={product.publishability_reason || ""}
+            >
+              {product.publishability_decision === 'publish' ? "✅" : 
+               product.publishability_decision === 'review' ? "👁" : "❌"}
+            </Badge>
+          )}
         </div>
       </td>
       <td className="p-3 text-center">
