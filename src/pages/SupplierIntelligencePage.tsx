@@ -1193,26 +1193,37 @@ ${excelContext}`,
 
       // Strategy for finding products
       const getSupplierProducts = async () => {
+        // Strategy 1: match by supplier_ref (UUID)
         let { data } = await (supabase.from('products') as any)
           .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
           .eq('supplier_ref', supplier.id);
         if (data && data.length > 0) return data;
+
+        // Strategy 2: match by supplier_name (text match)
         ({ data } = await (supabase.from('products') as any)
           .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
-          .ilike('supplier_name', `%${supplier.supplier_name}%`));
+          .or(`supplier_name.ilike.%${supplier.supplier_name}%,brand.ilike.%${supplier.supplier_name}%,origin.ilike.%${supplier.supplier_name}%`));
         if (data && data.length > 0) return data;
-        ({ data } = await (supabase.from('products') as any)
-          .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
-          .ilike('brand', `%${supplier.supplier_name}%`));
-        if (data && data.length > 0) return data;
-        const prefix = supplier.supplier_name.substring(0, 4).toUpperCase();
+
+        // Strategy 3: match by SKU prefix (common for Fricosmos and others)
+        const prefix = supplier.supplier_name.substring(0, 3).toUpperCase();
         ({ data } = await (supabase.from('products') as any)
           .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
           .ilike('sku', `${prefix}%`));
         if (data && data.length > 0) return data;
+
+        // Strategy 4: match by source_file metadata if available
         ({ data } = await (supabase.from('products') as any)
           .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
-          .ilike('origin', `%${supplier.supplier_name}%`));
+          .ilike('source_file', `%${supplier.supplier_name}%`));
+        if (data && data.length > 0) return data;
+        
+        // Final broad check: search for common variations of the name in all related fields
+        const nameClean = supplier.supplier_name.replace(/[^a-zA-Z0-9]/g, '');
+        ({ data } = await (supabase.from('products') as any)
+          .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
+          .or(`supplier_name.ilike.%${nameClean}%,brand.ilike.%${nameClean}%,origin.ilike.%${nameClean}%,source_file.ilike.%${nameClean}%`));
+
         return data || [];
       };
 
