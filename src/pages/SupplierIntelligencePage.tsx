@@ -746,11 +746,17 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
         .eq('entity_id', supplier.id)
         .eq('file_type', 'pdf')
         .limit(1);
+
+      const { data: chunks } = await (supabase
+        .from('knowledge_chunks') as any)
+        .select('id')
+        .eq('supplier_id', supplier.id)
+        .limit(1);
         
       const { data: excel } = await (supabase
         .from('uploaded_files') as any)
         .select('id')
-        .in('file_type', ['xlsx', 'xls'])
+        .in('file_type', ['xlsx', 'xls', 'excel'])
         .eq('entity_id', supplier.id)
         .limit(1);
         
@@ -763,11 +769,49 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
       return {
         feed,
         pdf: (pdfs?.length || 0) > 0,
+        pdfIndexed: (chunks?.length || 0) > 0,
         excel: (excel?.length || 0) > 0,
         website: (scraping?.length || 0) > 0
       };
     }
   });
+
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setUploadingPdf(true);
+    try {
+      const filePath = `${workspaceId}/${supplier.id}/${file.name}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('knowledge-base')
+        .upload(filePath, file, { upsert: true });
+        
+      if (uploadError) throw uploadError;
+      
+      const { error: dbError } = await (supabase
+        .from('uploaded_files') as any)
+        .insert({
+          workspace_id: workspaceId,
+          entity_id: supplier.id,
+          entity_type: 'supplier',
+          file_name: file.name,
+          file_path: filePath,
+          file_type: 'pdf',
+          file_size: file.size
+        });
+        
+      if (dbError) throw dbError;
+      
+      toast.success("PDF carregado. Vai ao Knowledge Graph para indexar o conteúdo.");
+      queryClient.invalidateQueries({ queryKey: ['supplier-sources-status', supplier.id] });
+    } catch (err: any) {
+      toast.error(`Erro ao carregar PDF: ${err.message}`);
+    } finally {
+      setUploadingPdf(false);
+    }
+  };
 
   const handleSaveRules = async () => {
     try {
@@ -776,6 +820,7 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
         .update({ publishability_rules: rules })
         .eq('id', supplier.id);
       if (error) throw error;
+      setRulesSaved(true);
       toast.success("Regras guardadas com sucesso.");
     } catch (e: any) {
       toast.error(`Erro ao guardar: ${e.message}`);
