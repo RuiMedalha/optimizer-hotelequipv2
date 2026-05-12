@@ -1165,7 +1165,11 @@ ${excelContext}`,
             <span>❌ {supplier.publishability_stats?.skip || 0} ignorar</span>
           </div>
           {isClassifying && <Progress value={progress} className="h-2" />}
-          <Button onClick={handleClassify} disabled={isClassifying || !supplier.publishability_rules} className="w-full">
+          <Button 
+            onClick={handleClassify} 
+            disabled={isClassifying || (!rulesSaved && (!supplier.publishability_rules || (!(supplier.publishability_rules.power_words?.length > 0) && !(supplier.publishability_rules.stop_words?.length > 0) && !(supplier.publishability_rules.sku_publish_patterns?.length > 0))))} 
+            className="w-full"
+          >
             {isClassifying ? "A classificar..." : "🔍 Classificar Produtos"}
           </Button>
         </CardContent>
