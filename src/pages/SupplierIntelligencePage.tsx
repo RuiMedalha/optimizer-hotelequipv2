@@ -884,7 +884,10 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
       if (error) throw error;
       setIndexingProgress(100);
       toast.success("PDF indexado e Knowledge Graph construído.");
-      queryClient.invalidateQueries({ queryKey: ['supplier-sources-status', supplier.id] });
+      
+      // Force status refresh
+      await queryClient.invalidateQueries({ queryKey: ['supplier-sources-status', supplier.id] });
+      await queryClient.refetchQueries({ queryKey: ['supplier-sources-status', supplier.id] });
     } catch (err: any) {
       toast.error(`Erro na indexação: ${err.message}`);
     } finally {
@@ -1008,10 +1011,10 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
       const { data: chunks } = await (supabase
         .from('knowledge_chunks') as any)
         .select('content')
-        .eq('supplier_id', supplier.id)
-        .limit(50);
+        .or(`supplier_id.eq.${supplier.id},workspace_id.eq.${workspaceId}`)
+        .limit(100);
       if (chunks?.length) {
-        pdfContext = chunks.map((c: any) => c.content).join("\n---\n");
+        pdfContext = chunks.map((c: any) => c.content).join("\n---\n").substring(0, 8000);
       }
 
       // Step C: Excel analysis
@@ -1052,8 +1055,33 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
                 over_500: prices.filter(p=>p>=500).length
               }
             });
+        }
+      }
+
+      if (!excelContext) {
+        const { data: priceData } = await (supabase
+          .from('products') as any)
+          .select('original_price, category, original_title')
+          .eq('workspace_id', workspaceId)
+          .not('original_price', 'is', null)
+          .limit(500);
+
+        if (priceData?.length) {
+          const prices = priceData.map((p: any) => Number(p.original_price)).filter((p: number) => p > 0);
+          if (prices.length > 0) {
+            excelContext = JSON.stringify({
+              sample_titles: priceData.slice(0,20).map((p: any) => p.original_title),
+              price_min: Math.min(...prices),
+              price_max: Math.max(...prices),
+              price_avg: Math.round(prices.reduce((a,b)=>a+b,0)/prices.length),
+              under_10: prices.filter(p=>p<10).length,
+              '10_to_50': prices.filter(p=>p>=10&&p<50).length,
+              '50_to_200': prices.filter(p=>p>=50&&p<200).length,
+              over_200: prices.filter(p=>p>=200).length
+            });
           }
         }
+      }
       }
 
       // STEP 3 — Send to AI with real data
@@ -1099,6 +1127,12 @@ ${pdfContext}
 ${excelContext}`,
           model: "lovable/gemini-2.5-flash"
         }
+      });
+
+      console.log('AI context sizes:', {
+        feedSample: productSample?.length || 0,
+        pdfContext: pdfContext?.length || 0, 
+        excelContext: excelContext?.length || 0
       });
 
       if (aiError) throw aiError;
@@ -1159,25 +1193,26 @@ ${excelContext}`,
 
       // Strategy for finding products
       const getSupplierProducts = async () => {
-        // Strategy 1: match by supplier_ref
         let { data } = await (supabase.from('products') as any)
           .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
           .eq('supplier_ref', supplier.id);
-        
-        if (data?.length > 0) return data;
-        
-        // Strategy 2: match by supplier_name
+        if (data && data.length > 0) return data;
         ({ data } = await (supabase.from('products') as any)
-          .select('id, sku, original_title, original_price, category, workflow_state, publishability_decision')
+          .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
           .ilike('supplier_name', `%${supplier.supplier_name}%`));
-        
-        if (data?.length > 0) return data;
-        
-        // Strategy 3: match by brand
+        if (data && data.length > 0) return data;
         ({ data } = await (supabase.from('products') as any)
           .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
           .ilike('brand', `%${supplier.supplier_name}%`));
-          
+        if (data && data.length > 0) return data;
+        const prefix = supplier.supplier_name.substring(0, 4).toUpperCase();
+        ({ data } = await (supabase.from('products') as any)
+          .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
+          .ilike('sku', `${prefix}%`));
+        if (data && data.length > 0) return data;
+        ({ data } = await (supabase.from('products') as any)
+          .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
+          .ilike('origin', `%${supplier.supplier_name}%`));
         return data || [];
       };
 
