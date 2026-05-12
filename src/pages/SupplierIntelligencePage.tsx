@@ -42,6 +42,21 @@ function SupplierDetail({ supplier, onBack }: { supplier: any; onBack: () => voi
   const [connectorConfigText, setConnectorConfigText] = useState(
     supplier?.connector_config ? JSON.stringify(supplier.connector_config, null, 2) : ''
   );
+
+  const { data: suppliersWithConfig } = useQuery({
+    queryKey: ['suppliers-with-config', wsId],
+    enabled: !!wsId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('supplier_profiles')
+        .select('id, supplier_name, connector_config')
+        .neq('connector_config', null)
+        .eq('workspace_id', wsId);
+      if (error) throw error;
+      return data as any[];
+    }
+  });
+
   const [configError, setConfigError] = useState<string | null>(null);
   const [connectorTestResult, setConnectorTestResult] = useState<any[]>([]);
   const [showAiPromptModal, setShowAiPromptModal] = useState(false);
