@@ -69,11 +69,23 @@ function SupplierDetail({ supplier, onBack }: { supplier: any; onBack: () => voi
     }
   };
 
-  const handlePresetSelect = (preset: string) => {
-    const config = CONNECTOR_PRESETS[preset] || {};
+  const handlePresetSelect = (val: string) => {
+    // If it starts with "saved:", it's a dynamic supplier config
+    if (val.startsWith('saved:')) {
+      const supplierId = val.split(':')[1];
+      const savedSupplier = suppliersWithConfig?.find(s => s.id === supplierId);
+      if (savedSupplier?.connector_config) {
+        setConnectorConfigText(JSON.stringify(savedSupplier.connector_config, null, 2));
+        setConfigError(null);
+        toast.info(`Configuração de ${savedSupplier.supplier_name} aplicada.`);
+      }
+      return;
+    }
+
+    const config = CONNECTOR_PRESETS[val] || {};
     setConnectorConfigText(JSON.stringify(config, null, 2));
     setConfigError(null);
-    if (preset === 'tefcold_xml') {
+    if (val === 'tefcold_xml') {
       toast.info('Preset aplicado. Clica Guardar para actualizar o connector do fornecedor.');
     }
   };
