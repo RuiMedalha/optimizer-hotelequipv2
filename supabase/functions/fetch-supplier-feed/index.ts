@@ -172,10 +172,12 @@ Deno.serve(async (req) => {
       else throw new Error('Formato XML não reconhecido');
     } else {
       // CSV — return raw text for frontend papaparse
+      const delimiter = supplier.connector_config?.csv_delimiter || detectCsvDelimiter(text);
       return new Response(JSON.stringify({
         format: 'csv',
         rawText: text,
-        totalRows: text.split('\n').length - 1
+        totalRows: text.split('\n').length - 1,
+        csvDelimiter: delimiter
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     
