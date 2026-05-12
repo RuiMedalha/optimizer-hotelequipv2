@@ -295,7 +295,7 @@ export function ProductDetailModal({ product: initialProduct, onClose }: Props) 
           )}
 
           {/* IMAGE STATUS WARNING BANNER */}
-          {product.workflow_state === 'needs_review' && (product.image_status === "failed" || product.image_status === "missing" || product.image_status === "partial" || product.image_status === "ok") && (
+          {((product as any).workflow_state === 'needs_review' || (product as any).workflow_state === 'review') && (product.image_status === "failed" || product.image_status === "missing" || product.image_status === "partial" || product.image_status === "ok") && (
             <Alert variant={product.image_status === "ok" ? "default" : "destructive"} className="mt-4">
               {product.image_status === "ok" ? <Check className="h-4 w-4 text-success" /> : <AlertTriangle className="h-4 w-4" />}
               <AlertDescription className="space-y-3">
