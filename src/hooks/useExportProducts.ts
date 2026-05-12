@@ -249,6 +249,22 @@ function productToRow(p: Product, skuPrefix?: string, lookups?: ProductLookups) 
 
 function writeExcel(rows: Record<string, unknown>[], fileName: string) {
   const ws = XLSX.utils.json_to_sheet(rows);
+  
+  // Set format to text for description columns to avoid corruption
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  for (let C = range.s.c; C <= range.e.c; ++C) {
+    const address = XLSX.utils.encode_col(C) + "1";
+    if (!ws[address]) continue;
+    const header = ws[address].v;
+    if (header && (String(header).includes("Descrição Original") || String(header).includes("Descrição Otimizada"))) {
+      for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+        const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!ws[cellAddress]) continue;
+        ws[cellAddress].z = '@';
+      }
+    }
+  }
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Produtos");
   ws["!cols"] = EXPORT_COLUMNS.map((col) => ({ wch: Math.max(col.header.length, 20) }));
