@@ -27,9 +27,12 @@ function safeVal(val: unknown): string {
   return String(val);
 }
 
-function safeValPart(val: unknown, part: 1 | 2): string {
+function safeValPart(val: unknown, part: 1 | 2, keepHtml = false): string {
   if (val == null) return "";
-  const str = String(val).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  let str = String(val);
+  if (!keepHtml) {
+    str = str.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  }
   if (part === 1) return str.substring(0, EXCEL_MAX);
   return str.length > EXCEL_MAX ? str.substring(EXCEL_MAX, EXCEL_MAX * 2) : "";
 }
@@ -115,9 +118,9 @@ const EXPORT_COLUMNS: ExportColumn[] = [
   { key: "category", header: "Categoria Principal" },
   { key: "category_paths_secondary", header: "Categorias Secundárias" },
   { key: "suggested_category", header: "Categoria Proposta (IA)" },
-  { key: "supplier_ref", header: "Marca" },
-  { key: "attr_ean", header: "EAN" },
-  { key: "attr_modelo", header: "Modelo" },
+  { key: "brand", header: "Marca" },
+  { key: "ean", header: "EAN" },
+  { key: "model", header: "Modelo" },
   { key: "tags", header: "Tags" },
   { key: "meta_title", header: "Meta Title SEO" },
   { key: "meta_description", header: "Meta Description SEO" },
@@ -165,14 +168,6 @@ function productToRow(p: Product, skuPrefix?: string, lookups?: ProductLookups) 
     // Virtual columns
     if (col.key === "category_paths_secondary") {
       row[col.header] = categoryPaths.slice(1).join(" | ");
-      continue;
-    }
-    if (col.key === "attr_ean") {
-      row[col.header] = extractAttrValue(attrs, EAN_ATTR_NAMES);
-      continue;
-    }
-    if (col.key === "attr_modelo") {
-      row[col.header] = extractAttrValue(attrs, MODELO_ATTR_NAMES);
       continue;
     }
     if (col.key === "woo_status") {
@@ -226,8 +221,15 @@ function productToRow(p: Product, skuPrefix?: string, lookups?: ProductLookups) 
       row[col.header] = val.map((f: any) => `Q: ${f.question} A: ${f.answer}`).join(" | ");
     } else if ((col.key === "upsell_skus" || col.key === "crosssell_skus") && Array.isArray(val)) {
       row[col.header] = val.map((item: any) => typeof item === "string" ? item : item.sku).filter(Boolean).join(",");
-    } else if (col.key === "image_alt_texts" && Array.isArray(val)) {
-      row[col.header] = val.map((a: any) => a.alt_text).join(" | ");
+    } else if (col.key === "image_alt_texts") {
+      const altTextsObj = (p as any).image_alt_texts;
+      if (altTextsObj && typeof altTextsObj === 'object' && !Array.isArray(altTextsObj)) {
+        row[col.header] = Object.values(altTextsObj).join('\n');
+      } else if (Array.isArray(altTextsObj)) {
+        row[col.header] = altTextsObj.map((a: any) => typeof a === 'string' ? a : (a.alt_text || JSON.stringify(a))).join('\n');
+      } else {
+        row[col.header] = "";
+      }
     } else if (col.key === "attributes" && Array.isArray(val)) {
       const others = val.filter((a: any) => !CRITICAL_ATTR_NAMES.has((a.name ?? "").toLowerCase().trim()));
       row[col.header] = others.map((a: any) => `${a.name}: ${a.value || (a.values || []).join(", ")}`).join(" | ");
@@ -236,8 +238,9 @@ function productToRow(p: Product, skuPrefix?: string, lookups?: ProductLookups) 
     } else if (Array.isArray(val)) {
       row[col.header] = val.join(", ");
     } else {
+      const isDescription = col.key === "optimized_description" || col.key === "original_description";
       row[col.header] = col.splitPart 
-        ? safeValPart((p as any)[col.key], col.splitPart)
+        ? safeValPart((p as any)[col.key], col.splitPart, isDescription)
         : safeVal((p as any)[col.key]);
     }
   }
@@ -246,6 +249,22 @@ function productToRow(p: Product, skuPrefix?: string, lookups?: ProductLookups) 
 
 function writeExcel(rows: Record<string, unknown>[], fileName: string) {
   const ws = XLSX.utils.json_to_sheet(rows);
+  
+  // Set format to text for description columns to avoid corruption
+  const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  for (let C = range.s.c; C <= range.e.c; ++C) {
+    const address = XLSX.utils.encode_col(C) + "1";
+    if (!ws[address]) continue;
+    const header = ws[address].v;
+    if (header && (String(header).includes("Descrição Original") || String(header).includes("Descrição Otimizada"))) {
+      for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+        const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+        if (!ws[cellAddress]) continue;
+        ws[cellAddress].z = '@';
+      }
+    }
+  }
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Produtos");
   ws["!cols"] = EXPORT_COLUMNS.map((col) => ({ wch: Math.max(col.header.length, 20) }));
