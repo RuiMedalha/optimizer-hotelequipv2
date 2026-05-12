@@ -1422,7 +1422,10 @@ REGRA HTML: O div raiz <div class="product-description"> DEVE ser fechado com </
           short_description: `Gera uma descrição curta (máx 160 chars) para listagens.
 PROIBIDO: "HORECA" em qualquer forma. Substituir por: "restaurantes", "cozinhas profissionais", "hotelaria", "cafetarias". PROIBIDO começar com "Otimize" ou "Potencie".
 PROIBIDO: "HORECA" em qualquer forma → usar "restaurantes", "cozinhas profissionais", "hotelaria". PROIBIDO começar com "Otimize" ou "Potencie".`,
-          meta_title: `Gera meta title SEO (máx 60 chars).
+          meta_title: `Gera meta title SEO (máx 60 chars). 
+REGRA ABSOLUTA: O meta_title DEVE conter EXACTAMENTE a primeira focus_keyword deste produto sem alterar nenhuma palavra.
+Se focus_keyword[0] = 'câmara congelação industrial' então meta_title = 'Comprar Câmara Congelação Industrial | Preço'
+NUNCA usar variações, sinónimos ou traduções da keyword principal.
 - Keyword principal no início.
 - Inclui \"Comprar\" ou \"Preço\".
 - NÃO incluas marca, códigos EAN ou referências.

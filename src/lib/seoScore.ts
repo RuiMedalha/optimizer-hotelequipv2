@@ -43,7 +43,18 @@ export function calculateSeoScore(product: Product): { score: number; checks: Se
   const focusKws: string[] = Array.isArray(product.focus_keyword) ? product.focus_keyword : [];
   if (focusKws.length > 0) {
     const primaryKw = focusKws[0];
-    const inTitle = focusKws.some(kw => metaTitle.toLowerCase().includes(kw.toLowerCase()));
+    const normalizeStr = (s: string) => s
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    const keywordNorm = normalizeStr(primaryKw);
+    const titleNorm = normalizeStr(metaTitle);
+    const inTitle = titleNorm.includes(keywordNorm);
+    
     checks.push({
       label: "Keyword no Meta Title",
       passed: inTitle,
