@@ -815,6 +815,58 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
     }
   };
 
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setUploadingExcel(true);
+    try {
+      const filePath = `${workspaceId}/${supplier.id}/${file.name}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('knowledge-base')
+        .upload(filePath, file, { upsert: true });
+        
+      if (uploadError) throw uploadError;
+      
+      const { error: dbError } = await (supabase
+        .from('uploaded_files') as any)
+        .insert({
+          workspace_id: workspaceId,
+          entity_id: supplier.id,
+          entity_type: 'supplier',
+          file_name: file.name,
+          file_path: filePath,
+          file_type: file.name.endsWith('.csv') ? 'csv' : 'xlsx',
+          file_size: file.size
+        });
+        
+      if (dbError) throw dbError;
+      
+      toast.success("Excel carregado com sucesso.");
+      queryClient.invalidateQueries({ queryKey: ['supplier-sources-status', supplier.id] });
+      queryClient.invalidateQueries({ queryKey: ['supplier-excel-files', supplier.id] });
+    } catch (err: any) {
+      toast.error(`Erro ao carregar Excel: ${err.message}`);
+    } finally {
+      setUploadingExcel(false);
+    }
+  };
+
+  const { data: excelFilesList } = useQuery({
+    queryKey: ['supplier-excel-files', supplier.id],
+    queryFn: async () => {
+      const { data, error } = await (supabase
+        .from('uploaded_files') as any)
+        .select('*')
+        .eq('entity_id', supplier.id)
+        .in('file_type', ['xlsx', 'xls', 'excel', 'csv'])
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
   const handleSaveRules = async () => {
     try {
       const { error } = await (supabase
