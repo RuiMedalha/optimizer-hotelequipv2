@@ -1238,19 +1238,31 @@ ${excelContext}`,
               <Badge variant={sourcesStatus?.pdf ? "default" : "secondary"}>
                 PDF {sourcesStatus?.pdf ? "✅" : "❌"}
               </Badge>
-              {sourcesStatus?.pdfIndexed ? (
-                <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                  ✅ PDF indexado 
-                  <button 
-                    onClick={() => queryClient.invalidateQueries({ queryKey: ['supplier-knowledge-graph'] })}
-                    className="text-primary hover:underline flex items-center ml-1"
-                  >
-                    Ver Knowledge Graph <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
-                  </button>
-                </span>
-              ) : sourcesStatus?.pdf ? (
+            {sourcesStatus?.pdfIndexed ? (
+              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                ✅ PDF indexado 
+                <button 
+                  onClick={() => queryClient.invalidateQueries({ queryKey: ['supplier-knowledge-graph'] })}
+                  className="text-primary hover:underline flex items-center ml-1"
+                >
+                  Ver Knowledge Graph <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
+                </button>
+              </span>
+            ) : sourcesStatus?.pdf ? (
+              <div className="flex items-center gap-2">
                 <span className="text-[10px] text-amber-500">Aguardando indexação</span>
-              ) : (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-6 text-[9px] px-2"
+                  onClick={handleIndexPdf}
+                  disabled={isIndexing}
+                >
+                  {isIndexing ? <Loader2 className="w-2.5 h-2.5 animate-spin mr-1" /> : <Network className="w-2.5 h-2.5 mr-1" />}
+                  {isIndexing ? `A indexar ${indexingProgress}%` : "🔄 Indexar Agora"}
+                </Button>
+              </div>
+            ) : (
                 <div className="flex items-center gap-2">
                   <Input 
                     type="file" 
