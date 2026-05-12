@@ -1011,10 +1011,10 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
       const { data: chunks } = await (supabase
         .from('knowledge_chunks') as any)
         .select('content')
-        .eq('supplier_id', supplier.id)
-        .limit(50);
+        .or(`supplier_id.eq.${supplier.id},workspace_id.eq.${workspaceId}`)
+        .limit(100);
       if (chunks?.length) {
-        pdfContext = chunks.map((c: any) => c.content).join("\n---\n");
+        pdfContext = chunks.map((c: any) => c.content).join("\n---\n").substring(0, 8000);
       }
 
       // Step C: Excel analysis
