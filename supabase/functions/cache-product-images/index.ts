@@ -161,10 +161,18 @@ Deno.serve(async (req) => {
               console.warn(`[cache-images] ${msg}`);
               totalFailed++;
               
-              // STEP 2: Update product image_status to 'failed' on error
+              const isAllFailed = (idx === imageUrls.length - 1) && (totalFailed >= imageUrls.length);
+              const isPartial = totalFailed > 0 && totalFailed < imageUrls.length;
+
               await supabase
                 .from("products")
-                .update({ image_status: "failed" })
+                .update({ 
+                  image_status: isAllFailed ? "failed" : (isPartial ? "partial" : "failed"),
+                  workflow_state: "needs_review",
+                  image_review_notes: isAllFailed 
+                    ? "Falha na migração de imagem — tentar recuperação manual" 
+                    : "Algumas imagens falharam na migração — verificar e completar"
+                })
                 .eq("id", product.id);
 
               await supabase.from("catalog_operation_errors").insert({
@@ -267,11 +275,14 @@ Deno.serve(async (req) => {
 
         // 3. Update product image_urls array
         if (productChanged) {
+          const isPartial = totalFailed > 0;
           await supabase
             .from("products")
             .update({ 
               image_urls: newImageUrls,
-              image_status: "ok" // STEP 2: Set to ok on success
+              image_status: isPartial ? "partial" : "ok",
+              workflow_state: isPartial ? "needs_review" : "draft",
+              image_review_notes: isPartial ? "Algumas imagens falharam na migração — verificar e completar" : null
             })
             .eq("id", product.id);
         }

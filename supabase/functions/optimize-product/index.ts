@@ -2188,9 +2188,16 @@ REGRAS GLOBAIS (MÁXIMA PRIORIDADE — violações resultam em rejeição):
         if (optimized.certifications) updateData.certifications = optimized.certifications;
         if (optimized.professional_use_content) updateData.professional_use_content = optimized.professional_use_content;
 
+        const hasAltTexts = updateData.image_alt_texts && Object.keys(updateData.image_alt_texts).length > 0;
+        const isImageOk = product.image_status === 'ok';
+
         const { error: updateError } = await supabase
           .from("products")
-          .update({ ...updateData, optimization_notes: optimized.optimization_notes || null })
+          .update({ 
+            ...updateData, 
+            optimization_notes: optimized.optimization_notes || null,
+            image_review_notes: (hasAltTexts && isImageOk) ? null : product.image_review_notes
+          })
           .eq("id", product.id);
 
         if (updateError) {
