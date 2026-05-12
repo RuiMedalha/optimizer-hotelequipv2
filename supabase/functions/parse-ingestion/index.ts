@@ -5,6 +5,31 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const decodeHtmlEntities = (text: string): string => {
+  if (!text || typeof text !== "string") return text;
+  return text
+    .replace(/&#x([0-9A-Fa-f]+);/g, (_, hex) => 
+      String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => 
+      String.fromCharCode(parseInt(dec, 10)))
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&eacute;/g, 'é')
+    .replace(/&agrave;/g, 'à')
+    .replace(/&aacute;/g, 'á')
+    .replace(/&iacute;/g, 'í')
+    .replace(/&oacute;/g, 'ó')
+    .replace(/&uacute;/g, 'ú')
+    .replace(/&ntilde;/g, 'ñ')
+    .replace(/&ccedil;/g, 'ç')
+    .replace(/&atilde;/g, 'ã')
+    .replace(/&otilde;/g, 'õ');
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
