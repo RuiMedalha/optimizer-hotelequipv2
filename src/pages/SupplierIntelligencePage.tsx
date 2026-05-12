@@ -1132,6 +1132,14 @@ ${excelContext}`,
               />
             </div>
           </div>
+          <div className="space-y-2">
+            <Label>Padrões de SKU (regex para publicar)</Label>
+            <Textarea 
+              value={rules.sku_publish_patterns?.join('\n')} 
+              onChange={e => setRules({...rules, sku_publish_patterns: e.target.value.split('\n')})} 
+              placeholder="^91\\d{7}"
+            />
+          </div>
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Min Preço Ignorar (€)</Label>
