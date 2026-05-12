@@ -859,6 +859,59 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
         `SKU:${p.sku} | ${p.original_title} | €${p.original_price} | ${p.category}`
       ).join('\n');
 
+      // Step B: PDF analysis
+      let pdfContext = "";
+      const { data: chunks } = await (supabase
+        .from('knowledge_chunks') as any)
+        .select('content')
+        .eq('supplier_id', supplier.id)
+        .limit(50);
+      if (chunks?.length) {
+        pdfContext = chunks.map((c: any) => c.content).join("\n---\n");
+      }
+
+      // Step C: Excel analysis
+      let excelContext = "";
+      const { data: excelFiles } = await (supabase
+        .from('uploaded_files') as any)
+        .select('id, file_path, file_name, created_at')
+        .eq('entity_id', supplier.id)
+        .in('file_type', ['xlsx', 'xls', 'excel'])
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (excelFiles?.length > 0) {
+        setExcelSource(excelFiles[0].file_name);
+        
+        const { data: priceStats } = await (supabase
+          .from('products') as any)
+          .select('original_price, category')
+          .eq('supplier_ref', supplier.id)
+          .not('original_price', 'is', null);
+          
+        if (priceStats?.length) {
+          const prices = priceStats.map((p: any) => Number(p.original_price)).filter((p: number) => p > 0);
+          const sorted = [...prices].sort((a,b) => a-b);
+          if (sorted.length > 0) {
+            excelContext = JSON.stringify({
+              total_products: prices.length,
+              min_price: sorted[0],
+              max_price: sorted[sorted.length-1],
+              avg_price: Math.round(prices.reduce((a,b)=>a+b,0)/prices.length),
+              p25: sorted[Math.floor(sorted.length*0.25)],
+              p75: sorted[Math.floor(sorted.length*0.75)],
+              price_distribution: {
+                under_5: prices.filter(p=>p<5).length,
+                '5_to_20': prices.filter(p=>p>=5&&p<20).length,
+                '20_to_100': prices.filter(p=>p>=20&&p<100).length,
+                '100_to_500': prices.filter(p=>p>=100&&p<500).length,
+                over_500: prices.filter(p=>p>=500).length
+              }
+            });
+          }
+        }
+      }
+
       // STEP 3 — Send to AI with real data
       const { data: aiResponse, error: aiError } = await supabase.functions.invoke('direct-ai-call', {
         body: {
