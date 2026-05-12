@@ -803,8 +803,8 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
 
       // Step B: PDF analysis
       let pdfContext = "";
-      const { data: chunks } = await supabase
-        .from('knowledge_chunks')
+      const { data: chunks } = await (supabase
+        .from('knowledge_chunks') as any)
         .select('content')
         .eq('supplier_id', supplier.id)
         .limit(50);
@@ -901,8 +901,8 @@ Return ONLY this JSON structure:
       let p: any = { publish: 0, review: 0, skip: 0 };
 
       while (true) {
-        const { data: products, error } = await supabase
-          .from('products')
+        const { data: products, error } = await (supabase
+          .from('products') as any)
           .select('id, sku, original_price, original_title, category, workflow_state')
           .eq('supplier_ref', supplier.id)
           .range(from, from + limit - 1);
