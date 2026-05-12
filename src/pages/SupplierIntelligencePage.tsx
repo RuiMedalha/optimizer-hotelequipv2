@@ -714,6 +714,313 @@ export default function SupplierIntelligencePage() {
   );
 }
 
+function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any; workspaceId: string }) {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isClassifying, setIsClassifying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const queryClient = useQueryClient();
+  
+  const [rules, setRules] = useState<any>(supplier.publishability_rules || {
+    power_words: [],
+    stop_words: [],
+    strategic_categories: [],
+    skip_categories: [],
+    sku_publish_patterns: [],
+    min_price_skip: 5,
+    min_price_review: 15,
+    min_price_spare_parts: 50,
+    notes: ''
+  });
+
+  const { data: sourcesStatus } = useQuery({
+    queryKey: ['supplier-sources-status', supplier.id],
+    queryFn: async () => {
+      const feed = !!supplier.feed_url_xml || !!supplier.feed_url_csv;
+      
+      const { data: pdfs } = await supabase
+        .from('uploaded_files')
+        .select('id')
+        .eq('entity_id', supplier.id)
+        .eq('file_type', 'pdf')
+        .limit(1);
+        
+      const { data: excel } = await supabase
+        .from('uploaded_files')
+        .select('id')
+        .in('file_type', ['xlsx', 'xls'])
+        .eq('entity_id', supplier.id)
+        .limit(1);
+        
+      const { data: scraping } = await supabase
+        .from('website_extraction_runs')
+        .select('id')
+        .eq('supplier_id', supplier.id)
+        .limit(1);
+
+      return {
+        feed,
+        pdf: (pdfs?.length || 0) > 0,
+        excel: (excel?.length || 0) > 0,
+        website: (scraping?.length || 0) > 0
+      };
+    }
+  });
+
+  const handleSaveRules = async () => {
+    try {
+      const { error } = await supabase
+        .from('supplier_profiles')
+        .update({ publishability_rules: rules })
+        .eq('id', supplier.id);
+      if (error) throw error;
+      toast.success("Regras guardadas com sucesso.");
+    } catch (e: any) {
+      toast.error(`Erro ao guardar: ${e.message}`);
+    }
+  };
+
+  const handleGenerateRules = async () => {
+    setIsGenerating(true);
+    try {
+      // Step A: Feed analysis
+      const format = supplier.feed_url_csv ? 'csv' : 'xml';
+      const url = format === 'csv' ? supplier.feed_url_csv : supplier.feed_url_xml;
+      
+      let feedSample = "";
+      if (url) {
+        const { data: feedData } = await supabase.functions.invoke('fetch-supplier-feed', {
+          body: { supplierId: supplier.id, workspaceId, format, feedUrl: url }
+        });
+        const rows = feedData?.allRows || feedData?.rows || [];
+        const sample = [...rows.slice(0, 50), ...rows.slice(Math.floor(rows.length/2), Math.floor(rows.length/2) + 50), ...rows.slice(-50)];
+        feedSample = JSON.stringify(sample.map((r: any) => ({
+          title: r.title || r.name || r.original_title,
+          price: r.price || r.original_price,
+          category: r.category,
+          sku: r.sku
+        })));
+      }
+
+      // Step B: PDF analysis
+      let pdfContext = "";
+      const { data: chunks } = await supabase
+        .from('knowledge_chunks')
+        .select('content')
+        .eq('supplier_id', supplier.id)
+        .limit(50);
+      if (chunks?.length) {
+        pdfContext = chunks.map(c => c.content).join("\n---\n");
+      }
+
+      const context = `
+=== FEED SAMPLE ===
+${feedSample}
+
+=== PDF CONTEXT ===
+${pdfContext}
+      `;
+
+      const { data: aiResponse, error: aiError } = await supabase.functions.invoke('direct-ai-call', {
+        body: {
+          prompt: `You are analyzing supplier data to generate publishability rules for hotelequip.pt, a professional restaurant/hotel equipment store in Portugal.
+          
+Strategic categories (publish EVERYTHING): PALAMENTA-MENAGE, BAR E CAFETARIA, FRIO COMERCIAL, CONFEÇÃO, LAVAGEM LOUÇA.
+
+Data: ${context}
+
+Return ONLY this JSON structure:
+{
+  "power_words": [],
+  "stop_words": [],
+  "strategic_categories": [],
+  "skip_categories": [],
+  "sku_publish_patterns": [],
+  "min_price_skip": 5,
+  "min_price_review": 15,
+  "min_price_spare_parts": 50,
+  "notes": "explanation in PT-PT"
+}`,
+          systemPrompt: "Return ONLY JSON."
+        }
+      });
+
+      if (aiError) throw aiError;
+      
+      const generated = JSON.parse(aiResponse.text.match(/\{[\s\S]*\}/)[0]);
+      setRules(generated);
+      toast.success("Regras geradas com sucesso. Revê e guarda.");
+    } catch (e: any) {
+      toast.error(`Erro ao gerar regras: ${e.message}`);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleClassify = async () => {
+    if (!rules) return toast.error("Gera e guarda as regras primeiro.");
+    setIsClassifying(true);
+    setProgress(0);
+    
+    try {
+      const applyRules = (product: any, rules: any) => {
+        const sku = product.sku || '';
+        const price = Number(product.original_price) || 0;
+        const title = (product.original_title || '').toLowerCase();
+        const category = (product.category || '').toLowerCase();
+
+        for (const pattern of (rules.sku_publish_patterns || [])) {
+          try { if (new RegExp(pattern).test(sku)) return { score: 100, reason: 'SKU padrão', decision: 'publish' }; } catch(e) {}
+        }
+        for (const cat of (rules.strategic_categories || [])) {
+          if (category.includes(cat.toLowerCase())) return { score: 92, reason: `Categoria estratégica: ${cat}`, decision: 'publish' };
+        }
+        for (const cat of (rules.skip_categories || [])) {
+          if (category.includes(cat.toLowerCase()) && price < 100) return { score: 10, reason: `Categoria a ignorar: ${cat}`, decision: 'skip' };
+        }
+        for (const word of (rules.power_words || [])) {
+          if (title.includes(word.toLowerCase())) return { score: 85, reason: `Standalone: "${word}"`, decision: 'publish' };
+        }
+        for (const word of (rules.stop_words || [])) {
+          if (title.includes(word.toLowerCase()) && price < (rules.min_price_review || 30)) return { score: 12, reason: `Componente: "${word}"`, decision: 'skip' };
+        }
+        
+        const spareWords = ['pedal','válvula','valvula','bomba','motor','resistência','resistencia'];
+        if (spareWords.some(w => title.includes(w)) && price >= (rules.min_price_spare_parts || 50))
+          return { score: 75, reason: 'Peça de substituição valiosa', decision: 'publish' };
+
+        if (price > 0 && price < (rules.min_price_skip || 5)) return { score: 5, reason: `Preço €${price}`, decision: 'skip' };
+        if (price > 0 && price < (rules.min_price_review || 15)) return { score: 25, reason: `Preço €${price}`, decision: 'review' };
+        if (price >= 200) return { score: 80, reason: `Preço €${price}`, decision: 'publish' };
+
+        return { score: 50, reason: 'Ambíguo', decision: 'review' };
+      };
+
+      let from = 0;
+      const limit = 100;
+      let total = 0;
+      let p: any = { publish: 0, review: 0, skip: 0 };
+
+      while (true) {
+        const { data: products, error } = await supabase
+          .from('products')
+          .select('id, sku, original_price, original_title, category, workflow_state')
+          .eq('supplier_ref', supplier.id)
+          .range(from, from + limit - 1);
+        
+        if (error) throw error;
+        if (!products.length) break;
+
+        for (const product of products) {
+          const result: any = applyRules(product, rules);
+          const updates: any = {
+            publishability_score: result.score,
+            publishability_reason: result.reason,
+            publishability_decision: result.decision
+          };
+          
+          if (result.decision === 'skip' && product.workflow_state === 'draft') updates.workflow_state = 'archived';
+          else if (result.decision === 'review' && product.workflow_state === 'draft') updates.workflow_state = 'needs_review';
+
+          await supabase.from('products').update(updates).eq('id', product.id);
+          p[result.decision]++;
+          total++;
+        }
+        
+        from += limit;
+        setProgress(Math.min(99, Math.round((from / (supplier.publishability_stats?.total || from + 1000)) * 100)));
+      }
+
+      const stats = { ...p, total, last_run: new Date().toISOString() };
+      await supabase.from('supplier_profiles').update({ 
+        publishability_stats: stats,
+        publishability_last_run: stats.last_run
+      }).eq('id', supplier.id);
+      
+      queryClient.invalidateQueries({ queryKey: ['supplier-profiles'] });
+      toast.success("Classificação concluída.");
+      setProgress(100);
+    } catch (e: any) {
+      toast.error(`Erro na classificação: ${e.message}`);
+    } finally {
+      setIsClassifying(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader><CardTitle className="text-sm">Estado das Fontes</CardTitle></CardHeader>
+        <CardContent className="flex gap-4">
+          <Badge variant={sourcesStatus?.feed ? "default" : "secondary"}>Feed {sourcesStatus?.feed ? "✅" : "❌"}</Badge>
+          <Badge variant={sourcesStatus?.pdf ? "default" : "secondary"}>PDF {sourcesStatus?.pdf ? "✅" : "❌"}</Badge>
+          <Badge variant={sourcesStatus?.excel ? "default" : "secondary"}>Excel {sourcesStatus?.excel ? "✅" : "❌"}</Badge>
+          <Badge variant={sourcesStatus?.website ? "default" : "secondary"}>Website {sourcesStatus?.website ? "✅" : "❌"}</Badge>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-sm">Regras de Publicabilidade</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Power Words (publicar)</Label>
+              <Textarea 
+                value={rules.power_words?.join('\n')} 
+                onChange={e => setRules({...rules, power_words: e.target.value.split('\n')})} 
+                placeholder="mesa\narmario..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Stop Words (ignorar)</Label>
+              <Textarea 
+                value={rules.stop_words?.join('\n')} 
+                onChange={e => setRules({...rules, stop_words: e.target.value.split('\n')})} 
+                placeholder="tornillo\ntuerca..."
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>Min Preço Ignorar (€)</Label>
+              <Input type="number" value={rules.min_price_skip} onChange={e => setRules({...rules, min_price_skip: Number(e.target.value)})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Min Preço Rever (€)</Label>
+              <Input type="number" value={rules.min_price_review} onChange={e => setRules({...rules, min_price_review: Number(e.target.value)})} />
+            </div>
+            <div className="space-y-2">
+              <Label>Peças p/ Publicar (€)</Label>
+              <Input type="number" value={rules.min_price_spare_parts} onChange={e => setRules({...rules, min_price_spare_parts: Number(e.target.value)})} />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={handleGenerateRules} disabled={isGenerating}>
+              {isGenerating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Sparkles className="w-4 h-4 mr-2" />}
+              Gerar com IA
+            </Button>
+            <Button variant="outline" onClick={handleSaveRules}><Save className="w-4 h-4 mr-2" />Guardar</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-sm">Classificar Produtos</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex justify-between text-sm">
+            <span>✅ {supplier.publishability_stats?.publish || 0} publicar</span>
+            <span>👁 {supplier.publishability_stats?.review || 0} rever</span>
+            <span>❌ {supplier.publishability_stats?.skip || 0} ignorar</span>
+          </div>
+          {isClassifying && <Progress value={progress} className="h-2" />}
+          <Button onClick={handleClassify} disabled={isClassifying || !supplier.publishability_rules} className="w-full">
+            {isClassifying ? "A classificar..." : "🔍 Classificar Produtos"}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // AI Prompt Generator Modal
 const AiPromptModal = ({ 
   isOpen, 
