@@ -305,10 +305,23 @@ function applyToRow(
   // 5. Images — Tefcold XML/CSV
   if (rowFormat === 'tefcold' || (fileFormat === 'csv' && !rowFormat)) {
     const imgCols = ['IMGURL1', 'IMGURL2', 'IMGURL3', 'IMGURL5', 'IMGURL6'];
-    const images = imgCols
+    
+    // Debug: Log image columns before multi_merge
+    if (config.image_columns && config.image_columns.length > 0) {
+      console.log('DEBUG: Found image_columns in config:', config.image_columns);
+      config.image_columns.forEach(col => {
+        console.log(`DEBUG: Image column ${col} value:`, row[col]);
+      });
+    }
+
+    const images = (config.image_columns || imgCols)
       .map(c => row[c])
       .filter(v => v && v !== '-' && String(v).trim() !== '');
-    if (images.length > 0) result.image_urls = images;
+    
+    if (images.length > 0) {
+      console.log('DEBUG: Resulting image_urls array:', images);
+      result.image_urls = images;
+    }
   }
   
   // 5b. Images — Google Merchant
