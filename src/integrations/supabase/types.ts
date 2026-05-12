@@ -9986,6 +9986,7 @@ export type Database = {
           user_id: string
           validation_errors: Json | null
           validation_status: string | null
+          video_url: string | null
           woocommerce_id: number | null
           workflow_changed_at: string | null
           workflow_changed_by: string | null
@@ -10058,6 +10059,7 @@ export type Database = {
           user_id: string
           validation_errors?: Json | null
           validation_status?: string | null
+          video_url?: string | null
           woocommerce_id?: number | null
           workflow_changed_at?: string | null
           workflow_changed_by?: string | null
@@ -10132,6 +10134,7 @@ export type Database = {
           user_id?: string
           validation_errors?: Json | null
           validation_status?: string | null
+          video_url?: string | null
           woocommerce_id?: number | null
           workflow_changed_at?: string | null
           workflow_changed_by?: string | null
