@@ -143,11 +143,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ format: 'xml', xmlFormat: xmlFmt, rows: rows.slice(0, 5), allRows: rows, totalRows: rows.length }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    // DB-based fetch (if no directUrl)
     
     const { data: supplier, error } = await supabase
       .from("supplier_profiles")
