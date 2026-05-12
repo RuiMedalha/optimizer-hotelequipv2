@@ -1424,7 +1424,7 @@ PROIBIDO: "HORECA" em qualquer forma. Substituir por: "restaurantes", "cozinhas 
 PROIBIDO: "HORECA" em qualquer forma → usar "restaurantes", "cozinhas profissionais", "hotelaria". PROIBIDO começar com "Otimize" ou "Potencie".`,
           meta_title: `Gera meta title SEO (máx 60 chars). 
 REGRA ABSOLUTA: O meta_title DEVE conter EXACTAMENTE a primeira focus_keyword deste produto sem alterar nenhuma palavra.
-Se focus_keyword[0] = 'câmara congelação industrial' então meta_title = 'Comprar Câmara Congelação Industrial | Preço'
+Se focus_keyword[0] = 'câmara congelação' então meta_title = 'Câmara Congelação para Cozinhas Profissionais | Preço'
 NUNCA usar variações, sinónimos ou traduções da keyword principal.
 - Keyword principal no início.
 - Inclui \"Comprar\" ou \"Preço\".
