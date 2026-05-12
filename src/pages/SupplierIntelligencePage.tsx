@@ -737,22 +737,22 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
     queryFn: async () => {
       const feed = !!supplier.feed_url_xml || !!supplier.feed_url_csv;
       
-      const { data: pdfs } = await supabase
-        .from('uploaded_files')
+      const { data: pdfs } = await (supabase
+        .from('uploaded_files') as any)
         .select('id')
         .eq('entity_id', supplier.id)
         .eq('file_type', 'pdf')
         .limit(1);
         
-      const { data: excel } = await supabase
-        .from('uploaded_files')
+      const { data: excel } = await (supabase
+        .from('uploaded_files') as any)
         .select('id')
         .in('file_type', ['xlsx', 'xls'])
         .eq('entity_id', supplier.id)
         .limit(1);
         
-      const { data: scraping } = await supabase
-        .from('website_extraction_runs')
+      const { data: scraping } = await (supabase
+        .from('website_extraction_runs') as any)
         .select('id')
         .eq('supplier_id', supplier.id)
         .limit(1);
