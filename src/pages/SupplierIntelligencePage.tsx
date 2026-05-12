@@ -42,6 +42,21 @@ function SupplierDetail({ supplier, onBack }: { supplier: any; onBack: () => voi
   const [connectorConfigText, setConnectorConfigText] = useState(
     supplier?.connector_config ? JSON.stringify(supplier.connector_config, null, 2) : ''
   );
+
+  const { data: suppliersWithConfig } = useQuery({
+    queryKey: ['suppliers-with-config', wsId],
+    enabled: !!wsId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('supplier_profiles')
+        .select('id, supplier_name, connector_config')
+        .neq('connector_config', null)
+        .eq('workspace_id', wsId);
+      if (error) throw error;
+      return data as any[];
+    }
+  });
+
   const [configError, setConfigError] = useState<string | null>(null);
   const [connectorTestResult, setConnectorTestResult] = useState<any[]>([]);
   const [showAiPromptModal, setShowAiPromptModal] = useState(false);
@@ -69,11 +84,23 @@ function SupplierDetail({ supplier, onBack }: { supplier: any; onBack: () => voi
     }
   };
 
-  const handlePresetSelect = (preset: string) => {
-    const config = CONNECTOR_PRESETS[preset] || {};
+  const handlePresetSelect = (val: string) => {
+    // If it starts with "saved:", it's a dynamic supplier config
+    if (val.startsWith('saved:')) {
+      const supplierId = val.split(':')[1];
+      const savedSupplier = suppliersWithConfig?.find(s => s.id === supplierId);
+      if (savedSupplier?.connector_config) {
+        setConnectorConfigText(JSON.stringify(savedSupplier.connector_config, null, 2));
+        setConfigError(null);
+        toast.info(`Configuração de ${savedSupplier.supplier_name} aplicada.`);
+      }
+      return;
+    }
+
+    const config = CONNECTOR_PRESETS[val] || {};
     setConnectorConfigText(JSON.stringify(config, null, 2));
     setConfigError(null);
-    if (preset === 'tefcold_xml') {
+    if (val === 'tefcold_xml') {
       toast.info('Preset aplicado. Clica Guardar para actualizar o connector do fornecedor.');
     }
   };
@@ -220,6 +247,19 @@ function SupplierDetail({ supplier, onBack }: { supplier: any; onBack: () => voi
                       <SelectItem value="tefcold_xml">Tefcold (XML proprietário)</SelectItem>
                       <SelectItem value="fricosmos_xml">Fricosmos / Google Merchant (XML)</SelectItem>
                       <SelectItem value="fricosmos_excel_prices">Fricosmos (Excel — só preços)</SelectItem>
+                      
+                      {suppliersWithConfig && suppliersWithConfig.length > 0 && (
+                        <>
+                          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1">
+                            Fornecedores guardados
+                          </div>
+                          {suppliersWithConfig.map((s) => (
+                            <SelectItem key={s.id} value={`saved:${s.id}`}>
+                              {s.supplier_name} (config guardado)
+                            </SelectItem>
+                          ))}
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                 </CardTitle>
