@@ -15111,24 +15111,42 @@ export type Database = {
         Args: { _workspace_id: string }
         Returns: {
           count: number
+          publishability_decision: string
           status: string
         }[]
       }
-      get_products_page: {
-        Args: {
-          _category?: string
-          _image_status?: string
-          _page?: number
-          _page_size?: number
-          _product_type?: string
-          _search?: string
-          _source_file?: string
-          _status?: string
-          _woo_filter?: string
-          _workspace_id: string
-        }
-        Returns: Json[]
-      }
+      get_products_page:
+        | {
+            Args: {
+              _category?: string
+              _image_status?: string
+              _page?: number
+              _page_size?: number
+              _product_type?: string
+              _publishability_decision?: string
+              _search?: string
+              _source_file?: string
+              _status?: string
+              _woo_filter?: string
+              _workspace_id: string
+            }
+            Returns: Json[]
+          }
+        | {
+            Args: {
+              _category?: string
+              _image_status?: string
+              _page?: number
+              _page_size?: number
+              _product_type?: string
+              _search?: string
+              _source_file?: string
+              _status?: string
+              _woo_filter?: string
+              _workspace_id: string
+            }
+            Returns: Json[]
+          }
       get_simulation_run_workspace_id: {
         Args: { _run_id: string }
         Returns: string
