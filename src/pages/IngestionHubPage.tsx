@@ -108,7 +108,7 @@ const SpecialFieldsPicker = ({
           {priceFields.map(f => (
             <button
               key={f.key}
-              onClick={() => onSelectPrice(f.key)}
+              onClick={() => onSelectPrice(selectedPrice === f.key ? '' : f.key)}
               className={cn(
                 "px-3 py-2 rounded-lg border text-sm transition-all",
                 selectedPrice === f.key
