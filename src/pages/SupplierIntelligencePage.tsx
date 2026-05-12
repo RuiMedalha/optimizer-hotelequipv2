@@ -262,6 +262,15 @@ function SupplierDetail({ supplier, onBack }: { supplier: any; onBack: () => voi
                 )}
               </CardContent>
             </Card>
+            <AiPromptModal 
+              isOpen={showAiPromptModal} 
+              onClose={() => setShowAiPromptModal(false)} 
+              prompt={aiPrompt} 
+              supplierId={supplier.id}
+              onApply={(config) => {
+                setConnectorConfigText(JSON.stringify(config, null, 2));
+              }}
+            />
           </div>
         </TabsContent>
 
@@ -647,6 +656,7 @@ const AiPromptModal = ({
       if (error) throw error;
       toast.success("Configuração guardada.");
       onApply(parsedConfig);
+      toast.info("Config gerada — revê e clica Guardar");
       onClose();
     } catch (e: any) {
       toast.error(`Erro: ${e.message}`);
