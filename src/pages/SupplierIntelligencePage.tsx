@@ -197,6 +197,7 @@ function SupplierDetail({ supplier, onBack }: { supplier: any; onBack: () => voi
           <TabsTrigger value="feed">Feed & Connector</TabsTrigger>
           <TabsTrigger value="patterns">Padrões</TabsTrigger>
           <TabsTrigger value="mappings">Mapeamentos</TabsTrigger>
+          <TabsTrigger value="publishability">Publicabilidade</TabsTrigger>
           <TabsTrigger value="graph">Knowledge Graph</TabsTrigger>
           <TabsTrigger value="sources">Fontes</TabsTrigger>
           <TabsTrigger value="trust">Trust Matrix</TabsTrigger>
