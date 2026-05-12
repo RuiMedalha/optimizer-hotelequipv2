@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useSupplierIntelligence, useSupplierDetail } from "@/hooks/useSupplierIntelligence";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Building2, Globe, CheckCircle, AlertCircle, Clock, ArrowLeft, Brain, Search, Network, BarChart3, ArrowRight, Wand2, Copy, Save, Check, Loader2 } from "lucide-react";
+import { Plus, Building2, Globe, CheckCircle, AlertCircle, Clock, ArrowLeft, Brain, Search, Network, BarChart3, ArrowRight, Wand2, Copy, Save, Check, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { 
   generateAiPrompt, 
