@@ -792,11 +792,13 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
         
       if (uploadError) throw uploadError;
       
+      const { data: { user } } = await supabase.auth.getUser();
       const { error: dbError } = await (supabase
         .from('uploaded_files') as any)
         .insert({
           workspace_id: workspaceId || supplier.workspace_id,
           supplier_id: supplier.id,
+          user_id: user?.id,
           file_name: file.name,
           storage_path: filePath,
           file_type: 'pdf',
@@ -829,11 +831,13 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
         
       if (uploadError) throw uploadError;
       
+      const { data: { user } } = await supabase.auth.getUser();
       const { error: dbError } = await (supabase
         .from('uploaded_files') as any)
         .insert({
           workspace_id: workspaceId || supplier.workspace_id,
           supplier_id: supplier.id,
+          user_id: user?.id,
           file_name: file.name,
           storage_path: filePath,
           file_type: file.name.endsWith('.csv') ? 'csv' : 'xlsx',
