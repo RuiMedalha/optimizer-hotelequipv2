@@ -100,14 +100,40 @@ Deno.serve(async (req) => {
   try {
     const { supplierId, workspaceId, format, feedUrl: directUrl } = await req.json();
     
-    // If direct URL provided, handle immediately without DB lookup
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    // If direct URL provided, handle immediately
     if (directUrl) {
       const response = await fetch(directUrl);
       if (!response.ok) throw new Error(`Feed fetch failed: ${response.status}`);
       const text = await response.text();
+      
       if (format === 'csv' && !text.trimStart().startsWith('<')) {
-        return new Response(JSON.stringify({ format: 'csv', rawText: text, totalRows: text.split('\n').length - 1 }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        let totalRows = text.split('\n').length - 1;
+        
+        // Use connector_config if possible
+        let delimiter = null;
+        if (supplierId) {
+          const { data: s } = await supabase.from('supplier_profiles').select('connector_config').eq('id', supplierId).single();
+          delimiter = s?.connector_config?.csv_delimiter;
+        }
+        
+        if (!delimiter) delimiter = detectCsvDelimiter(text);
+        
+        // Quick check for total rows if delimiter is semicolon
+        if (delimiter === ';') {
+          totalRows = text.split('\n').filter(l => l.includes(';')).length - 1;
+        }
+
+        return new Response(JSON.stringify({ 
+          format: 'csv', 
+          rawText: text, 
+          totalRows,
+          csvDelimiter: delimiter
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
       const xmlFmt = detectXmlFormat(text);
       let rows: any[] = [];
