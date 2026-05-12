@@ -931,7 +931,7 @@ Return ONLY this JSON structure:
       }
 
       const stats = { ...p, total, last_run: new Date().toISOString() };
-      await supabase.from('supplier_profiles').update({ 
+      await (supabase.from('supplier_profiles') as any).update({ 
         publishability_stats: stats,
         publishability_last_run: stats.last_run
       }).eq('id', supplier.id);
