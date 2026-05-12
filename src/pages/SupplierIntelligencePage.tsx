@@ -745,7 +745,7 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
       const { data: pdfs } = await (supabase
         .from('uploaded_files') as any)
         .select('id')
-        .eq('entity_id', supplier.id)
+        .eq('supplier_id', supplier.id)
         .eq('file_type', 'pdf')
         .limit(1);
 
@@ -759,7 +759,7 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
         .from('uploaded_files') as any)
         .select('id')
         .in('file_type', ['xlsx', 'xls', 'excel'])
-        .eq('entity_id', supplier.id)
+        .eq('supplier_id', supplier.id)
         .limit(1);
         
       const { data: scraping } = await (supabase
@@ -796,12 +796,12 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
         .from('uploaded_files') as any)
         .insert({
           workspace_id: workspaceId,
-          entity_id: supplier.id,
-          entity_type: 'supplier',
+          supplier_id: supplier.id,
           file_name: file.name,
-          file_path: filePath,
+          storage_path: filePath,
           file_type: 'pdf',
-          file_size: file.size
+          file_size: file.size,
+          status: 'ready'
         });
         
       if (dbError) throw dbError;
@@ -833,12 +833,12 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
         .from('uploaded_files') as any)
         .insert({
           workspace_id: workspaceId,
-          entity_id: supplier.id,
-          entity_type: 'supplier',
+          supplier_id: supplier.id,
           file_name: file.name,
-          file_path: filePath,
+          storage_path: filePath,
           file_type: file.name.endsWith('.csv') ? 'csv' : 'xlsx',
-          file_size: file.size
+          file_size: file.size,
+          status: 'ready'
         });
         
       if (dbError) throw dbError;
@@ -859,7 +859,7 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
       const { data, error } = await (supabase
         .from('uploaded_files') as any)
         .select('*')
-        .eq('entity_id', supplier.id)
+        .eq('supplier_id', supplier.id)
         .in('file_type', ['xlsx', 'xls', 'excel', 'csv'])
         .order('created_at', { ascending: false });
       if (error) throw error;
