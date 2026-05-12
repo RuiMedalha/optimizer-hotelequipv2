@@ -14,7 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Building2, Globe, CheckCircle, AlertCircle, Clock, ArrowLeft, Brain, Search, Network, BarChart3, ArrowRight, Wand2, Copy, Save, Check, Loader2, Sparkles } from "lucide-react";
+import { Plus, Building2, Globe, CheckCircle, AlertCircle, Clock, ArrowLeft, Brain, Search, Network, BarChart3, ArrowRight, Wand2, Copy, Save, Check, Loader2, Sparkles, FileText, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { 
   generateAiPrompt, 
@@ -718,6 +718,9 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
   const [isGenerating, setIsGenerating] = useState(false);
   const [isClassifying, setIsClassifying] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [rulesSaved, setRulesSaved] = useState(false);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [excelSource, setExcelSource] = useState<string | null>(null);
   const queryClient = useQueryClient();
   
   const [rules, setRules] = useState<any>(supplier.publishability_rules || {
@@ -743,11 +746,17 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
         .eq('entity_id', supplier.id)
         .eq('file_type', 'pdf')
         .limit(1);
+
+      const { data: chunks } = await (supabase
+        .from('knowledge_chunks') as any)
+        .select('id')
+        .eq('supplier_id', supplier.id)
+        .limit(1);
         
       const { data: excel } = await (supabase
         .from('uploaded_files') as any)
         .select('id')
-        .in('file_type', ['xlsx', 'xls'])
+        .in('file_type', ['xlsx', 'xls', 'excel'])
         .eq('entity_id', supplier.id)
         .limit(1);
         
@@ -760,11 +769,49 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
       return {
         feed,
         pdf: (pdfs?.length || 0) > 0,
+        pdfIndexed: (chunks?.length || 0) > 0,
         excel: (excel?.length || 0) > 0,
         website: (scraping?.length || 0) > 0
       };
     }
   });
+
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setUploadingPdf(true);
+    try {
+      const filePath = `${workspaceId}/${supplier.id}/${file.name}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('knowledge-base')
+        .upload(filePath, file, { upsert: true });
+        
+      if (uploadError) throw uploadError;
+      
+      const { error: dbError } = await (supabase
+        .from('uploaded_files') as any)
+        .insert({
+          workspace_id: workspaceId,
+          entity_id: supplier.id,
+          entity_type: 'supplier',
+          file_name: file.name,
+          file_path: filePath,
+          file_type: 'pdf',
+          file_size: file.size
+        });
+        
+      if (dbError) throw dbError;
+      
+      toast.success("PDF carregado. Vai ao Knowledge Graph para indexar o conteúdo.");
+      queryClient.invalidateQueries({ queryKey: ['supplier-sources-status', supplier.id] });
+    } catch (err: any) {
+      toast.error(`Erro ao carregar PDF: ${err.message}`);
+    } finally {
+      setUploadingPdf(false);
+    }
+  };
 
   const handleSaveRules = async () => {
     try {
@@ -773,6 +820,7 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
         .update({ publishability_rules: rules })
         .eq('id', supplier.id);
       if (error) throw error;
+      setRulesSaved(true);
       toast.success("Regras guardadas com sucesso.");
     } catch (e: any) {
       toast.error(`Erro ao guardar: ${e.message}`);
@@ -811,6 +859,59 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
         `SKU:${p.sku} | ${p.original_title} | €${p.original_price} | ${p.category}`
       ).join('\n');
 
+      // Step B: PDF analysis
+      let pdfContext = "";
+      const { data: chunks } = await (supabase
+        .from('knowledge_chunks') as any)
+        .select('content')
+        .eq('supplier_id', supplier.id)
+        .limit(50);
+      if (chunks?.length) {
+        pdfContext = chunks.map((c: any) => c.content).join("\n---\n");
+      }
+
+      // Step C: Excel analysis
+      let excelContext = "";
+      const { data: excelFiles } = await (supabase
+        .from('uploaded_files') as any)
+        .select('id, file_path, file_name, created_at')
+        .eq('entity_id', supplier.id)
+        .in('file_type', ['xlsx', 'xls', 'excel'])
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (excelFiles?.length > 0) {
+        setExcelSource(excelFiles[0].file_name);
+        
+        const { data: priceStats } = await (supabase
+          .from('products') as any)
+          .select('original_price, category')
+          .eq('supplier_ref', supplier.id)
+          .not('original_price', 'is', null);
+          
+        if (priceStats?.length) {
+          const prices = priceStats.map((p: any) => Number(p.original_price)).filter((p: number) => p > 0);
+          const sorted = [...prices].sort((a,b) => a-b);
+          if (sorted.length > 0) {
+            excelContext = JSON.stringify({
+              total_products: prices.length,
+              min_price: sorted[0],
+              max_price: sorted[sorted.length-1],
+              avg_price: Math.round(prices.reduce((a,b)=>a+b,0)/prices.length),
+              p25: sorted[Math.floor(sorted.length*0.25)],
+              p75: sorted[Math.floor(sorted.length*0.75)],
+              price_distribution: {
+                under_5: prices.filter(p=>p<5).length,
+                '5_to_20': prices.filter(p=>p>=5&&p<20).length,
+                '20_to_100': prices.filter(p=>p>=20&&p<100).length,
+                '100_to_500': prices.filter(p=>p>=100&&p<500).length,
+                over_500: prices.filter(p=>p>=500).length
+              }
+            });
+          }
+        }
+      }
+
       // STEP 3 — Send to AI with real data
       const { data: aiResponse, error: aiError } = await supabase.functions.invoke('direct-ai-call', {
         body: {
@@ -839,7 +940,13 @@ Return ONLY this JSON, no other text:
 }`,
           prompt: `Analyze these ${products.length} real products from this supplier:
 
-${productSample}`,
+${productSample}
+
+=== PDF CONTEXT ===
+${pdfContext}
+
+=== PRICE DISTRIBUTION FROM EXCEL/PRODUCTS ===
+${excelContext}`,
           model: "lovable/gemini-2.5-flash"
         }
       });
@@ -953,9 +1060,51 @@ ${productSample}`,
     <div className="space-y-6">
       <Card>
         <CardHeader><CardTitle className="text-sm">Estado das Fontes</CardTitle></CardHeader>
-        <CardContent className="flex gap-4">
+        <CardContent className="flex flex-wrap gap-4 items-center">
           <Badge variant={sourcesStatus?.feed ? "default" : "secondary"}>Feed {sourcesStatus?.feed ? "✅" : "❌"}</Badge>
-          <Badge variant={sourcesStatus?.pdf ? "default" : "secondary"}>PDF {sourcesStatus?.pdf ? "✅" : "❌"}</Badge>
+          
+          <div className="flex items-center gap-2">
+            <Badge variant={sourcesStatus?.pdf ? "default" : "secondary"}>
+              PDF {sourcesStatus?.pdf ? "✅" : "❌"}
+            </Badge>
+            {sourcesStatus?.pdfIndexed ? (
+              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                ✅ PDF indexado 
+                <button 
+                  onClick={() => queryClient.invalidateQueries({ queryKey: ['supplier-knowledge-graph'] })}
+                  className="text-primary hover:underline flex items-center ml-1"
+                >
+                  Ver Knowledge Graph <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
+                </button>
+              </span>
+            ) : sourcesStatus?.pdf ? (
+              <span className="text-[10px] text-amber-500">Aguardando indexação</span>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Input 
+                  type="file" 
+                  accept=".pdf" 
+                  className="hidden" 
+                  id="pdf-upload-pub" 
+                  onChange={handlePdfUpload}
+                  disabled={uploadingPdf}
+                />
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-7 text-[10px] gap-1 px-2"
+                  disabled={uploadingPdf}
+                  asChild
+                >
+                  <label htmlFor="pdf-upload-pub" className="cursor-pointer">
+                    {uploadingPdf ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
+                    {uploadingPdf ? "A carregar..." : "📄 Carregar PDF"}
+                  </label>
+                </Button>
+              </div>
+            )}
+          </div>
+
           <Badge variant={sourcesStatus?.excel ? "default" : "secondary"}>Excel {sourcesStatus?.excel ? "✅" : "❌"}</Badge>
           <Badge variant={sourcesStatus?.website ? "default" : "secondary"}>Website {sourcesStatus?.website ? "✅" : "❌"}</Badge>
         </CardContent>
@@ -964,6 +1113,7 @@ ${productSample}`,
       <Card>
         <CardHeader><CardTitle className="text-sm">Regras de Publicabilidade</CardTitle></CardHeader>
         <CardContent className="space-y-4">
+          {excelSource && <div className="text-[10px] text-muted-foreground bg-muted p-1 rounded inline-block">Analisando: {excelSource}</div>}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Power Words (publicar)</Label>
@@ -981,6 +1131,14 @@ ${productSample}`,
                 placeholder="tornillo\ntuerca..."
               />
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Padrões de SKU (regex para publicar)</Label>
+            <Textarea 
+              value={rules.sku_publish_patterns?.join('\n')} 
+              onChange={e => setRules({...rules, sku_publish_patterns: e.target.value.split('\n')})} 
+              placeholder="^91\\d{7}"
+            />
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
@@ -1015,7 +1173,11 @@ ${productSample}`,
             <span>❌ {supplier.publishability_stats?.skip || 0} ignorar</span>
           </div>
           {isClassifying && <Progress value={progress} className="h-2" />}
-          <Button onClick={handleClassify} disabled={isClassifying || !supplier.publishability_rules} className="w-full">
+          <Button 
+            onClick={handleClassify} 
+            disabled={isClassifying || (!rulesSaved && (!supplier.publishability_rules || (!(supplier.publishability_rules.power_words?.length > 0) && !(supplier.publishability_rules.stop_words?.length > 0) && !(supplier.publishability_rules.sku_publish_patterns?.length > 0))))} 
+            className="w-full"
+          >
             {isClassifying ? "A classificar..." : "🔍 Classificar Produtos"}
           </Button>
         </CardContent>
