@@ -720,6 +720,8 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
   const [progress, setProgress] = useState(0);
   const [rulesSaved, setRulesSaved] = useState(false);
   const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [uploadingExcel, setUploadingExcel] = useState(false);
+  const [generatingStatus, setGeneratingStatus] = useState<string | null>(null);
   const [excelSource, setExcelSource] = useState<string | null>(null);
   const queryClient = useQueryClient();
   
@@ -813,6 +815,58 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
     }
   };
 
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setUploadingExcel(true);
+    try {
+      const filePath = `${workspaceId}/${supplier.id}/${file.name}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('knowledge-base')
+        .upload(filePath, file, { upsert: true });
+        
+      if (uploadError) throw uploadError;
+      
+      const { error: dbError } = await (supabase
+        .from('uploaded_files') as any)
+        .insert({
+          workspace_id: workspaceId,
+          entity_id: supplier.id,
+          entity_type: 'supplier',
+          file_name: file.name,
+          file_path: filePath,
+          file_type: file.name.endsWith('.csv') ? 'csv' : 'xlsx',
+          file_size: file.size
+        });
+        
+      if (dbError) throw dbError;
+      
+      toast.success("Excel carregado com sucesso.");
+      queryClient.invalidateQueries({ queryKey: ['supplier-sources-status', supplier.id] });
+      queryClient.invalidateQueries({ queryKey: ['supplier-excel-files', supplier.id] });
+    } catch (err: any) {
+      toast.error(`Erro ao carregar Excel: ${err.message}`);
+    } finally {
+      setUploadingExcel(false);
+    }
+  };
+
+  const { data: excelFilesList } = useQuery({
+    queryKey: ['supplier-excel-files', supplier.id],
+    queryFn: async () => {
+      const { data, error } = await (supabase
+        .from('uploaded_files') as any)
+        .select('*')
+        .eq('entity_id', supplier.id)
+        .in('file_type', ['xlsx', 'xls', 'excel', 'csv'])
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
   const handleSaveRules = async () => {
     try {
       const { error } = await (supabase
@@ -856,25 +910,32 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
         const url = format === 'csv' ? supplier.feed_url_csv : supplier.feed_url_xml;
         
         if (url) {
-          toast.info("Lendo amostra diretamente do feed...");
+          setGeneratingStatus('A ler feed do fornecedor...');
           const { data: feedData } = await supabase.functions.invoke('fetch-supplier-feed', {
             body: { supplierId: supplier.id, workspaceId, format, feedUrl: url }
           });
           const rows = feedData?.allRows || feedData?.rows || [];
           if (rows.length > 0) {
-            const sample = [...rows.slice(0, 70), ...rows.slice(Math.floor(rows.length/2), Math.floor(rows.length/2) + 60), ...rows.slice(-70)];
+            const sample = [...rows.slice(0, 100), ...rows.slice(Math.floor(rows.length/2), Math.floor(rows.length/2) + 50), ...rows.slice(-50)];
             products = sample.map((r: any) => ({
-              original_title: r.title || r.name || r.original_title || r.Título || r.Nome,
-              original_price: r.price || r.original_price || r.Preço,
-              category: r.category || r.Categoria,
-              sku: r.sku || r.SKU || r.Referência
+              original_title: r.title || r.PRODUCTNAME || r['g:title'] || r.name || r.original_title || r.Título || r.Nome,
+              original_price: r.price || r.PRICE || r['g:price'] || r.original_price || r.Preço,
+              category: r.category || r.CATEGORYTEXT1 || r['g:product_type'] || r.Categoria,
+              sku: r.id || r.ITEM_ID || r['g:id'] || r.sku || r.SKU || r.Referência
             }));
+            setGeneratingStatus('Feed lido — a analisar com IA...');
           }
         }
       }
 
       if (!products || products.length === 0) {
-        throw new Error("Não foram encontrados produtos no DB nem no feed. Verifica a configuração do feed.");
+        // If still no products, check if we have other sources
+        const { data: chunks } = await (supabase.from('knowledge_chunks') as any).select('id').eq('supplier_id', supplier.id).limit(1);
+        const { data: files } = await (supabase.from('uploaded_files') as any).select('id').eq('entity_id', supplier.id).limit(1);
+        
+        if (!(chunks?.length) && !(files?.length)) {
+          throw new Error("Não foram encontrados produtos nem ficheiros para análise. Carrega um catálogo PDF ou Excel primeiro.");
+        }
       }
 
       // STEP 2 — Build real context from actual product data
@@ -976,6 +1037,7 @@ ${excelContext}`,
 
       if (aiError) throw aiError;
       
+      setGeneratingStatus(null);
       const jsonMatch = aiResponse.text.match(/\{[\s\S]*\}/);
       if (!jsonMatch) throw new Error("A IA não retornou um JSON válido.");
       
@@ -983,6 +1045,7 @@ ${excelContext}`,
       setRules(generated);
       toast.success("Regras geradas com base em produtos reais. Revê e guarda.");
     } catch (e: any) {
+      setGeneratingStatus(null);
       toast.error(`Erro ao gerar regras: ${e.message}`);
     } finally {
       setIsGenerating(false);
@@ -1083,60 +1146,116 @@ ${excelContext}`,
     <div className="space-y-6">
       <Card>
         <CardHeader><CardTitle className="text-sm">Estado das Fontes</CardTitle></CardHeader>
-        <CardContent className="flex flex-wrap gap-4 items-center">
-          <Badge variant={sourcesStatus?.feed ? "default" : "secondary"}>Feed {sourcesStatus?.feed ? "✅" : "❌"}</Badge>
-          
-          <div className="flex items-center gap-2">
-            <Badge variant={sourcesStatus?.pdf ? "default" : "secondary"}>
-              PDF {sourcesStatus?.pdf ? "✅" : "❌"}
-            </Badge>
-            {sourcesStatus?.pdfIndexed ? (
-              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                ✅ PDF indexado 
-                <button 
-                  onClick={() => queryClient.invalidateQueries({ queryKey: ['supplier-knowledge-graph'] })}
-                  className="text-primary hover:underline flex items-center ml-1"
-                >
-                  Ver Knowledge Graph <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
-                </button>
-              </span>
-            ) : sourcesStatus?.pdf ? (
-              <span className="text-[10px] text-amber-500">Aguardando indexação</span>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Input 
-                  type="file" 
-                  accept=".pdf" 
-                  className="hidden" 
-                  id="pdf-upload-pub" 
-                  onChange={handlePdfUpload}
-                  disabled={uploadingPdf}
-                />
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="h-7 text-[10px] gap-1 px-2"
-                  disabled={uploadingPdf}
-                  asChild
-                >
-                  <label htmlFor="pdf-upload-pub" className="cursor-pointer">
-                    {uploadingPdf ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
-                    {uploadingPdf ? "A carregar..." : "📄 Carregar PDF"}
-                  </label>
-                </Button>
-              </div>
-            )}
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-4 items-center">
+            <Badge variant={sourcesStatus?.feed ? "default" : "secondary"}>Feed {sourcesStatus?.feed ? "✅" : "❌"}</Badge>
+            
+            <div className="flex items-center gap-2">
+              <Badge variant={sourcesStatus?.pdf ? "default" : "secondary"}>
+                PDF {sourcesStatus?.pdf ? "✅" : "❌"}
+              </Badge>
+              {sourcesStatus?.pdfIndexed ? (
+                <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                  ✅ PDF indexado 
+                  <button 
+                    onClick={() => queryClient.invalidateQueries({ queryKey: ['supplier-knowledge-graph'] })}
+                    className="text-primary hover:underline flex items-center ml-1"
+                  >
+                    Ver Knowledge Graph <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
+                  </button>
+                </span>
+              ) : sourcesStatus?.pdf ? (
+                <span className="text-[10px] text-amber-500">Aguardando indexação</span>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Input 
+                    type="file" 
+                    accept=".pdf" 
+                    className="hidden" 
+                    id="pdf-upload-pub" 
+                    onChange={handlePdfUpload}
+                    disabled={uploadingPdf}
+                  />
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-7 text-[10px] gap-1 px-2"
+                    disabled={uploadingPdf}
+                    asChild
+                  >
+                    <label htmlFor="pdf-upload-pub" className="cursor-pointer">
+                      {uploadingPdf ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
+                      {uploadingPdf ? "A carregar..." : "📄 Carregar PDF"}
+                    </label>
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Badge variant={sourcesStatus?.excel ? "default" : "secondary"}>
+                Excel {sourcesStatus?.excel ? "✅" : "❌"}
+              </Badge>
+              <Input 
+                type="file" 
+                accept=".xlsx,.xls,.csv" 
+                className="hidden" 
+                id="excel-upload-pub" 
+                onChange={handleExcelUpload}
+                disabled={uploadingExcel}
+              />
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-7 text-[10px] gap-1 px-2"
+                disabled={uploadingExcel}
+                asChild
+              >
+                <label htmlFor="excel-upload-pub" className="cursor-pointer">
+                  {uploadingExcel ? <Loader2 className="w-3 h-3 animate-spin" /> : <BarChart3 className="w-3 h-3" />}
+                  {uploadingExcel ? "A carregar..." : "📊 Carregar Excel"}
+                </label>
+              </Button>
+            </div>
+            
+            <Badge variant={sourcesStatus?.website ? "default" : "secondary"}>Website {sourcesStatus?.website ? "✅" : "❌"}</Badge>
           </div>
 
-          <Badge variant={sourcesStatus?.excel ? "default" : "secondary"}>Excel {sourcesStatus?.excel ? "✅" : "❌"}</Badge>
-          <Badge variant={sourcesStatus?.website ? "default" : "secondary"}>Website {sourcesStatus?.website ? "✅" : "❌"}</Badge>
+          {excelFilesList && excelFilesList.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-[10px] font-bold uppercase text-muted-foreground">Ficheiros Excel/Tarifas:</p>
+              <div className="flex flex-wrap gap-2">
+                {excelFilesList.map((file: any) => (
+                  <div key={file.id} className="text-[10px] bg-muted px-2 py-1 rounded border flex items-center gap-2">
+                    <FileText className="w-2.5 h-2.5" />
+                    {file.file_name}
+                    <span className="text-muted-foreground">({new Date(file.created_at).toLocaleDateString()})</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(!sourcesStatus?.feed && !sourcesStatus?.pdf && !sourcesStatus?.excel) && (
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+              <p className="text-xs text-amber-600 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" />
+                <strong>Fornecedor novo sem dados.</strong> Para gerar regras precisas, carrega um catálogo PDF, uma lista Excel ou configura o Feed.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader><CardTitle className="text-sm">Regras de Publicabilidade</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          {excelSource && <div className="text-[10px] text-muted-foreground bg-muted p-1 rounded inline-block">Analisando: {excelSource}</div>}
+          {(generatingStatus || excelSource) && (
+            <div className="text-[10px] text-muted-foreground bg-muted p-1 px-2 rounded flex items-center gap-2">
+              {isGenerating && <Loader2 className="w-3 h-3 animate-spin" />}
+              {generatingStatus || `Analisando: ${excelSource}`}
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Power Words (publicar)</Label>
