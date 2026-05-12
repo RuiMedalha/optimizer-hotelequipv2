@@ -1059,16 +1059,22 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
       // STEP 3 — Send to AI with real data
       const { data: aiResponse, error: aiError } = await supabase.functions.invoke('direct-ai-call', {
         body: {
-          systemPrompt: `You are analyzing a real supplier catalog to generate publishability rules for hotelequip.pt (professional restaurant and hotel equipment store in Portugal).
+          systemPrompt: `You are analyzing a real supplier catalog for hotelequip.pt, a professional restaurant and hotel equipment store in Portugal.
 
-Your task: analyze the ACTUAL products provided and identify:
-1. Words in titles that indicate STANDALONE products a customer buys directly (power_words)
-2. Words in titles that indicate MOUNTING COMPONENTS or SPARE PARTS that should NOT be sold standalone (stop_words)
-3. Categories where EVERYTHING should be published
-4. SKU patterns that always indicate complete assembled products
+IMPORTANT CONTEXT:
+- Power words = words in product TITLES that indicate the product is a COMPLETE STANDALONE item a customer buys directly
+  Examples: lavamanos, mesa, armario, expositor, carro, vitrina
+  
+- Stop words = words in product TITLES that indicate the product is a MOUNTING COMPONENT or SPARE PART that needs a parent product
+  Examples: tornillo, tuerca, separador, refuerzo, pletina, cartela
 
-Focus on the ACTUAL words found in these product titles.
-Do NOT generate generic marketing words.
+RULES:
+- 'Separador' is a STOP WORD (mounting component) NOT a power word
+- 'Suporte de Jamón' (ham stand) is a standalone product = POWER WORD but 'Suporte' alone as a bracket/bracket = STOP WORD
+- Words like 'tapón', 'sifón', 'válvula' depend on price: if price < €20 = stop word, if price >= €20 = could be published
+
+Analyze the ACTUAL product titles in the data provided.
+Generate specific words that appear in THIS catalog, not generic terms.
 
 Return ONLY this JSON, no other text:
 {
@@ -1076,7 +1082,7 @@ Return ONLY this JSON, no other text:
   "stop_words": [actual words from titles indicating components/parts],
   "strategic_categories": [category patterns to always publish],
   "skip_categories": [category patterns to mostly skip],
-  "sku_publish_patterns": [regex for complete product SKUs],
+  "sku_publish_patterns": ["^91\\d{7}"],
   "min_price_skip": 5,
   "min_price_review": 15,
   "min_price_spare_parts": 50,
