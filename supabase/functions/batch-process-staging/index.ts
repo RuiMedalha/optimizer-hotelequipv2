@@ -322,6 +322,8 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ 
       success: true, 
       count: processedCount,
+      errors: errorCount,
+      total_attempted: processedCount + errorCount,
       remaining: remainingCount || 0
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }
