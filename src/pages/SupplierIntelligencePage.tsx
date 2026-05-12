@@ -291,15 +291,57 @@ function SupplierDetail({ supplier, onBack }: { supplier: any; onBack: () => voi
                 <div className="flex gap-2 flex-wrap">
                   <Button variant="outline" onClick={handleValidateConfig}>Validar JSON</Button>
                   <Button variant="outline" onClick={handleTestConnector} disabled={!feedTestResult}>Testar Connector</Button>
-                  {feedTestResult && (
-                    <Button variant="outline" onClick={() => {
-                      const rows = feedTestResult.rows || feedTestResult.allRows || [];
-                      const headers = rows[0] ? Object.keys(rows[0]).filter((k: string) => !k.startsWith('_')) : [];
-                      const prompt = generateAiPrompt(rows, headers, feedTestResult.format, feedTestResult.xmlFormat);
-                      setAiPrompt(prompt);
-                      setShowAiPromptModal(true);
-                    }}>
-                      <Wand2 className="w-4 h-4 mr-2" />
+                  { (feedUrlCsv || feedUrlXml) && (
+                    <Button 
+                      variant="outline" 
+                      disabled={testingUrl}
+                      onClick={async () => {
+                        const format = feedUrlCsv ? 'csv' : 'xml';
+                        const url = format === 'csv' ? feedUrlCsv : feedUrlXml;
+                        
+                        setTestingUrl(true);
+                        try {
+                          const { data: feedData, error } = await supabase.functions.invoke('fetch-supplier-feed', {
+                            body: { supplierId: supplier.id, workspaceId: wsId, format, feedUrl: url }
+                          });
+                          
+                          if (error) throw error;
+                          
+                          let rows = feedData.rows || feedData.allRows || [];
+                          let headers = [];
+                          
+                          if (format === 'csv' && feedData.rawText) {
+                            const { default: Papa } = await import('papaparse');
+                            let config;
+                            try {
+                              config = JSON.parse(connectorConfigText);
+                            } catch (e) {
+                              config = {};
+                            }
+                            const autoDelimiter = detectCsvDelimiter(feedData.rawText);
+                            const delimiter = config.csv_delimiter || autoDelimiter;
+                            
+                            const parsed = Papa.parse(feedData.rawText, {
+                              delimiter,
+                              header: true,
+                              skipEmptyLines: true
+                            });
+                            rows = parsed.data;
+                          }
+                          
+                          headers = rows[0] ? Object.keys(rows[0]).filter((k: string) => !k.startsWith('_')) : [];
+                          
+                          const prompt = generateAiPrompt(rows, headers, feedData.format || format, feedData.xmlFormat);
+                          setAiPrompt(prompt);
+                          setShowAiPromptModal(true);
+                          toast.success("Análise do feed concluída. Prompt gerado.");
+                        } catch (e: any) {
+                          toast.error(`Erro ao analisar feed para o prompt: ${e.message}`);
+                        } finally {
+                          setTestingUrl(false);
+                        }
+                      }}>
+                      {testingUrl ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Wand2 className="w-4 h-4 mr-2" />}
                       Gerar Prompt para IA
                     </Button>
                   )}
