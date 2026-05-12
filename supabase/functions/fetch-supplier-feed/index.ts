@@ -7,6 +7,13 @@ const corsHeaders = {
 
 // Standalone parsing functions (identical to frontend logic)
 
+function detectCsvDelimiter(text: string): string {
+  const firstLine = text.split('\n')[0] || '';
+  const commaCount = (firstLine.match(/,/g) || []).length;
+  const semicolonCount = (firstLine.match(/;/g) || []).length;
+  return semicolonCount > commaCount ? ';' : ',';
+}
+
 function detectXmlFormat(xmlText: string) {
   if (xmlText.includes('<SHOP>') || xmlText.includes('<SHOPITEM>')) return 'tefcold';
   if (xmlText.includes('base.google.com') || 
@@ -93,14 +100,40 @@ Deno.serve(async (req) => {
   try {
     const { supplierId, workspaceId, format, feedUrl: directUrl } = await req.json();
     
-    // If direct URL provided, handle immediately without DB lookup
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    // If direct URL provided, handle immediately
     if (directUrl) {
       const response = await fetch(directUrl);
       if (!response.ok) throw new Error(`Feed fetch failed: ${response.status}`);
       const text = await response.text();
+      
       if (format === 'csv' && !text.trimStart().startsWith('<')) {
-        return new Response(JSON.stringify({ format: 'csv', rawText: text, totalRows: text.split('\n').length - 1 }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        let totalRows = text.split('\n').length - 1;
+        
+        // Use connector_config if possible
+        let delimiter = null;
+        if (supplierId) {
+          const { data: s } = await supabase.from('supplier_profiles').select('connector_config').eq('id', supplierId).single();
+          delimiter = s?.connector_config?.csv_delimiter;
+        }
+        
+        if (!delimiter) delimiter = detectCsvDelimiter(text);
+        
+        // Quick check for total rows if delimiter is semicolon
+        if (delimiter === ';') {
+          totalRows = text.split('\n').filter(l => l.includes(';')).length - 1;
+        }
+
+        return new Response(JSON.stringify({ 
+          format: 'csv', 
+          rawText: text, 
+          totalRows,
+          csvDelimiter: delimiter
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
       const xmlFmt = detectXmlFormat(text);
       let rows: any[] = [];
@@ -110,11 +143,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ format: 'xml', xmlFormat: xmlFmt, rows: rows.slice(0, 5), allRows: rows, totalRows: rows.length }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    // DB-based fetch (if no directUrl)
     
     const { data: supplier, error } = await supabase
       .from("supplier_profiles")
@@ -143,10 +172,12 @@ Deno.serve(async (req) => {
       else throw new Error('Formato XML não reconhecido');
     } else {
       // CSV — return raw text for frontend papaparse
+      const delimiter = supplier.connector_config?.csv_delimiter || detectCsvDelimiter(text);
       return new Response(JSON.stringify({
         format: 'csv',
         rawText: text,
-        totalRows: text.split('\n').length - 1
+        totalRows: text.split('\n').length - 1,
+        csvDelimiter: delimiter
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
     
