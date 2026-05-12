@@ -465,7 +465,8 @@ export function formatAttributeValue(val: any): string {
 
 export function detectSpecialFields(
   rows: Record<string, any>[],
-  headers: string[]
+  headers: string[],
+  xmlFormat?: XmlFormat | null
 ): {
   priceFields: Array<{ key: string; label: string; sample: string }>;
   imageFields: Array<{ key: string; label: string; sample: string }>;
@@ -475,18 +476,66 @@ export function detectSpecialFields(
   
   const sample = rows[0];
   
-  // Detect price fields — numeric values that look like prices
-  const priceFields = headers
-    .filter(h => {
-      const val = String(sample[h] || '');
-      const cleaned = val.replace(/[.,\s€$£]/g, '');
-      return /^\d+$/.test(cleaned) && parseFloat(val.replace(',', '.')) > 0;
-    })
-    .map(h => ({
-      key: h,
-      label: h,
-      sample: String(sample[h] || '')
-    }));
+  // 1. Exact priority matches
+  const exactMatches = ["g:price", "price", "PRICE", "BASIC_PRICE", "Precio", "Preço", "preco", "valor"];
+  
+  // 2. Partial matches (only if no exact match)
+  const partialMatches = ["price", "preco", "preço", "valor", "cost"];
+  
+  // 3. Exclusions (never auto-select these if they contain these words)
+  const exclusions = ["id", "label", "code", "link", "type", "brand", "category", "image", "condition", "availability"];
+
+  const potentialPriceFields = headers.filter(h => {
+    const val = String(sample[h] || '');
+    const cleaned = val.replace(/[.,\s€$£]/g, '');
+    const isNumeric = /^\d+$/.test(cleaned) && parseFloat(val.replace(',', '.')) > 0;
+    if (!isNumeric) return false;
+
+    // Check exclusions
+    const lowerHeader = h.toLowerCase();
+    
+    // Never select if it contains any exclusion word
+    if (exclusions.some(exc => lowerHeader.includes(exc))) {
+      // UNLESS it's an exact match from our priority list (e.g. "price" vs "price_id")
+      if (!exactMatches.some(ex => lowerHeader === ex.toLowerCase())) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  // Sort potential price fields by priority
+  const sortedPriceFields = [...potentialPriceFields].sort((a, b) => {
+    const la = a.toLowerCase();
+    const lb = b.toLowerCase();
+    
+    // Google Merchant specific preference
+    if (xmlFormat === 'google_merchant') {
+      if (a === 'g:price') return -1;
+      if (b === 'g:price') return 1;
+    }
+
+    // Exact matches first
+    const aExact = exactMatches.find(ex => la === ex.toLowerCase());
+    const bExact = exactMatches.find(ex => lb === ex.toLowerCase());
+    if (aExact && !bExact) return -1;
+    if (!aExact && bExact) return 1;
+    
+    // Partial matches next
+    const aPartial = partialMatches.find(pm => la.includes(pm));
+    const bPartial = partialMatches.find(pm => lb.includes(pm));
+    if (aPartial && !bPartial) return -1;
+    if (!aPartial && bPartial) return 1;
+    
+    return 0;
+  });
+
+  const priceFields = sortedPriceFields.map(h => ({
+    key: h,
+    label: h,
+    sample: String(sample[h] || '')
+  }));
 
   // Detect image fields — URLs that look like images
   const imageFields = headers
