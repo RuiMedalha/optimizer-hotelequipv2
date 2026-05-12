@@ -302,6 +302,7 @@ export async function exportAllProductsToExcel(
       _product_type: "all",
       _source_file: "all",
       _woo_filter: "all",
+      _image_status: "all",
       _page: page,
       _page_size: PAGE_SIZE,
     });
