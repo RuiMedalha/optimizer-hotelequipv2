@@ -1144,60 +1144,116 @@ ${excelContext}`,
     <div className="space-y-6">
       <Card>
         <CardHeader><CardTitle className="text-sm">Estado das Fontes</CardTitle></CardHeader>
-        <CardContent className="flex flex-wrap gap-4 items-center">
-          <Badge variant={sourcesStatus?.feed ? "default" : "secondary"}>Feed {sourcesStatus?.feed ? "✅" : "❌"}</Badge>
-          
-          <div className="flex items-center gap-2">
-            <Badge variant={sourcesStatus?.pdf ? "default" : "secondary"}>
-              PDF {sourcesStatus?.pdf ? "✅" : "❌"}
-            </Badge>
-            {sourcesStatus?.pdfIndexed ? (
-              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                ✅ PDF indexado 
-                <button 
-                  onClick={() => queryClient.invalidateQueries({ queryKey: ['supplier-knowledge-graph'] })}
-                  className="text-primary hover:underline flex items-center ml-1"
-                >
-                  Ver Knowledge Graph <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
-                </button>
-              </span>
-            ) : sourcesStatus?.pdf ? (
-              <span className="text-[10px] text-amber-500">Aguardando indexação</span>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Input 
-                  type="file" 
-                  accept=".pdf" 
-                  className="hidden" 
-                  id="pdf-upload-pub" 
-                  onChange={handlePdfUpload}
-                  disabled={uploadingPdf}
-                />
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="h-7 text-[10px] gap-1 px-2"
-                  disabled={uploadingPdf}
-                  asChild
-                >
-                  <label htmlFor="pdf-upload-pub" className="cursor-pointer">
-                    {uploadingPdf ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
-                    {uploadingPdf ? "A carregar..." : "📄 Carregar PDF"}
-                  </label>
-                </Button>
-              </div>
-            )}
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-4 items-center">
+            <Badge variant={sourcesStatus?.feed ? "default" : "secondary"}>Feed {sourcesStatus?.feed ? "✅" : "❌"}</Badge>
+            
+            <div className="flex items-center gap-2">
+              <Badge variant={sourcesStatus?.pdf ? "default" : "secondary"}>
+                PDF {sourcesStatus?.pdf ? "✅" : "❌"}
+              </Badge>
+              {sourcesStatus?.pdfIndexed ? (
+                <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                  ✅ PDF indexado 
+                  <button 
+                    onClick={() => queryClient.invalidateQueries({ queryKey: ['supplier-knowledge-graph'] })}
+                    className="text-primary hover:underline flex items-center ml-1"
+                  >
+                    Ver Knowledge Graph <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
+                  </button>
+                </span>
+              ) : sourcesStatus?.pdf ? (
+                <span className="text-[10px] text-amber-500">Aguardando indexação</span>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Input 
+                    type="file" 
+                    accept=".pdf" 
+                    className="hidden" 
+                    id="pdf-upload-pub" 
+                    onChange={handlePdfUpload}
+                    disabled={uploadingPdf}
+                  />
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-7 text-[10px] gap-1 px-2"
+                    disabled={uploadingPdf}
+                    asChild
+                  >
+                    <label htmlFor="pdf-upload-pub" className="cursor-pointer">
+                      {uploadingPdf ? <Loader2 className="w-3 h-3 animate-spin" /> : <FileText className="w-3 h-3" />}
+                      {uploadingPdf ? "A carregar..." : "📄 Carregar PDF"}
+                    </label>
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Badge variant={sourcesStatus?.excel ? "default" : "secondary"}>
+                Excel {sourcesStatus?.excel ? "✅" : "❌"}
+              </Badge>
+              <Input 
+                type="file" 
+                accept=".xlsx,.xls,.csv" 
+                className="hidden" 
+                id="excel-upload-pub" 
+                onChange={handleExcelUpload}
+                disabled={uploadingExcel}
+              />
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-7 text-[10px] gap-1 px-2"
+                disabled={uploadingExcel}
+                asChild
+              >
+                <label htmlFor="excel-upload-pub" className="cursor-pointer">
+                  {uploadingExcel ? <Loader2 className="w-3 h-3 animate-spin" /> : <BarChart3 className="w-3 h-3" />}
+                  {uploadingExcel ? "A carregar..." : "📊 Carregar Excel"}
+                </label>
+              </Button>
+            </div>
+            
+            <Badge variant={sourcesStatus?.website ? "default" : "secondary"}>Website {sourcesStatus?.website ? "✅" : "❌"}</Badge>
           </div>
 
-          <Badge variant={sourcesStatus?.excel ? "default" : "secondary"}>Excel {sourcesStatus?.excel ? "✅" : "❌"}</Badge>
-          <Badge variant={sourcesStatus?.website ? "default" : "secondary"}>Website {sourcesStatus?.website ? "✅" : "❌"}</Badge>
+          {excelFilesList && excelFilesList.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-[10px] font-bold uppercase text-muted-foreground">Ficheiros Excel/Tarifas:</p>
+              <div className="flex flex-wrap gap-2">
+                {excelFilesList.map((file: any) => (
+                  <div key={file.id} className="text-[10px] bg-muted px-2 py-1 rounded border flex items-center gap-2">
+                    <FileText className="w-2.5 h-2.5" />
+                    {file.file_name}
+                    <span className="text-muted-foreground">({new Date(file.created_at).toLocaleDateString()})</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(!sourcesStatus?.feed && !sourcesStatus?.pdf && !sourcesStatus?.excel) && (
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+              <p className="text-xs text-amber-600 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" />
+                <strong>Fornecedor novo sem dados.</strong> Para gerar regras precisas, carrega um catálogo PDF, uma lista Excel ou configura o Feed.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader><CardTitle className="text-sm">Regras de Publicabilidade</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          {excelSource && <div className="text-[10px] text-muted-foreground bg-muted p-1 rounded inline-block">Analisando: {excelSource}</div>}
+          {(generatingStatus || excelSource) && (
+            <div className="text-[10px] text-muted-foreground bg-muted p-1 px-2 rounded flex items-center gap-2">
+              {isGenerating && <Loader2 className="w-3 h-3 animate-spin" />}
+              {generatingStatus || `Analisando: ${excelSource}`}
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Power Words (publicar)</Label>
