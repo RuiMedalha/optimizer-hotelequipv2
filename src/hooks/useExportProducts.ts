@@ -238,8 +238,9 @@ function productToRow(p: Product, skuPrefix?: string, lookups?: ProductLookups) 
     } else if (Array.isArray(val)) {
       row[col.header] = val.join(", ");
     } else {
+      const isDescription = col.key === "optimized_description" || col.key === "original_description";
       row[col.header] = col.splitPart 
-        ? safeValPart((p as any)[col.key], col.splitPart)
+        ? safeValPart((p as any)[col.key], col.splitPart, isDescription)
         : safeVal((p as any)[col.key]);
     }
   }
