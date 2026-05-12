@@ -124,7 +124,15 @@ Deno.serve(async (req) => {
         for (const [sourceKey, targetKey] of Object.entries(mappings)) {
           const lowerSourceKey = sourceKey.trim().toLowerCase();
           if (normalizedRow[lowerSourceKey] !== undefined && typeof targetKey === "string") {
-            mapped[targetKey] = normalizedRow[lowerSourceKey];
+            let value = normalizedRow[lowerSourceKey];
+            
+            // Decode HTML entities for specific text fields
+            const fieldsToDecode = ["original_title", "original_description", "short_description", "supplier_title", "supplier_description", "category"];
+            if (fieldsToDecode.includes(targetKey)) {
+              value = decodeHtmlEntities(String(value));
+            }
+            
+            mapped[targetKey] = value;
           }
         }
         
@@ -132,10 +140,26 @@ Deno.serve(async (req) => {
         for (const [key, val] of Object.entries(row)) {
           const trimmedKey = key.trim();
           const alreadyMapped = Object.keys(mappings).some(mk => mk.trim().toLowerCase() === trimmedKey.toLowerCase());
-          if (!alreadyMapped) mapped[trimmedKey] = val;
+          if (!alreadyMapped) {
+            let value = val;
+            // Decode HTML entities even for unmapped fields if they are common text fields
+            const fieldsToDecode = ["original_title", "original_description", "short_description", "supplier_title", "supplier_description", "category", "title", "description"];
+            if (fieldsToDecode.includes(trimmedKey.toLowerCase())) {
+              value = decodeHtmlEntities(String(value));
+            }
+            mapped[trimmedKey] = value;
+          }
         }
       } else {
-        Object.assign(mapped, row);
+        // If no mappings, decode fields in the original object
+        for (const [key, val] of Object.entries(row)) {
+          let value = val;
+          const fieldsToDecode = ["original_title", "original_description", "short_description", "supplier_title", "supplier_description", "category", "title", "description"];
+          if (fieldsToDecode.includes(key.toLowerCase())) {
+            value = decodeHtmlEntities(String(value));
+          }
+          mapped[key] = value;
+        }
       }
 
       // ─── Apply SKU Prefix/Suffix & Auto Model ───
