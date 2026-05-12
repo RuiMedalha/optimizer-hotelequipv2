@@ -1162,25 +1162,26 @@ ${excelContext}`,
 
       // Strategy for finding products
       const getSupplierProducts = async () => {
-        // Strategy 1: match by supplier_ref
         let { data } = await (supabase.from('products') as any)
           .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
           .eq('supplier_ref', supplier.id);
-        
-        if (data?.length > 0) return data;
-        
-        // Strategy 2: match by supplier_name
+        if (data && data.length > 0) return data;
         ({ data } = await (supabase.from('products') as any)
-          .select('id, sku, original_title, original_price, category, workflow_state, publishability_decision')
+          .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
           .ilike('supplier_name', `%${supplier.supplier_name}%`));
-        
-        if (data?.length > 0) return data;
-        
-        // Strategy 3: match by brand
+        if (data && data.length > 0) return data;
         ({ data } = await (supabase.from('products') as any)
           .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
           .ilike('brand', `%${supplier.supplier_name}%`));
-          
+        if (data && data.length > 0) return data;
+        const prefix = supplier.supplier_name.substring(0, 4).toUpperCase();
+        ({ data } = await (supabase.from('products') as any)
+          .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
+          .ilike('sku', `${prefix}%`));
+        if (data && data.length > 0) return data;
+        ({ data } = await (supabase.from('products') as any)
+          .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
+          .ilike('origin', `%${supplier.supplier_name}%`));
         return data || [];
       };
 
