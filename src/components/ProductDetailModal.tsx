@@ -384,7 +384,7 @@ export function ProductDetailModal({ product: initialProduct, onClose }: Props) 
                             ...prev, 
                             image_urls: urls, 
                             image_status: "ok",
-                            image_review_notes: "Imagem adicionada manualmente — re-optimizar para gerar alt tag"
+                            image_review_notes: "Imagem adicionada manualmente — re-optimizar para gerar alt tag",
                             image_migration_status: Object.fromEntries(urls.map(u => [u, "ok"]))
                           } : null);
                           qc.invalidateQueries({ queryKey: ["products"] });
