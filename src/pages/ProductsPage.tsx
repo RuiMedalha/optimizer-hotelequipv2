@@ -196,7 +196,7 @@ const ProductsPage = () => {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [allPagesSelected, setAllPagesSelected] = useState(false);
-  const [detailProduct, setDetailProduct] = useState<Product | null>(null);
+  const [detailProduct, setDetailProduct] = useState<any | null>(null);
   const [showFieldSelector, setShowFieldSelector] = useState(false);
   const [selectedFields, setSelectedFields] = useState<Set<OptimizationField>>(new Set(ALL_FIELDS));
   const [selectedPhases, setSelectedPhases] = useState<Set<number>>(new Set(ALL_PHASES));

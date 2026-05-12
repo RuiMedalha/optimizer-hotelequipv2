@@ -295,15 +295,18 @@ export function ProductDetailModal({ product: initialProduct, onClose }: Props) 
           )}
 
           {/* IMAGE STATUS WARNING BANNER */}
-          {(product.image_status === "failed" || product.image_status === "missing") && (
-            <Alert variant="destructive" className="mt-4">
-              <AlertTriangle className="h-4 w-4" />
+          {product.workflow_state === 'needs_review' && (product.image_status === "failed" || product.image_status === "missing" || product.image_status === "partial" || product.image_status === "ok") && (
+            <Alert variant={product.image_status === "ok" ? "default" : "destructive"} className="mt-4">
+              {product.image_status === "ok" ? <Check className="h-4 w-4 text-success" /> : <AlertTriangle className="h-4 w-4" />}
               <AlertDescription className="space-y-3">
                 <div className="flex flex-col gap-1">
                   <span className="font-semibold">
-                    {product.image_status === "failed" ? "⚠️ Falha ao descarregar imagem" : "⚠️ Produto sem imagens"}
+                    {product.image_status === "missing" && "⚠️ Sem imagem — adiciona um URL para continuar"}
+                    {product.image_status === "failed" && "⚠️ Falha na migração — tenta recuperar ou adiciona URL manualmente"}
+                    {product.image_status === "partial" && "⚠️ Algumas imagens em falta — verifica e completa"}
+                    {product.image_status === "ok" && "✅ Imagem adicionada — re-optimizar para gerar alt tag automaticamente"}
                   </span>
-                  {product.image_urls?.[0] && (
+                  {product.image_urls?.[0] && product.image_status !== "ok" && (
                     <span className="text-xs opacity-90 break-all font-mono">
                       URL original: {product.image_urls[0]}
                     </span>
@@ -369,6 +372,7 @@ export function ProductDetailModal({ product: initialProduct, onClose }: Props) 
                             .update({ 
                               image_urls: urls,
                               image_status: "ok",
+                              image_review_notes: "Imagem adicionada manualmente — re-optimizar para gerar alt tag",
                               image_migration_status: Object.fromEntries(urls.map(u => [u, "ok"]))
                             })
                             .eq("id", product.id);
@@ -380,6 +384,7 @@ export function ProductDetailModal({ product: initialProduct, onClose }: Props) 
                             ...prev, 
                             image_urls: urls, 
                             image_status: "ok",
+                            image_review_notes: "Imagem adicionada manualmente — re-optimizar para gerar alt tag"
                             image_migration_status: Object.fromEntries(urls.map(u => [u, "ok"]))
                           } : null);
                           qc.invalidateQueries({ queryKey: ["products"] });
