@@ -921,7 +921,7 @@ Return ONLY this JSON structure:
           if (result.decision === 'skip' && product.workflow_state === 'draft') updates.workflow_state = 'archived';
           else if (result.decision === 'review' && product.workflow_state === 'draft') updates.workflow_state = 'needs_review';
 
-          await supabase.from('products').update(updates).eq('id', product.id);
+          await (supabase.from('products') as any).update(updates).eq('id', product.id);
           p[result.decision]++;
           total++;
         }
