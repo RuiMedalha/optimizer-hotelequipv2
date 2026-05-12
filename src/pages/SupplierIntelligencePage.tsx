@@ -1157,22 +1157,41 @@ ${excelContext}`,
         return { score: 50, reason: 'Ambíguo', decision: 'review' };
       };
 
-      let from = 0;
-      const limit = 100;
+      // Strategy for finding products
+      const getSupplierProducts = async () => {
+        // Strategy 1: match by supplier_ref
+        let { data } = await (supabase.from('products') as any)
+          .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
+          .eq('supplier_ref', supplier.id);
+        
+        if (data?.length > 0) return data;
+        
+        // Strategy 2: match by supplier_name
+        ({ data } = await (supabase.from('products') as any)
+          .select('id, sku, original_title, original_price, category, workflow_state, publishability_decision')
+          .ilike('supplier_name', `%${supplier.supplier_name}%`));
+        
+        if (data?.length > 0) return data;
+        
+        // Strategy 3: match by brand
+        ({ data } = await (supabase.from('products') as any)
+          .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
+          .ilike('brand', `%${supplier.supplier_name}%`));
+          
+        return data || [];
+      };
+
+      const products = await getSupplierProducts();
+      if (products.length === 0) throw new Error("Não foram encontrados produtos para classificar com nenhuma estratégia.");
+
       let total = 0;
       let p: any = { publish: 0, review: 0, skip: 0 };
-
-      while (true) {
-        const { data: products, error } = await (supabase
-          .from('products') as any)
-          .select('id, sku, original_price, original_title, category, workflow_state')
-          .eq('supplier_ref', supplier.id)
-          .range(from, from + limit - 1);
-        
-        if (error) throw error;
-        if (!products.length) break;
-
-        for (const product of products) {
+      
+      // Process in small batches for feedback
+      const batchSize = 50;
+      for (let i = 0; i < products.length; i += batchSize) {
+        const batch = products.slice(i, i + batchSize);
+        for (const product of batch) {
           const result: any = applyRules(product, rules);
           const updates: any = {
             publishability_score: result.score,
@@ -1187,9 +1206,7 @@ ${excelContext}`,
           p[result.decision]++;
           total++;
         }
-        
-        from += limit;
-        setProgress(Math.min(99, Math.round((from / (supplier.publishability_stats?.total || from + 1000)) * 100)));
+        setProgress(Math.round(((i + batch.length) / products.length) * 100));
       }
 
       const stats = { ...p, total, last_run: new Date().toISOString() };
@@ -1198,6 +1215,7 @@ ${excelContext}`,
         publishability_last_run: stats.last_run
       }).eq('id', supplier.id);
       
+      await fetchUpdatedStats();
       queryClient.invalidateQueries({ queryKey: ['supplier-profiles'] });
       toast.success("Classificação concluída.");
       setProgress(100);
