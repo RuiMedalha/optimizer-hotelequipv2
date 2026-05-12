@@ -2513,6 +2513,17 @@ async function buildVariationPayload(
     payload.stock_status = qty > 0 ? "instock" : "outofstock";
   }
 
+  // Minimum Order Quantity meta for variations
+  if (variation.min_order_quantity) {
+    const moq = String(variation.min_order_quantity || 1);
+    upsertMeta("_min_purchase_quantity", moq);
+    upsertMeta("_purchase_quantity_step", moq);
+  } else if (parent.min_order_quantity) {
+    const moq = String(parent.min_order_quantity || 1);
+    upsertMeta("_min_purchase_quantity", moq);
+    upsertMeta("_purchase_quantity_step", moq);
+  }
+
   if (has("images")) {
     const urls: string[] = Array.isArray(variation.image_urls) ? variation.image_urls : [];
     if (urls.length > 0) {
