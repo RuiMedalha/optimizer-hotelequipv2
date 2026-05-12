@@ -461,7 +461,8 @@ const IngestionHubPage = () => {
           // Detect special fields for user selection
           const { detectSpecialFields } = await import('@/lib/supplierConnector');
           const special = detectSpecialFields(parsedData, 
-            Object.keys(parsedData[0] || {}).filter(k => !k.startsWith('_'))
+            Object.keys(parsedData[0] || {}).filter(k => !k.startsWith('_')),
+            detectedXmlFormat as any
           );
           setSpecialFields(special);
           // Auto-select the first price field as default
