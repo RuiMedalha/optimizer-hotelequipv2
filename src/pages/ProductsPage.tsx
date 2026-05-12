@@ -1081,10 +1081,22 @@ const ProductsPage = () => {
               {product.product_type === "variable" ? "Variável" : "Variação"}
             </Badge>
           )}
-          <Badge variant="outline" className={cn("text-xs", product.is_discontinued ? statusColors.discontinued : statusColors[product.status])}>
-            {product.status === "processing" && <Loader2 className="w-3 h-3 animate-spin mr-1" />}
-            {product.is_discontinued ? statusLabels.discontinued : statusLabels[product.status]}
-          </Badge>
+          <div className="flex items-center gap-1.5">
+            <Badge variant="outline" className={cn("text-xs", product.is_discontinued ? statusColors.discontinued : statusColors[product.status])}>
+              {product.status === "processing" && <Loader2 className="w-3 h-3 animate-spin mr-1" />}
+              {product.is_discontinued ? statusLabels.discontinued : statusLabels[product.status]}
+            </Badge>
+            {(product.status === "needs_review" || product.status === "review" as any) && (
+              <>
+                {(product.image_status === 'missing' || product.image_status === 'failed' || product.image_status === 'partial') && (
+                  <span title="Problema com imagens" className="cursor-help text-xs">📷</span>
+                )}
+                {product.image_status === 'ok' && (product as any).image_review_notes?.includes('manualmente') && (
+                  <span title="Imagem adicionada, aguarda re-otimização" className="cursor-help text-xs">✅📷</span>
+                )}
+              </>
+            )}
+          </div>
           {product.woocommerce_id && (
             <div className="flex items-center gap-1">
               <Badge 
