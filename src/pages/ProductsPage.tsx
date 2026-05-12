@@ -153,6 +153,7 @@ const ProductsPage = () => {
   });
 
   const updateStatus = useUpdateProductStatus();
+  const { data: stats } = useProductStats();
   const optimizeProducts = useOptimizeProducts();
   const { activeJob, isCreating: isCreatingJob, createJob, cancelJob, dismissJob } = useOptimizationJob();
   const [showJobErrors, setShowJobErrors] = useState(false);
