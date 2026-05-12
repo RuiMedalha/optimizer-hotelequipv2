@@ -851,7 +851,30 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
       }
 
       if (!products || products.length === 0) {
-        throw new Error("Não foram encontrados produtos reais para este fornecedor. Importa o feed primeiro.");
+        // STEP 1.5 — Fallback to Feed if no products in DB
+        const format = supplier.feed_url_csv ? 'csv' : 'xml';
+        const url = format === 'csv' ? supplier.feed_url_csv : supplier.feed_url_xml;
+        
+        if (url) {
+          toast.info("Lendo amostra diretamente do feed...");
+          const { data: feedData } = await supabase.functions.invoke('fetch-supplier-feed', {
+            body: { supplierId: supplier.id, workspaceId, format, feedUrl: url }
+          });
+          const rows = feedData?.allRows || feedData?.rows || [];
+          if (rows.length > 0) {
+            const sample = [...rows.slice(0, 70), ...rows.slice(Math.floor(rows.length/2), Math.floor(rows.length/2) + 60), ...rows.slice(-70)];
+            products = sample.map((r: any) => ({
+              original_title: r.title || r.name || r.original_title || r.Título || r.Nome,
+              original_price: r.price || r.original_price || r.Preço,
+              category: r.category || r.Categoria,
+              sku: r.sku || r.SKU || r.Referência
+            }));
+          }
+        }
+      }
+
+      if (!products || products.length === 0) {
+        throw new Error("Não foram encontrados produtos no DB nem no feed. Verifica a configuração do feed.");
       }
 
       // STEP 2 — Build real context from actual product data
