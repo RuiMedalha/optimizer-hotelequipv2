@@ -424,6 +424,9 @@ function SupplierDetail({ supplier, onBack }: { supplier: any; onBack: () => voi
             ) : <p className="text-sm text-muted-foreground">Sem sugestões.</p>}
           </CardContent></Card>
         </TabsContent>
+        <TabsContent value="publishability">
+          <SupplierPublishabilityPanel supplier={supplier} workspaceId={wsId} />
+        </TabsContent>
 
         <TabsContent value="graph">
           <Card><CardHeader><CardTitle className="text-sm">Knowledge Graph</CardTitle></CardHeader><CardContent>
