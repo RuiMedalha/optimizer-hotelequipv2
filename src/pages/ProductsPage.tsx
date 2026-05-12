@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Search, Check, X, Edit, Sparkles, Loader2, Download, Send, Trash2, Settings2, Save, GitBranch, Layers, Plus, Ban, Filter, ChevronDown, ChevronRight, Rocket, XCircle, List, Network, Globe, Copy, AlertTriangle, ImageIcon, Camera, GitCompare, Wand2, Tag, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useProducts, useAllProductIds, useUpdateProductStatus, useProductFilterOptions, type Product, type ProductFilters } from "@/hooks/useProducts";
+import { useProducts, useAllProductIds, useUpdateProductStatus, useProductFilterOptions, useProductStats, type Product, type ProductFilters } from "@/hooks/useProducts";
 import { useOptimizeProducts, OPTIMIZATION_FIELDS, OPTIMIZATION_PHASES, CancellationToken, type OptimizationField } from "@/hooks/useOptimizeProducts";
 import { useActiveAiModels, useActiveImageModels } from "@/hooks/useAiProviderCenter";
 import { useOptimizationJob } from "@/hooks/useOptimizationJob";
@@ -153,6 +153,7 @@ const ProductsPage = () => {
   });
 
   const updateStatus = useUpdateProductStatus();
+  const { data: stats } = useProductStats();
   const optimizeProducts = useOptimizeProducts();
   const { activeJob, isCreating: isCreatingJob, createJob, cancelJob, dismissJob } = useOptimizationJob();
   const [showJobErrors, setShowJobErrors] = useState(false);
@@ -193,6 +194,7 @@ const ProductsPage = () => {
   const [phaseFilter, setPhaseFilter] = useState<string>("all");
   const [wooFilter, setWooFilter] = useState<string>("all");
   const [migrationFilter, setMigrationFilter] = useState<string>("all");
+  const [publishabilityFilter, setPublishabilityFilter] = useState<string>("all");
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [allPagesSelected, setAllPagesSelected] = useState(false);
@@ -300,6 +302,7 @@ const ProductsPage = () => {
     sourceFile: sourceFileFilter,
     wooFilter,
     imageStatus: imageIssueFilter ? "any_issue" : "all",
+    publishabilityDecision: publishabilityFilter,
     page: currentPage,
     pageSize: PAGE_SIZE,
   };
@@ -1142,6 +1145,21 @@ const ProductsPage = () => {
                 </Badge>
               )}
             </>
+          )}
+          {product.publishability_decision && (
+            <Badge 
+              variant="outline" 
+              className={cn(
+                "text-[10px] gap-0.5",
+                product.publishability_decision === 'publish' ? "bg-green-500/10 text-green-600 border-green-500/20" :
+                product.publishability_decision === 'review' ? "bg-amber-500/10 text-amber-600 border-amber-500/20" :
+                "bg-red-500/10 text-red-600 border-red-500/20"
+              )}
+              title={product.publishability_reason || ""}
+            >
+              {product.publishability_decision === 'publish' ? "✅" : 
+               product.publishability_decision === 'review' ? "👁" : "❌"}
+            </Badge>
           )}
         </div>
       </td>
@@ -2172,6 +2190,42 @@ const ProductsPage = () => {
           </div>
         ) : null;
       })()}
+      {/* Publishability Quick Filters */}
+      <div className="flex gap-2 flex-wrap mb-2">
+        <Button 
+          size="sm" 
+          variant={publishabilityFilter === "publish" ? "default" : "outline"} 
+          className={cn("h-8 text-xs", publishabilityFilter === "publish" && "bg-green-600 hover:bg-green-700")}
+          onClick={() => setPublishabilityFilter(publishabilityFilter === "publish" ? "all" : "publish")}
+        >
+          ✅ Publicar ({stats?.publish || 0})
+        </Button>
+        <Button 
+          size="sm" 
+          variant={publishabilityFilter === "review" ? "default" : "outline"} 
+          className={cn("h-8 text-xs", publishabilityFilter === "review" && "bg-amber-500 hover:bg-amber-600")}
+          onClick={() => setPublishabilityFilter(publishabilityFilter === "review" ? "all" : "review")}
+        >
+          👁 Rever ({stats?.review || 0})
+        </Button>
+        <Button 
+          size="sm" 
+          variant={publishabilityFilter === "skip" ? "default" : "outline"} 
+          className={cn("h-8 text-xs", publishabilityFilter === "skip" && "bg-red-600 hover:bg-red-700")}
+          onClick={() => setPublishabilityFilter(publishabilityFilter === "skip" ? "all" : "skip")}
+        >
+          ❌ Ignorar ({stats?.skip || 0})
+        </Button>
+        <Button 
+          size="sm" 
+          variant={publishabilityFilter === "null" ? "default" : "outline"} 
+          className="h-8 text-xs"
+          onClick={() => setPublishabilityFilter(publishabilityFilter === "null" ? "all" : "null")}
+        >
+          ⚪ Não analisado ({stats?.unanalyzed || 0})
+        </Button>
+      </div>
+
       <div className="space-y-3">
         <div className="flex flex-wrap gap-2 sm:gap-3 items-center">
           <div className="relative flex-1 min-w-[150px] sm:min-w-[200px] max-w-sm">
@@ -2226,9 +2280,9 @@ const ProductsPage = () => {
           >
             <Filter className="w-4 h-4 mr-1" />
             Filtros
-            {(seoScoreFilter !== "all" || hasKeywordFilter !== "all" || sourceFileFilter !== "all" || productTypeFilter !== "all" || phaseFilter !== "all" || migrationFilter !== "all") && (
+            {(seoScoreFilter !== "all" || hasKeywordFilter !== "all" || sourceFileFilter !== "all" || productTypeFilter !== "all" || phaseFilter !== "all" || migrationFilter !== "all" || publishabilityFilter !== "all") && (
               <Badge variant="default" className="ml-1.5 h-5 w-5 p-0 flex items-center justify-center text-[10px]">
-                {[seoScoreFilter, hasKeywordFilter, sourceFileFilter, productTypeFilter, phaseFilter, migrationFilter].filter(f => f !== "all").length}
+                {[seoScoreFilter, hasKeywordFilter, sourceFileFilter, productTypeFilter, phaseFilter, migrationFilter, publishabilityFilter].filter(f => f !== "all").length}
               </Badge>
             )}
           </Button>
@@ -2357,6 +2411,7 @@ const ProductsPage = () => {
                     setPhaseFilter("all");
                     setWooFilter("all");
                     setMigrationFilter("all");
+                    setPublishabilityFilter("all");
                   }}
                 >
                   Limpar filtros
