@@ -931,13 +931,19 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
 
       console.log(`Split text into ${chunks.length} chunks`);
 
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado.");
+
       // 4. Save chunks to knowledge_chunks
-      const knowledgeChunks = chunks.map(content => ({
+      const knowledgeChunks = chunks.map((content, index) => ({
         supplier_id: supplier.id,
         workspace_id: workspaceId,
+        user_id: user.id,
         content,
-        source: 'pdf_catalog',
-        file_id: pdfFile.id
+        source_name: pdfFile.file_name,
+        source_type: 'pdf',
+        file_id: pdfFile.id,
+        chunk_index: index
       }));
 
       // Delete existing chunks for this supplier first
