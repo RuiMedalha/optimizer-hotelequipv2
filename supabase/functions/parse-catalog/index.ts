@@ -655,28 +655,26 @@ async function processKnowledge(
   supabase: any, userId: string, filePath: string, fileName: string,
   workspaceId?: string, fileId?: string, workflowRunId?: string, supplierId?: string
 ) {
-  console.log(`Starting PDF parse for file: ${fileName}`);
-  let { data: fileData, error: downloadError } = await supabase.storage.from("knowledge-base").download(filePath);
-  
-  if (downloadError) {
-    console.warn(`Retry download from "catalogs" for ${filePath}`);
-    const { data: fallbackData, error: fallbackError } = await supabase.storage.from("catalogs").download(filePath);
-    if (fallbackError) {
-      console.error("Download error:", fallbackError.message);
-      return;
-    }
-    fileData = fallbackData;
-  }
-
-  const bytes = await fileData.arrayBuffer();
-  console.log(`Downloaded file, size: ${bytes.byteLength} bytes`);
-
+  console.log(`Starting processKnowledge for file: ${fileName} (path: ${filePath})`);
   const ext = fileName.toLowerCase().split(".").pop();
   let extractedText = "";
 
   if (ext === "pdf") {
-    extractedText = await extractPdfText(fileData, fileName, workspaceId, supplierId, fileId);
+    // For PDFs, we delegate to extractPdfText which uses extract-pdf-pages.
+    // We pass the filePath (storage path) instead of downloading the whole file here
+    // to avoid Memory Limit Exceeded (especially for large files like 65MB).
+    extractedText = await extractPdfText(null as any, filePath, workspaceId, supplierId, fileId);
   } else if (ext === "xlsx" || ext === "xls") {
+    let { data: fileData, error: downloadError } = await supabase.storage.from("knowledge-base").download(filePath);
+    if (downloadError) {
+      console.warn(`Retry download from "catalogs" for ${filePath}`);
+      const { data: fallbackData, error: fallbackError } = await supabase.storage.from("catalogs").download(filePath);
+      if (fallbackError) {
+        console.error("Download error:", fallbackError.message);
+        return;
+      }
+      fileData = fallbackData;
+    }
     extractedText = await extractExcelText(fileData);
   }
 
@@ -793,23 +791,16 @@ async function extractExcelText(fileData: Blob): Promise<string> {
   return parts.join("\n\n").substring(0, 50000);
 }
 
-async function extractPdfText(fileData: Blob, fileName: string, workspaceId?: string, supplierId?: string, fileId?: string): Promise<string> {
+async function extractPdfText(fileData: Blob | null, storagePath: string, workspaceId?: string, supplierId?: string, fileId?: string): Promise<string> {
   const adminDb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
   
   try {
     // FIX 2: Chunked processing for large PDFs
-    // Since we don't have a direct PDF parser here that gives page count easily without external deps,
-    // we use extract-pdf-pages to get the overview and then extract in chunks.
+    // We use extract-pdf-pages to extract text in chunks (20 pages at a time).
+    // We process the first 60 pages to stay within reasonable limits for "knowledge" extraction
+    // used for rule generation.
     
-    console.log("Calling extract-pdf-pages for orchestration/overview...");
-    const overviewResp = await adminDb.functions.invoke('extract-pdf-pages', {
-      body: { extractionId: fileId || fileName } 
-    });
-    
-    // If extract-pdf-pages is already processing, it might return a background status.
-    // However, for knowledge extraction, we prefer a more direct approach or wait for it.
-    
-    // FALLBACK (FIX 4): If the document is large or AI fails, we use extract-pdf-pages
+    console.log(`Using extract-pdf-pages to extract text in chunks (path: ${storagePath})...`);
     // to get the first 30 pages as requested for rule generation.
     
     console.log("Using extract-pdf-pages to extract text in chunks (20 pages at a time)...");
@@ -831,7 +822,7 @@ async function extractPdfText(fileData: Blob, fileName: string, workspaceId?: st
             chunkMode: true,
             chunkStart: startPage,
             chunkEnd: endPage,
-            storagePath: fileName, // Assuming storagePath matches fileName if not provided
+            storagePath: storagePath, 
             overviewData: { language: "pt", document_type: "product_catalog" }
           }
         });
@@ -850,7 +841,21 @@ async function extractPdfText(fileData: Blob, fileName: string, workspaceId?: st
     if (fullText) return fullText;
 
     // Last resort fallback: original direct AI extraction for small files
-    const buffer = await fileData.arrayBuffer();
+    let actualFileData = fileData;
+    if (!actualFileData) {
+      console.log(`Downloading file for fallback extraction: ${storagePath}`);
+      const { data: dlData, error: dlError } = await adminDb.storage.from("knowledge-base").download(storagePath);
+      if (dlError || !dlData) {
+        const fallback = await adminDb.storage.from("catalogs").download(storagePath);
+        actualFileData = fallback.data;
+      } else {
+        actualFileData = dlData;
+      }
+    }
+
+    if (!actualFileData) throw new Error("Could not download file for fallback extraction");
+
+    const buffer = await actualFileData.arrayBuffer();
     const bytes = new Uint8Array(buffer);
     let binary = "";
     const chunkSize = 8192;

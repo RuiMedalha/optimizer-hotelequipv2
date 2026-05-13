@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { directAICall } from "../_shared/ai/direct-ai-call.ts";
+import { encode } from "https://deno.land/std@0.203.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -469,25 +470,19 @@ Devolve APENAS JSON válido.`,
     }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
-  let aiPayload: any = {};
-  try {
-    const content = aiResult.choices?.[0]?.message?.content || "{}";
-    aiPayload = JSON.parse(content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
-  } catch {
-    console.error(`Chunk ${chunkStart}-${chunkEnd} returned non-JSON AI payload`);
-    aiPayload = {};
-  }
-
-  const content = aiPayload?.choices?.[0]?.message?.content || "{}";
   let result: any = { pages: [] };
   try {
-    result = JSON.parse(content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
-  } catch {
+    const content = aiResult.choices?.[0]?.message?.content || "{}";
+    const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    result = JSON.parse(cleaned);
+  } catch (err) {
+    console.error(`Chunk ${chunkStart}-${chunkEnd} JSON parse failed:`, err);
     try {
+      const content = aiResult.choices?.[0]?.message?.content || "";
       const m = content.match(/\{[\s\S]*\}/);
       if (m) result = JSON.parse(m[0]);
     } catch {
-      console.warn(`Chunk ${chunkStart}-${chunkEnd} returned unparsable content`);
+      console.warn(`Chunk ${chunkStart}-${chunkEnd} could not recover JSON`);
       result = { pages: [] };
     }
   }
@@ -497,6 +492,7 @@ Devolve APENAS JSON válido.`,
   let tablesCreated = 0;
   let rowsExtracted = 0;
   let confidenceSum = 0;
+  const chunkResults: any[] = [];
 
   for (let p = chunkStart; p <= chunkEnd; p++) {
     const pageData = pages.find((pg: any) => pg.page_number === p);
@@ -676,22 +672,33 @@ Devolve APENAS JSON válido.`,
       }
       tablesCreated++;
     }
+    chunkResults.push({
+      pageNumber: p,
+      text: readableText || ocrText,
+      products: products,
+      pageData: pageData
+    });
+
     pagesProcessed++;
   }
 
   return new Response(JSON.stringify({
     pagesProcessed, tablesCreated, rowsExtracted, confidenceSum,
+    results: chunkResults,
   }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
 function toBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  const chunkSize = 0x8000;
-
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  try {
+    return encode(new Uint8Array(buffer));
+  } catch (err) {
+    console.error("encodeBase64 failed, falling back to legacy toBase64:", err);
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    }
+    return btoa(binary);
   }
-
-  return btoa(binary);
 }
