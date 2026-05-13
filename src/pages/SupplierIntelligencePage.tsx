@@ -896,6 +896,13 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
 
       // 2. Call the same indexing Edge Function used in Knowledge Graph
       // In this project, 'parse-catalog' with parseKnowledge: true is the standard pipeline
+      console.log('Calling parse-catalog with:', {
+        fileId: pdfFile.id, 
+        supplierId: supplier.id, 
+        workspaceId: workspaceId, 
+        parseKnowledge: true
+      });
+
       const { error: indexError } = await supabase.functions.invoke('parse-catalog', {
         body: { 
           parseKnowledge: true,
