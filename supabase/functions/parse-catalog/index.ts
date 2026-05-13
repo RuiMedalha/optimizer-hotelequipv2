@@ -649,10 +649,16 @@ async function processKnowledge(
   supabase: any, userId: string, filePath: string, fileName: string,
   workspaceId?: string, fileId?: string, workflowRunId?: string, supplierId?: string
 ) {
-  const { data: fileData, error: downloadError } = await supabase.storage.from("catalogs").download(filePath);
-  if (downloadError || !fileData) {
-    console.error("Download error:", downloadError?.message);
-    return;
+  let { data: fileData, error: downloadError } = await supabase.storage.from("knowledge-base").download(filePath);
+  
+  if (downloadError) {
+    console.warn(`Retry download from "catalogs" for ${filePath}`);
+    const { data: fallbackData, error: fallbackError } = await supabase.storage.from("catalogs").download(filePath);
+    if (fallbackError) {
+      console.error("Download error:", fallbackError.message);
+      return;
+    }
+    fileData = fallbackData;
   }
 
   const ext = fileName.toLowerCase().split(".").pop();
