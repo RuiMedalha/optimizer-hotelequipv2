@@ -1255,6 +1255,42 @@ ${excelContext}`,
         const sku = product.sku || '';
         const price = Number(product.original_price) || 0;
         const title = (product.original_title || '').toLowerCase();
+        
+        // Fricosmos specific: skip maintenance parts categories
+        const skipCategoryPatterns = [
+          'pecas de substituico',
+          'peças de substituição', 
+          'acessorios e pecas de substituico',
+          'herrajes'
+        ];
+        const categoryLower = (product.category || '').toLowerCase()
+          .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+        if (skipCategoryPatterns.some(p => categoryLower.includes(p)))
+          return { score: 10, 
+                   reason: 'Categoria de peças de substituição', 
+                   decision: 'skip' };
+
+        // Fricosmos specific: always publish these categories
+        const publishCategoryPatterns = [
+          'sorveteria',
+          'bandejas', 
+          'cepos de corte',
+          'cacifos',
+          'vestiarios',
+          'lava mos',
+          'lavadouros',
+          'torneiras profissionais',
+          'mesas inox',
+          'armarios',
+          'moveis em aco inox'
+        ];
+
+        if (publishCategoryPatterns.some(p => categoryLower.includes(p)))
+          return { score: 90,
+                   reason: `Categoria estratégica Fricosmos`,
+                   decision: 'publish' };
+
         const category = (product.category || '').toLowerCase();
 
         if (index !== undefined && index < 5) {
@@ -1313,27 +1349,26 @@ ${excelContext}`,
         minPriceSkip: rules.min_price_skip
       });
 
-      let totalProcessed = 0;
-      let offset = 0;
-      const batchSize = 100;
+      let allProducts: any[] = [];
+      let page = 0;
+      const pageSize = 100;
       
       console.log('Starting classification for:', supplier.supplier_name, 'Total products:', totalProducts);
 
       while (true) {
-        const { data: batch, error } = await supabase
+        const { data, error } = await supabase
           .from('products')
-          .select('id, sku, original_price, original_title, category, workflow_state')
+          .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
           .or(`supplier_ref.eq.${supplier.id},brand.ilike.%${supplier.supplier_name}%,supplier_name.ilike.%${supplier.supplier_name}%`)
-          .range(offset, offset + batchSize - 1)
-          .order('id'); // Explicit order for consistent pagination
+          .range(page * pageSize, (page + 1) * pageSize - 1)
+          .order('id'); // IMPORTANT: consistent ordering for pagination
         
-        if (error) throw error;
-        if (!batch || batch.length === 0) break;
-
-        const updates = batch.map((product, idx) => {
-          const result: any = applyRules(product, rules, totalProcessed + idx);
+        if (error || !data || data.length === 0) break;
+        
+        const updates = data.map((product, idx) => {
+          const result: any = applyRules(product, rules, (page * pageSize) + idx);
           
-          if (totalProcessed + idx < 5) {
+          if ((page * pageSize) + idx < 5) {
             console.log(`Classification result for ${product.sku}:`, result);
           }
 
@@ -1352,22 +1387,23 @@ ${excelContext}`,
         });
 
         // Save results to DB
-        // Using Promise.all for faster batch updates
         await Promise.all(updates.map(update => {
           const { id, ...data } = update;
           return supabase.from('products').update(data).eq('id', id);
         }));
 
-        totalProcessed += batch.length;
-        offset += batchSize;
+        allProducts = [...allProducts, ...data];
         
-        console.log(`Processed batch: ${totalProcessed} total so far`);
+        console.log(`Fetched page ${page}: ${data.length} products, total so far: ${allProducts.length}`);
         
-        setProgress(Math.round((totalProcessed / totalProducts) * 100));
-        setGeneratingStatus(`A classificar ${totalProcessed} de ${totalProducts} produtos...`);
+        setProgress(Math.round((allProducts.length / totalProducts) * 100));
+        setGeneratingStatus(`A classificar ${allProducts.length} de ${totalProducts} produtos...`);
         
-        if (batch.length < batchSize) break;
+        if (data.length < pageSize) break;
+        page++;
       }
+      
+      console.log(`Total products processed: ${allProducts.length}`);
 
       // Re-fetch counts from DB
       const { count: publishCount } = await supabase
@@ -1392,7 +1428,7 @@ ${excelContext}`,
         publish: publishCount || 0, 
         review: reviewCount || 0, 
         skip: skipCount || 0, 
-        total: totalProcessed, 
+        total: allProducts.length, 
         last_run: new Date().toISOString() 
       };
 
