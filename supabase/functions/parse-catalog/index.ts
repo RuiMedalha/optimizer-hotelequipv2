@@ -796,18 +796,11 @@ async function extractPdfText(fileData: Blob | null, storagePath: string, worksp
   
   try {
     // FIX 2: Chunked processing for large PDFs
-    // Since we don't have a direct PDF parser here that gives page count easily without external deps,
-    // we use extract-pdf-pages to get the overview and then extract in chunks.
+    // We use extract-pdf-pages to extract text in chunks (20 pages at a time).
+    // We process the first 60 pages to stay within reasonable limits for "knowledge" extraction
+    // used for rule generation.
     
-    console.log(`Calling extract-pdf-pages for orchestration/overview (path: ${storagePath})...`);
-    const overviewResp = await adminDb.functions.invoke('extract-pdf-pages', {
-      body: { extractionId: fileId || storagePath } 
-    });
-    
-    // If extract-pdf-pages is already processing, it might return a background status.
-    // However, for knowledge extraction, we prefer a more direct approach or wait for it.
-    
-    // FALLBACK (FIX 4): If the document is large or AI fails, we use extract-pdf-pages
+    console.log(`Using extract-pdf-pages to extract text in chunks (path: ${storagePath})...`);
     // to get the first 30 pages as requested for rule generation.
     
     console.log("Using extract-pdf-pages to extract text in chunks (20 pages at a time)...");
