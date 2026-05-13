@@ -2252,38 +2252,61 @@ const ProductsPage = () => {
       {/* Publishability Quick Filters */}
       <div className="flex items-center justify-between gap-4 mb-2">
         <div className="flex gap-2 flex-wrap">
-        <Button 
-          size="sm" 
-          variant={publishabilityFilter === "publish" ? "default" : "outline"} 
-          className={cn("h-8 text-xs", publishabilityFilter === "publish" && "bg-green-600 hover:bg-green-700")}
-          onClick={() => setPublishabilityFilter(publishabilityFilter === "publish" ? "all" : "publish")}
-        >
-          ✅ Publicar ({stats?.publish || 0})
-        </Button>
-        <Button 
-          size="sm" 
-          variant={publishabilityFilter === "review" ? "default" : "outline"} 
-          className={cn("h-8 text-xs", publishabilityFilter === "review" && "bg-amber-500 hover:bg-amber-600")}
-          onClick={() => setPublishabilityFilter(publishabilityFilter === "review" ? "all" : "review")}
-        >
-          👁 Rever ({stats?.review || 0})
-        </Button>
-        <Button 
-          size="sm" 
-          variant={publishabilityFilter === "skip" ? "default" : "outline"} 
-          className={cn("h-8 text-xs", publishabilityFilter === "skip" && "bg-red-600 hover:bg-red-700")}
-          onClick={() => setPublishabilityFilter(publishabilityFilter === "skip" ? "all" : "skip")}
-        >
-          ❌ Ignorar ({stats?.skip || 0})
-        </Button>
-        <Button 
-          size="sm" 
-          variant={publishabilityFilter === "null" ? "default" : "outline"} 
-          className="h-8 text-xs"
-          onClick={() => setPublishabilityFilter(publishabilityFilter === "null" ? "all" : "null")}
-        >
-          ⚪ Não analisado ({stats?.unanalyzed || 0})
-        </Button>
+          <Button 
+            size="sm" 
+            variant={publishabilityFilter === "publish" ? "default" : "outline"} 
+            className={cn("h-8 text-xs", publishabilityFilter === "publish" && "bg-green-600 hover:bg-green-700")}
+            onClick={() => setPublishabilityFilter(publishabilityFilter === "publish" ? "all" : "publish")}
+          >
+            ✅ Publicar ({stats?.publish || 0})
+          </Button>
+          <Button 
+            size="sm" 
+            variant={publishabilityFilter === "review" ? "default" : "outline"} 
+            className={cn("h-8 text-xs", publishabilityFilter === "review" && "bg-amber-500 hover:bg-amber-600")}
+            onClick={() => setPublishabilityFilter(publishabilityFilter === "review" ? "all" : "review")}
+          >
+            👁 Rever ({stats?.review || 0})
+          </Button>
+          <Button 
+            size="sm" 
+            variant={publishabilityFilter === "skip" ? "default" : "outline"} 
+            className={cn("h-8 text-xs", publishabilityFilter === "skip" && "bg-red-600 hover:bg-red-700")}
+            onClick={() => setPublishabilityFilter(publishabilityFilter === "skip" ? "all" : "skip")}
+          >
+            ❌ Ignorar ({stats?.skip || 0})
+          </Button>
+          <Button 
+            size="sm" 
+            variant={publishabilityFilter === "null" ? "default" : "outline"} 
+            className="h-8 text-xs"
+            onClick={() => setPublishabilityFilter(publishabilityFilter === "null" ? "all" : "null")}
+          >
+            ⚪ Não analisado ({stats?.unanalyzed || 0})
+          </Button>
+        </div>
+
+        {publishabilityFilter !== "all" && filtered.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground">Seleccionar Todos ({filtered.length}):</span>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="h-7 text-[11px] border-green-500/50 text-green-600 hover:bg-green-50"
+              onClick={() => handleBulkUpdatePublishability('publish')}
+            >
+              ✅ Publicar todos
+            </Button>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="h-7 text-[11px] border-red-500/50 text-red-600 hover:bg-red-50"
+              onClick={() => handleBulkUpdatePublishability('skip')}
+            >
+              ❌ Ignorar todos
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="space-y-3">
