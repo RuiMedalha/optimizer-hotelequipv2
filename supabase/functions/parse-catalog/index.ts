@@ -840,30 +840,11 @@ async function extractPdfText(fileData: Blob | null, storagePath: string, worksp
     
     if (fullText) return fullText;
 
-    // Last resort fallback: original direct AI extraction for small files
-    let actualFileData = fileData;
-    if (!actualFileData) {
-      console.log(`Downloading file for fallback extraction: ${storagePath}`);
-      const { data: dlData, error: dlError } = await adminDb.storage.from("knowledge-base").download(storagePath);
-      if (dlError || !dlData) {
-        const fallback = await adminDb.storage.from("catalogs").download(storagePath);
-        actualFileData = fallback.data;
-      } else {
-        actualFileData = dlData;
-      }
-    }
-
-    if (!actualFileData) throw new Error("Could not download file for fallback extraction");
-
-    const buffer = await actualFileData.arrayBuffer();
-    const bytes = new Uint8Array(buffer);
-    let binary = "";
-    const chunkSize = 8192;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
-      binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
-    }
-    const base64 = btoa(binary);
+    // If chunked extraction failed to return text, we don't try to download the whole file
+    // for fallback as it will likely hit memory limits (65MB PDF -> 512MB RAM limit).
+    console.warn(`Chunked extraction returned no text. Skipping full-file fallback to avoid memory limits.`);
+    return "";
+  } catch (err) {
 
     const aiResponse = await fetch(`${SUPABASE_URL}/functions/v1/resolve-ai-route`, {
       method: "POST",
