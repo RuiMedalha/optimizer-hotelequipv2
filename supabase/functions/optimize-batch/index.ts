@@ -420,21 +420,43 @@ serve(async (req) => {
                 }
               }
 
-              const response = await fetch(
-                `${SUPABASE_URL}/functions/v1/optimize-product`,
-                {
-                  method: "POST",
-                  headers: {
-                    Authorization: authHeader,
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify(callBody),
-                }
-              );
+              // Retry transient worker exhaustion errors (WORKER_RESOURCE_LIMIT, 546, 503)
+              let response: Response;
+              let errText = "";
+              const MAX_ATTEMPTS = 4;
+              let attempt = 0;
+              while (true) {
+                attempt++;
+                response = await fetch(
+                  `${SUPABASE_URL}/functions/v1/optimize-product`,
+                  {
+                    method: "POST",
+                    headers: {
+                      Authorization: authHeader,
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(callBody),
+                  }
+                );
+
+                if (response.ok) break;
+
+                errText = await response.text();
+                const transient =
+                  response.status === 503 ||
+                  response.status === 546 ||
+                  response.status === 504 ||
+                  /WORKER_RESOURCE_LIMIT|compute resources|BOOT_ERROR|WORKER_LIMIT/i.test(errText);
+
+                if (!transient || attempt >= MAX_ATTEMPTS) break;
+
+                const delay = 2000 * attempt + Math.floor(Math.random() * 1000);
+                console.warn(`⚠️ Product ${productId} transient error (${response.status}), retry ${attempt}/${MAX_ATTEMPTS} in ${delay}ms`);
+                await new Promise((r) => setTimeout(r, delay));
+              }
 
               if (!response.ok) {
-                const errText = await response.text();
-                console.error(`Product ${productId} phase ${phaseConfig.phase} failed: ${response.status} ${errText}`);
+                console.error(`Product ${productId} phase ${phaseConfig.phase} failed after ${attempt} attempts: ${response.status} ${errText}`);
                 lastError = errText;
                 // Write job item for error
                 await supabase.from("optimization_job_items").insert({
