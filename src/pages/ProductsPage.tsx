@@ -380,18 +380,35 @@ const ProductsPage = () => {
     }
   };
 
+  const handleBulkUpdatePublishability = async (decision: 'publish' | 'skip') => {
     try {
-      const ids = filtered.map(p => p.id);
+      let ids = filtered.map(p => p.id);
+      if (allPagesSelected) {
+        ids = await getAllFilteredIds();
+        if (ids.length === 0) return;
+      }
+      
       if (ids.length === 0) return;
 
-      const { error } = await supabase
-        .from("products")
-        .update({ publishability_decision: decision })
-        .in("id", ids);
+      const toastId = "bulk-pub-progress";
+      toast.info(`A processar ${ids.length} produtos...`, { id: toastId });
+      
+      const batchSize = 1000;
+      for (let i = 0; i < ids.length; i += batchSize) {
+        const batch = ids.slice(i, i + batchSize);
+        const { error } = await supabase
+          .from("products")
+          .update({ publishability_decision: decision })
+          .in("id", batch);
+        
+        if (error) throw error;
+        
+        if (ids.length > batchSize) {
+          toast.info(`A processar ${Math.min(i + batchSize, ids.length)} de ${ids.length} produtos...`, { id: toastId });
+        }
+      }
 
-      if (error) throw error;
-
-      toast.success(`${ids.length} produtos movidos para ${decision === 'publish' ? 'Publicar' : 'Ignorar'}`);
+      toast.success(`${ids.length} produtos movidos para ${decision === 'publish' ? 'Publicar' : 'Ignorar'}`, { id: toastId });
       qc.invalidateQueries({ queryKey: ["products"] });
       qc.invalidateQueries({ queryKey: ["product-stats"] });
     } catch (error: any) {
