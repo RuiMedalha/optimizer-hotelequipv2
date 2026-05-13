@@ -1271,82 +1271,110 @@ ${excelContext}`,
         return { score: 50, reason: 'Ambíguo', decision: 'review' };
       };
 
-      // Strategy for finding products
-      const getSupplierProducts = async () => {
-        // Strategy 1: match by supplier_ref (UUID)
-        let { data } = await (supabase.from('products') as any)
-          .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
-          .eq('supplier_ref', supplier.id);
-        if (data && data.length > 0) return data;
-
-        // Strategy 2: match by supplier_name (text match)
-        ({ data } = await (supabase.from('products') as any)
-          .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
-          .or(`supplier_name.ilike.%${supplier.supplier_name}%,brand.ilike.%${supplier.supplier_name}%,origin.ilike.%${supplier.supplier_name}%`));
-        if (data && data.length > 0) return data;
-
-        // Strategy 3: match by SKU prefix (common for Fricosmos and others)
-        const prefix = supplier.supplier_name.substring(0, 3).toUpperCase();
-        ({ data } = await (supabase.from('products') as any)
-          .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
-          .ilike('sku', `${prefix}%`));
-        if (data && data.length > 0) return data;
-
-        // Strategy 4: match by source_file metadata if available
-        ({ data } = await (supabase.from('products') as any)
-          .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
-          .ilike('source_file', `%${supplier.supplier_name}%`));
-        if (data && data.length > 0) return data;
-        
-        // Final broad check: search for common variations of the name in all related fields
-        const nameClean = supplier.supplier_name.replace(/[^a-zA-Z0-9]/g, '');
-        ({ data } = await (supabase.from('products') as any)
-          .select('id, sku, original_price, original_title, category, workflow_state, publishability_decision')
-          .or(`supplier_name.ilike.%${nameClean}%,brand.ilike.%${nameClean}%,origin.ilike.%${nameClean}%,source_file.ilike.%${nameClean}%`));
-
-        return data || [];
+      // Strategy for finding ALL products
+      const countAllProducts = async () => {
+        const { count, error } = await supabase
+          .from('products')
+          .select('*', { count: 'exact', head: true })
+          .or(`supplier_ref.eq.${supplier.id},brand.ilike.%${supplier.supplier_name}%,supplier_name.ilike.%${supplier.supplier_name}%`);
+        if (error) throw error;
+        return count || 0;
       };
 
-      const products = await getSupplierProducts();
-      if (products.length === 0) throw new Error("Não foram encontrados produtos para classificar com nenhuma estratégia.");
+      const totalProducts = await countAllProducts();
+      if (totalProducts === 0) throw new Error("Não foram encontrados produtos para classificar.");
 
-      let total = 0;
-      let p: any = { publish: 0, review: 0, skip: 0 };
+      let totalProcessed = 0;
+      let offset = 0;
+      const batchSize = 100;
       
-      // Process in small batches for feedback
-      const batchSize = 50;
-      for (let i = 0; i < products.length; i += batchSize) {
-        const batch = products.slice(i, i + batchSize);
-        for (const product of batch) {
+      console.log('Starting classification for:', supplier.supplier_name, 'Total products:', totalProducts);
+
+      while (true) {
+        const { data: batch, error } = await supabase
+          .from('products')
+          .select('id, sku, original_price, original_title, category, workflow_state')
+          .or(`supplier_ref.eq.${supplier.id},brand.ilike.%${supplier.supplier_name}%,supplier_name.ilike.%${supplier.supplier_name}%`)
+          .range(offset, offset + batchSize - 1);
+        
+        if (error) throw error;
+        if (!batch || batch.length === 0) break;
+
+        const updates = batch.map(product => {
           const result: any = applyRules(product, rules);
-          const updates: any = {
+          const update: any = {
+            id: product.id,
             publishability_score: result.score,
             publishability_reason: result.reason,
             publishability_decision: result.decision
           };
           
-          if (result.decision === 'skip' && product.workflow_state === 'draft') updates.workflow_state = 'archived';
-          else if (result.decision === 'review' && product.workflow_state === 'draft') updates.workflow_state = 'needs_review';
+          if (result.decision === 'skip' && product.workflow_state === 'draft') update.workflow_state = 'archived';
+          else if (result.decision === 'review' && product.workflow_state === 'draft') update.workflow_state = 'needs_review';
+          
+          return update;
+        });
 
-          await (supabase.from('products') as any).update(updates).eq('id', product.id);
-          p[result.decision]++;
-          total++;
+        // Save results to DB
+        for (const update of updates) {
+          const { id, ...data } = update;
+          await supabase.from('products').update(data).eq('id', id);
         }
-        setProgress(Math.round(((i + batch.length) / products.length) * 100));
+
+        totalProcessed += batch.length;
+        offset += batchSize;
+        
+        setProgress(Math.round((totalProcessed / totalProducts) * 100));
+        setGeneratingStatus(`A classificar... ${totalProcessed}/${totalProducts}`);
+        
+        if (batch.length < batchSize) break;
       }
 
-      const stats = { ...p, total, last_run: new Date().toISOString() };
-      await (supabase.from('supplier_profiles') as any).update({ 
-        publishability_stats: stats,
-        publishability_last_run: stats.last_run
-      }).eq('id', supplier.id);
-      
-      await fetchUpdatedStats();
+      // Re-fetch counts from DB
+      const { count: publishCount } = await supabase
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .or(`supplier_ref.eq.${supplier.id},brand.ilike.%${supplier.supplier_name}%,supplier_name.ilike.%${supplier.supplier_name}%`)
+        .eq('publishability_decision', 'publish');
+
+      const { count: reviewCount } = await supabase
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .or(`supplier_ref.eq.${supplier.id},brand.ilike.%${supplier.supplier_name}%,supplier_name.ilike.%${supplier.supplier_name}%`)
+        .eq('publishability_decision', 'review');
+
+      const { count: skipCount } = await supabase
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .or(`supplier_ref.eq.${supplier.id},brand.ilike.%${supplier.supplier_name}%,supplier_name.ilike.%${supplier.supplier_name}%`)
+        .eq('publishability_decision', 'skip');
+
+      const finalStats = { 
+        publish: publishCount || 0, 
+        review: reviewCount || 0, 
+        skip: skipCount || 0, 
+        total: totalProcessed, 
+        last_run: new Date().toISOString() 
+      };
+
+      // Save stats to supplier profile
+      await supabase
+        .from('supplier_profiles')
+        .update({
+          publishability_stats: finalStats,
+          publishability_last_run: finalStats.last_run
+        })
+        .eq('id', supplier.id);
+
+      setLocalStats(finalStats);
       queryClient.invalidateQueries({ queryKey: ['supplier-profiles'] });
-      toast.success("Classificação concluída.");
+      toast.success("Classificação concluída com sucesso.");
+      setGeneratingStatus(null);
       setProgress(100);
     } catch (e: any) {
+      console.error('Error during classification:', e);
       toast.error(`Erro na classificação: ${e.message}`);
+      setGeneratingStatus(null);
     } finally {
       setIsClassifying(false);
     }
