@@ -848,7 +848,21 @@ async function extractPdfText(fileData: Blob | null, storagePath: string, worksp
     if (fullText) return fullText;
 
     // Last resort fallback: original direct AI extraction for small files
-    const buffer = await fileData.arrayBuffer();
+    let actualFileData = fileData;
+    if (!actualFileData) {
+      console.log(`Downloading file for fallback extraction: ${storagePath}`);
+      const { data: dlData, error: dlError } = await adminDb.storage.from("knowledge-base").download(storagePath);
+      if (dlError || !dlData) {
+        const fallback = await adminDb.storage.from("catalogs").download(storagePath);
+        actualFileData = fallback.data;
+      } else {
+        actualFileData = dlData;
+      }
+    }
+
+    if (!actualFileData) throw new Error("Could not download file for fallback extraction");
+
+    const buffer = await actualFileData.arrayBuffer();
     const bytes = new Uint8Array(buffer);
     let binary = "";
     const chunkSize = 8192;
