@@ -1276,7 +1276,7 @@ ${excelContext}`,
           if (category.includes(cat.toLowerCase()) && price < 100) return { score: 10, reason: `Categoria a ignorar: ${cat}`, decision: 'skip' };
         }
         for (const word of (rules.power_words || [])) {
-          if (title.includes(word.toLowerCase())) return { score: 85, reason: `Standalone: "${word}"`, decision: 'publish' };
+          if (word && title.includes(word.toLowerCase().trim())) return { score: 85, reason: `Standalone (Power Word): "${word}"`, decision: 'publish' };
         }
         for (const word of (rules.stop_words || [])) {
           if (word && title.includes(word.toLowerCase().trim())) return { score: 12, reason: `Componente (Stop Word): "${word}"`, decision: 'skip' };
