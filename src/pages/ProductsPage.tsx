@@ -418,7 +418,7 @@ const ProductsPage = () => {
       toast.error("Erro ao aplicar marca: " + error.message, { id: toastId });
     }
   };
-
+  const handleBulkUpdatePublishability = async (decision: 'publish' | 'skip') => {
     try {
       let ids = filtered.map(p => p.id);
       if (allPagesSelected) {
