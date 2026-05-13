@@ -47,6 +47,53 @@ serve(async (req) => {
 
     await supabase.from("pdf_extractions").update({ status: "extracting" }).eq("id", extractionId);
 
+    // Detach the long-running orchestration so the HTTP request returns
+    // immediately and we don't hit WORKER_RESOURCE_LIMIT (CPU wall time).
+    // The frontend polls pdf_extractions for progress.
+    // @ts-ignore - EdgeRuntime is provided by Supabase edge runtime
+    EdgeRuntime.waitUntil((async () => {
+      try {
+        await runOrchestration({
+          supabase, supabaseUrl, serviceKey,
+          extractionId, extraction, languageHint, startTime,
+        });
+      } catch (err) {
+        console.error("Background orchestration failed:", err);
+        await supabase.from("pdf_extractions")
+          .update({ status: "error" })
+          .eq("id", extractionId);
+      }
+    })());
+
+    return new Response(JSON.stringify({
+      success: true, extractionId, status: "extracting",
+      message: "Extraction started in background. Poll pdf_extractions for progress.",
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  } catch (e: unknown) {
+    console.error("extract-pdf-pages error:", e);
+    try {
+      const body = await req.clone().json();
+      if (body?.extractionId && !body?.chunkMode) {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const supabase = createClient(supabaseUrl, serviceKey);
+        await supabase.from("pdf_extractions").update({ status: "error" }).eq("id", body.extractionId);
+      }
+    } catch { /* ignore */ }
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
+
+async function runOrchestration(opts: {
+  supabase: any; supabaseUrl: string; serviceKey: string;
+  extractionId: string; extraction: any; languageHint?: string; startTime: number;
+}) {
+  const { supabase, supabaseUrl, serviceKey, extractionId, extraction, languageHint, startTime } = opts;
+  {
+
     const fileRecord = extraction.uploaded_files;
     if (!fileRecord?.storage_path) throw new Error("No file storage_path");
     const storagePth = fileRecord.storage_path;
