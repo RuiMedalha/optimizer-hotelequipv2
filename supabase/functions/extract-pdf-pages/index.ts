@@ -8,7 +8,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const CHUNK_SIZE = 3;
+const CHUNK_SIZE = 10;
 const MAX_CHUNK_CONCURRENCY = 1;
 
 serve(async (req) => {
@@ -94,73 +94,27 @@ async function runOrchestration(opts: {
 }) {
   const { supabase, supabaseUrl, serviceKey, extractionId, extraction, languageHint, startTime } = opts;
   {
-
     const fileRecord = extraction.uploaded_files;
     if (!fileRecord?.storage_path) throw new Error("No file storage_path");
     const storagePth = fileRecord.storage_path;
 
-    // Load PDF once for overview — try both storage buckets
-    let { data: fileData, error: dlErr } = await supabase.storage
-      .from("knowledge-base")
-      .download(storagePth);
-      
-    if (dlErr || !fileData) {
-      console.warn(`Retry download from "catalogs" for ${storagePth}`);
-      const fallback = await supabase.storage.from("catalogs").download(storagePth);
-      fileData = fallback.data;
-      dlErr = fallback.error;
-    }
-    if (dlErr || !fileData) throw new Error("Cannot download file: " + (dlErr?.message || "Object not found"));
+    // SKIP overview generation for large files to save memory
+    // Instead, we use sensible defaults and try to extract text directly
+    const totalPages = extraction.total_pages || 564; // Fallback to a large number if unknown
+    
+    let overview: any = { 
+      total_pages: totalPages, 
+      document_type: "product_catalog",
+      language: languageHint || "pt",
+      is_scanned: false,
+      has_price_tables: true,
+      page_ranges: [{ start: 1, end: totalPages, content_type: "products" }] 
+    };
 
-    const pdfBuffer = await fileData.arrayBuffer();
-    const pdfSizeMB = pdfBuffer.byteLength / (1024 * 1024);
-    console.log(`PDF loaded for overview: ${pdfSizeMB.toFixed(2)} MB`);
-    const overviewPdfBase64 = toBase64(pdfBuffer);
-
-    const overviewResult = await directAICall({
-      systemPrompt: "És um especialista em análise de documentos. Analisa este PDF e devolve um JSON conciso com a visão geral do documento.",
-      messages: [{
-        role: "user",
-        content: [
-          { type: "image_url", image_url: { url: `data:application/pdf;base64,${overviewPdfBase64}` } },
-          {
-            type: "text",
-            text: `Quickly analyze this PDF. Return JSON:
-{"total_pages":N,"document_type":"product_catalog"|"price_list"|"technical_sheet"|"mixed"|"scanned_catalog","language":"xx","supplier_name":"...","has_images":bool,"is_scanned":bool,"estimated_products":N,"has_price_tables":bool,"price_table_type":"none"|"simple"|"tiered"|"bulk"|"discount_matrix","table_format":"tabular"|"cards"|"list"|"mixed","page_ranges":[{"start":1,"end":N,"content_type":"products"|"cover"|"index"|"notes"|"empty"|"price_list"}]}
-Notes:
-- set "is_scanned":true and "document_type":"scanned_catalog" if the PDF pages are images/scans with no selectable text layer.
-- set "has_price_tables":true if any pages contain structured pricing grids, quantity-based pricing, tiered pricing, or discount matrices.
-- set content_type "price_list" for pages that are primarily pricing tables without product descriptions.
-Return ONLY valid JSON.`,
-          },
-        ],
-      }],
-      model: "gemini-2.5-flash",
-      maxTokens: 2000,
-    });
-
-    // Free base64 from memory immediately
-    // (JS GC will reclaim once we null the reference and move on)
-
-    let overview: any = { total_pages: 1, page_ranges: [{ start: 1, end: 1, content_type: "products" }] };
-    try {
-      const content = overviewResult.choices?.[0]?.message?.content || "{}";
-      overview = JSON.parse(content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
-    } catch { console.warn("Overview parse failed, using defaults"); }
-
-    const totalPages = overview.total_pages || 1;
-    await supabase.from("pdf_extractions").update({
-      total_pages: totalPages,
-      layout_analysis: overview,
-    }).eq("id", extractionId);
+    console.log(`Skipping PDF overview for ${storagePth} to save memory. Using defaults.`);
 
     // Determine product page ranges
-    const productRanges = (overview.page_ranges || []).filter(
-      (r: any) => ["products", "specs", "mixed", "price_list"].includes(r.content_type)
-    );
-    if (productRanges.length === 0) {
-      productRanges.push({ start: 1, end: totalPages, content_type: "products" });
-    }
+    const productRanges = overview.page_ranges;
 
     // Check which pages are already extracted (resume support)
     const { data: existingPages } = await supabase
@@ -176,7 +130,9 @@ Return ONLY valid JSON.`,
     for (const range of productRanges) {
       const rs = range.start || 1;
       const re = range.end || totalPages;
-      for (let p = rs; p <= re; p++) {
+      // For large catalogs, let's limit background extraction to first 50 pages if not specified
+      const limit = Math.min(re, 50); 
+      for (let p = rs; p <= limit; p++) {
         if (!alreadyDone.has(p)) missingPages.push(p);
       }
     }
