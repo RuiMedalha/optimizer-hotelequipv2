@@ -182,10 +182,7 @@ Return ONLY valid JSON.`,
     if (missingPages.length === 0) {
       // All pages already extracted — mark as reviewing and return
       await supabase.from("pdf_extractions").update({ status: "reviewing" }).eq("id", extractionId);
-      return new Response(JSON.stringify({
-        success: true, extractionId, totalPages,
-        pagesProcessed: alreadyDone.size, resumed: true, message: "All pages already extracted",
-      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      return;
     }
 
     // Group missing pages into chunks
