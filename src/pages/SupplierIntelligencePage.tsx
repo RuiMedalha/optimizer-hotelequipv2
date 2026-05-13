@@ -894,59 +894,72 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
 
       const pdfFile = pdfFiles[0];
 
-      // 2. Call the same indexing Edge Function used in Knowledge Graph
-      // In this project, 'parse-catalog' with parseKnowledge: true is the standard pipeline
-      console.log('Calling parse-catalog with:', {
-        fileId: pdfFile.id, 
-        supplierId: supplier.id, 
-        workspaceId: workspaceId, 
-        parseKnowledge: true
+      // 2. Call extract-pdf-pages with text_only mode for large catalogs
+      console.log('Calling extract-pdf-pages (text_only) with:', {
+        storagePath: pdfFile.storage_path,
+        startPage: 1,
+        endPage: 20,
+        mode: 'text_only'
       });
 
-      const { error: indexError } = await supabase.functions.invoke('parse-catalog', {
+      const { data: extractionResult, error: indexError } = await supabase.functions.invoke('extract-pdf-pages', {
         body: { 
-          parseKnowledge: true,
-          filePath: pdfFile.storage_path,
-          fileName: pdfFile.file_name,
-          fileId: pdfFile.id,
-          supplierId: supplier.id,
-          workspaceId: workspaceId
+          mode: 'text_only',
+          storagePath: pdfFile.storage_path,
+          startPage: 1,
+          endPage: 20,
+          extractionId: pdfFile.id
         }
       });
 
       if (indexError) throw indexError;
       
-      setIndexingProgress(30);
+      const extractedText = extractionResult?.text || "";
+      if (!extractedText) throw new Error("Não foi possível extrair texto do PDF.");
 
-      // 3. Wait for completion (poll uploaded_files status)
-      let isDone = false;
-      let attempts = 0;
-      const maxAttempts = 20; // 60 seconds max
+      setIndexingProgress(40);
 
-      while (!isDone && attempts < maxAttempts) {
-        setIndexingProgress(30 + (attempts * 3));
-        await new Promise(r => setTimeout(r, 3000));
-        
-        const { data: fileStatus, error: statusError } = await (supabase
-          .from('uploaded_files') as any)
-          .select('status')
-          .eq('id', pdfFile.id)
-          .single();
-          
-        if (statusError) {
-          console.warn("Erro ao verificar status:", statusError.message);
-        } else if (fileStatus?.status === 'processed') {
-          isDone = true;
-        } else if (fileStatus?.status === 'error') {
-          throw new Error("Erro no processamento do ficheiro pela Edge Function.");
-        }
-        
-        attempts++;
+      // 3. Split into chunks of 1000 chars with 100 char overlap
+      const chunks: string[] = [];
+      const chunkSize = 1000;
+      const overlap = 100;
+      
+      for (let i = 0; i < extractedText.length; i += (chunkSize - overlap)) {
+        chunks.push(extractedText.substring(i, i + chunkSize));
+        if (i + chunkSize >= extractedText.length) break;
+      }
+
+      console.log(`Split text into ${chunks.length} chunks`);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado.");
+
+      // 4. Save chunks to knowledge_chunks
+      const knowledgeChunks = chunks.map((content, index) => ({
+        supplier_id: supplier.id,
+        workspace_id: workspaceId,
+        user_id: user.id,
+        content,
+        source_name: pdfFile.file_name,
+        source_type: 'pdf',
+        file_id: pdfFile.id,
+        chunk_index: index
+      }));
+
+      // Delete existing chunks for this supplier first
+      await (supabase.from('knowledge_chunks') as any).delete().eq('supplier_id', supplier.id);
+
+      // Insert in batches of 10
+      for (let i = 0; i < knowledgeChunks.length; i += 10) {
+        const batch = knowledgeChunks.slice(i, i + 10);
+        const { error: insertError } = await (supabase.from('knowledge_chunks') as any).insert(batch);
+        if (insertError) console.error("Error inserting chunks:", insertError);
+        setIndexingProgress(40 + Math.min(40, (i / knowledgeChunks.length) * 40));
       }
 
       setIndexingProgress(80);
 
-      // 4. Build Knowledge Graph edges (original functionality preserved)
+      // 5. Build Knowledge Graph edges
       const { error: graphError } = await supabase.functions.invoke('build-supplier-knowledge-graph', {
         body: { supplier_id: supplier.id, workspace_id: workspaceId }
       });

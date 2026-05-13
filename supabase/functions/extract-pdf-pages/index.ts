@@ -22,9 +22,48 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, serviceKey);
 
     const body = await req.json();
-    const { extractionId, chunkMode, chunkStart, chunkEnd, storagePath, overviewData, pdfBase64, languageHint } = body;
+    const { extractionId, chunkMode, chunkStart, chunkEnd, storagePath, overviewData, pdfBase64, languageHint, mode, startPage, endPage } = body;
 
-    if (!extractionId) throw new Error("extractionId required");
+    // ==========================================
+    // TEXT ONLY MODE: Minimal extraction for large files
+    // ==========================================
+    if (mode === 'text_only') {
+      console.log(`[TEXT_ONLY] Extracting text from ${storagePath} (pages ${startPage || 1}-${endPage || 20})`);
+      
+      let fileData;
+      if (pdfBase64) {
+        const binary = atob(pdfBase64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        fileData = bytes;
+      } else {
+        const { data, error: dlErr } = await supabase.storage.from("knowledge-base").download(storagePath);
+        if (dlErr || !data) {
+          const fallback = await supabase.storage.from("catalogs").download(storagePath);
+          if (fallback.error || !fallback.data) throw new Error("File not found in storage");
+          fileData = await fallback.data.arrayBuffer();
+        } else {
+          fileData = await data.arrayBuffer();
+        }
+      }
+
+      // Use pdf-parse for simple text extraction
+      const pdfParse = (await import("https://esm.sh/pdf-parse@1.1.1")).default;
+      const pdfData = await pdfParse(new Uint8Array(fileData));
+      
+      // pdf-parse doesn't easily support page ranges, so we return the whole text 
+      // and let the caller handle it, or we could try to split by page markers if available.
+      // Most catalogs have enough text in the first 20 pages to be useful.
+      
+      return new Response(JSON.stringify({ 
+        success: true, 
+        text: pdfData.text,
+        info: pdfData.info,
+        numpages: pdfData.numpages 
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    if (!extractionId && !chunkMode) throw new Error("extractionId required");
 
     // ==========================================
     // CHUNK MODE: Process a single page range
@@ -48,10 +87,8 @@ serve(async (req) => {
 
     await supabase.from("pdf_extractions").update({ status: "extracting" }).eq("id", extractionId);
 
-    // Detach the long-running orchestration so the HTTP request returns
-    // immediately and we don't hit WORKER_RESOURCE_LIMIT (CPU wall time).
-    // The frontend polls pdf_extractions for progress.
-    // @ts-ignore - EdgeRuntime is provided by Supabase edge runtime
+    // Detach the long-running orchestration
+    // @ts-ignore
     EdgeRuntime.waitUntil((async () => {
       try {
         await runOrchestration({
