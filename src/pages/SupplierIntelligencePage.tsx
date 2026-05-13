@@ -1428,7 +1428,7 @@ ${excelContext}`,
         publish: publishCount || 0, 
         review: reviewCount || 0, 
         skip: skipCount || 0, 
-        total: totalProcessed, 
+        total: allProducts.length, 
         last_run: new Date().toISOString() 
       };
 
