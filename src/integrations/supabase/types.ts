@@ -9982,6 +9982,7 @@ export type Database = {
           supplier_ref: string | null
           supplier_short_description: string | null
           supplier_title: string | null
+          supplier_url: string | null
           tags: string[] | null
           technical_specs: string | null
           updated_at: string
@@ -10058,6 +10059,7 @@ export type Database = {
           supplier_ref?: string | null
           supplier_short_description?: string | null
           supplier_title?: string | null
+          supplier_url?: string | null
           tags?: string[] | null
           technical_specs?: string | null
           updated_at?: string
@@ -10136,6 +10138,7 @@ export type Database = {
           supplier_ref?: string | null
           supplier_short_description?: string | null
           supplier_title?: string | null
+          supplier_url?: string | null
           tags?: string[] | null
           technical_specs?: string | null
           updated_at?: string
