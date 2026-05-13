@@ -125,8 +125,8 @@ export function SmartColumnInferencePreview({ inference, headers, sampleData, fi
                                 </SelectTrigger>
                                 <SelectContent className="z-50">
                                   <SelectItem value="__skip__">— Ignorar —</SelectItem>
-                                  {PRODUCT_FIELDS.map(f => (
-                                    <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>
+                                  {PRODUCT_FIELDS.map((f, idx) => (
+                                    <SelectItem key={`${f.key}-${f.label}-${idx}`} value={f.key}>{f.label}</SelectItem>
                                   ))}
                                 </SelectContent>
                               </Select>
