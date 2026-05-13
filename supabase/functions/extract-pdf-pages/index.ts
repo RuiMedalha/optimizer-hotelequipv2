@@ -55,26 +55,10 @@ serve(async (req) => {
       const lastPage = Math.min(requestedEnd, totalPages);
       const firstPage = Math.max(1, startPage || 1);
 
+      const { text } = await extractText(pdf, { mergePages: false });
+      const arr = Array.isArray(text) ? text : [String(text)];
       const parts: string[] = [];
-      for (let p = firstPage; p <= lastPage; p++) {
-        try {
-          const { text } = await extractText(pdf, { mergePages: false });
-          // extractText returns array when mergePages:false
-          const pageText = Array.isArray(text) ? (text[p - 1] || "") : String(text);
-          parts.push(pageText);
-          break; // extractText returns all pages at once; we already have them
-        } catch (pageErr) {
-          console.warn(`Failed to extract page ${p}:`, pageErr);
-        }
-      }
-
-      // If we extracted all at once, slice to the requested range
-      if (parts.length === 1 && firstPage !== lastPage) {
-        const { text } = await extractText(pdf, { mergePages: false });
-        const arr = Array.isArray(text) ? text : [String(text)];
-        parts.length = 0;
-        for (let p = firstPage; p <= lastPage; p++) parts.push(arr[p - 1] || "");
-      }
+      for (let p = firstPage; p <= lastPage; p++) parts.push(arr[p - 1] || "");
 
       try { await (pdf as any).destroy?.(); } catch {}
 
