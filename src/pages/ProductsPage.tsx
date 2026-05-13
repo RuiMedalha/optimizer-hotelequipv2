@@ -348,7 +348,38 @@ const ProductsPage = () => {
     }
   };
 
-  const handleBulkUpdatePublishability = async (decision: 'publish' | 'skip') => {
+  const getAllFilteredIds = async () => {
+    if (!activeWorkspace) return [];
+    
+    const toastId = toast.loading("A obter todos os produtos filtrados...");
+    
+    try {
+      const { data, error } = await supabase.rpc("get_products_page", {
+        _workspace_id: activeWorkspace.id,
+        _search: debouncedSearch,
+        _status: statusFilter,
+        _category: categoryFilter,
+        _product_type: productTypeFilter,
+        _source_file: sourceFileFilter,
+        _woo_filter: wooFilter,
+        _image_status: imageIssueFilter ? "any_issue" : "all",
+        _publishability_decision: publishabilityFilter,
+        _page: 1,
+        _page_size: 10000,
+      });
+
+      if (error) throw error;
+      
+      const ids = (data || []).map((p: any) => p.id);
+      toast.dismiss(toastId);
+      return ids;
+    } catch (error: any) {
+      console.error("Erro ao obter todos os IDs filtrados:", error);
+      toast.error("Erro ao obter todos os IDs: " + error.message, { id: toastId });
+      return [];
+    }
+  };
+
     try {
       const ids = filtered.map(p => p.id);
       if (ids.length === 0) return;
