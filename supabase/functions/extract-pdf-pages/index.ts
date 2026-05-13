@@ -358,8 +358,13 @@ async function processChunk(opts: {
 
   let chunkPdfBase64 = pdfBase64;
   if (!chunkPdfBase64) {
-    const { data: fileData, error: dlErr } = await supabase.storage.from("catalogs").download(storagePath);
-    if (dlErr || !fileData) throw new Error("Chunk download failed: " + dlErr?.message);
+    let { data: fileData, error: dlErr } = await supabase.storage.from("catalogs").download(storagePath);
+    if (dlErr || !fileData) {
+      const fallback = await supabase.storage.from("knowledge-base").download(storagePath);
+      fileData = fallback.data;
+      dlErr = fallback.error;
+    }
+    if (dlErr || !fileData) throw new Error("Chunk download failed: " + (dlErr?.message || "Object not found"));
     chunkPdfBase64 = toBase64(await fileData.arrayBuffer());
   }
 
