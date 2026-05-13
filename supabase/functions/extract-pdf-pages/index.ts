@@ -30,32 +30,17 @@ serve(async (req) => {
       const requestedEnd = endPage || 10;
       console.log(`[TEXT_ONLY] Extracting text from ${storagePath} (pages ${startPage || 1}-${requestedEnd})`);
       
-      // Use a signed URL so pdf.js can range-fetch instead of loading 69MB into memory
+      // Use a signed URL so PDF.js can range-fetch instead of loading large PDFs into memory.
       const pdfUrl = await createSignedPdfUrl(supabase, storagePath);
 
       const firstPage = Math.max(1, startPage || 1);
-      const lastPage = Math.max(firstPage, requestedEnd);
-
-      // Do not parse large PDFs inside the worker. Offload page reading to the AI model via signed URL.
-      const aiResult = await directAICall({
-        systemPrompt: "És um motor de extração de texto de PDFs. Devolve apenas texto corrido, sem markdown.",
-        messages: [{
-          role: "user",
-          content: [
-            { type: "image_url", image_url: { url: pdfUrl } },
-            { type: "text", text: `Extrai o texto legível das páginas ${firstPage} a ${lastPage} deste PDF. Mantém o idioma original e inclui tabelas em texto simples.` },
-          ],
-        }],
-        model: "google/gemini-2.5-flash",
-        maxTokens: 12000,
-      });
-      const text = aiResult.choices?.[0]?.message?.content?.trim() || "";
+      const extracted = await extractPdfTextRangeFromUrl(pdfUrl, firstPage, requestedEnd);
 
       return new Response(JSON.stringify({ 
         success: true, 
-        text,
-        numpages: lastPage,
-        extractedPages: lastPage - firstPage + 1
+        text: extracted.text,
+        numpages: extracted.totalPages,
+        extractedPages: extracted.lastPage - extracted.firstPage + 1
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
