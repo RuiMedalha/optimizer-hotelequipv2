@@ -653,11 +653,18 @@ const ProductsPage = () => {
   };
 
   const handleDiscontinuedPublish = async () => {
-    if (selected.size === 0 || !activeWorkspace) return;
+    let ids = Array.from(selected);
+    if (allPagesSelected) {
+      ids = await getAllFilteredIds();
+      if (ids.length === 0) return;
+    }
+
+    if (ids.length === 0 || !activeWorkspace) return;
     
     try {
+      toast.info(`A iniciar publicação de ${ids.length} descontinuados...`);
       await createPublishJob({
-        productIds: Array.from(selected),
+        productIds: ids,
         workspaceId: activeWorkspace.id,
         // Send stock to trigger the draft + 0 stock logic in edge function
         publishFields: ["stock"], 
@@ -665,11 +672,12 @@ const ProductsPage = () => {
       });
       toast.success("Publicação de descontinuados iniciada!");
       setSelected(new Set());
+      setAllPagesSelected(false);
     } catch (err: any) {
       toast.error(err.message);
     }
   };
-  
+
   const handleInferModels = async (onlyMissing: boolean = true) => {
     if (selected.size === 0 || !activeWorkspace) return;
     
