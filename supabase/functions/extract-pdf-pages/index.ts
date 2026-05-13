@@ -329,7 +329,13 @@ async function processChunk(opts: {
       dlErr = fallback.error;
     }
     if (dlErr || !fileData) throw new Error("Chunk download failed: " + (dlErr?.message || "Object not found"));
-    chunkPdfBase64 = toBase64(await fileData.arrayBuffer());
+    
+    // Convert to ArrayBuffer then Base64
+    const buffer = await fileData.arrayBuffer();
+    chunkPdfBase64 = toBase64(buffer);
+    
+    // FREE MEMORY IMMEDIATELY
+    fileData = null;
   }
 
   console.log(`Chunk: extracting pages ${chunkStart}-${chunkEnd}`);
