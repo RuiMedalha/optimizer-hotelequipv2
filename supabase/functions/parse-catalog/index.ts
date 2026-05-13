@@ -627,11 +627,17 @@ function buildMergedProductData(
 async function processPdfInBackground(supabase: any, userId: string, filePath: string, fileName: string, workspaceId?: string, workflowRunId?: string) {
   const adminDb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-  const { data: fileData, error: downloadError } = await adminDb.storage.from("catalogs").download(filePath);
-  if (downloadError || !fileData) {
-    console.error("PDF download error:", downloadError?.message);
-    await updateParseStatus(adminDb, userId, fileName, workspaceId, { count: 0, updated: 0, total: 0, skipped: 0, errors: [downloadError?.message || "Download failed"], done: true }, workflowRunId);
-    return;
+  let { data: fileData, error: downloadError } = await adminDb.storage.from("knowledge-base").download(filePath);
+  
+  if (downloadError) {
+    console.warn(`Retry download from "catalogs" for ${filePath}`);
+    const { data: fallbackData, error: fallbackError } = await adminDb.storage.from("catalogs").download(filePath);
+    if (fallbackError) {
+      console.error("PDF download error:", fallbackError.message);
+      await updateParseStatus(adminDb, userId, fileName, workspaceId, { count: 0, updated: 0, total: 0, skipped: 0, errors: [fallbackError.message], done: true }, workflowRunId);
+      return;
+    }
+    fileData = fallbackData;
   }
 
   const products = await parsePdfWithAI(fileData, fileName);
