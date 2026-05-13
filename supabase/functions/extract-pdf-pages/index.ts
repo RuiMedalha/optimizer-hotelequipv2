@@ -43,17 +43,14 @@ serve(async (req) => {
         if (!pdfUrl) throw new Error("File not found in storage");
       }
 
-      // Use pdfjs directly via unpdf with range requests enabled (low memory)
-      const { resolvePDFJS } = await import("https://esm.sh/unpdf@0.12.1");
-      const { getDocument } = await resolvePDFJS();
-      const loadingTask = getDocument({
-        url: pdfUrl,
-        disableAutoFetch: true,
-        disableStream: false,
-        disableFontFace: true,
-        useSystemFonts: false,
-      });
-      const pdf = await loadingTask.promise;
+      // Fetch the PDF (signed URL allows ranged fetching by HTTP layer)
+      const pdfResp = await fetch(pdfUrl);
+      if (!pdfResp.ok) throw new Error(`Failed to fetch PDF: ${pdfResp.status}`);
+      const pdfBuffer = new Uint8Array(await pdfResp.arrayBuffer());
+
+      // Use unpdf's high-level helpers (stable API across versions)
+      const { getDocumentProxy, extractText } = await import("https://esm.sh/unpdf@0.12.1");
+      const pdf = await getDocumentProxy(pdfBuffer);
       const totalPages = pdf.numPages;
       const lastPage = Math.min(requestedEnd, totalPages);
       const firstPage = Math.max(1, startPage || 1);
@@ -61,19 +58,25 @@ serve(async (req) => {
       const parts: string[] = [];
       for (let p = firstPage; p <= lastPage; p++) {
         try {
-          const page = await pdf.getPage(p);
-          const content = await page.getTextContent();
-          const pageText = (content.items as any[])
-            .map((it) => (typeof it.str === "string" ? it.str : ""))
-            .join(" ");
+          const { text } = await extractText(pdf, { mergePages: false });
+          // extractText returns array when mergePages:false
+          const pageText = Array.isArray(text) ? (text[p - 1] || "") : String(text);
           parts.push(pageText);
-          if (typeof (page as any).cleanup === "function") (page as any).cleanup();
+          break; // extractText returns all pages at once; we already have them
         } catch (pageErr) {
           console.warn(`Failed to extract page ${p}:`, pageErr);
         }
       }
 
-      try { await pdf.destroy(); } catch {}
+      // If we extracted all at once, slice to the requested range
+      if (parts.length === 1 && firstPage !== lastPage) {
+        const { text } = await extractText(pdf, { mergePages: false });
+        const arr = Array.isArray(text) ? text : [String(text)];
+        parts.length = 0;
+        for (let p = firstPage; p <= lastPage; p++) parts.push(arr[p - 1] || "");
+      }
+
+      try { await (pdf as any).destroy?.(); } catch {}
 
       return new Response(JSON.stringify({ 
         success: true, 
