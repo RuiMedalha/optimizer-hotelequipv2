@@ -380,9 +380,9 @@ async function processChunk(opts: {
     }
     if (dlErr || !fileData) throw new Error("Chunk download failed: " + (dlErr?.message || "Object not found"));
     
-    // Convert to ArrayBuffer then Base64
+    // Convert only the requested page range to a tiny PDF before sending it to AI.
     const buffer = await fileData.arrayBuffer();
-    chunkPdfBase64 = toBase64(buffer);
+    chunkPdfBase64 = await extractPdfPageRangeAsBase64(buffer, chunkStart, chunkEnd);
     
     // FREE MEMORY IMMEDIATELY
     fileData = null;
