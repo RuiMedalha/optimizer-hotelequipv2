@@ -753,9 +753,15 @@ const ProductsPage = () => {
     }
   };
 
-  const handleOptimizeClick = (ids: string[]) => {
+  const handleOptimizeClick = async (ids: string[]) => {
+    let finalIdsList = ids;
+    if (allPagesSelected) {
+      finalIdsList = await getAllFilteredIds();
+      if (finalIdsList.length === 0) return;
+    }
+
     // Excluir descontinuados da otimização
-    const validIds = ids.filter(id => {
+    const validIds = finalIdsList.filter(id => {
       const p = products.find(prod => prod.id === id) || (allProductsLight ?? []).find((prod: any) => prod.id === id);
       return !p?.is_discontinued;
     });
