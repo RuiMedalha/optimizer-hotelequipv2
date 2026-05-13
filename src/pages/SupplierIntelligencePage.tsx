@@ -1306,7 +1306,8 @@ ${excelContext}`,
             id: product.id,
             publishability_score: result.score,
             publishability_reason: result.reason,
-            publishability_decision: result.decision
+            publishability_decision: result.decision,
+            supplier_ref: supplier.id // Ensure supplier_ref is set for graph building
           };
           
           if (result.decision === 'skip' && product.workflow_state === 'draft') update.workflow_state = 'archived';
