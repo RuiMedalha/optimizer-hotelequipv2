@@ -65,7 +65,7 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const promise = processKnowledge(supabase, userId, filePath, fileName, workspaceId, fileId, workflowRunId);
+      const promise = processKnowledge(supabase, userId, filePath, fileName, workspaceId, fileId, workflowRunId, supplierId);
       (globalThis as any).EdgeRuntime?.waitUntil?.(promise.catch((e: any) => console.error("Knowledge bg error:", e)));
       return new Response(
         JSON.stringify({ extractedText: "", count: 0, background: true }),
