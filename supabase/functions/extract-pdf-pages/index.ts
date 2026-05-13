@@ -47,15 +47,34 @@ serve(async (req) => {
         }
       }
 
-      // Use unpdf (Deno-compatible) for simple text extraction
-      const { extractText, getDocumentProxy } = await import("https://esm.sh/unpdf@0.12.1");
+      // Use unpdf (Deno-compatible). Extract page-by-page and stop early
+      // to avoid hitting WORKER_RESOURCE_LIMIT on large PDFs.
+      const { getDocumentProxy } = await import("https://esm.sh/unpdf@0.12.1");
       const pdf = await getDocumentProxy(new Uint8Array(fileData));
-      const { text, totalPages } = await extractText(pdf, { mergePages: true });
-      
+      const totalPages = pdf.numPages;
+      const lastPage = Math.min(endPage || 20, totalPages);
+      const firstPage = Math.max(1, startPage || 1);
+
+      const parts: string[] = [];
+      for (let p = firstPage; p <= lastPage; p++) {
+        try {
+          const page = await pdf.getPage(p);
+          const content = await page.getTextContent();
+          const pageText = (content.items as any[])
+            .map((it) => (typeof it.str === "string" ? it.str : ""))
+            .join(" ");
+          parts.push(pageText);
+          if (typeof (page as any).cleanup === "function") (page as any).cleanup();
+        } catch (pageErr) {
+          console.warn(`Failed to extract page ${p}:`, pageErr);
+        }
+      }
+
       return new Response(JSON.stringify({ 
         success: true, 
-        text: typeof text === "string" ? text : (Array.isArray(text) ? text.join("\n\n") : ""),
-        numpages: totalPages 
+        text: parts.join("\n\n"),
+        numpages: totalPages,
+        extractedPages: lastPage - firstPage + 1
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
