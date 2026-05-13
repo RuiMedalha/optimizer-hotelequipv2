@@ -380,7 +380,45 @@ const ProductsPage = () => {
     }
   };
 
-  const handleBulkUpdatePublishability = async (decision: 'publish' | 'skip') => {
+
+  const handleBulkBrandApply = async () => {
+    if (!bulkBrandValue.trim()) return;
+    
+    let ids = Array.from(selected);
+    if (allPagesSelected) {
+      ids = await getAllFilteredIds();
+      if (ids.length === 0) return;
+    }
+
+    const toastId = "bulk-brand-progress";
+    toast.info(`A aplicar marca a ${ids.length} produtos...`, { id: toastId });
+
+    try {
+      const batchSize = 1000;
+      for (let i = 0; i < ids.length; i += batchSize) {
+        const batch = ids.slice(i, i + batchSize);
+        const { error } = await supabase
+          .from("products")
+          .update({ brand: bulkBrandValue.trim() })
+          .in("id", batch);
+        if (error) throw error;
+        
+        if (ids.length > batchSize) {
+          toast.info(`A processar ${Math.min(i + batchSize, ids.length)} de ${ids.length} produtos...`, { id: toastId });
+        }
+      }
+
+      toast.success(`Marca "${bulkBrandValue.trim()}" aplicada a ${ids.length} produtos`, { id: toastId });
+      setBulkBrandValue("");
+      setShowBrandInput(false);
+      qc.invalidateQueries({ queryKey: ["products"] });
+      setSelected(new Set());
+      setAllPagesSelected(false);
+    } catch (error: any) {
+      toast.error("Erro ao aplicar marca: " + error.message, { id: toastId });
+    }
+  };
+
     try {
       let ids = filtered.map(p => p.id);
       if (allPagesSelected) {
