@@ -664,7 +664,7 @@ async function createSignedPdfUrl(supabase: any, storagePath: string): Promise<s
 }
 
 async function extractPdfTextRangeFromUrl(pdfUrl: string, startPage: number, requestedEnd: number) {
-  const { getResolvedPDFJS } = await import("https://esm.sh/unpdf@0.12.1");
+  const { getResolvedPDFJS } = await import("https://esm.sh/unpdf@0.12.1?target=deno");
   const { getDocument } = await getResolvedPDFJS();
   const loadingTask = getDocument({
     url: pdfUrl,
