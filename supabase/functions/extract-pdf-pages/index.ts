@@ -664,8 +664,9 @@ async function createSignedPdfUrl(supabase: any, storagePath: string): Promise<s
 }
 
 async function extractPdfTextRangeFromUrl(pdfUrl: string, startPage: number, requestedEnd: number) {
-  const { getDocumentProxy } = await import("https://esm.sh/unpdf@0.12.1");
-  const pdf = await getDocumentProxy(undefined as unknown as Uint8Array, {
+  const { getResolvedPDFJS } = await import("https://esm.sh/unpdf@0.12.1");
+  const { getDocument } = await getResolvedPDFJS();
+  const loadingTask = getDocument({
     url: pdfUrl,
     disableAutoFetch: true,
     disableStream: false,
@@ -673,6 +674,7 @@ async function extractPdfTextRangeFromUrl(pdfUrl: string, startPage: number, req
     useSystemFonts: false,
     isEvalSupported: false,
   });
+  const pdf = await loadingTask.promise;
   const totalPages = pdf.numPages;
   const firstPage = Math.max(1, Math.min(startPage, totalPages));
   const lastPage = Math.max(firstPage, Math.min(requestedEnd, totalPages));
