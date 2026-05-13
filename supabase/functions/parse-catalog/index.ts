@@ -647,7 +647,7 @@ async function processPdfInBackground(supabase: any, userId: string, filePath: s
 // ─── Knowledge processing ───
 async function processKnowledge(
   supabase: any, userId: string, filePath: string, fileName: string,
-  workspaceId?: string, fileId?: string, workflowRunId?: string
+  workspaceId?: string, fileId?: string, workflowRunId?: string, supplierId?: string
 ) {
   const { data: fileData, error: downloadError } = await supabase.storage.from("catalogs").download(filePath);
   if (downloadError || !fileData) {
