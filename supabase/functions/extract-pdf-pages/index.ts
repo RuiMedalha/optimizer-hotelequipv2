@@ -90,6 +90,18 @@ serve(async (req) => {
     // Detach the long-running orchestration
     // @ts-ignore
     EdgeRuntime.waitUntil((async () => {
+      try {
+        await runOrchestration({
+          supabase, supabaseUrl, serviceKey,
+          extractionId, extraction, languageHint, startTime,
+        });
+      } catch (err) {
+        console.error("Background orchestration failed:", err);
+        await supabase.from("pdf_extractions")
+          .update({ status: "error" })
+          .eq("id", extractionId);
+      }
+    })());
 
     return new Response(JSON.stringify({
       success: true, extractionId, status: "extracting",
