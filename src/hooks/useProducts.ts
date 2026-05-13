@@ -190,6 +190,14 @@ export function useProductStats() {
 
       (data || []).forEach((row: any) => {
         const count = Number(row.count);
+        
+        // If product is discontinued, count only in the discontinued bucket
+        if (row.is_discontinued) {
+          discontinued += count;
+          return;
+        }
+
+        // Only count non-discontinued products for total and other status
         total += count;
         
         // Status counts
@@ -199,7 +207,6 @@ export function useProductStats() {
         else if (row.status === "needs_review") needs_review += count;
         else if (row.status === "published") published += count;
         else if (row.status === "error") failed += count;
-        else if (row.status === "discontinued") discontinued += count;
 
         // Publishability counts
         if (row.publishability_decision === "publish") pub_publish += count;

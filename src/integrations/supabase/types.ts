@@ -15114,6 +15114,7 @@ export type Database = {
         Args: { _workspace_id: string }
         Returns: {
           count: number
+          is_discontinued: boolean
           publishability_decision: string
           status: string
         }[]

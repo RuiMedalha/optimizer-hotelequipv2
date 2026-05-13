@@ -2456,17 +2456,25 @@ const ProductsPage = () => {
             </Select>
           )}
           <div className="flex gap-1 sm:gap-1.5 flex-wrap">
-            {statuses.map((s) => (
-              <Button
-                key={s.value}
-                size="sm"
-                className="text-xs h-7 sm:h-8 px-2 sm:px-3"
-                variant={statusFilter === s.value ? "default" : "outline"}
-                onClick={() => setStatusFilter(s.value)}
-              >
-                {s.label}
-              </Button>
-            ))}
+            {statuses.map((s) => {
+              const count = s.value === "all" ? stats?.total : (stats as any)?.[s.value];
+              return (
+                <Button
+                  key={s.value}
+                  size="sm"
+                  className="text-xs h-7 sm:h-8 px-2 sm:px-3 gap-1.5"
+                  variant={statusFilter === s.value ? "default" : "outline"}
+                  onClick={() => setStatusFilter(s.value)}
+                >
+                  {s.label}
+                  {count !== undefined && count > 0 && (
+                    <Badge variant="secondary" className="h-4 px-1 min-w-[1rem] text-[9px] bg-background/50">
+                      {count}
+                    </Badge>
+                  )}
+                </Button>
+              );
+            })}
           </div>
           <Button
             size="sm"
