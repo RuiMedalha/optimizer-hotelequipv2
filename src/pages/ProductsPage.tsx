@@ -348,19 +348,105 @@ const ProductsPage = () => {
     }
   };
 
-  const handleBulkUpdatePublishability = async (decision: 'publish' | 'skip') => {
+  const getAllFilteredIds = async () => {
+    if (!activeWorkspace) return [];
+    
+    const toastId = toast.loading("A obter todos os produtos filtrados...");
+    
     try {
-      const ids = filtered.map(p => p.id);
-      if (ids.length === 0) return;
-
-      const { error } = await supabase
-        .from("products")
-        .update({ publishability_decision: decision })
-        .in("id", ids);
+      const { data, error } = await supabase.rpc("get_products_page", {
+        _workspace_id: activeWorkspace.id,
+        _search: debouncedSearch,
+        _status: statusFilter,
+        _category: categoryFilter,
+        _product_type: productTypeFilter,
+        _source_file: sourceFileFilter,
+        _woo_filter: wooFilter,
+        _image_status: imageIssueFilter ? "any_issue" : "all",
+        _publishability_decision: publishabilityFilter,
+        _page: 1,
+        _page_size: 10000,
+      });
 
       if (error) throw error;
+      
+      const ids = (data || []).map((p: any) => p.id);
+      toast.dismiss(toastId);
+      return ids;
+    } catch (error: any) {
+      console.error("Erro ao obter todos os IDs filtrados:", error);
+      toast.error("Erro ao obter todos os IDs: " + error.message, { id: toastId });
+      return [];
+    }
+  };
 
-      toast.success(`${ids.length} produtos movidos para ${decision === 'publish' ? 'Publicar' : 'Ignorar'}`);
+
+  const handleBulkBrandApply = async () => {
+    if (!bulkBrandValue.trim()) return;
+    
+    let ids = Array.from(selected);
+    if (allPagesSelected) {
+      ids = await getAllFilteredIds();
+      if (ids.length === 0) return;
+    }
+
+    const toastId = "bulk-brand-progress";
+    toast.info(`A aplicar marca a ${ids.length} produtos...`, { id: toastId });
+
+    try {
+      const batchSize = 1000;
+      for (let i = 0; i < ids.length; i += batchSize) {
+        const batch = ids.slice(i, i + batchSize);
+        const { error } = await supabase
+          .from("products")
+          .update({ brand: bulkBrandValue.trim() })
+          .in("id", batch);
+        if (error) throw error;
+        
+        if (ids.length > batchSize) {
+          toast.info(`A processar ${Math.min(i + batchSize, ids.length)} de ${ids.length} produtos...`, { id: toastId });
+        }
+      }
+
+      toast.success(`Marca "${bulkBrandValue.trim()}" aplicada a ${ids.length} produtos`, { id: toastId });
+      setBulkBrandValue("");
+      setShowBrandInput(false);
+      qc.invalidateQueries({ queryKey: ["products"] });
+      setSelected(new Set());
+      setAllPagesSelected(false);
+    } catch (error: any) {
+      toast.error("Erro ao aplicar marca: " + error.message, { id: toastId });
+    }
+  };
+  const handleBulkUpdatePublishability = async (decision: 'publish' | 'skip') => {
+    try {
+      let ids = filtered.map(p => p.id);
+      if (allPagesSelected) {
+        ids = await getAllFilteredIds();
+        if (ids.length === 0) return;
+      }
+      
+      if (ids.length === 0) return;
+
+      const toastId = "bulk-pub-progress";
+      toast.info(`A processar ${ids.length} produtos...`, { id: toastId });
+      
+      const batchSize = 1000;
+      for (let i = 0; i < ids.length; i += batchSize) {
+        const batch = ids.slice(i, i + batchSize);
+        const { error } = await supabase
+          .from("products")
+          .update({ publishability_decision: decision })
+          .in("id", batch);
+        
+        if (error) throw error;
+        
+        if (ids.length > batchSize) {
+          toast.info(`A processar ${Math.min(i + batchSize, ids.length)} de ${ids.length} produtos...`, { id: toastId });
+        }
+      }
+
+      toast.success(`${ids.length} produtos movidos para ${decision === 'publish' ? 'Publicar' : 'Ignorar'}`, { id: toastId });
       qc.invalidateQueries({ queryKey: ["products"] });
       qc.invalidateQueries({ queryKey: ["product-stats"] });
     } catch (error: any) {
@@ -533,17 +619,33 @@ const ProductsPage = () => {
     });
   };
 
-  const bulkAction = (status: Enums<"product_status">) => {
-    const ids = Array.from(selected);
+  const bulkAction = async (status: Enums<"product_status">) => {
+    let ids = Array.from(selected);
+    if (allPagesSelected) {
+      ids = await getAllFilteredIds();
+      if (ids.length === 0) return;
+    }
+
+    const toastId = "bulk-status-progress";
+    toast.info(`A processar ${ids.length} produtos...`, { id: toastId });
+
     // Process in batches of 500 for large selections
     const batchSize = 500;
     const batches: string[][] = [];
     for (let i = 0; i < ids.length; i += batchSize) {
       batches.push(ids.slice(i, i + batchSize));
     }
-    batches.forEach((batch) => {
-      updateStatus.mutate({ ids: batch, status });
-    });
+    
+    let processed = 0;
+    for (const batch of batches) {
+      await updateStatus.mutateAsync({ ids: batch, status });
+      processed += batch.length;
+      if (ids.length > batchSize) {
+        toast.info(`A processar ${processed} de ${ids.length} produtos...`, { id: toastId });
+      }
+    }
+
+    toast.success(`${ids.length} produtos atualizados para ${statusLabels[status] || status}`, { id: toastId });
     setSelected(new Set());
     setAllPagesSelected(false);
   };
@@ -573,10 +675,15 @@ const ProductsPage = () => {
     setAllPagesSelected(true);
   };
 
-  const handleBulkDelete = () => {
-    if (confirm(`Tem a certeza que deseja eliminar ${selected.size} produto(s)? Esta ação é irreversível.`)) {
-      const ids = Array.from(selected);
-      // Chama o hook uma única vez com todos os IDs, o hook trata o batching sequencialmente
+  const handleBulkDelete = async () => {
+    let ids = Array.from(selected);
+    if (allPagesSelected) {
+      ids = await getAllFilteredIds();
+      if (ids.length === 0) return;
+    }
+
+    if (confirm(`Tem a certeza que deseja eliminar ${ids.length} produto(s)? Esta ação é irreversível.`)) {
+      toast.info(`A eliminar ${ids.length} produtos...`, { id: "delete-progress" });
       deleteProducts.mutate(ids);
       setSelected(new Set());
       setAllPagesSelected(false);
@@ -584,11 +691,18 @@ const ProductsPage = () => {
   };
 
   const handleDiscontinuedPublish = async () => {
-    if (selected.size === 0 || !activeWorkspace) return;
+    let ids = Array.from(selected);
+    if (allPagesSelected) {
+      ids = await getAllFilteredIds();
+      if (ids.length === 0) return;
+    }
+
+    if (ids.length === 0 || !activeWorkspace) return;
     
     try {
+      toast.info(`A iniciar publicação de ${ids.length} descontinuados...`);
       await createPublishJob({
-        productIds: Array.from(selected),
+        productIds: ids,
         workspaceId: activeWorkspace.id,
         // Send stock to trigger the draft + 0 stock logic in edge function
         publishFields: ["stock"], 
@@ -596,11 +710,12 @@ const ProductsPage = () => {
       });
       toast.success("Publicação de descontinuados iniciada!");
       setSelected(new Set());
+      setAllPagesSelected(false);
     } catch (err: any) {
       toast.error(err.message);
     }
   };
-  
+
   const handleInferModels = async (onlyMissing: boolean = true) => {
     if (selected.size === 0 || !activeWorkspace) return;
     
@@ -676,9 +791,15 @@ const ProductsPage = () => {
     }
   };
 
-  const handleOptimizeClick = (ids: string[]) => {
+  const handleOptimizeClick = async (ids: string[]) => {
+    let finalIdsList = ids;
+    if (allPagesSelected) {
+      finalIdsList = await getAllFilteredIds();
+      if (finalIdsList.length === 0) return;
+    }
+
     // Excluir descontinuados da otimização
-    const validIds = ids.filter(id => {
+    const validIds = finalIdsList.filter(id => {
       const p = products.find(prod => prod.id === id) || (allProductsLight ?? []).find((prod: any) => prod.id === id);
       return !p?.is_discontinued;
     });
