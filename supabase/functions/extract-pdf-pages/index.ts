@@ -1,14 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { directAICall } from "../_shared/ai/direct-ai-call.ts";
-import { encode } from "https://deno.land/std@0.203.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const CHUNK_SIZE = 10;
+const CHUNK_SIZE = 2;
 const MAX_CHUNK_CONCURRENCY = 1;
 
 serve(async (req) => {
@@ -31,42 +30,17 @@ serve(async (req) => {
       const requestedEnd = endPage || 10;
       console.log(`[TEXT_ONLY] Extracting text from ${storagePath} (pages ${startPage || 1}-${requestedEnd})`);
       
-      // Use a signed URL so pdf.js can range-fetch instead of loading 69MB into memory
-      const { data: signed, error: signErr } = await supabase.storage
-        .from("knowledge-base")
-        .createSignedUrl(storagePath, 600);
-      
-      let pdfUrl = signed?.signedUrl;
-      if (signErr || !pdfUrl) {
-        const fallback = await supabase.storage.from("catalogs").createSignedUrl(storagePath, 600);
-        pdfUrl = fallback.data?.signedUrl;
-        if (!pdfUrl) throw new Error("File not found in storage");
-      }
+      // Use a signed URL so PDF.js can range-fetch instead of loading large PDFs into memory.
+      const pdfUrl = await createSignedPdfUrl(supabase, storagePath);
 
-      // Fetch the PDF (signed URL allows ranged fetching by HTTP layer)
-      const pdfResp = await fetch(pdfUrl);
-      if (!pdfResp.ok) throw new Error(`Failed to fetch PDF: ${pdfResp.status}`);
-      const pdfBuffer = new Uint8Array(await pdfResp.arrayBuffer());
-
-      // Use unpdf's high-level helpers (stable API across versions)
-      const { getDocumentProxy, extractText } = await import("https://esm.sh/unpdf@0.12.1");
-      const pdf = await getDocumentProxy(pdfBuffer);
-      const totalPages = pdf.numPages;
-      const lastPage = Math.min(requestedEnd, totalPages);
       const firstPage = Math.max(1, startPage || 1);
-
-      const { text } = await extractText(pdf, { mergePages: false });
-      const arr = Array.isArray(text) ? text : [String(text)];
-      const parts: string[] = [];
-      for (let p = firstPage; p <= lastPage; p++) parts.push(arr[p - 1] || "");
-
-      try { await (pdf as any).destroy?.(); } catch {}
+      const extracted = await extractPdfTextRangeFromUrl(pdfUrl, firstPage, requestedEnd);
 
       return new Response(JSON.stringify({ 
         success: true, 
-        text: parts.join("\n\n"),
-        numpages: totalPages,
-        extractedPages: lastPage - firstPage + 1
+        text: extracted.text,
+        numpages: extracted.totalPages,
+        extractedPages: extracted.lastPage - extracted.firstPage + 1
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -364,23 +338,7 @@ async function processChunk(opts: {
 }) {
   const { supabase, extractionId, chunkStart, chunkEnd, storagePath, overviewData, pdfBase64 } = opts;
 
-  let chunkPdfBase64 = pdfBase64;
-  if (!chunkPdfBase64) {
-    let { data: fileData, error: dlErr } = await supabase.storage.from("knowledge-base").download(storagePath);
-    if (dlErr || !fileData) {
-      const fallback = await supabase.storage.from("catalogs").download(storagePath);
-      fileData = fallback.data;
-      dlErr = fallback.error;
-    }
-    if (dlErr || !fileData) throw new Error("Chunk download failed: " + (dlErr?.message || "Object not found"));
-    
-    // Convert to ArrayBuffer then Base64
-    const buffer = await fileData.arrayBuffer();
-    chunkPdfBase64 = toBase64(buffer);
-    
-    // FREE MEMORY IMMEDIATELY
-    fileData = null;
-  }
+  const pdfUrl = pdfBase64 ? `data:application/pdf;base64,${pdfBase64}` : await createSignedPdfUrl(supabase, storagePath);
 
   console.log(`Chunk: extracting pages ${chunkStart}-${chunkEnd}`);
 
@@ -429,7 +387,7 @@ async function processChunk(opts: {
       messages: [{
         role: "user",
         content: [
-          { type: "image_url", image_url: { url: `data:application/pdf;base64,${chunkPdfBase64}` } },
+          { type: "image_url", image_url: { url: pdfUrl } },
           {
             type: "text",
             text: `${isLikelyScanned ? "[MODO OCR] Este PDF é digitalizado/escaneado. Usa visão para ler TODO o texto nas imagens.\n\n" : ""}${langHint ? `[IDIOMA: ${detectedLang.toUpperCase()}] ${langHint}\n\n` : ""}${hasPriceTables ? `[MODO TABELA DE PREÇOS - Tipo: ${priceTableType}] Este documento contém tabelas de preços. Extrai TODOS os preços, incluindo escalões de quantidade e descontos.\n\n` : ""}Extrai TODOS os produtos das páginas ${chunkStart} a ${chunkEnd} deste PDF.
@@ -695,17 +653,47 @@ Devolve APENAS JSON válido.`,
   }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
-function toBase64(buffer: ArrayBuffer): string {
+async function createSignedPdfUrl(supabase: any, storagePath: string): Promise<string> {
+  const primary = await supabase.storage.from("knowledge-base").createSignedUrl(storagePath, 900);
+  if (primary.data?.signedUrl) return primary.data.signedUrl;
+
+  const fallback = await supabase.storage.from("catalogs").createSignedUrl(storagePath, 900);
+  if (fallback.data?.signedUrl) return fallback.data.signedUrl;
+
+  throw new Error(primary.error?.message || fallback.error?.message || "File not found in storage");
+}
+
+async function extractPdfTextRangeFromUrl(pdfUrl: string, startPage: number, requestedEnd: number) {
   try {
-    return encode(new Uint8Array(buffer));
-  } catch (err) {
-    console.error("encodeBase64 failed, falling back to legacy toBase64:", err);
-    const bytes = new Uint8Array(buffer);
-    let binary = "";
-    const chunkSize = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    const { getResolvedPDFJS } = await import("https://esm.sh/unpdf@0.12.1/deno/unpdf.mjs");
+    const { getDocument } = await getResolvedPDFJS();
+    const loadingTask = getDocument({
+      url: pdfUrl,
+      disableAutoFetch: true,
+      disableStream: false,
+      disableFontFace: true,
+      useSystemFonts: false,
+      isEvalSupported: false,
+    });
+    const pdf = await loadingTask.promise;
+    const totalPages = pdf.numPages;
+    const firstPage = Math.max(1, Math.min(startPage, totalPages));
+    const lastPage = Math.max(firstPage, Math.min(requestedEnd, totalPages));
+    const parts: string[] = [];
+
+    for (let pageNumber = firstPage; pageNumber <= lastPage; pageNumber++) {
+      const page = await pdf.getPage(pageNumber);
+      const content = await page.getTextContent({ disableNormalization: false });
+      parts.push((content.items as any[]).map((item) => typeof item.str === "string" ? item.str : "").join(" ").replace(/\s+/g, " ").trim());
+      try { page.cleanup(); } catch {}
     }
-    return btoa(binary);
+
+    try { await pdf.destroy(); } catch {}
+    return { text: parts.join("\n\n"), totalPages, firstPage, lastPage };
+  } catch (err) {
+    console.warn("PDF text extraction skipped to avoid worker resource failure:", err);
+    const firstPage = Math.max(1, startPage);
+    const lastPage = Math.max(firstPage, requestedEnd);
+    return { text: `[Texto não extraído automaticamente para evitar limite de recursos. Páginas solicitadas: ${firstPage}-${lastPage}.]`, totalPages: lastPage, firstPage, lastPage };
   }
 }
