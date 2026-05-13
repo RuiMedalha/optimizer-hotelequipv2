@@ -1255,6 +1255,42 @@ ${excelContext}`,
         const sku = product.sku || '';
         const price = Number(product.original_price) || 0;
         const title = (product.original_title || '').toLowerCase();
+        
+        // Fricosmos specific: skip maintenance parts categories
+        const skipCategoryPatterns = [
+          'pecas de substituico',
+          'peças de substituição', 
+          'acessorios e pecas de substituico',
+          'herrajes'
+        ];
+        const categoryLower = (product.category || '').toLowerCase()
+          .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+        if (skipCategoryPatterns.some(p => categoryLower.includes(p)))
+          return { score: 10, 
+                   reason: 'Categoria de peças de substituição', 
+                   decision: 'skip' };
+
+        // Fricosmos specific: always publish these categories
+        const publishCategoryPatterns = [
+          'sorveteria',
+          'bandejas', 
+          'cepos de corte',
+          'cacifos',
+          'vestiarios',
+          'lava mos',
+          'lavadouros',
+          'torneiras profissionais',
+          'mesas inox',
+          'armarios',
+          'moveis em aco inox'
+        ];
+
+        if (publishCategoryPatterns.some(p => categoryLower.includes(p)))
+          return { score: 90,
+                   reason: `Categoria estratégica Fricosmos`,
+                   decision: 'publish' };
+
         const category = (product.category || '').toLowerCase();
 
         if (index !== undefined && index < 5) {
