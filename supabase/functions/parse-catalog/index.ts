@@ -663,7 +663,7 @@ async function processKnowledge(
     // For PDFs, we delegate to extractPdfText which uses extract-pdf-pages.
     // We pass the filePath (storage path) instead of downloading the whole file here
     // to avoid Memory Limit Exceeded (especially for large files like 65MB).
-    extractedText = await extractPdfText(null as any, filePath, workspaceId, supplierId, fileId);
+    extractedText = await extractPdfText(null as any, filePath, workspaceId, supplierId, fileId, fileName);
   } else if (ext === "xlsx" || ext === "xls") {
     let { data: fileData, error: downloadError } = await supabase.storage.from("knowledge-base").download(filePath);
     if (downloadError) {
@@ -791,7 +791,7 @@ async function extractExcelText(fileData: Blob): Promise<string> {
   return parts.join("\n\n").substring(0, 50000);
 }
 
-async function extractPdfText(fileData: Blob | null, storagePath: string, workspaceId?: string, supplierId?: string, fileId?: string): Promise<string> {
+async function extractPdfText(fileData: Blob | null, storagePath: string, workspaceId?: string, supplierId?: string, fileId?: string, fileName?: string): Promise<string> {
   const adminDb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
   
   try {
@@ -811,7 +811,7 @@ async function extractPdfText(fileData: Blob | null, storagePath: string, worksp
     
     // We'll process up to 60 pages (3 chunks) to stay within reasonable limits for "knowledge"
     // or stop if we hit an error.
-    for (let startPage = 1; startPage <= 60; startPage += CHUNK_SIZE_PAGES) {
+    for (let startPage = 1; startPage <= 30; startPage += CHUNK_SIZE_PAGES) {
       const endPage = startPage + CHUNK_SIZE_PAGES - 1;
       console.log(`Processing page group: ${startPage}-${endPage}`);
       
@@ -823,7 +823,7 @@ async function extractPdfText(fileData: Blob | null, storagePath: string, worksp
             chunkStart: startPage,
             chunkEnd: endPage,
             storagePath: storagePath, 
-            overviewData: { language: "pt", document_type: "product_catalog" }
+            overviewData: { language: "pt", document_type: "product_catalog", is_scanned: false, supplier_name: "Fricosmos" }
           }
         });
         

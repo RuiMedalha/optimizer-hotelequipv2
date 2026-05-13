@@ -101,11 +101,12 @@ async function runOrchestration(opts: {
 
     // Load PDF once for overview — try both storage buckets
     let { data: fileData, error: dlErr } = await supabase.storage
-      .from("catalogs")
+      .from("knowledge-base")
       .download(storagePth);
+      
     if (dlErr || !fileData) {
-      console.warn(`Retry download from "knowledge-base" for ${storagePth}`);
-      const fallback = await supabase.storage.from("knowledge-base").download(storagePth);
+      console.warn(`Retry download from "catalogs" for ${storagePth}`);
+      const fallback = await supabase.storage.from("catalogs").download(storagePth);
       fileData = fallback.data;
       dlErr = fallback.error;
     }
@@ -365,9 +366,9 @@ async function processChunk(opts: {
 
   let chunkPdfBase64 = pdfBase64;
   if (!chunkPdfBase64) {
-    let { data: fileData, error: dlErr } = await supabase.storage.from("catalogs").download(storagePath);
+    let { data: fileData, error: dlErr } = await supabase.storage.from("knowledge-base").download(storagePath);
     if (dlErr || !fileData) {
-      const fallback = await supabase.storage.from("knowledge-base").download(storagePath);
+      const fallback = await supabase.storage.from("catalogs").download(storagePath);
       fileData = fallback.data;
       dlErr = fallback.error;
     }
