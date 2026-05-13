@@ -47,19 +47,15 @@ serve(async (req) => {
         }
       }
 
-      // Use pdf-parse for simple text extraction
-      const pdfParse = (await import("https://esm.sh/pdf-parse@1.1.1")).default;
-      const pdfData = await pdfParse(new Uint8Array(fileData));
-      
-      // pdf-parse doesn't easily support page ranges, so we return the whole text 
-      // and let the caller handle it, or we could try to split by page markers if available.
-      // Most catalogs have enough text in the first 20 pages to be useful.
+      // Use unpdf (Deno-compatible) for simple text extraction
+      const { extractText, getDocumentProxy } = await import("https://esm.sh/unpdf@0.12.1");
+      const pdf = await getDocumentProxy(new Uint8Array(fileData));
+      const { text, totalPages } = await extractText(pdf, { mergePages: true });
       
       return new Response(JSON.stringify({ 
         success: true, 
-        text: pdfData.text,
-        info: pdfData.info,
-        numpages: pdfData.numpages 
+        text: typeof text === "string" ? text : (Array.isArray(text) ? text.join("\n\n") : ""),
+        numpages: totalPages 
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
