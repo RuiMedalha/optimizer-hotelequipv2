@@ -491,6 +491,7 @@ Devolve APENAS JSON válido.`,
   let tablesCreated = 0;
   let rowsExtracted = 0;
   let confidenceSum = 0;
+  const chunkResults: any[] = [];
 
   for (let p = chunkStart; p <= chunkEnd; p++) {
     const pageData = pages.find((pg: any) => pg.page_number === p);
