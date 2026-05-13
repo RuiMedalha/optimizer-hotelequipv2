@@ -791,7 +791,7 @@ async function extractExcelText(fileData: Blob): Promise<string> {
   return parts.join("\n\n").substring(0, 50000);
 }
 
-async function extractPdfText(fileData: Blob, fileName: string, workspaceId?: string, supplierId?: string, fileId?: string): Promise<string> {
+async function extractPdfText(fileData: Blob | null, storagePath: string, workspaceId?: string, supplierId?: string, fileId?: string): Promise<string> {
   const adminDb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
   
   try {
@@ -799,9 +799,9 @@ async function extractPdfText(fileData: Blob, fileName: string, workspaceId?: st
     // Since we don't have a direct PDF parser here that gives page count easily without external deps,
     // we use extract-pdf-pages to get the overview and then extract in chunks.
     
-    console.log("Calling extract-pdf-pages for orchestration/overview...");
+    console.log(`Calling extract-pdf-pages for orchestration/overview (path: ${storagePath})...`);
     const overviewResp = await adminDb.functions.invoke('extract-pdf-pages', {
-      body: { extractionId: fileId || fileName } 
+      body: { extractionId: fileId || storagePath } 
     });
     
     // If extract-pdf-pages is already processing, it might return a background status.
