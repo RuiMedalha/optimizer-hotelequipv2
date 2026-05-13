@@ -795,22 +795,12 @@ async function extractPdfText(fileData: Blob | null, storagePath: string, worksp
   const adminDb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
   
   try {
-    // FIX 2: Chunked processing for large PDFs
-    // We use extract-pdf-pages to extract text in chunks (20 pages at a time).
-    // We process the first 60 pages to stay within reasonable limits for "knowledge" extraction
-    // used for rule generation.
-    
     console.log(`Using extract-pdf-pages to extract text in chunks (path: ${storagePath})...`);
-    // to get the first 30 pages as requested for rule generation.
-    
-    console.log("Using extract-pdf-pages to extract text in chunks (20 pages at a time)...");
     
     let fullText = "";
     const CHUNK_SIZE_PAGES = 10;
-    const MAX_PAGES = 564; // Based on problem description
     
-    // We'll process up to 60 pages (3 chunks) to stay within reasonable limits for "knowledge"
-    // or stop if we hit an error.
+    // Process up to 30 pages (3 chunks) for knowledge base
     for (let startPage = 1; startPage <= 30; startPage += CHUNK_SIZE_PAGES) {
       const endPage = startPage + CHUNK_SIZE_PAGES - 1;
       console.log(`Processing page group: ${startPage}-${endPage}`);
@@ -823,62 +813,35 @@ async function extractPdfText(fileData: Blob | null, storagePath: string, worksp
             chunkStart: startPage,
             chunkEnd: endPage,
             storagePath: storagePath, 
-            overviewData: { language: "pt", document_type: "product_catalog", is_scanned: false, supplier_name: "Fricosmos" }
+            overviewData: { 
+              language: "pt", 
+              document_type: "product_catalog", 
+              is_scanned: false, 
+              supplier_name: "Fricosmos" 
+            }
           }
         });
         
         if (chunkResp.data?.results) {
+          // extract-pdf-pages returns an array of page results in 'results'
           const pageTexts = chunkResp.data.results.map((r: any) => r.text).filter(Boolean).join("\n\n");
           fullText += pageTexts + "\n\n";
           console.log(`Saved chunks for group ${startPage}-${endPage}`);
         }
       } catch (chunkErr) {
         console.error(`Failed to process group ${startPage}-${endPage}:`, chunkErr);
-        // Continue to next group
       }
     }
     
-    if (fullText) return fullText;
-
-    // If chunked extraction failed to return text, we don't try to download the whole file
-    // for fallback as it will likely hit memory limits (65MB PDF -> 512MB RAM limit).
-    console.warn(`Chunked extraction returned no text. Skipping full-file fallback to avoid memory limits.`);
-    return "";
-  } catch (err) {
-
-    const aiResponse = await fetch(`${SUPABASE_URL}/functions/v1/resolve-ai-route`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
-      },
-      body: JSON.stringify({
-        taskType: "pdf_text_extraction",
-        workspaceId: "system",
-        modelOverride: "gemini-2.5-flash",
-        providerOverride: "gemini",
-        systemPrompt: `És um extrator de conteúdo de documentos técnicos e catálogos de produtos. Extrai TODO o texto relevante do PDF, incluindo nomes de produtos, especificações técnicas, tabelas de preços, descrições e códigos de referência. Mantém a estrutura organizada. Responde APENAS com o texto extraído.`,
-        messages: [{
-          role: "user",
-          content: [
-            { type: "text", text: `Extrai todo o conteúdo relevante deste documento: "${fileName}".` },
-            { type: "image_url", image_url: { url: `data:application/pdf;base64,${base64}` } },
-          ],
-        }],
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errText = await aiResponse.text();
-      console.error("AI PDF extract error:", aiResponse.status, errText);
-      throw new Error("Erro ao extrair texto do PDF: " + aiResponse.status);
+    if (fullText) {
+      console.log(`Successfully extracted ${fullText.length} characters of text.`);
+      return fullText;
     }
 
-    const aiWrapper = await aiResponse.json();
-    const aiData = aiWrapper.result || aiWrapper;
-    return (aiData.choices?.[0]?.message?.content || "").substring(0, 50000);
+    console.warn(`Chunked extraction returned no text for ${fileName}.`);
+    return "";
   } catch (err) {
-    console.error("PDF Extraction failed with stack trace:", err);
+    console.error("PDF Extraction failed:", err);
     throw err;
   }
 }
