@@ -87,8 +87,8 @@ export function ColumnMapper({
 
         {/* Mapping selects */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {productFields.map((field) => (
-            <div key={field.key} className="space-y-1.5">
+          {productFields.map((field, idx) => (
+            <div key={`${field.key}-${field.label}-${idx}`} className="space-y-1.5">
               <label className="text-xs font-medium text-foreground flex items-center gap-1">
                 {field.label}
                 {field.required && <span className="text-destructive">*</span>}
