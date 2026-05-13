@@ -664,34 +664,36 @@ async function createSignedPdfUrl(supabase: any, storagePath: string): Promise<s
 }
 
 async function extractPdfTextRangeFromUrl(pdfUrl: string, startPage: number, requestedEnd: number) {
-  const { getResolvedPDFJS } = await import("https://esm.sh/unpdf@0.12.1?target=deno");
-  const { getDocument } = await getResolvedPDFJS();
-  const loadingTask = getDocument({
-    url: pdfUrl,
-    disableAutoFetch: true,
-    disableStream: false,
-    disableFontFace: true,
-    useSystemFonts: false,
-    isEvalSupported: false,
-  });
-  const pdf = await loadingTask.promise;
-  const totalPages = pdf.numPages;
-  const firstPage = Math.max(1, Math.min(startPage, totalPages));
-  const lastPage = Math.max(firstPage, Math.min(requestedEnd, totalPages));
-  const parts: string[] = [];
+  try {
+    const { getResolvedPDFJS } = await import("https://esm.sh/unpdf@0.12.1/deno/unpdf.mjs");
+    const { getDocument } = await getResolvedPDFJS();
+    const loadingTask = getDocument({
+      url: pdfUrl,
+      disableAutoFetch: true,
+      disableStream: false,
+      disableFontFace: true,
+      useSystemFonts: false,
+      isEvalSupported: false,
+    });
+    const pdf = await loadingTask.promise;
+    const totalPages = pdf.numPages;
+    const firstPage = Math.max(1, Math.min(startPage, totalPages));
+    const lastPage = Math.max(firstPage, Math.min(requestedEnd, totalPages));
+    const parts: string[] = [];
 
-  for (let pageNumber = firstPage; pageNumber <= lastPage; pageNumber++) {
-    const page = await pdf.getPage(pageNumber);
-    const content = await page.getTextContent({ disableNormalization: false });
-    const pageText = (content.items as any[])
-      .map((item) => (typeof item.str === "string" ? item.str : ""))
-      .join(" ")
-      .replace(/\s+/g, " ")
-      .trim();
-    parts.push(pageText);
-    try { page.cleanup(); } catch {}
+    for (let pageNumber = firstPage; pageNumber <= lastPage; pageNumber++) {
+      const page = await pdf.getPage(pageNumber);
+      const content = await page.getTextContent({ disableNormalization: false });
+      parts.push((content.items as any[]).map((item) => typeof item.str === "string" ? item.str : "").join(" ").replace(/\s+/g, " ").trim());
+      try { page.cleanup(); } catch {}
+    }
+
+    try { await pdf.destroy(); } catch {}
+    return { text: parts.join("\n\n"), totalPages, firstPage, lastPage };
+  } catch (err) {
+    console.warn("PDF text extraction skipped to avoid worker resource failure:", err);
+    const firstPage = Math.max(1, startPage);
+    const lastPage = Math.max(firstPage, requestedEnd);
+    return { text: `[Texto não extraído automaticamente para evitar limite de recursos. Páginas solicitadas: ${firstPage}-${lastPage}.]`, totalPages: lastPage, firstPage, lastPage };
   }
-
-  try { await pdf.destroy(); } catch {}
-  return { text: parts.join("\n\n"), totalPages, firstPage, lastPage };
 }
