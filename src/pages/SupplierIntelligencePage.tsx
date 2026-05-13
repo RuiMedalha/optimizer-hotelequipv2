@@ -1279,7 +1279,7 @@ ${excelContext}`,
           if (title.includes(word.toLowerCase())) return { score: 85, reason: `Standalone: "${word}"`, decision: 'publish' };
         }
         for (const word of (rules.stop_words || [])) {
-          if (title.includes(word.toLowerCase()) && price < (rules.min_price_review || 30)) return { score: 12, reason: `Componente: "${word}"`, decision: 'skip' };
+          if (word && title.includes(word.toLowerCase().trim())) return { score: 12, reason: `Componente (Stop Word): "${word}"`, decision: 'skip' };
         }
         
         const spareWords = ['pedal','válvula','valvula','bomba','motor','resistência','resistencia'];
