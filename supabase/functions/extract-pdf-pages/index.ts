@@ -51,11 +51,17 @@ serve(async (req) => {
     if (!fileRecord?.storage_path) throw new Error("No file storage_path");
     const storagePth = fileRecord.storage_path;
 
-    // Load PDF once for overview using efficient base64 encoding
-    const { data: fileData, error: dlErr } = await supabase.storage
+    // Load PDF once for overview — try both storage buckets
+    let { data: fileData, error: dlErr } = await supabase.storage
       .from("catalogs")
       .download(storagePth);
-    if (dlErr || !fileData) throw new Error("Cannot download file: " + dlErr?.message);
+    if (dlErr || !fileData) {
+      console.warn(`Retry download from "knowledge-base" for ${storagePth}`);
+      const fallback = await supabase.storage.from("knowledge-base").download(storagePth);
+      fileData = fallback.data;
+      dlErr = fallback.error;
+    }
+    if (dlErr || !fileData) throw new Error("Cannot download file: " + (dlErr?.message || "Object not found"));
 
     const pdfBuffer = await fileData.arrayBuffer();
     const pdfSizeMB = pdfBuffer.byteLength / (1024 * 1024);
