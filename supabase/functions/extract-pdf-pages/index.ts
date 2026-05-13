@@ -305,47 +305,9 @@ Return ONLY valid JSON.`,
 
     // Final status update
     await supabase.from("pdf_extractions").update({ status: "reviewing" }).eq("id", extractionId);
-
-    return new Response(JSON.stringify({
-      success: true, extractionId, totalPages,
-      pagesProcessed: cumulativeProcessed,
-      pagesResumed: alreadyDone.size,
-      pagesNewlyExtracted: totalPagesProcessed,
-      tablesDetected: totalTablesCreated,
-      productsExtracted: totalRowsExtracted,
-      processingTimeMs: processingTime,
-      chunksUsed: chunks.length,
-      overview: {
-        documentType: overview.document_type,
-        language: overview.language,
-        supplier: overview.supplier_name,
-      },
-    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-
-  } catch (e: unknown) {
-    console.error("extract-pdf-pages error:", e);
-
-    try {
-      const body = await req.clone().json();
-      if (body?.extractionId && !body?.chunkMode) {
-        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-        const supabase = createClient(supabaseUrl, serviceKey);
-        await supabase
-          .from("pdf_extractions")
-          .update({ status: "error" })
-          .eq("id", body.extractionId);
-      }
-    } catch {
-      // ignore update failures in error path
-    }
-
-    return new Response(JSON.stringify({ error: e instanceof Error ? (e as Error).message : String(e) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    console.log(`Orchestration complete: ${cumulativeProcessed} pages processed in ${processingTime}ms`);
   }
-});
+}
 
 async function invokeChunkExtraction(opts: {
   supabaseUrl: string;
