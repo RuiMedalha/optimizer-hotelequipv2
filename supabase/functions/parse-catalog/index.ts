@@ -655,6 +655,7 @@ async function processKnowledge(
   supabase: any, userId: string, filePath: string, fileName: string,
   workspaceId?: string, fileId?: string, workflowRunId?: string, supplierId?: string
 ) {
+  console.log(`Starting PDF parse for file: ${fileName}`);
   let { data: fileData, error: downloadError } = await supabase.storage.from("knowledge-base").download(filePath);
   
   if (downloadError) {
@@ -667,11 +668,14 @@ async function processKnowledge(
     fileData = fallbackData;
   }
 
+  const bytes = await fileData.arrayBuffer();
+  console.log(`Downloaded file, size: ${bytes.byteLength} bytes`);
+
   const ext = fileName.toLowerCase().split(".").pop();
   let extractedText = "";
 
   if (ext === "pdf") {
-    extractedText = await extractPdfText(fileData, fileName);
+    extractedText = await extractPdfText(fileData, fileName, workspaceId, supplierId, fileId);
   } else if (ext === "xlsx" || ext === "xls") {
     extractedText = await extractExcelText(fileData);
   }
