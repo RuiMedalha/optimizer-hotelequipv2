@@ -402,7 +402,7 @@ async function processChunk(opts: {
       messages: [{
         role: "user",
         content: [
-          { type: "image_url", image_url: { url: `data:application/pdf;base64,${chunkPdfBase64}` } },
+          { type: "image_url", image_url: { url: pdfUrl } },
           {
             type: "text",
             text: `${isLikelyScanned ? "[MODO OCR] Este PDF é digitalizado/escaneado. Usa visão para ler TODO o texto nas imagens.\n\n" : ""}${langHint ? `[IDIOMA: ${detectedLang.toUpperCase()}] ${langHint}\n\n` : ""}${hasPriceTables ? `[MODO TABELA DE PREÇOS - Tipo: ${priceTableType}] Este documento contém tabelas de preços. Extrai TODOS os preços, incluindo escalões de quantidade e descontos.\n\n` : ""}Extrai TODOS os produtos das páginas ${chunkStart} a ${chunkEnd} deste PDF.
