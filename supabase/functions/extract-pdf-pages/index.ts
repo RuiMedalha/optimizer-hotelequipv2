@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { directAICall } from "../_shared/ai/direct-ai-call.ts";
-import { encode } from "https://deno.land/std@0.203.0/encoding/base64.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -43,35 +42,28 @@ serve(async (req) => {
         if (!pdfUrl) throw new Error("File not found in storage");
       }
 
-      // Fetch the PDF (signed URL allows ranged fetching by HTTP layer)
-      const pdfResp = await fetch(pdfUrl);
-      if (!pdfResp.ok) throw new Error(`Failed to fetch PDF: ${pdfResp.status}`);
-      const pdfBuffer = new Uint8Array(await pdfResp.arrayBuffer());
-
-      // Use unpdf's high-level helpers (stable API across versions)
-      const { getDocumentProxy } = await import("https://esm.sh/unpdf@0.12.1");
-      const pdf = await getDocumentProxy(pdfBuffer);
-      const totalPages = pdf.numPages;
-      const lastPage = Math.min(requestedEnd, totalPages);
       const firstPage = Math.max(1, startPage || 1);
+      const lastPage = Math.max(firstPage, requestedEnd);
 
-      const parts: string[] = [];
-      for (let p = firstPage; p <= lastPage; p++) {
-        const page = await pdf.getPage(p);
-        const content = await page.getTextContent();
-        const pageText = (content.items as any[])
-          .map((item) => (typeof item.str === "string" ? item.str : ""))
-          .join(" ");
-        parts.push(pageText);
-        try { await (page as any).cleanup?.(); } catch {}
-      }
-
-      try { await (pdf as any).destroy?.(); } catch {}
+      // Do not parse large PDFs inside the worker. Offload page reading to the AI model via signed URL.
+      const aiResult = await directAICall({
+        systemPrompt: "És um motor de extração de texto de PDFs. Devolve apenas texto corrido, sem markdown.",
+        messages: [{
+          role: "user",
+          content: [
+            { type: "image_url", image_url: { url: pdfUrl } },
+            { type: "text", text: `Extrai o texto legível das páginas ${firstPage} a ${lastPage} deste PDF. Mantém o idioma original e inclui tabelas em texto simples.` },
+          ],
+        }],
+        model: "google/gemini-2.5-flash",
+        maxTokens: 12000,
+      });
+      const text = aiResult.choices?.[0]?.message?.content?.trim() || "";
 
       return new Response(JSON.stringify({ 
         success: true, 
-        text: parts.join("\n\n"),
-        numpages: totalPages,
+        text,
+        numpages: lastPage,
         extractedPages: lastPage - firstPage + 1
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
