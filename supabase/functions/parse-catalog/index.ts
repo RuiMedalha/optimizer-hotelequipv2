@@ -655,28 +655,26 @@ async function processKnowledge(
   supabase: any, userId: string, filePath: string, fileName: string,
   workspaceId?: string, fileId?: string, workflowRunId?: string, supplierId?: string
 ) {
-  console.log(`Starting PDF parse for file: ${fileName}`);
-  let { data: fileData, error: downloadError } = await supabase.storage.from("knowledge-base").download(filePath);
-  
-  if (downloadError) {
-    console.warn(`Retry download from "catalogs" for ${filePath}`);
-    const { data: fallbackData, error: fallbackError } = await supabase.storage.from("catalogs").download(filePath);
-    if (fallbackError) {
-      console.error("Download error:", fallbackError.message);
-      return;
-    }
-    fileData = fallbackData;
-  }
-
-  const bytes = await fileData.arrayBuffer();
-  console.log(`Downloaded file, size: ${bytes.byteLength} bytes`);
-
+  console.log(`Starting processKnowledge for file: ${fileName} (path: ${filePath})`);
   const ext = fileName.toLowerCase().split(".").pop();
   let extractedText = "";
 
   if (ext === "pdf") {
-    extractedText = await extractPdfText(fileData, fileName, workspaceId, supplierId, fileId);
+    // For PDFs, we delegate to extractPdfText which uses extract-pdf-pages.
+    // We pass the filePath (storage path) instead of downloading the whole file here
+    // to avoid Memory Limit Exceeded (especially for large files like 65MB).
+    extractedText = await extractPdfText(null as any, filePath, workspaceId, supplierId, fileId);
   } else if (ext === "xlsx" || ext === "xls") {
+    let { data: fileData, error: downloadError } = await supabase.storage.from("knowledge-base").download(filePath);
+    if (downloadError) {
+      console.warn(`Retry download from "catalogs" for ${filePath}`);
+      const { data: fallbackData, error: fallbackError } = await supabase.storage.from("catalogs").download(filePath);
+      if (fallbackError) {
+        console.error("Download error:", fallbackError.message);
+        return;
+      }
+      fileData = fallbackData;
+    }
     extractedText = await extractExcelText(fileData);
   }
 
