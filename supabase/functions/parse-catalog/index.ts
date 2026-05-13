@@ -829,7 +829,7 @@ async function extractPdfText(fileData: Blob | null, storagePath: string, worksp
             chunkMode: true,
             chunkStart: startPage,
             chunkEnd: endPage,
-            storagePath: fileName, // Assuming storagePath matches fileName if not provided
+            storagePath: storagePath, 
             overviewData: { language: "pt", document_type: "product_catalog" }
           }
         });
