@@ -581,17 +581,33 @@ const ProductsPage = () => {
     });
   };
 
-  const bulkAction = (status: Enums<"product_status">) => {
-    const ids = Array.from(selected);
+  const bulkAction = async (status: Enums<"product_status">) => {
+    let ids = Array.from(selected);
+    if (allPagesSelected) {
+      ids = await getAllFilteredIds();
+      if (ids.length === 0) return;
+    }
+
+    const toastId = "bulk-status-progress";
+    toast.info(`A processar ${ids.length} produtos...`, { id: toastId });
+
     // Process in batches of 500 for large selections
     const batchSize = 500;
     const batches: string[][] = [];
     for (let i = 0; i < ids.length; i += batchSize) {
       batches.push(ids.slice(i, i + batchSize));
     }
-    batches.forEach((batch) => {
-      updateStatus.mutate({ ids: batch, status });
-    });
+    
+    let processed = 0;
+    for (const batch of batches) {
+      await updateStatus.mutateAsync({ ids: batch, status });
+      processed += batch.length;
+      if (ids.length > batchSize) {
+        toast.info(`A processar ${processed} de ${ids.length} produtos...`, { id: toastId });
+      }
+    }
+
+    toast.success(`${ids.length} produtos atualizados para ${statusLabels[status] || status}`, { id: toastId });
     setSelected(new Set());
     setAllPagesSelected(false);
   };
