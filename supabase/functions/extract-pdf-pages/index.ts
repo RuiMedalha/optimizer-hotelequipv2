@@ -28,31 +28,34 @@ serve(async (req) => {
     // TEXT ONLY MODE: Minimal extraction for large files
     // ==========================================
     if (mode === 'text_only') {
-      console.log(`[TEXT_ONLY] Extracting text from ${storagePath} (pages ${startPage || 1}-${endPage || 20})`);
+      const requestedEnd = endPage || 10;
+      console.log(`[TEXT_ONLY] Extracting text from ${storagePath} (pages ${startPage || 1}-${requestedEnd})`);
       
-      let fileData;
-      if (pdfBase64) {
-        const binary = atob(pdfBase64);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        fileData = bytes;
-      } else {
-        const { data, error: dlErr } = await supabase.storage.from("knowledge-base").download(storagePath);
-        if (dlErr || !data) {
-          const fallback = await supabase.storage.from("catalogs").download(storagePath);
-          if (fallback.error || !fallback.data) throw new Error("File not found in storage");
-          fileData = await fallback.data.arrayBuffer();
-        } else {
-          fileData = await data.arrayBuffer();
-        }
+      // Use a signed URL so pdf.js can range-fetch instead of loading 69MB into memory
+      const { data: signed, error: signErr } = await supabase.storage
+        .from("knowledge-base")
+        .createSignedUrl(storagePath, 600);
+      
+      let pdfUrl = signed?.signedUrl;
+      if (signErr || !pdfUrl) {
+        const fallback = await supabase.storage.from("catalogs").createSignedUrl(storagePath, 600);
+        pdfUrl = fallback.data?.signedUrl;
+        if (!pdfUrl) throw new Error("File not found in storage");
       }
 
-      // Use unpdf (Deno-compatible). Extract page-by-page and stop early
-      // to avoid hitting WORKER_RESOURCE_LIMIT on large PDFs.
-      const { getDocumentProxy } = await import("https://esm.sh/unpdf@0.12.1");
-      const pdf = await getDocumentProxy(new Uint8Array(fileData));
+      // Use pdfjs directly via unpdf with range requests enabled (low memory)
+      const { resolvePDFJS } = await import("https://esm.sh/unpdf@0.12.1");
+      const { getDocument } = await resolvePDFJS();
+      const loadingTask = getDocument({
+        url: pdfUrl,
+        disableAutoFetch: true,
+        disableStream: false,
+        disableFontFace: true,
+        useSystemFonts: false,
+      });
+      const pdf = await loadingTask.promise;
       const totalPages = pdf.numPages;
-      const lastPage = Math.min(endPage || 20, totalPages);
+      const lastPage = Math.min(requestedEnd, totalPages);
       const firstPage = Math.max(1, startPage || 1);
 
       const parts: string[] = [];
@@ -69,6 +72,8 @@ serve(async (req) => {
           console.warn(`Failed to extract page ${p}:`, pageErr);
         }
       }
+
+      try { await pdf.destroy(); } catch {}
 
       return new Response(JSON.stringify({ 
         success: true, 
