@@ -668,26 +668,12 @@ Devolve APENAS JSON válido.`,
   }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
-function toBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  const chunkSize = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-  }
-  return btoa(binary);
-}
+async function createSignedPdfUrl(supabase: any, storagePath: string): Promise<string> {
+  const primary = await supabase.storage.from("knowledge-base").createSignedUrl(storagePath, 900);
+  if (primary.data?.signedUrl) return primary.data.signedUrl;
 
-async function extractPdfPageRangeAsBase64(buffer: ArrayBuffer, startPage: number, endPage: number): Promise<string> {
-  const { PDFDocument } = await import("https://esm.sh/pdf-lib@1.17.1");
-  const sourcePdf = await PDFDocument.load(buffer, { ignoreEncryption: true });
-  const totalPages = sourcePdf.getPageCount();
-  const firstIndex = Math.max(0, Math.min(startPage, totalPages) - 1);
-  const lastIndex = Math.max(firstIndex, Math.min(endPage, totalPages) - 1);
-  const targetPdf = await PDFDocument.create();
-  const pageIndexes = Array.from({ length: lastIndex - firstIndex + 1 }, (_, i) => firstIndex + i);
-  const copiedPages = await targetPdf.copyPages(sourcePdf, pageIndexes);
-  for (const page of copiedPages) targetPdf.addPage(page);
-  const bytes = await targetPdf.save({ useObjectStreams: true });
-  return toBase64(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+  const fallback = await supabase.storage.from("catalogs").createSignedUrl(storagePath, 900);
+  if (fallback.data?.signedUrl) return fallback.data.signedUrl;
+
+  throw new Error(primary.error?.message || fallback.error?.message || "File not found in storage");
 }
