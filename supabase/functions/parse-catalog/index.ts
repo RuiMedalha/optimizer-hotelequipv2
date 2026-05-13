@@ -40,7 +40,7 @@ serve(async (req) => {
     const userId = user.id;
 
     const body = await req.json();
-    const { filePath, fileName, columnMapping, sheetName, parseKnowledge, workspaceId, fileId, parsedRows, _batch, updateMode, updateFields, workflowRunId, skuPrefix, skuSuffix, modelSuffix, defaultBrand, autoModelFromSku } = body;
+    const { filePath, fileName, columnMapping, sheetName, parseKnowledge, workspaceId, fileId, supplierId, parsedRows, _batch, updateMode, updateFields, workflowRunId, skuPrefix, skuSuffix, modelSuffix, defaultBrand, autoModelFromSku } = body;
 
     // ─── Batch continuation mode (for large inserts) ───
     if (_batch) {
@@ -65,7 +65,7 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const promise = processKnowledge(supabase, userId, filePath, fileName, workspaceId, fileId, workflowRunId);
+      const promise = processKnowledge(supabase, userId, filePath, fileName, workspaceId, fileId, workflowRunId, supplierId);
       (globalThis as any).EdgeRuntime?.waitUntil?.(promise.catch((e: any) => console.error("Knowledge bg error:", e)));
       return new Response(
         JSON.stringify({ extractedText: "", count: 0, background: true }),
@@ -647,7 +647,7 @@ async function processPdfInBackground(supabase: any, userId: string, filePath: s
 // ─── Knowledge processing ───
 async function processKnowledge(
   supabase: any, userId: string, filePath: string, fileName: string,
-  workspaceId?: string, fileId?: string, workflowRunId?: string
+  workspaceId?: string, fileId?: string, workflowRunId?: string, supplierId?: string
 ) {
   const { data: fileData, error: downloadError } = await supabase.storage.from("catalogs").download(filePath);
   if (downloadError || !fileData) {
@@ -686,7 +686,9 @@ async function processKnowledge(
   const chunks = chunkText(extractedText, 1500);
   const chunkRows = chunks.map((content, idx) => ({
     file_id: resolvedFileId, user_id: userId,
-    workspace_id: workspaceId || null, chunk_index: idx,
+    workspace_id: workspaceId || null,
+    supplier_id: supplierId || null,
+    chunk_index: idx,
     content, source_name: fileName,
   }));
 
