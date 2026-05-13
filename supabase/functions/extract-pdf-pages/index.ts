@@ -469,25 +469,19 @@ Devolve APENAS JSON válido.`,
     }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
-  let aiPayload: any = {};
-  try {
-    const content = aiResult.choices?.[0]?.message?.content || "{}";
-    aiPayload = JSON.parse(content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
-  } catch {
-    console.error(`Chunk ${chunkStart}-${chunkEnd} returned non-JSON AI payload`);
-    aiPayload = {};
-  }
-
-  const content = aiPayload?.choices?.[0]?.message?.content || "{}";
   let result: any = { pages: [] };
   try {
-    result = JSON.parse(content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
-  } catch {
+    const content = aiResult.choices?.[0]?.message?.content || "{}";
+    const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    result = JSON.parse(cleaned);
+  } catch (err) {
+    console.error(`Chunk ${chunkStart}-${chunkEnd} JSON parse failed:`, err);
     try {
+      const content = aiResult.choices?.[0]?.message?.content || "";
       const m = content.match(/\{[\s\S]*\}/);
       if (m) result = JSON.parse(m[0]);
     } catch {
-      console.warn(`Chunk ${chunkStart}-${chunkEnd} returned unparsable content`);
+      console.warn(`Chunk ${chunkStart}-${chunkEnd} could not recover JSON`);
       result = { pages: [] };
     }
   }
