@@ -8,7 +8,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const CHUNK_SIZE = 10;
+const CHUNK_SIZE = 2;
 const MAX_CHUNK_CONCURRENCY = 1;
 
 serve(async (req) => {
@@ -49,16 +49,22 @@ serve(async (req) => {
       const pdfBuffer = new Uint8Array(await pdfResp.arrayBuffer());
 
       // Use unpdf's high-level helpers (stable API across versions)
-      const { getDocumentProxy, extractText } = await import("https://esm.sh/unpdf@0.12.1");
+      const { getDocumentProxy } = await import("https://esm.sh/unpdf@0.12.1");
       const pdf = await getDocumentProxy(pdfBuffer);
       const totalPages = pdf.numPages;
       const lastPage = Math.min(requestedEnd, totalPages);
       const firstPage = Math.max(1, startPage || 1);
 
-      const { text } = await extractText(pdf, { mergePages: false });
-      const arr = Array.isArray(text) ? text : [String(text)];
       const parts: string[] = [];
-      for (let p = firstPage; p <= lastPage; p++) parts.push(arr[p - 1] || "");
+      for (let p = firstPage; p <= lastPage; p++) {
+        const page = await pdf.getPage(p);
+        const content = await page.getTextContent();
+        const pageText = (content.items as any[])
+          .map((item) => (typeof item.str === "string" ? item.str : ""))
+          .join(" ");
+        parts.push(pageText);
+        try { await (page as any).cleanup?.(); } catch {}
+      }
 
       try { await (pdf as any).destroy?.(); } catch {}
 
