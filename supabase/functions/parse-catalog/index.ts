@@ -806,12 +806,12 @@ async function extractPdfText(fileData: Blob | null, storagePath: string, worksp
     console.log("Using extract-pdf-pages to extract text in chunks (20 pages at a time)...");
     
     let fullText = "";
-    const CHUNK_SIZE_PAGES = 20;
+    const CHUNK_SIZE_PAGES = 10;
     const MAX_PAGES = 564; // Based on problem description
     
     // We'll process up to 60 pages (3 chunks) to stay within reasonable limits for "knowledge"
     // or stop if we hit an error.
-    for (let startPage = 1; startPage <= 30; startPage += CHUNK_SIZE_PAGES) {
+    for (let startPage = 1; startPage <= 20; startPage += CHUNK_SIZE_PAGES) {
       const endPage = startPage + CHUNK_SIZE_PAGES - 1;
       console.log(`Processing page group: ${startPage}-${endPage}`);
       
