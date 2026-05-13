@@ -31,16 +31,7 @@ serve(async (req) => {
       console.log(`[TEXT_ONLY] Extracting text from ${storagePath} (pages ${startPage || 1}-${requestedEnd})`);
       
       // Use a signed URL so pdf.js can range-fetch instead of loading 69MB into memory
-      const { data: signed, error: signErr } = await supabase.storage
-        .from("knowledge-base")
-        .createSignedUrl(storagePath, 600);
-      
-      let pdfUrl = signed?.signedUrl;
-      if (signErr || !pdfUrl) {
-        const fallback = await supabase.storage.from("catalogs").createSignedUrl(storagePath, 600);
-        pdfUrl = fallback.data?.signedUrl;
-        if (!pdfUrl) throw new Error("File not found in storage");
-      }
+      const pdfUrl = await createSignedPdfUrl(supabase, storagePath);
 
       const firstPage = Math.max(1, startPage || 1);
       const lastPage = Math.max(firstPage, requestedEnd);
@@ -362,23 +353,7 @@ async function processChunk(opts: {
 }) {
   const { supabase, extractionId, chunkStart, chunkEnd, storagePath, overviewData, pdfBase64 } = opts;
 
-  let chunkPdfBase64 = pdfBase64;
-  if (!chunkPdfBase64) {
-    let { data: fileData, error: dlErr } = await supabase.storage.from("knowledge-base").download(storagePath);
-    if (dlErr || !fileData) {
-      const fallback = await supabase.storage.from("catalogs").download(storagePath);
-      fileData = fallback.data;
-      dlErr = fallback.error;
-    }
-    if (dlErr || !fileData) throw new Error("Chunk download failed: " + (dlErr?.message || "Object not found"));
-    
-    // Convert only the requested page range to a tiny PDF before sending it to AI.
-    const buffer = await fileData.arrayBuffer();
-    chunkPdfBase64 = await extractPdfPageRangeAsBase64(buffer, chunkStart, chunkEnd);
-    
-    // FREE MEMORY IMMEDIATELY
-    fileData = null;
-  }
+  const pdfUrl = pdfBase64 ? `data:application/pdf;base64,${pdfBase64}` : await createSignedPdfUrl(supabase, storagePath);
 
   console.log(`Chunk: extracting pages ${chunkStart}-${chunkEnd}`);
 
