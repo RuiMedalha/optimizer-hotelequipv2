@@ -684,6 +684,7 @@ async function processKnowledge(
     console.warn(`⚠️ No text extracted from "${fileName}"`);
     return;
   }
+  console.log(`Extracted text, length: ${extractedText.length} chars`);
 
   let resolvedFileId = fileId;
   if (!resolvedFileId) {
