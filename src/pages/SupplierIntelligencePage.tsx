@@ -1251,11 +1251,20 @@ ${excelContext}`,
     setProgress(0);
     
     try {
-      const applyRules = (product: any, rules: any) => {
+      const applyRules = (product: any, rules: any, index?: number) => {
         const sku = product.sku || '';
         const price = Number(product.original_price) || 0;
         const title = (product.original_title || '').toLowerCase();
         const category = (product.category || '').toLowerCase();
+
+        if (index !== undefined && index < 5) {
+          console.log('Product classification:', {
+            sku: product.sku,
+            title: product.original_title,
+            price: product.original_price,
+            result: null // will be logged in the loop
+          });
+        }
 
         for (const pattern of (rules.sku_publish_patterns || [])) {
           try { if (new RegExp(pattern).test(sku)) return { score: 100, reason: 'SKU padrão', decision: 'publish' }; } catch(e) {}
@@ -1297,6 +1306,13 @@ ${excelContext}`,
       const totalProducts = await countAllProducts();
       if (totalProducts === 0) throw new Error("Não foram encontrados produtos para classificar.");
 
+      console.log('Rules being applied:', {
+        stopWords: rules.stop_words?.length,
+        powerWords: rules.power_words?.length,
+        skuPatterns: rules.sku_publish_patterns?.length,
+        minPriceSkip: rules.min_price_skip
+      });
+
       let totalProcessed = 0;
       let offset = 0;
       const batchSize = 100;
@@ -1308,13 +1324,19 @@ ${excelContext}`,
           .from('products')
           .select('id, sku, original_price, original_title, category, workflow_state')
           .or(`supplier_ref.eq.${supplier.id},brand.ilike.%${supplier.supplier_name}%,supplier_name.ilike.%${supplier.supplier_name}%`)
-          .range(offset, offset + batchSize - 1);
+          .range(offset, offset + batchSize - 1)
+          .order('id'); // Explicit order for consistent pagination
         
         if (error) throw error;
         if (!batch || batch.length === 0) break;
 
-        const updates = batch.map(product => {
-          const result: any = applyRules(product, rules);
+        const updates = batch.map((product, idx) => {
+          const result: any = applyRules(product, rules, totalProcessed + idx);
+          
+          if (totalProcessed + idx < 5) {
+            console.log(`Classification result for ${product.sku}:`, result);
+          }
+
           const update: any = {
             id: product.id,
             publishability_score: result.score,
@@ -1330,16 +1352,19 @@ ${excelContext}`,
         });
 
         // Save results to DB
-        for (const update of updates) {
+        // Using Promise.all for faster batch updates
+        await Promise.all(updates.map(update => {
           const { id, ...data } = update;
-          await supabase.from('products').update(data).eq('id', id);
-        }
+          return supabase.from('products').update(data).eq('id', id);
+        }));
 
         totalProcessed += batch.length;
         offset += batchSize;
         
+        console.log(`Processed batch: ${totalProcessed} total so far`);
+        
         setProgress(Math.round((totalProcessed / totalProducts) * 100));
-        setGeneratingStatus(`A classificar... ${totalProcessed}/${totalProducts}`);
+        setGeneratingStatus(`A classificar ${totalProcessed} de ${totalProducts} produtos...`);
         
         if (batch.length < batchSize) break;
       }
