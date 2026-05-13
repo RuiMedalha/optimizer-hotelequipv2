@@ -2613,6 +2613,28 @@ const ProductsPage = () => {
                             </td>
                             <td className="p-3 text-right" onClick={(e) => e.stopPropagation()}>
                               <div className="flex justify-end gap-1">
+                                {publishabilityFilter !== "all" && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                      onClick={() => handleUpdatePublishability(item.product.id, 'publish')}
+                                      title="Publicar"
+                                    >
+                                      ✅
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      onClick={() => handleUpdatePublishability(item.product.id, 'skip')}
+                                      title="Ignorar"
+                                    >
+                                      ❌
+                                    </Button>
+                                  </>
+                                )}
                                 <Button size="sm" variant="ghost" onClick={() => setDetailProduct(item.product)}>
                                   <Edit className="w-3.5 h-3.5" />
                                 </Button>
