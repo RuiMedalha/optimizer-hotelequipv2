@@ -686,7 +686,9 @@ async function processKnowledge(
   const chunks = chunkText(extractedText, 1500);
   const chunkRows = chunks.map((content, idx) => ({
     file_id: resolvedFileId, user_id: userId,
-    workspace_id: workspaceId || null, chunk_index: idx,
+    workspace_id: workspaceId || null,
+    supplier_id: supplierId || null,
+    chunk_index: idx,
     content, source_name: fileName,
   }));
 
