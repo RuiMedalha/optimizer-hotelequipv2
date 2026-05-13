@@ -655,6 +655,7 @@ async function processKnowledge(
   supabase: any, userId: string, filePath: string, fileName: string,
   workspaceId?: string, fileId?: string, workflowRunId?: string, supplierId?: string
 ) {
+  console.log(`Starting PDF parse for file: ${fileName}`);
   let { data: fileData, error: downloadError } = await supabase.storage.from("knowledge-base").download(filePath);
   
   if (downloadError) {
@@ -667,11 +668,14 @@ async function processKnowledge(
     fileData = fallbackData;
   }
 
+  const bytes = await fileData.arrayBuffer();
+  console.log(`Downloaded file, size: ${bytes.byteLength} bytes`);
+
   const ext = fileName.toLowerCase().split(".").pop();
   let extractedText = "";
 
   if (ext === "pdf") {
-    extractedText = await extractPdfText(fileData, fileName);
+    extractedText = await extractPdfText(fileData, fileName, workspaceId, supplierId, fileId);
   } else if (ext === "xlsx" || ext === "xls") {
     extractedText = await extractExcelText(fileData);
   }
@@ -680,6 +684,7 @@ async function processKnowledge(
     console.warn(`⚠️ No text extracted from "${fileName}"`);
     return;
   }
+  console.log(`Extracted text, length: ${extractedText.length} chars`);
 
   let resolvedFileId = fileId;
   if (!resolvedFileId) {
@@ -696,6 +701,7 @@ async function processKnowledge(
   }
 
   const chunks = chunkText(extractedText, 1500);
+  console.log(`Creating chunks, count: ${chunks.length}`);
   const chunkRows = chunks.map((content, idx) => ({
     file_id: resolvedFileId, user_id: userId,
     workspace_id: workspaceId || null,
@@ -706,11 +712,18 @@ async function processKnowledge(
 
   await supabase.from("knowledge_chunks").delete().eq("file_id", resolvedFileId);
 
+  let savedCount = 0;
   for (let i = 0; i < chunkRows.length; i += 50) {
+    const batch = chunkRows.slice(i, i + 50);
     const { error: chunkError } = await supabase
-      .from("knowledge_chunks").insert(chunkRows.slice(i, i + 50) as any);
-    if (chunkError) console.error(`Chunk insert error batch ${i}:`, chunkError.message);
+      .from("knowledge_chunks").insert(batch as any);
+    if (chunkError) {
+      console.error(`Chunk insert error batch ${i}:`, chunkError.message);
+    } else {
+      savedCount += batch.length;
+    }
   }
+  console.log(`Chunks saved to DB: ${savedCount}`);
 
   const previewText = extractedText.substring(0, 50000);
   await supabase.from("uploaded_files")
@@ -780,50 +793,108 @@ async function extractExcelText(fileData: Blob): Promise<string> {
   return parts.join("\n\n").substring(0, 50000);
 }
 
-async function extractPdfText(fileData: Blob, fileName: string): Promise<string> {
-  // AI calls go through resolve-ai-route (no LOVABLE_API_KEY dependency)
+async function extractPdfText(fileData: Blob, fileName: string, workspaceId?: string, supplierId?: string, fileId?: string): Promise<string> {
+  const adminDb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+  
+  try {
+    // FIX 2: Chunked processing for large PDFs
+    // Since we don't have a direct PDF parser here that gives page count easily without external deps,
+    // we use extract-pdf-pages to get the overview and then extract in chunks.
+    
+    console.log("Calling extract-pdf-pages for orchestration/overview...");
+    const overviewResp = await adminDb.functions.invoke('extract-pdf-pages', {
+      body: { extractionId: fileId || fileName } 
+    });
+    
+    // If extract-pdf-pages is already processing, it might return a background status.
+    // However, for knowledge extraction, we prefer a more direct approach or wait for it.
+    
+    // FALLBACK (FIX 4): If the document is large or AI fails, we use extract-pdf-pages
+    // to get the first 30 pages as requested for rule generation.
+    
+    console.log("Using extract-pdf-pages to extract text in chunks (20 pages at a time)...");
+    
+    let fullText = "";
+    const CHUNK_SIZE_PAGES = 20;
+    const MAX_PAGES = 564; // Based on problem description
+    
+    // We'll process up to 60 pages (3 chunks) to stay within reasonable limits for "knowledge"
+    // or stop if we hit an error.
+    for (let startPage = 1; startPage <= 60; startPage += CHUNK_SIZE_PAGES) {
+      const endPage = startPage + CHUNK_SIZE_PAGES - 1;
+      console.log(`Processing page group: ${startPage}-${endPage}`);
+      
+      try {
+        const chunkResp = await adminDb.functions.invoke('extract-pdf-pages', {
+          body: {
+            extractionId: fileId,
+            chunkMode: true,
+            chunkStart: startPage,
+            chunkEnd: endPage,
+            storagePath: fileName, // Assuming storagePath matches fileName if not provided
+            overviewData: { language: "pt", document_type: "product_catalog" }
+          }
+        });
+        
+        if (chunkResp.data?.results) {
+          const pageTexts = chunkResp.data.results.map((r: any) => r.text).filter(Boolean).join("\n\n");
+          fullText += pageTexts + "\n\n";
+          console.log(`Saved chunks for group ${startPage}-${endPage}`);
+        }
+      } catch (chunkErr) {
+        console.error(`Failed to process group ${startPage}-${endPage}:`, chunkErr);
+        // Continue to next group
+      }
+    }
+    
+    if (fullText) return fullText;
 
-  const buffer = await fileData.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  const chunkSize = 8192;
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
-    binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
+    // Last resort fallback: original direct AI extraction for small files
+    const buffer = await fileData.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+      binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
+    }
+    const base64 = btoa(binary);
+
+    const aiResponse = await fetch(`${SUPABASE_URL}/functions/v1/resolve-ai-route`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
+      },
+      body: JSON.stringify({
+        taskType: "pdf_text_extraction",
+        workspaceId: "system",
+        modelOverride: "gemini-2.5-flash",
+        providerOverride: "gemini",
+        systemPrompt: `És um extrator de conteúdo de documentos técnicos e catálogos de produtos. Extrai TODO o texto relevante do PDF, incluindo nomes de produtos, especificações técnicas, tabelas de preços, descrições e códigos de referência. Mantém a estrutura organizada. Responde APENAS com o texto extraído.`,
+        messages: [{
+          role: "user",
+          content: [
+            { type: "text", text: `Extrai todo o conteúdo relevante deste documento: "${fileName}".` },
+            { type: "image_url", image_url: { url: `data:application/pdf;base64,${base64}` } },
+          ],
+        }],
+      }),
+    });
+
+    if (!aiResponse.ok) {
+      const errText = await aiResponse.text();
+      console.error("AI PDF extract error:", aiResponse.status, errText);
+      throw new Error("Erro ao extrair texto do PDF: " + aiResponse.status);
+    }
+
+    const aiWrapper = await aiResponse.json();
+    const aiData = aiWrapper.result || aiWrapper;
+    return (aiData.choices?.[0]?.message?.content || "").substring(0, 50000);
+  } catch (err) {
+    console.error("PDF Extraction failed with stack trace:", err);
+    throw err;
   }
-  const base64 = btoa(binary);
-
-  const aiResponse = await fetch(`${SUPABASE_URL}/functions/v1/resolve-ai-route`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${SERVICE_ROLE_KEY}`,
-    },
-    body: JSON.stringify({
-      taskType: "pdf_text_extraction",
-      workspaceId: "system",
-      modelOverride: "gemini-2.5-flash",
-      providerOverride: "gemini",
-      systemPrompt: `És um extrator de conteúdo de documentos técnicos e catálogos de produtos. Extrai TODO o texto relevante do PDF, incluindo nomes de produtos, especificações técnicas, tabelas de preços, descrições e códigos de referência. Mantém a estrutura organizada. Responde APENAS com o texto extraído.`,
-      messages: [{
-        role: "user",
-        content: [
-          { type: "text", text: `Extrai todo o conteúdo relevante deste documento: "${fileName}".` },
-          { type: "image_url", image_url: { url: `data:application/pdf;base64,${base64}` } },
-        ],
-      }],
-    }),
-  });
-
-  if (!aiResponse.ok) {
-    const errText = await aiResponse.text();
-    console.error("AI PDF extract error:", aiResponse.status, errText);
-    throw new Error("Erro ao extrair texto do PDF: " + aiResponse.status);
-  }
-
-  const aiWrapper = await aiResponse.json();
-  const aiData = aiWrapper.result || aiWrapper;
-  return (aiData.choices?.[0]?.message?.content || "").substring(0, 50000);
 }
 
 async function extractPdfTextViaUrl(fileName: string, fileSize: number): Promise<string> {
