@@ -898,7 +898,7 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
       console.log('Calling extract-pdf-pages (text_only) with:', {
         storagePath: pdfFile.storage_path,
         startPage: 1,
-        endPage: 20,
+        endPage: 10,
         mode: 'text_only'
       });
 
@@ -907,7 +907,7 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
           mode: 'text_only',
           storagePath: pdfFile.storage_path,
           startPage: 1,
-          endPage: 20,
+          endPage: 10,
           extractionId: pdfFile.id
         }
       });
