@@ -689,13 +689,16 @@ Devolve APENAS JSON válido.`,
 }
 
 function toBase64(buffer: ArrayBuffer): string {
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  const chunkSize = 0x8000;
-
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  try {
+    return encode(new Uint8Array(buffer));
+  } catch (err) {
+    console.error("encodeBase64 failed, falling back to legacy toBase64:", err);
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    }
+    return btoa(binary);
   }
-
-  return btoa(binary);
 }
