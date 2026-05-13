@@ -671,11 +671,19 @@ Devolve APENAS JSON válido.`,
       }
       tablesCreated++;
     }
+    chunkResults.push({
+      pageNumber: p,
+      text: readableText || ocrText,
+      products: products,
+      pageData: pageData
+    });
+
     pagesProcessed++;
   }
 
   return new Response(JSON.stringify({
     pagesProcessed, tablesCreated, rowsExtracted, confidenceSum,
+    results: chunkResults,
   }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
