@@ -878,17 +878,62 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
     setIsIndexing(true);
     setIndexingProgress(10);
     try {
-      const { data, error } = await supabase.functions.invoke('build-supplier-knowledge-graph', {
+      // 1. Get the PDF file path from uploaded_files for this supplier
+      const { data: pdfFiles, error: fetchError } = await (supabase
+        .from('uploaded_files') as any)
+        .select('id, file_name, storage_path')
+        .eq('supplier_id', supplier.id)
+        .eq('file_type', 'knowledge')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (fetchError) throw fetchError;
+      if (!pdfFiles || pdfFiles.length === 0) {
+        throw new Error("Nenhum ficheiro PDF encontrado para este fornecedor.");
+      }
+
+      const pdfFile = pdfFiles[0];
+
+      // 2. Call the same indexing Edge Function used in Knowledge Graph
+      // In this project, 'parse-catalog' with parseKnowledge: true is the standard pipeline
+      const { error: indexError } = await supabase.functions.invoke('parse-catalog', {
+        body: { 
+          parseKnowledge: true,
+          filePath: pdfFile.storage_path,
+          fileName: pdfFile.file_name,
+          fileId: pdfFile.id,
+          supplierId: supplier.id,
+          workspaceId: workspaceId
+        }
+      });
+
+      if (indexError) throw indexError;
+      
+      setIndexingProgress(50);
+
+      // 3. Build Knowledge Graph edges (original functionality preserved)
+      const { error: graphError } = await supabase.functions.invoke('build-supplier-knowledge-graph', {
         body: { supplier_id: supplier.id, workspace_id: workspaceId }
       });
-      if (error) throw error;
-      setIndexingProgress(100);
-      toast.success("PDF indexado e Knowledge Graph construído.");
       
-      // Force status refresh
+      if (graphError) throw graphError;
+
+      // 4. Verify chunks were created
+      const { count, error: countError } = await (supabase
+        .from('knowledge_chunks') as any)
+        .select('id', { count: 'exact', head: true })
+        .eq('supplier_id', supplier.id);
+
+      if (countError) console.warn("Erro ao verificar chunks:", countError.message);
+
+      setIndexingProgress(100);
+      toast.success(`${count || 0} fragmentos indexados e Knowledge Graph construído.`);
+      
+      // 5. Update UI state
       await queryClient.invalidateQueries({ queryKey: ['supplier-sources-status', supplier.id] });
       await queryClient.refetchQueries({ queryKey: ['supplier-sources-status', supplier.id] });
     } catch (err: any) {
+      console.error('PDF indexing failed:', err);
       toast.error(`Erro na indexação: ${err.message}`);
     } finally {
       setIsIndexing(false);
