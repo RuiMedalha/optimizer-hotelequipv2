@@ -2250,7 +2250,8 @@ const ProductsPage = () => {
         ) : null;
       })()}
       {/* Publishability Quick Filters */}
-      <div className="flex gap-2 flex-wrap mb-2">
+      <div className="flex items-center justify-between gap-4 mb-2">
+        <div className="flex gap-2 flex-wrap">
         <Button 
           size="sm" 
           variant={publishabilityFilter === "publish" ? "default" : "outline"} 
