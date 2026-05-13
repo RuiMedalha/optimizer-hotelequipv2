@@ -68,8 +68,28 @@ serve(async (req) => {
     // ==========================================
     // CHUNK MODE: Process a single page range
     // ==========================================
-...
-    })());
+    if (chunkMode) {
+      return await processChunk({
+        supabase, supabaseUrl, serviceKey,
+        extractionId, chunkStart, chunkEnd, storagePath, overviewData, pdfBase64,
+      });
+    }
+
+    // ==========================================
+    // MAIN MODE: Orchestrate the full extraction
+    // ==========================================
+    const { data: extraction, error: extErr } = await supabase
+      .from("pdf_extractions")
+      .select("*, uploaded_files:file_id(*)")
+      .eq("id", extractionId)
+      .single();
+    if (extErr || !extraction) throw new Error("Extraction not found");
+
+    await supabase.from("pdf_extractions").update({ status: "extracting" }).eq("id", extractionId);
+
+    // Detach the long-running orchestration
+    // @ts-ignore
+    EdgeRuntime.waitUntil((async () => {
 
     return new Response(JSON.stringify({
       success: true, extractionId, status: "extracting",
