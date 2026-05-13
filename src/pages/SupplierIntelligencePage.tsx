@@ -909,16 +909,44 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
 
       if (indexError) throw indexError;
       
-      setIndexingProgress(50);
+      setIndexingProgress(30);
 
-      // 3. Build Knowledge Graph edges (original functionality preserved)
+      // 3. Wait for completion (poll uploaded_files status)
+      let isDone = false;
+      let attempts = 0;
+      const maxAttempts = 20; // 60 seconds max
+
+      while (!isDone && attempts < maxAttempts) {
+        setIndexingProgress(30 + (attempts * 3));
+        await new Promise(r => setTimeout(r, 3000));
+        
+        const { data: fileStatus, error: statusError } = await (supabase
+          .from('uploaded_files') as any)
+          .select('status')
+          .eq('id', pdfFile.id)
+          .single();
+          
+        if (statusError) {
+          console.warn("Erro ao verificar status:", statusError.message);
+        } else if (fileStatus?.status === 'processed') {
+          isDone = true;
+        } else if (fileStatus?.status === 'error') {
+          throw new Error("Erro no processamento do ficheiro pela Edge Function.");
+        }
+        
+        attempts++;
+      }
+
+      setIndexingProgress(80);
+
+      // 4. Build Knowledge Graph edges (original functionality preserved)
       const { error: graphError } = await supabase.functions.invoke('build-supplier-knowledge-graph', {
         body: { supplier_id: supplier.id, workspace_id: workspaceId }
       });
       
       if (graphError) throw graphError;
 
-      // 4. Verify chunks were created
+      // 5. Verify chunks were created
       const { count, error: countError } = await (supabase
         .from('knowledge_chunks') as any)
         .select('id', { count: 'exact', head: true })
@@ -929,7 +957,7 @@ function SupplierPublishabilityPanel({ supplier, workspaceId }: { supplier: any;
       setIndexingProgress(100);
       toast.success(`${count || 0} fragmentos indexados e Knowledge Graph construído.`);
       
-      // 5. Update UI state
+      // 6. Update UI state
       await queryClient.invalidateQueries({ queryKey: ['supplier-sources-status', supplier.id] });
       await queryClient.refetchQueries({ queryKey: ['supplier-sources-status', supplier.id] });
     } catch (err: any) {
