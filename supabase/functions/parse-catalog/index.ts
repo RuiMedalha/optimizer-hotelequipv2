@@ -40,7 +40,7 @@ serve(async (req) => {
     const userId = user.id;
 
     const body = await req.json();
-    const { filePath, fileName, columnMapping, sheetName, parseKnowledge, workspaceId, fileId, parsedRows, _batch, updateMode, updateFields, workflowRunId, skuPrefix, skuSuffix, modelSuffix, defaultBrand, autoModelFromSku } = body;
+    const { filePath, fileName, columnMapping, sheetName, parseKnowledge, workspaceId, fileId, supplierId, parsedRows, _batch, updateMode, updateFields, workflowRunId, skuPrefix, skuSuffix, modelSuffix, defaultBrand, autoModelFromSku } = body;
 
     // ─── Batch continuation mode (for large inserts) ───
     if (_batch) {
