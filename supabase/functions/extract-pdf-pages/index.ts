@@ -662,3 +662,36 @@ async function createSignedPdfUrl(supabase: any, storagePath: string): Promise<s
 
   throw new Error(primary.error?.message || fallback.error?.message || "File not found in storage");
 }
+
+async function extractPdfTextRangeFromUrl(pdfUrl: string, startPage: number, requestedEnd: number) {
+  const pdfjs = await import("https://esm.sh/pdfjs-dist@4.10.38/legacy/build/pdf.mjs?target=deno");
+  pdfjs.GlobalWorkerOptions.workerSrc = "";
+  const loadingTask = pdfjs.getDocument({
+    url: pdfUrl,
+    disableAutoFetch: true,
+    disableStream: false,
+    disableFontFace: true,
+    useSystemFonts: false,
+    isEvalSupported: false,
+  });
+  const pdf = await loadingTask.promise;
+  const totalPages = pdf.numPages;
+  const firstPage = Math.max(1, Math.min(startPage, totalPages));
+  const lastPage = Math.max(firstPage, Math.min(requestedEnd, totalPages));
+  const parts: string[] = [];
+
+  for (let pageNumber = firstPage; pageNumber <= lastPage; pageNumber++) {
+    const page = await pdf.getPage(pageNumber);
+    const content = await page.getTextContent({ disableNormalization: false });
+    const pageText = (content.items as any[])
+      .map((item) => (typeof item.str === "string" ? item.str : ""))
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+    parts.push(pageText);
+    try { page.cleanup(); } catch {}
+  }
+
+  try { await pdf.destroy(); } catch {}
+  return { text: parts.join("\n\n"), totalPages, firstPage, lastPage };
+}
