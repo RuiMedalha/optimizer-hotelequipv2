@@ -331,6 +331,43 @@ const ProductsPage = () => {
   const [batchProgress, setBatchProgress] = useState<import("@/hooks/useOptimizeProducts").OptimizationProgress | null>(null);
   const cancellationTokenRef = useRef<CancellationToken | null>(null);
 
+  const handleUpdatePublishability = async (productId: string, decision: 'publish' | 'skip') => {
+    try {
+      const { error } = await supabase
+        .from("products")
+        .update({ publishability_decision: decision })
+        .eq("id", productId);
+
+      if (error) throw error;
+
+      toast.success(`Produto movido para ${decision === 'publish' ? 'Publicar' : 'Ignorar'}`);
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["product-stats"] });
+    } catch (error: any) {
+      toast.error("Erro ao atualizar decisão: " + error.message);
+    }
+  };
+
+  const handleBulkUpdatePublishability = async (decision: 'publish' | 'skip') => {
+    try {
+      const ids = filtered.map(p => p.id);
+      if (ids.length === 0) return;
+
+      const { error } = await supabase
+        .from("products")
+        .update({ publishability_decision: decision })
+        .in("id", ids);
+
+      if (error) throw error;
+
+      toast.success(`${ids.length} produtos movidos para ${decision === 'publish' ? 'Publicar' : 'Ignorar'}`);
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["product-stats"] });
+    } catch (error: any) {
+      toast.error("Erro ao atualizar decisões: " + error.message);
+    }
+  };
+
   // Background mode is now always the default — only allow foreground for very small batches
   useEffect(() => {
     if (pendingOptimizeIds.length >= 3) {
