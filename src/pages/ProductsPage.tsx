@@ -637,10 +637,15 @@ const ProductsPage = () => {
     setAllPagesSelected(true);
   };
 
-  const handleBulkDelete = () => {
-    if (confirm(`Tem a certeza que deseja eliminar ${selected.size} produto(s)? Esta ação é irreversível.`)) {
-      const ids = Array.from(selected);
-      // Chama o hook uma única vez com todos os IDs, o hook trata o batching sequencialmente
+  const handleBulkDelete = async () => {
+    let ids = Array.from(selected);
+    if (allPagesSelected) {
+      ids = await getAllFilteredIds();
+      if (ids.length === 0) return;
+    }
+
+    if (confirm(`Tem a certeza que deseja eliminar ${ids.length} produto(s)? Esta ação é irreversível.`)) {
+      toast.info(`A eliminar ${ids.length} produtos...`, { id: "delete-progress" });
       deleteProducts.mutate(ids);
       setSelected(new Set());
       setAllPagesSelected(false);
