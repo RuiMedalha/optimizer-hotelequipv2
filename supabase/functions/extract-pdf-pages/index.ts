@@ -715,3 +715,17 @@ function toBase64(buffer: ArrayBuffer): string {
     return btoa(binary);
   }
 }
+
+async function extractPdfPageRangeAsBase64(buffer: ArrayBuffer, startPage: number, endPage: number): Promise<string> {
+  const { PDFDocument } = await import("https://esm.sh/pdf-lib@1.17.1");
+  const sourcePdf = await PDFDocument.load(buffer, { ignoreEncryption: true });
+  const totalPages = sourcePdf.getPageCount();
+  const firstIndex = Math.max(0, Math.min(startPage, totalPages) - 1);
+  const lastIndex = Math.max(firstIndex, Math.min(endPage, totalPages) - 1);
+  const targetPdf = await PDFDocument.create();
+  const pageIndexes = Array.from({ length: lastIndex - firstIndex + 1 }, (_, i) => firstIndex + i);
+  const copiedPages = await targetPdf.copyPages(sourcePdf, pageIndexes);
+  for (const page of copiedPages) targetPdf.addPage(page);
+  const bytes = await targetPdf.save({ useObjectStreams: true });
+  return toBase64(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+}
