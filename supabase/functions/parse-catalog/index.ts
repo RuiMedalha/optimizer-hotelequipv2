@@ -701,6 +701,7 @@ async function processKnowledge(
   }
 
   const chunks = chunkText(extractedText, 1500);
+  console.log(`Creating chunks, count: ${chunks.length}`);
   const chunkRows = chunks.map((content, idx) => ({
     file_id: resolvedFileId, user_id: userId,
     workspace_id: workspaceId || null,
@@ -711,11 +712,18 @@ async function processKnowledge(
 
   await supabase.from("knowledge_chunks").delete().eq("file_id", resolvedFileId);
 
+  let savedCount = 0;
   for (let i = 0; i < chunkRows.length; i += 50) {
+    const batch = chunkRows.slice(i, i + 50);
     const { error: chunkError } = await supabase
-      .from("knowledge_chunks").insert(chunkRows.slice(i, i + 50) as any);
-    if (chunkError) console.error(`Chunk insert error batch ${i}:`, chunkError.message);
+      .from("knowledge_chunks").insert(batch as any);
+    if (chunkError) {
+      console.error(`Chunk insert error batch ${i}:`, chunkError.message);
+    } else {
+      savedCount += batch.length;
+    }
   }
+  console.log(`Chunks saved to DB: ${savedCount}`);
 
   const previewText = extractedText.substring(0, 50000);
   await supabase.from("uploaded_files")
