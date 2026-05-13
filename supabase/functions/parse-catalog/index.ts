@@ -811,7 +811,7 @@ async function extractPdfText(fileData: Blob | null, storagePath: string, worksp
     
     // We'll process up to 60 pages (3 chunks) to stay within reasonable limits for "knowledge"
     // or stop if we hit an error.
-    for (let startPage = 1; startPage <= 20; startPage += CHUNK_SIZE_PAGES) {
+    for (let startPage = 1; startPage <= 30; startPage += CHUNK_SIZE_PAGES) {
       const endPage = startPage + CHUNK_SIZE_PAGES - 1;
       console.log(`Processing page group: ${startPage}-${endPage}`);
       
