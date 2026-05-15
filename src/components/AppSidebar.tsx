@@ -12,6 +12,7 @@ import {
   Plus,
   ChevronDown,
   Copy,
+  Loader2,
 } from "lucide-react";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { cn } from "@/lib/utils";
@@ -77,6 +78,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
     deleteWorkspace,
     mergeWorkspaces,
     isCreating,
+    isLoading,
     selectedCount,
   } = useWorkspaceContext();
   const { activeJob } = useOptimizationJob();
