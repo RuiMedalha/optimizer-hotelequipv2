@@ -692,28 +692,38 @@ const ProductsPage = () => {
     setAllPagesSelected(false);
   };
 
-  const selectAllPages = () => {
-    const allIds = (allProductsLight ?? [])
-      .filter((p: any) => {
-        if (statusFilter === "discontinued") {
-          if (p.is_discontinued !== true) return false;
-        } else {
-          // For ALL other tabs, strictly exclude discontinued
-          if (p.is_discontinued === true) return false;
-          // Match exact workflow_state
-          if (statusFilter !== "all") {
-            if (p.workflow_state !== statusFilter && p.status !== statusFilter) return false;
-          }
+  const filteredAllProducts = useMemo(() => {
+    return (allProductsLight ?? []).filter((p: any) => {
+      if (statusFilter === "discontinued") {
+        if (p.is_discontinued !== true) return false;
+      } else {
+        if (p.is_discontinued === true) return false;
+        if (statusFilter !== "all") {
+          if (p.workflow_state !== statusFilter && p.status !== statusFilter) return false;
         }
+      }
 
-        if (categoryFilter !== "all" && (p.category || "") !== categoryFilter) return false;
-        if (productTypeFilter !== "all" && p.product_type !== productTypeFilter) return false;
-        if (sourceFileFilter !== "all" && (p.source_file || "") !== sourceFileFilter) return false;
-        if (wooFilter === "published" && !p.woocommerce_id) return false;
-        if (wooFilter === "not_published" && p.woocommerce_id) return false;
-        return true;
-      })
-      .map((p: any) => p.id);
+      if (categoryFilter !== "all" && (p.category || "") !== categoryFilter) return false;
+      if (productTypeFilter !== "all" && p.product_type !== productTypeFilter) return false;
+      if (sourceFileFilter !== "all" && (p.source_file || "") !== sourceFileFilter) return false;
+      if (wooFilter === "published" && !p.woocommerce_id) return false;
+      if (wooFilter === "not_published" && p.woocommerce_id) return false;
+
+      if (debouncedSearch && debouncedSearch.trim() !== "") {
+        const search = debouncedSearch.toLowerCase().trim();
+        const matchesSku = (p.sku || "").toLowerCase().includes(search);
+        const matchesTitle =
+          (p.original_title || "").toLowerCase().includes(search) ||
+          (p.optimized_title || "").toLowerCase().includes(search);
+        if (!matchesSku && !matchesTitle) return false;
+      }
+
+      return true;
+    });
+  }, [allProductsLight, statusFilter, categoryFilter, productTypeFilter, sourceFileFilter, wooFilter, debouncedSearch]);
+
+  const selectAllPages = () => {
+    const allIds = filteredAllProducts.map((p: any) => p.id);
     setSelected(new Set(allIds));
     setAllPagesSelected(true);
   };
@@ -2759,7 +2769,7 @@ const ProductsPage = () => {
                     <div className="bg-primary/10 text-primary text-sm py-2 px-4 text-center rounded-md mb-1">
                       {selected.size} produtos desta página selecionados.{" "}
                       <button className="underline font-semibold hover:text-primary/80" onClick={selectAllPages}>
-                        Selecionar todos os {totalCount} produtos{statusFilter !== "all" ? ` (${statusLabels[statusFilter] || statusFilter})` : ""}
+                        Selecionar todos os {filteredAllProducts.length} produtos{statusFilter !== "all" ? ` (${statusLabels[statusFilter] || statusFilter})` : ""}
                       </button>
                     </div>
                   </caption>
