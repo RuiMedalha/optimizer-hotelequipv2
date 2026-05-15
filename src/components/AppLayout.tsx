@@ -20,6 +20,7 @@ const SESSION_ROUTES = [
 
 export function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { activeWorkspace } = useWorkspaceContext();
   const location = useLocation();
   const showBanner = SESSION_ROUTES.some((r) => location.pathname.startsWith(r));
 
