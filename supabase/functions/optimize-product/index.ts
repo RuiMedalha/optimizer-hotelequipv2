@@ -1390,34 +1390,51 @@ REGRAS OBRIGATÓRIAS:
 - Inclui linha/série se aplicável (ex: "Linha 700").
 - Inclui tipo de energia se aplicável (Gás, Elétrico).
 ${terminologyForTitle}\nREGRAS TÍTULO: Dimensões sempre abreviadas no título (20L, 600mm, GN 1/1). Nunca marca, EAN, HORECA. "Fregadero" → verificar estrutura antes de traduzir. "Vitrina" → ler descrição completa antes de classificar.`,
-          description: `Gera uma descrição otimizada (HTML) que soe humana e natural e inclua OBRIGATORIAMENTE sinónimos relevantes para SEO.
-${terminologyForDescription}\nREGRAS ANTI-REPETIÇÃO: Se o título usa termo X, a descrição usa os sinónimos de X — NUNCA o mesmo termo do título no primeiro parágrafo. Máximo 1 sinónimo por parágrafo. Nunca o mesmo sinónimo 2x em toda a descrição.\nTERMOS PROIBIDOS (brasileirismos e erros): "cocção"→"confeção"; "lanchonete"→"snack-bar"; "geladeira"→"frigorífico"; "cardápio"→"ementa"; "garçom"→"empregado de mesa"; "fast casual"→"restauração rápida"; "buffet line"→"linha de buffet".
-REGRAS DE LINGUAGEM NATURAL — OBRIGATÓRIO:
-- NUNCA soar robótico ou repetitivo. Limitar "HORECA" a máx 1 menção.
-- OTIMIZAÇÃO SEO: Inclui OBRIGATORIAMENTE os sinónimos fornecidos de forma fluída no texto (ex: se o produto é um 'Exaustor', deves usar também 'hotte', 'coifa' e 'campânula' ao longo da descrição).
-- REVISÃO DE TEXTO: Garante que as palavras estão separadas corretamente (ex: NUNCA escrever "hottede", escreve sempre "hotte de").
-- Substituir "HORECA" por: "o seu restaurante", "o seu bar", "cozinhas profissionais".
-- Dirigir-se ao cliente: "Perfeito para o seu bar", "A sua equipa vai apreciar".
-- VARIAR CONSTRUÇÕES: Nunca começar parágrafos seguidos com "Este equipamento...".
-- BENEFÍCIOS REAIS: Impacto no negócio (custos, ruído, rapidez) em vez de apenas specs.
+          description: `Gera uma descrição otimizada em HTML que soe humana e natural.
 
-ESTRUTURA OBRIGATÓRIA:
-Envolve TUDO num div: <div class="product-description" style="font-size:15px; line-height:1.65; color:#2c2c2c;"> ... </div> (Obrigatório fechar o div no final).
-Usa h3 com OBRIGATÓRIO — Todos os h3 DEVEM ter EXACTAMENTE este style, sem excepção: style="margin:0 0 10px; font-size:18px; font-weight:700; color:#00526d; border-bottom:2px solid #e5e7eb; padding-bottom:6px;"
+ESTRUTURA OBRIGATÓRIA — envolve TUDO neste div:
+<div class="product-description" style="font-family: inherit; line-height: 1.6; color: #333;">
 
-1. <div class="product-benefits" style="margin-bottom:22px;"> com <h3>[Keyword curta do produto — máx 5 palavras] — Principais Vantagens</h3>
-REGRA ABSOLUTA: Apenas UM segmento antes de "— Principais Vantagens". 
-CORRECTO: "Hotte Exaustora 1200mm — Principais Vantagens"
-ERRADO: "hotte exaustora profissional — Hotte Júnior Snack 1200mm — Principais Vantagens"
-Se a focus keyword já aparece antes do "—", NÃO a repetir depois.
-2. <div class="product-applications" style="margin-bottom:22px;"> com <h3>Aplicações</h3> (Contextos concretos: "buffet de hotel", "cafetaria movimentada")
-FORMATO INTELIGENTE — escolhe conforme o produto:
-- Equipamentos principais (vitrines, fornos, fritadeiras, máquinas de lavar, grelhadores): 1-2 parágrafos em PROSA FLUÍDA, SEM bullet points.
-- Produtos simples/versáteis (cubas GN, talheres, acessórios, utensílios): lista curta com 4-5 bullets é aceitável.
-Em ambos os casos: usar contextos reais (buffet de hotel, cafetaria, restaurante, catering, fast food, snack-bar).
-3. <div class="product-specs" style="margin-bottom:22px;"> com <h3>Características Técnicas</h3> (Tabela HTML completa com TODAS as especificações, exceto Marca, Modelo e EAN)
-4. <div class="product-faq" style="margin-bottom:22px;"> com <h3>Perguntas Frequentes</h3> (EXATAMENTE 5 perguntas detalhadas) (NUNCA uses "Campana" nas perguntas se o produto for uma Campânula)
-REGRA HTML: O div raiz <div class="product-description"> DEVE ser fechado com </div> no final. Verificar que cada <div> aberto tem o seu </div> correspondente.`,
+Secções obrigatórias com estes H3 exactos:
+<h3 style="font-size: 1.1em; color: #1a1a1a; border-bottom: 2px solid #e0e0e0; padding-bottom: 6px; margin: 20px 0 10px;">
+[Keyword curta] — Principais Vantagens</h3>
+
+<h3 style="font-size: 1.1em; color: #1a1a1a; border-bottom: 2px solid #e0e0e0; padding-bottom: 6px; margin: 20px 0 10px;">
+Aplicações Profissionais</h3>
+
+<h3 style="font-size: 1.1em; color: #1a1a1a; border-bottom: 2px solid #e0e0e0; padding-bottom: 6px; margin: 20px 0 10px;">
+Características Técnicas</h3>
+[Tabela HTML completa com todas as specs]
+
+<h3 style="font-size: 1.1em; color: #1a1a1a; border-bottom: 2px solid #e0e0e0; padding-bottom: 6px; margin: 20px 0 10px;">
+Perguntas Frequentes</h3>
+[EXACTAMENTE 5 perguntas detalhadas com respostas de 2-3 frases]
+
+REGRAS ANTI-REPETIÇÃO OBRIGATÓRIAS:
+- Se o título usa termo X, a descrição usa sinónimos de X no primeiro parágrafo
+- NUNCA o mesmo sinónimo 2x em toda a descrição
+- NUNCA começar parágrafos seguidos com "Este", "Esta", "O equipamento"
+- PROIBIDO começar qualquer parágrafo com: "Otimize", "Potencie", "Descubra", 
+  "Conheça", "Apresentamos", "Esta é a solução perfeita", "Maximize", 
+  "Revolucione", "Transforme"
+
+REGRA H3 ANTI-DUPLICAÇÃO:
+O título do H3 NUNCA repete o nome do produto duas vezes.
+CORRECTO: <h3>Armazenamento Modular — Principais Vantagens</h3>
+ERRADO: <h3>Estante Inox — Estante Inox — Principais Vantagens</h3>
+
+LINGUAGEM:
+- Sempre PT-PT, nunca PT-BR
+- NUNCA "HORECA" — substituir por "restaurantes", "cozinhas profissionais", "hotelaria"
+- NUNCA brasileirismos: "cocção"→"confeção", "geladeira"→"frigorífico", 
+  "cardápio"→"ementa", "garçom"→"empregado de mesa", "lanchonete"→"snack-bar",
+  "projetada"→"concebida", "fast casual"→"restauração rápida"
+- NUNCA termos espanhóis no output: campana→hotte, fregadero→lava-loiça,
+  lavamanos→lava-mãos, vitrina→vitrine, armario→armário
+- O produto pode vir em ES/EN/FR/PT — traduzir SEMPRE para PT-PT
+
+DIRIGIR-SE AO CLIENTE: "Perfeito para o seu restaurante", "A sua equipa vai apreciar"
+BENEFÍCIOS REAIS: impacto no negócio (custos, produtividade, higiene)</div>`,
 
           short_description: `Gera uma descrição curta (máx 160 chars) para listagens.
 PROIBIDO: "HORECA" em qualquer forma. Substituir por: "restaurantes", "cozinhas profissionais", "hotelaria", "cafetarias". PROIBIDO começar com "Otimize" ou "Potencie".
