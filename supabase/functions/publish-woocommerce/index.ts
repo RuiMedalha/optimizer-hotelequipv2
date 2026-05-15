@@ -278,6 +278,19 @@ Deno.serve(async (req) => {
             }).eq("id", product.id);
           }
 
+          // Fallback: ensure published_to_url is saved when woocommerce_id exists
+          const { data: checkProduct } = await adminClient
+            .from('products')
+            .select('woocommerce_id, published_to_url')
+            .eq('id', product.id)
+            .single();
+          if (checkProduct?.woocommerce_id && !checkProduct?.published_to_url) {
+            await adminClient.from('products').update({
+              published_to_url: baseUrl,
+              published_at: new Date().toISOString()
+            }).eq('id', product.id);
+          }
+
           await adminClient.from("publish_job_items").insert({
             job_id: jobId,
             product_id: product.id,
