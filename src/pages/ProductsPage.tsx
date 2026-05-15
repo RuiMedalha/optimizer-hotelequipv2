@@ -205,6 +205,7 @@ const ProductsPage = () => {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<FilterStatus>("all");
+  const [siteFilter, setSiteFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [sourceFileFilter, setSourceFileFilter] = useState<string>("all");
   const [seoScoreFilter, setSeoScoreFilter] = useState<string>("all");
@@ -323,6 +324,7 @@ const ProductsPage = () => {
     wooFilter,
     imageStatus: imageIssueFilter ? "any_issue" : "all",
     publishabilityDecision: publishabilityFilter,
+    publishedToUrl: siteFilter,
     publishedToUrl: siteFilter === "all" ? undefined : siteFilter,
     page: currentPage,
     pageSize: PAGE_SIZE,
