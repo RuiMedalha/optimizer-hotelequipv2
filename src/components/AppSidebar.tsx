@@ -258,24 +258,24 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
         {!collapsed && (
           <div className="px-2 py-3 border-b border-sidebar-border">
             <p className="text-[10px] uppercase tracking-wider text-sidebar-muted px-3 mb-1.5 font-medium">
-              Workspace
+              Workspaces
             </p>
-            <div className="space-y-0.5 max-h-32 overflow-y-auto">
+            <div className="space-y-0.5 max-h-64 overflow-y-auto scrollbar-thin">
               {workspaces.map((ws) => (
                 <div key={ws.id} className="group flex items-center gap-1">
                   <button
                     onClick={() => handleWorkspaceSwitch(ws.id)}
                     className={cn(
-                      "flex items-center gap-2 flex-1 min-w-0 px-3 py-1.5 rounded-md text-xs transition-colors",
+                      "flex items-center gap-2 flex-1 min-w-0 px-3 py-1.5 rounded-md text-xs transition-all",
                       ws.id === activeWorkspace?.id
-                        ? "bg-teal-500 text-white font-bold shadow-md ring-2 ring-teal-300"
+                        ? "bg-teal-600 text-white font-bold shadow-sm ring-1 ring-teal-400"
                         : "text-sidebar-foreground hover:bg-sidebar-accent/50"
                     )}
                   >
-                    <FolderOpen className="w-3.5 h-3.5 shrink-0" />
+                    <FolderOpen className={cn("w-3.5 h-3.5 shrink-0", ws.id === activeWorkspace?.id ? "text-white" : "text-teal-500")} />
                     <span className="truncate">{ws.name}</span>
                     {ws.id === activeWorkspace?.id && (
-                      <Badge variant="secondary" className="ml-auto text-[8px] h-4 px-1 bg-white/20 text-white border-none">ACTIVO</Badge>
+                      <Badge variant="secondary" className="ml-auto text-[8px] h-4 px-1 bg-white/20 text-white border-none shrink-0">ACTIVO</Badge>
                     )}
                   </button>
                   <DropdownMenu>
@@ -296,7 +296,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                             setCopySourceId("");
                           }}
                         >
-                          <Copy className="w-3.5 h-3.5 mr-2" /> Copiar config para aqui
+                          <Copy className="w-3.5 h-3.5 mr-2" /> Copiar config
                         </DropdownMenuItem>
                       {workspaces.length > 1 && (
                         <DropdownMenuItem
@@ -305,7 +305,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                             setMergeTargetId("");
                           }}
                         >
-                          <Merge className="w-3.5 h-3.5 mr-2" /> Fundir noutro
+                          <Merge className="w-3.5 h-3.5 mr-2" /> Fundir
                         </DropdownMenuItem>
                       )}
                       {workspaces.length > 1 && (
@@ -323,22 +323,49 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
             </div>
             <button
               onClick={() => setShowNewWs(true)}
-              className="flex items-center gap-2 w-full px-3 py-1.5 rounded-md text-xs text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors mt-0.5"
+              className="flex items-center gap-2 w-full px-3 py-1.5 rounded-md text-xs text-sidebar-muted hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors mt-1 border border-dashed border-sidebar-border mx-auto"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Novo workspace</span>
             </button>
           </div>
         )}
+
         {collapsed && (
-          <div className="px-2 py-3 border-b border-sidebar-border">
-            <button
-              onClick={() => setShowNewWs(true)}
-              className="w-10 h-10 mx-auto rounded-lg bg-sidebar-accent flex items-center justify-center text-sidebar-primary"
-              title={activeWorkspace?.name || "Workspace"}
-            >
-              <FolderOpen className="w-4 h-4" />
-            </button>
+          <div className="px-2 py-3 border-b border-sidebar-border flex flex-col gap-2 items-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="w-10 h-10 rounded-lg bg-teal-500/10 flex items-center justify-center text-teal-600 hover:bg-teal-500/20 transition-colors"
+                  title={activeWorkspace?.name || "Mudar Workspace"}
+                >
+                  <FolderOpen className="w-5 h-5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="right" align="start" className="w-48">
+                <div className="px-2 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider border-b mb-1">
+                  Mudar Workspace
+                </div>
+                {workspaces.map((ws) => (
+                  <DropdownMenuItem
+                    key={ws.id}
+                    onClick={() => handleWorkspaceSwitch(ws.id)}
+                    className={cn(
+                      "text-xs flex items-center justify-between",
+                      ws.id === activeWorkspace?.id && "bg-teal-500/10 text-teal-700 font-bold"
+                    )}
+                  >
+                    <span className="truncate max-w-[120px]">{ws.name}</span>
+                    {ws.id === activeWorkspace?.id && <Check className="w-3 h-3" />}
+                  </DropdownMenuItem>
+                ))}
+                <div className="border-t mt-1 pt-1">
+                  <DropdownMenuItem onClick={() => setShowNewWs(true)} className="text-xs text-teal-600 font-medium">
+                    <Plus className="w-3 h-3 mr-2" /> Novo Workspace
+                  </DropdownMenuItem>
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         )}
 
