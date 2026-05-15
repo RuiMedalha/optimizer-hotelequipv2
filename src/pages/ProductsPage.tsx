@@ -2769,7 +2769,7 @@ const ProductsPage = () => {
                     <div className="bg-primary/10 text-primary text-sm py-2 px-4 text-center rounded-md mb-1">
                       {selected.size} produtos desta página selecionados.{" "}
                       <button className="underline font-semibold hover:text-primary/80" onClick={selectAllPages}>
-                        Selecionar todos os {totalCount} produtos{statusFilter !== "all" ? ` (${statusLabels[statusFilter] || statusFilter})` : ""}
+                        Selecionar todos os {filteredAllProducts.length} produtos{statusFilter !== "all" ? ` (${statusLabels[statusFilter] || statusFilter})` : ""}
                       </button>
                     </div>
                   </caption>
