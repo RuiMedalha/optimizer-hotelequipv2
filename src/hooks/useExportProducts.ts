@@ -341,10 +341,7 @@ export async function exportAllProductsToExcel(
       totalCount = Number(rows[0].total_count) || 0;
     }
 
-    let products: Product[] = rows.map(({ total_count, ...rest }: any) => rest as Product);
-    
-    // No extra filtering needed for discontinued here as RPC handles it
-    let products: Product[] = rows.map(({ total_count, ...rest }: any) => rest as Product);
+    const products: Product[] = rows.map(({ total_count, ...rest }: any) => rest as Product);
     
     allProducts.push(...products);
 
