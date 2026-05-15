@@ -126,50 +126,6 @@ const ProductsPage = () => {
   const { data: settings } = useSettings();
   const AI_MODELS = useActiveAiModels();
   const IMAGE_MODELS = useActiveImageModels();
-  // Fetch published sites for the filter
-  const { data: publishedSites } = useQuery({
-    queryKey: ["published-sites", activeWorkspace?.id],
-    enabled: !!activeWorkspace && statusFilter === "published",
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select("published_to_url")
-        .eq("workflow_state", "published")
-        .eq("workspace_id", activeWorkspace!.id)
-        .not("published_to_url", "is", null);
-      
-      if (error) throw error;
-      
-      const sites = Array.from(new Set((data || []).map(p => p.published_to_url)));
-      return sites.sort();
-    },
-  });
-
-  // Fetch which products have optimized/lifestyle images
-  const { data: imageStatusMap } = useQuery({
-    queryKey: ["product-image-status", activeWorkspace?.id],
-    enabled: !!activeWorkspace,
-    staleTime: 30_000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("images")
-        .select("product_id, s3_key")
-        .not("optimized_url", "is", null);
-      if (error) throw error;
-      const map: Record<string, { hasOptimized: boolean; hasLifestyle: boolean }> = {};
-      for (const row of data || []) {
-        if (!map[row.product_id]) map[row.product_id] = { hasOptimized: false, hasLifestyle: false };
-        const key = (row.s3_key || "").toLowerCase();
-        if (key.includes("lifestyle")) map[row.product_id].hasLifestyle = true;
-        // Only mark as optimized if the s3_key contains "optimizada" (AI background removal)
-        // Images migrated from suppliers are NOT considered optimized
-        else if (key.includes("optimizada") || key.includes("background") || key.includes("processed")) {
-          map[row.product_id].hasOptimized = true;
-        }
-      }
-      return map;
-    },
-  });
 
   const updateStatus = useUpdateProductStatus();
   const { data: stats } = useProductStats();
@@ -216,7 +172,6 @@ const ProductsPage = () => {
   const [migrationFilter, setMigrationFilter] = useState<string>("all");
   const [publishabilityFilter, setPublishabilityFilter] = useState<string>("all");
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [siteFilter, setSiteFilter] = useState<string>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [allPagesSelected, setAllPagesSelected] = useState(false);
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
@@ -256,6 +211,51 @@ const ProductsPage = () => {
   const [selectedPromptTemplate, setSelectedPromptTemplate] = useState<string>("active");
   const [selectedImagePromptTemplate, setSelectedImagePromptTemplate] = useState<string>(() => {
     try { return localStorage.getItem("optimize_image_prompt_template") || "active"; } catch { return "active"; }
+  });
+
+  // Fetch published sites for the filter
+  const { data: publishedSites } = useQuery({
+    queryKey: ["published-sites", activeWorkspace?.id],
+    enabled: !!activeWorkspace && statusFilter === "published",
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("published_to_url")
+        .eq("workflow_state", "published")
+        .eq("workspace_id", activeWorkspace!.id)
+        .not("published_to_url", "is", null);
+      
+      if (error) throw error;
+      
+      const sites = Array.from(new Set((data || []).map(p => p.published_to_url)));
+      return sites.sort();
+    },
+  });
+
+  // Fetch which products have optimized/lifestyle images
+  const { data: imageStatusMap } = useQuery({
+    queryKey: ["product-image-status", activeWorkspace?.id],
+    enabled: !!activeWorkspace,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("images")
+        .select("product_id, s3_key")
+        .not("optimized_url", "is", null);
+      if (error) throw error;
+      const map: Record<string, { hasOptimized: boolean; hasLifestyle: boolean }> = {};
+      for (const row of data || []) {
+        if (!map[row.product_id]) map[row.product_id] = { hasOptimized: false, hasLifestyle: false };
+        const key = (row.s3_key || "").toLowerCase();
+        if (key.includes("lifestyle")) map[row.product_id].hasLifestyle = true;
+        // Only mark as optimized if the s3_key contains "optimizada" (AI background removal)
+        // Images migrated from suppliers are NOT considered optimized
+        else if (key.includes("optimizada") || key.includes("background") || key.includes("processed")) {
+          map[row.product_id].hasOptimized = true;
+        }
+      }
+      return map;
+    },
   });
 
   // Fetch prompt templates for the selector
@@ -325,7 +325,6 @@ const ProductsPage = () => {
     imageStatus: imageIssueFilter ? "any_issue" : "all",
     publishabilityDecision: publishabilityFilter,
     publishedToUrl: siteFilter,
-    publishedToUrl: siteFilter === "all" ? undefined : siteFilter,
     page: currentPage,
     pageSize: PAGE_SIZE,
   };
