@@ -1492,7 +1492,13 @@ async function resolveImageRef(
         console.log(`✅ ${isSupabase ? "Supabase" : "External"} image uploaded to WP Media: ${trimmed} → ID ${mediaId}`);
         return img;
       }
-      console.warn(`⚠️ Failed to upload ${isSupabase ? "Supabase" : "external"} image to WP, falling back to src: ${trimmed}`);
+      
+      // If it's an external image (Supabase or other) and upload failed, skip it
+      // to avoid WooCommerce 400 "woocommerce_product_image_upload_error"
+      if (!isLocalWP) {
+        console.warn(`⚠️ Failed to upload ${isSupabase ? "Supabase" : "external"} image to WP: ${trimmed}. Skipping to prevent publication failure.`);
+        return null;
+      }
     }
 
     img.src = trimmed;
