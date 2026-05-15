@@ -1474,15 +1474,12 @@ REGRAS:
 - Mantém o preço original se parecer correto para o mercado
 - Ajusta ligeiramente se for claramente abaixo ou acima do mercado
 - Considera o posicionamento do produto (entrada, médio, premium)`,
-          faq: `Gera EXATAMENTE 5 FAQs sobre o produto.
-REGRAS OBRIGATÓRIAS:
-- Gera SEMPRE 5 perguntas relevantes. Se não houver informação suficiente, gera perguntas baseadas nas especificações técnicas e aplicação prática.
-- Pergunta sobre dimensões/espaço necessário
-- Pergunta sobre instalação/requisitos (gás, electricidade, água)
-- Pergunta sobre manutenção/limpeza
-- Pergunta sobre garantia/assistência se aplicável
-- Pergunta sobre acessórios incluídos/compatíveis
-- Respostas detalhadas e úteis (não genéricas)`,
+          faq: `Gera EXACTAMENTE 5 perguntas e respostas frequentes sobre o produto em PT-PT.
+Cada resposta deve ter 2-3 frases detalhadas.
+Perguntas devem ser reais que um comprador profissional faria.
+NUNCA mencionar marca.
+NUNCA usar "HORECA".
+Formato: array JSON com {question, answer}.`,
           upsells: `Sugere 2-4 produtos SUPERIORES do catálogo como upsell.
 REGRAS OBRIGATÓRIAS:
 - Usa APENAS SKUs reais do catálogo fornecido
