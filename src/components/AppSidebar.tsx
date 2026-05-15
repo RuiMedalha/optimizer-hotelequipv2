@@ -91,12 +91,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   const handleWorkspaceSwitch = (id: string) => {
     if (id === activeWorkspace?.id) return;
-    
-    if (selectedCount > 0 || isProcessing) {
-      setWsToSwitch(id);
-    } else {
-      setActiveWorkspaceId(id);
-    }
+    setWsToSwitch(id);
   };
 
   const confirmSwitch = () => {
