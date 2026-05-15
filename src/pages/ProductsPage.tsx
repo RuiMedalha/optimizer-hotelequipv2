@@ -324,7 +324,7 @@ const ProductsPage = () => {
     wooFilter,
     imageStatus: imageIssueFilter ? "any_issue" : "all",
     publishabilityDecision: publishabilityFilter,
-    publishedToUrl: statusFilter === "published" ? siteFilter : "all",
+    publishedToUrl: statusFilter === "published" ? (siteFilter || "all") : "all",
     page: currentPage,
     pageSize: PAGE_SIZE,
   };
