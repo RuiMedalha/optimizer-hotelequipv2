@@ -1,0 +1,2 @@
+DROP FUNCTION IF EXISTS public.get_products_page(uuid, text, text, text, text, text, text, text, integer, integer, text);
+DROP FUNCTION IF EXISTS public.get_products_page(uuid, text, text, text, text, text, text, text, text, integer, integer);
