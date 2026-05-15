@@ -1517,8 +1517,16 @@ async function resolveImageRef(
   return img;
 }
 
-function buildImageEntry(ref: string, position: number, altText?: string, hasAlt?: boolean): Record<string, unknown> {
+function buildImageEntry(ref: string, position: number, altText?: string, hasAlt?: boolean): Record<string, unknown> | null {
   const trimmed = String(ref || "").trim();
+  if (!trimmed) return null;
+
+  // Skip non-image extensions (like PDF)
+  if (NOT_IMAGE_EXTENSIONS.test(trimmed)) {
+    console.log(`[buildImageEntry] Skipping non-image file: ${trimmed}`);
+    return null;
+  }
+
   const img: Record<string, unknown> = { position };
   if (/^\d+$/.test(trimmed)) {
     img.id = parseInt(trimmed, 10);
