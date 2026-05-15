@@ -1387,6 +1387,13 @@ async function uploadImageToWPMedia(
   auth: string,
   filename?: string
 ): Promise<number | null> {
+  // Skip non-image extensions before downloading
+  const fname = filename || sourceUrl.split("?")[0].split("/").pop() || "";
+  if (fname && NOT_IMAGE_EXTENSIONS.test(fname)) {
+    console.log(`[uploadImageToWPMedia] Skipping non-image file: ${fname}`);
+    return null;
+  }
+
   try {
     const resp = await fetch(sourceUrl, {
       headers: {
@@ -1517,8 +1524,16 @@ async function resolveImageRef(
   return img;
 }
 
-function buildImageEntry(ref: string, position: number, altText?: string, hasAlt?: boolean): Record<string, unknown> {
+function buildImageEntry(ref: string, position: number, altText?: string, hasAlt?: boolean): Record<string, unknown> | null {
   const trimmed = String(ref || "").trim();
+  if (!trimmed) return null;
+
+  // Skip non-image extensions (like PDF)
+  if (NOT_IMAGE_EXTENSIONS.test(trimmed)) {
+    console.log(`[buildImageEntry] Skipping non-image file: ${trimmed}`);
+    return null;
+  }
+
   const img: Record<string, unknown> = { position };
   if (/^\d+$/.test(trimmed)) {
     img.id = parseInt(trimmed, 10);
