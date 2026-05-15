@@ -162,6 +162,13 @@ const ProductsPage = () => {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<FilterStatus>("all");
   const [siteFilter, setSiteFilter] = useState<string>("all");
+
+  // Reset site filter when changing status
+  useEffect(() => {
+    if (statusFilter !== "published") {
+      setSiteFilter("all");
+    }
+  }, [statusFilter]);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [sourceFileFilter, setSourceFileFilter] = useState<string>("all");
   const [seoScoreFilter, setSeoScoreFilter] = useState<string>("all");
@@ -1427,22 +1434,25 @@ const ProductsPage = () => {
             <Button
               size="sm"
               variant={siteFilter === "all" ? "default" : "outline"}
-              className="h-7 text-xs"
+              className={cn("h-7 text-xs px-3", siteFilter === "all" ? "bg-primary text-primary-foreground" : "hover:bg-primary/10")}
               onClick={() => setSiteFilter("all")}
             >
               Todos os sites
             </Button>
-            {publishedSites.map((site: string) => (
-              <Button
-                key={site}
-                size="sm"
-                variant={siteFilter === site ? "default" : "outline"}
-                className="h-7 text-xs"
-                onClick={() => setSiteFilter(site)}
-              >
-                {site.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-              </Button>
-            ))}
+            {publishedSites.map((site: string) => {
+              const displayDomain = site.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+              return (
+                <Button
+                  key={site}
+                  size="sm"
+                  variant={siteFilter === site ? "default" : "outline"}
+                  className={cn("h-7 text-xs px-3", siteFilter === site ? "bg-primary text-primary-foreground" : "hover:bg-primary/10")}
+                  onClick={() => setSiteFilter(site)}
+                >
+                  {displayDomain}
+                </Button>
+              );
+            })}
           </div>
         )}
 
