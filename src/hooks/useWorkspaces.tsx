@@ -255,6 +255,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         deleteWorkspace: (id) => deleteMutation.mutate(id),
         mergeWorkspaces: (sourceId, targetId) => mergeMutation.mutate({ sourceId, targetId }),
         isCreating: createMutation.isPending,
+        selectedCount,
+        setSelectedCount,
       }}
     >
       {children}
