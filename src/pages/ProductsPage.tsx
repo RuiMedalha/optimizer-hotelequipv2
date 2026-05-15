@@ -1439,23 +1439,8 @@ const ProductsPage = () => {
             >
               Ver produtos sem imagem
             </Button>
-            </div>
-          )}
-          {product.published_to_url && (
-            <Badge 
-              variant="outline" 
-              className={cn(
-                "text-[10px] gap-0.5",
-                product.published_to_url.includes("hotelequip.pt") ? "bg-green-500/10 text-green-600 border-green-500/20" :
-                (product.published_to_url.includes("staging") || product.published_to_url.includes("mainart")) ? "bg-orange-500/10 text-orange-600 border-orange-500/20" :
-                "bg-gray-500/10 text-gray-600 border-gray-500/20"
-              )}
-              title={`Publicado em: ${product.published_to_url}`}
-            >
-              <Globe className="w-2.5 h-2.5" />
-              {product.published_to_url.replace(/^https?:\/\//, '').replace(/\/.*$/, '')}
-            </Badge>
-          )}
+          </div>
+        )}
 
         {statusFilter === "published" && publishedSites && publishedSites.length > 0 && (
           <div className="flex flex-wrap gap-2 items-center p-3 bg-muted/20 border rounded-lg">
