@@ -162,6 +162,13 @@ const ProductsPage = () => {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<FilterStatus>("all");
   const [siteFilter, setSiteFilter] = useState<string>("all");
+
+  // Reset site filter when changing status
+  useEffect(() => {
+    if (statusFilter !== "published") {
+      setSiteFilter("all");
+    }
+  }, [statusFilter]);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [sourceFileFilter, setSourceFileFilter] = useState<string>("all");
   const [seoScoreFilter, setSeoScoreFilter] = useState<string>("all");
