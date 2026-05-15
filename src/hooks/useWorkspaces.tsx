@@ -49,6 +49,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const defaultWorkspaceBootstrapAttempted = useRef(false);
+  const [selectedCount, setSelectedCount] = useState(0);
   const [activeId, setActiveId] = useState<string | null>(() => {
     return getStorageItem("active_workspace_id");
   });
