@@ -126,6 +126,25 @@ const ProductsPage = () => {
   const { data: settings } = useSettings();
   const AI_MODELS = useActiveAiModels();
   const IMAGE_MODELS = useActiveImageModels();
+  // Fetch published sites for the filter
+  const { data: publishedSites } = useQuery({
+    queryKey: ["published-sites", activeWorkspace?.id],
+    enabled: !!activeWorkspace && statusFilter === "published",
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("published_to_url")
+        .eq("workflow_state", "published")
+        .eq("workspace_id", activeWorkspace!.id)
+        .not("published_to_url", "is", null);
+      
+      if (error) throw error;
+      
+      const sites = Array.from(new Set((data || []).map(p => p.published_to_url)));
+      return sites.sort();
+    },
+  });
+
   // Fetch which products have optimized/lifestyle images
   const { data: imageStatusMap } = useQuery({
     queryKey: ["product-image-status", activeWorkspace?.id],
@@ -196,6 +215,7 @@ const ProductsPage = () => {
   const [migrationFilter, setMigrationFilter] = useState<string>("all");
   const [publishabilityFilter, setPublishabilityFilter] = useState<string>("all");
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [siteFilter, setSiteFilter] = useState<string>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [allPagesSelected, setAllPagesSelected] = useState(false);
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
@@ -303,6 +323,7 @@ const ProductsPage = () => {
     wooFilter,
     imageStatus: imageIssueFilter ? "any_issue" : "all",
     publishabilityDecision: publishabilityFilter,
+    publishedToUrl: siteFilter === "all" ? undefined : siteFilter,
     page: currentPage,
     pageSize: PAGE_SIZE,
   };

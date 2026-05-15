@@ -269,6 +269,15 @@ Deno.serve(async (req) => {
           const result = await publishSingleProduct(
             product, supabase, adminClient, baseUrl, auth, has, markupPercent, discountPercent, seoPlugin
           );
+
+          // Update tracking info after successful publish
+          if (result.status === "done" || result.status === "updated") {
+            await adminClient.from("products").update({
+              published_to_url: baseUrl,
+              published_at: new Date().toISOString()
+            }).eq("id", product.id);
+          }
+
           await adminClient.from("publish_job_items").insert({
             job_id: jobId,
             product_id: product.id,
