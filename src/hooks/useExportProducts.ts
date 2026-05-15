@@ -313,10 +313,10 @@ export async function exportAllProductsToExcel(
   toast.info("A carregar todos os produtos para exportação...");
 
   while (true) {
-    const { data, error } = await supabase.rpc("get_products_page", {
+    const rpcParams: any = {
       _workspace_id: workspaceId,
       _search: "",
-      _status: statusFilter,
+      _status: statusFilter === "discontinued" ? "all" : statusFilter,
       _category: "all",
       _product_type: "all",
       _source_file: "all",
@@ -324,7 +324,9 @@ export async function exportAllProductsToExcel(
       _image_status: "all",
       _page: page,
       _page_size: PAGE_SIZE,
-    });
+    };
+
+    const { data, error } = await supabase.rpc("get_products_page", rpcParams);
 
     if (error) {
       toast.error(`Erro ao carregar produtos: ${error.message}`);
@@ -338,7 +340,13 @@ export async function exportAllProductsToExcel(
       totalCount = Number(rows[0].total_count) || 0;
     }
 
-    const products: Product[] = rows.map(({ total_count, ...rest }: any) => rest as Product);
+    let products: Product[] = rows.map(({ total_count, ...rest }: any) => rest as Product);
+    
+    // Filter discontinued if requested
+    if (statusFilter === "discontinued") {
+      products = products.filter((p: any) => p.is_discontinued === true);
+    }
+    
     allProducts.push(...products);
 
     onProgress?.(allProducts.length, totalCount);
