@@ -1420,6 +1420,32 @@ const ProductsPage = () => {
             </Button>
           </div>
         )}
+        
+        {statusFilter === "published" && publishedSites && publishedSites.length > 0 && (
+          <div className="flex flex-wrap gap-2 items-center p-3 bg-muted/20 border rounded-lg">
+            <span className="text-xs font-medium text-muted-foreground mr-2">Filtrar por Site:</span>
+            <Button
+              size="sm"
+              variant={siteFilter === "all" ? "default" : "outline"}
+              className="h-7 text-xs"
+              onClick={() => setSiteFilter("all")}
+            >
+              Todos os sites
+            </Button>
+            {publishedSites.map((site: string) => (
+              <Button
+                key={site}
+                size="sm"
+                variant={siteFilter === site ? "default" : "outline"}
+                className="h-7 text-xs"
+                onClick={() => setSiteFilter(site)}
+              >
+                {site.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+              </Button>
+            ))}
+          </div>
+        )}
+
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
             <h1 className="text-lg sm:text-2xl font-bold text-foreground">Painel de Produtos</h1>
