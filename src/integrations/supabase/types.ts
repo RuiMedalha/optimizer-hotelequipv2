@@ -15141,7 +15141,7 @@ export type Database = {
               _woo_filter?: string
               _workspace_id: string
             }
-            Returns: Record<string, unknown>[]
+            Returns: Json[]
           }
         | {
             Args: {
