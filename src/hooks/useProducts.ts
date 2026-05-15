@@ -66,6 +66,9 @@ export function useProducts(filters: ProductFilters = {}) {
     ],
     enabled: !!activeWorkspace,
     queryFn: async (): Promise<PaginatedProducts> => {
+      // Ensure we send 'all' if the value is missing or undefined
+      const targetPublishedToUrl = publishedToUrl || 'all';
+
       const { data, error } = await supabase.rpc("get_products_page", {
         _workspace_id: activeWorkspace!.id,
         _search: search,
@@ -76,12 +79,15 @@ export function useProducts(filters: ProductFilters = {}) {
         _woo_filter: wooFilter,
         _image_status: imageStatus,
         _publishability_decision: publishabilityDecision,
-        _published_to_url: publishedToUrl,
+        _published_to_url: targetPublishedToUrl,
         _page: page,
         _page_size: pageSize,
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("RPC Error in get_products_page:", error);
+        throw error;
+      }
 
       const rows = (data || []) as any[];
       const totalCount = rows.length > 0 ? Number(rows[0].total_count) : 0;
