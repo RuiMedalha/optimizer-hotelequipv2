@@ -691,7 +691,17 @@ const ProductsPage = () => {
   const selectAllPages = () => {
     const allIds = (allProductsLight ?? [])
       .filter((p: any) => {
-        if (statusFilter !== "all" && p.status !== statusFilter) return false;
+        // Apply status filter or discontinued filter
+        if (statusFilter === "discontinued") {
+          if (!p.is_discontinued) return false;
+        } else if (statusFilter !== "all") {
+          // If a status is selected, it must match and the product must NOT be discontinued
+          if (p.status !== statusFilter || p.is_discontinued) return false;
+        } else if (p.is_discontinued) {
+          // If "All" is selected, we exclude discontinued by default unless explicitly in that tab
+          return false;
+        }
+
         if (categoryFilter !== "all" && (p.category || "") !== categoryFilter) return false;
         if (productTypeFilter !== "all" && p.product_type !== productTypeFilter) return false;
         if (sourceFileFilter !== "all" && (p.source_file || "") !== sourceFileFilter) return false;
