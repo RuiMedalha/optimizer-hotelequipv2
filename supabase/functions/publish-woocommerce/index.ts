@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
         { global: { headers: { Authorization: `Bearer ${authHeader?.replace("Bearer ", "")}` } } }
       );
 
-      const wooConfig = await getWooConfig(supabase);
+      const wooConfig = await getWooConfig(adminClient, job.user_id);
       if (!wooConfig) {
         await adminClient.from("publish_jobs").update({
           status: "failed",
