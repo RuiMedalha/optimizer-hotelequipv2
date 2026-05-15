@@ -691,12 +691,12 @@ const ProductsPage = () => {
   const selectAllPages = () => {
     const allIds = (allProductsLight ?? [])
       .filter((p: any) => {
-        // Always exclude discontinued unless that tab is active
         if (statusFilter === "discontinued") {
           if (p.is_discontinued !== true) return false;
         } else {
-          if (p.is_discontinued) return false;
-          // Match workflow_state for specific tabs (fallback to status)
+          // For ALL other tabs, strictly exclude discontinued
+          if (p.is_discontinued === true) return false;
+          // Match exact workflow_state
           if (statusFilter !== "all") {
             if (p.workflow_state !== statusFilter && p.status !== statusFilter) return false;
           }
