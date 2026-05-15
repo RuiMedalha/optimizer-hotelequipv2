@@ -1387,6 +1387,13 @@ async function uploadImageToWPMedia(
   auth: string,
   filename?: string
 ): Promise<number | null> {
+  // Skip non-image extensions before downloading
+  const fname = filename || sourceUrl.split("?")[0].split("/").pop() || "";
+  if (fname && NOT_IMAGE_EXTENSIONS.test(fname)) {
+    console.log(`[uploadImageToWPMedia] Skipping non-image file: ${fname}`);
+    return null;
+  }
+
   try {
     const resp = await fetch(sourceUrl, {
       headers: {
