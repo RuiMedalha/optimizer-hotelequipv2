@@ -248,6 +248,12 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
           )}
         </div>
 
+        <div className="px-2 py-2 border-b border-sidebar-border overflow-hidden">
+          <div className="px-3 py-2 bg-teal-500/20 border border-teal-500 rounded-md text-xs font-semibold text-teal-400 truncate">
+            u2713 {activeWorkspace?.name}
+          </div>
+        </div>
+
         {/* Workspace Selector */}
         {!collapsed && (
           <div className="px-2 py-3 border-b border-sidebar-border">
