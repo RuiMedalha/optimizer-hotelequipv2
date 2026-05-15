@@ -33,6 +33,8 @@ interface WorkspaceContextType {
   deleteWorkspace: (id: string) => void;
   mergeWorkspaces: (sourceId: string, targetId: string) => void;
   isCreating: boolean;
+  selectedCount: number;
+  setSelectedCount: (count: number) => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | null>(null);
@@ -47,6 +49,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const defaultWorkspaceBootstrapAttempted = useRef(false);
+  const [selectedCount, setSelectedCount] = useState(0);
   const [activeId, setActiveId] = useState<string | null>(() => {
     return getStorageItem("active_workspace_id");
   });
@@ -252,6 +255,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         deleteWorkspace: (id) => deleteMutation.mutate(id),
         mergeWorkspaces: (sourceId, targetId) => mergeMutation.mutate({ sourceId, targetId }),
         isCreating: createMutation.isPending,
+        selectedCount,
+        setSelectedCount,
       }}
     >
       {children}

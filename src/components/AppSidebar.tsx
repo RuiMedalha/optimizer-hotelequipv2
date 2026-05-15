@@ -13,11 +13,13 @@ import {
   ChevronDown,
   Copy,
 } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/auth-context";
 import { useCurrentUserProfile } from "@/hooks/useUserManagement";
 import { useWorkspaceContext } from "@/hooks/useWorkspaces";
+import { useOptimizationJob } from "@/hooks/useOptimizationJob";
+import { usePublishJob } from "@/hooks/usePublishJob";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -45,6 +47,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { navGroups, type NavGroup } from "@/config/navigation";
 import { getStorageJson, setStorageItem } from "@/lib/safeStorage";
@@ -74,7 +77,35 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
     deleteWorkspace,
     mergeWorkspaces,
     isCreating,
+    selectedCount,
   } = useWorkspaceContext();
+  const { activeJob } = useOptimizationJob();
+  const { activePublishJob } = usePublishJob();
+
+  const [wsToSwitch, setWsToSwitch] = useState<string | null>(null);
+
+  const isProcessing = useMemo(() => {
+    return (activeJob && (activeJob.status === "processing" || activeJob.status === "queued")) ||
+           (activePublishJob && (activePublishJob.status === "processing" || activePublishJob.status === "queued"));
+  }, [activeJob, activePublishJob]);
+
+  const handleWorkspaceSwitch = (id: string) => {
+    if (id === activeWorkspace?.id) return;
+    
+    if (selectedCount > 0 || isProcessing) {
+      setWsToSwitch(id);
+    } else {
+      setActiveWorkspaceId(id);
+    }
+  };
+
+  const confirmSwitch = () => {
+    if (wsToSwitch) {
+      setActiveWorkspaceId(wsToSwitch);
+      setWsToSwitch(null);
+    }
+  };
+
   const [showNewWs, setShowNewWs] = useState(false);
   const [newWsName, setNewWsName] = useState("");
   const [copyFromWsId, setCopyFromWsId] = useState<string>("");
@@ -232,18 +263,18 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
               {workspaces.map((ws) => (
                 <div key={ws.id} className="group flex items-center gap-1">
                   <button
-                    onClick={() => setActiveWorkspaceId(ws.id)}
+                    onClick={() => handleWorkspaceSwitch(ws.id)}
                     className={cn(
                       "flex items-center gap-2 flex-1 min-w-0 px-3 py-1.5 rounded-md text-xs transition-colors",
                       ws.id === activeWorkspace?.id
-                        ? "bg-sidebar-accent text-sidebar-primary font-medium"
+                        ? "bg-primary text-primary-foreground font-bold shadow-sm"
                         : "text-sidebar-foreground hover:bg-sidebar-accent/50"
                     )}
                   >
                     <FolderOpen className="w-3.5 h-3.5 shrink-0" />
                     <span className="truncate">{ws.name}</span>
                     {ws.id === activeWorkspace?.id && (
-                      <Check className="w-3 h-3 ml-auto shrink-0" />
+                      <Badge variant="secondary" className="ml-auto text-[8px] h-4 px-1 bg-white/20 text-white border-none">ACTIVO</Badge>
                     )}
                   </button>
                   <DropdownMenu>
@@ -631,6 +662,31 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
           <DialogFooter>
             <Button variant="outline" onClick={() => setCopyToWs(null)}>Cancelar</Button>
             <Button onClick={handleCopyConfigToWorkspace} disabled={!copySourceId}>Copiar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm Workspace Switch Dialog */}
+      <Dialog open={!!wsToSwitch} onOpenChange={(open) => !open && setWsToSwitch(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Mudar para workspace "{workspaces.find(w => w.id === wsToSwitch)?.name}"?</DialogTitle>
+            <DialogDescription className="space-y-2">
+              <p>Estás actualmente em <strong>{activeWorkspace?.name}</strong>.</p>
+              <div className="bg-muted p-3 rounded-md text-sm">
+                {selectedCount > 0 && <p className="text-amber-600 font-medium">⚠️ Tens {selectedCount} produtos seleccionados.</p>}
+                {isProcessing && <p className="text-primary font-medium">⚙️ Uma operação em massa está a decorrer.</p>}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">A mudança de workspace irá limpar a sua seleção actual.</p>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setWsToSwitch(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmSwitch}>
+              Confirmar mudança
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
