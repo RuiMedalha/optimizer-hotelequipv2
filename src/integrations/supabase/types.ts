@@ -9962,6 +9962,8 @@ export type Database = {
           publishability_decision: string | null
           publishability_reason: string | null
           publishability_score: number | null
+          published_at: string | null
+          published_to_url: string | null
           quality_score: number | null
           sale_price: number | null
           seo_score: number | null
@@ -10039,6 +10041,8 @@ export type Database = {
           publishability_decision?: string | null
           publishability_reason?: string | null
           publishability_score?: number | null
+          published_at?: string | null
+          published_to_url?: string | null
           quality_score?: number | null
           sale_price?: number | null
           seo_score?: number | null
@@ -10118,6 +10122,8 @@ export type Database = {
           publishability_decision?: string | null
           publishability_reason?: string | null
           publishability_score?: number | null
+          published_at?: string | null
+          published_to_url?: string | null
           quality_score?: number | null
           sale_price?: number | null
           seo_score?: number | null
