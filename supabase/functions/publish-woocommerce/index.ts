@@ -1440,6 +1440,12 @@ async function resolveImageRef(
   const trimmed = String(ref || "").trim();
   if (!trimmed) return null;
 
+  // Skip non-image extensions (like PDF) to avoid upload failures
+  if (NOT_IMAGE_EXTENSIONS.test(trimmed)) {
+    console.log(`[resolveImageRef] Skipping non-image file: ${trimmed}`);
+    return null;
+  }
+
   const img: Record<string, unknown> = { position };
 
   if (/^\d+$/.test(trimmed)) {
