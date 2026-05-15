@@ -220,6 +220,10 @@ const ProductsPage = () => {
     try { return localStorage.getItem("optimize_image_prompt_template") || "active"; } catch { return "active"; }
   });
 
+  useEffect(() => {
+    setSelectedCount(selected.size);
+  }, [selected.size, setSelectedCount]);
+
   // Fetch published sites for the filter
   const { data: publishedSites } = useQuery({
     queryKey: ["published-sites", activeWorkspace?.id],
