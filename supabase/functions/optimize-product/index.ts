@@ -1436,18 +1436,18 @@ LINGUAGEM:
 DIRIGIR-SE AO CLIENTE: "Perfeito para o seu restaurante", "A sua equipa vai apreciar"
 BENEFÍCIOS REAIS: impacto no negócio (custos, produtividade, higiene)</div>`,
 
-          short_description: `Gera uma descrição curta (máx 160 chars) para listagens.
-PROIBIDO: "HORECA" em qualquer forma. Substituir por: "restaurantes", "cozinhas profissionais", "hotelaria", "cafetarias". PROIBIDO começar com "Otimize" ou "Potencie".
-PROIBIDO: "HORECA" em qualquer forma → usar "restaurantes", "cozinhas profissionais", "hotelaria". PROIBIDO começar com "Otimize" ou "Potencie".`,
-          meta_title: `Gera meta title SEO (máx 60 chars). 
-REGRA ABSOLUTA: O meta_title DEVE conter EXACTAMENTE a primeira focus_keyword deste produto sem alterar nenhuma palavra.
-Se focus_keyword[0] = 'câmara congelação' então meta_title = 'Câmara Congelação para Cozinhas Profissionais | Preço'
-NUNCA usar variações, sinónimos ou traduções da keyword principal.
-- Keyword principal no início.
-- Inclui \"Comprar\" ou \"Preço\".
-- NÃO incluas marca, códigos EAN ou referências.
-${terminologyForTitle}
-REGRA: NUNCA usar termos "avoid" no meta_title (ex: "Campana", "Fregadero", "Horno", "Freidora"). Usar sempre o termo preferred PT-PT.`,
+          short_description: `Resumo máx 160 chars em PT-PT focado no benefício principal.
+PROIBIDO: "HORECA", "Otimize", "Potencie", "Descubra".
+PROIBIDO: brasileirismos.
+NUNCA incluas marca.`,
+          meta_title: `Gera meta title SEO (máx 60 chars).
+REGRA ABSOLUTA: O meta_title DEVE conter EXACTAMENTE a primeira 
+focus_keyword sem alterar nenhuma palavra.
+Keyword principal no início.
+Inclui "Comprar" ou "Preço".
+NUNCA incluas marca, SKU ou referências.
+NUNCA usar termos espanhóis: campana, fregadero, horno, freidora, vitrina.
+Usar sempre o termo PT-PT correcto.`,
           meta_description: `Gera meta description SEO (140-155 chars).
 REGRAS OBRIGATÓRIAS:
 - NUNCA usar \"HORECA\". Usar: \"restaurantes\", \"hotéis\", \"bares\".
