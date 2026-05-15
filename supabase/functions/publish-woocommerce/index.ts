@@ -1798,7 +1798,7 @@ async function enrichWithExtraContent(
   // ── FAQ ──
   const faq = Array.isArray(product.faq) ? product.faq : [];
   if (faq.length > 0) {
-    if (has("faq_in_description")) {
+    if (false) { // DISABLED - schema plugin handles this
       const faqHtml = buildFaqHtml(faq);
       if (faqHtml) {
         wooProduct.description = injectOrReplaceBlock(wooProduct.description, "<!-- HOTELEQUIP:FAQ_START -->", "<!-- HOTELEQUIP:FAQ_END -->", faqHtml);
@@ -1855,7 +1855,7 @@ async function enrichWithExtraContent(
     .maybeSingle();
 
   if (usoData && usoData.publish_enabled) {
-    if (has("uso_profissional_in_description")) {
+    if (false) { // DISABLED - schema plugin handles this
       const usoHtml = buildUsoProfissionalHtml(usoData);
       wooProduct.description = injectOrReplaceBlock(wooProduct.description, "<!-- HOTELEQUIP:USO_PROFISSIONAL_START -->", "<!-- HOTELEQUIP:USO_PROFISSIONAL_END -->", usoHtml);
     }
