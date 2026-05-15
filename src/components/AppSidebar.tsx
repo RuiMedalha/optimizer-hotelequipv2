@@ -250,7 +250,13 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
 
         <div className="px-2 py-2 border-b border-sidebar-border overflow-hidden">
           <div className="px-3 py-2 bg-teal-500/20 border border-teal-500 rounded-md text-xs font-semibold text-teal-400 truncate">
-            ✓ {activeWorkspace?.name}
+            {isLoading ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="w-3 h-3 animate-spin" /> Carregando...
+              </span>
+            ) : (
+              `✓ ${activeWorkspace?.name || 'Nenhum'}`
+            )}
           </div>
         </div>
 
@@ -261,7 +267,13 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
               Workspaces
             </p>
             <div className="space-y-0.5 max-h-64 overflow-y-auto scrollbar-thin">
-              {workspaces.map((ws) => (
+              {isLoading ? (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="w-4 h-4 animate-spin text-sidebar-muted" />
+                </div>
+              ) : workspaces.length === 0 ? (
+                <p className="text-[10px] text-sidebar-muted px-3 py-2 italic text-center">Nenhum workspace encontrado</p>
+              ) : workspaces.map((ws) => (
                 <div key={ws.id} className="group flex items-center gap-1">
                   <button
                     onClick={() => handleWorkspaceSwitch(ws.id)}
