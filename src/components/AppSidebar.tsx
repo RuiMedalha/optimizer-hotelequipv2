@@ -91,12 +91,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   const handleWorkspaceSwitch = (id: string) => {
     if (id === activeWorkspace?.id) return;
-    
-    if (selectedCount > 0 || isProcessing) {
-      setWsToSwitch(id);
-    } else {
-      setActiveWorkspaceId(id);
-    }
+    setWsToSwitch(id);
   };
 
   const confirmSwitch = () => {
@@ -253,6 +248,12 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
           )}
         </div>
 
+        <div className="px-2 py-2 border-b border-sidebar-border overflow-hidden">
+          <div className="px-3 py-2 bg-teal-500/20 border border-teal-500 rounded-md text-xs font-semibold text-teal-400 truncate">
+            ✓ {activeWorkspace?.name}
+          </div>
+        </div>
+
         {/* Workspace Selector */}
         {!collapsed && (
           <div className="px-2 py-3 border-b border-sidebar-border">
@@ -267,7 +268,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                     className={cn(
                       "flex items-center gap-2 flex-1 min-w-0 px-3 py-1.5 rounded-md text-xs transition-colors",
                       ws.id === activeWorkspace?.id
-                        ? "bg-primary text-primary-foreground font-bold shadow-sm"
+                        ? "bg-teal-500 text-white font-bold shadow-md ring-2 ring-teal-300"
                         : "text-sidebar-foreground hover:bg-sidebar-accent/50"
                     )}
                   >
