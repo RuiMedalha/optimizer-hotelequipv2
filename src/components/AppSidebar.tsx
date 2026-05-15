@@ -283,6 +283,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
               <ChevronDown className={cn("w-3 h-3 transition-transform", workspacesOpen ? "rotate-0" : "-rotate-90")} />
             </button>
             {workspacesOpen && (
+            <>
             <div className="space-y-0.5 max-h-64 overflow-y-auto scrollbar-thin">
               {isLoading ? (
                 <div className="flex justify-center py-4">
@@ -357,6 +358,8 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
               <Plus className="w-3.5 h-3.5" />
               <span>Novo workspace</span>
             </button>
+            </>
+            )}
           </div>
         )}
 
