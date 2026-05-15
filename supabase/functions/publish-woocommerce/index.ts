@@ -541,11 +541,13 @@ function getSeoFieldMapping(seoPlugin: string): {
   return null;
 }
 
-async function getWooConfig(supabase: any) {
-  const { data: settings } = await supabase
+async function getWooConfig(supabase: any, userId?: string) {
+  let query = supabase
     .from("settings")
     .select("key, value")
     .in("key", ["woocommerce_url", "woocommerce_consumer_key", "woocommerce_consumer_secret"]);
+  if (userId) query = query.eq("user_id", userId);
+  const { data: settings } = await query;
 
   const settingsMap: Record<string, string> = {};
   settings?.forEach((s: any) => { settingsMap[s.key] = s.value; });
