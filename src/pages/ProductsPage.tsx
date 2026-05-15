@@ -118,7 +118,7 @@ const ProductsPage = () => {
   const [bulkBrandValue, setBulkBrandValue] = useState("");
   const [isInferringModels, setIsInferringModels] = useState(false);
   const [showInferModelDialog, setShowInferModelDialog] = useState(false);
-  const { activeWorkspace, toggleVariableProducts } = useWorkspaceContext();
+  const { activeWorkspace, toggleVariableProducts, setSelectedCount } = useWorkspaceContext();
   const qc = useQueryClient();
   useRepairAttributes();
   const { enrich, isEnriching, missingVariations, createMissingVariations, progress: enrichProgress } = useEnrichProducts();
