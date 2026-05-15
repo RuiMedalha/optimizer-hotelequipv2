@@ -15134,22 +15134,6 @@ export type Database = {
               _page_size?: number
               _product_type?: string
               _publishability_decision?: string
-              _search?: string
-              _source_file?: string
-              _status?: string
-              _woo_filter?: string
-              _workspace_id: string
-            }
-            Returns: Json[]
-          }
-        | {
-            Args: {
-              _category?: string
-              _image_status?: string
-              _page?: number
-              _page_size?: number
-              _product_type?: string
-              _publishability_decision?: string
               _published_to_url?: string
               _search?: string
               _source_file?: string
@@ -15157,7 +15141,7 @@ export type Database = {
               _woo_filter?: string
               _workspace_id: string
             }
-            Returns: Record<string, unknown>[]
+            Returns: Json[]
           }
         | {
             Args: {
