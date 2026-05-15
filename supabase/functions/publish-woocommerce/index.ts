@@ -1917,15 +1917,11 @@ async function buildBasePayload(
 
   // Minimum Order Quantity meta
   if (product.min_order_quantity) {
-    const meta = ensureMeta();
+    if (!Array.isArray(wooProduct.meta_data)) wooProduct.meta_data = [];
+    const meta = wooProduct.meta_data as Array<{ key: string; value: any }>;
     const moq = String(product.min_order_quantity || 1);
-    
-    // Exact two fields required by user
     meta.push({ key: "_min_purchase_quantity", value: moq });
     meta.push({ key: "_purchase_quantity_step", value: moq });
-
-    // Ensure we don't have conflicting old keys in this payload if they were somehow added elsewhere
-    // Although in buildBasePayload they are not added elsewhere yet.
   }
 
   // IMPORTANT: Never overwrite the WooCommerce slug/permalink.
