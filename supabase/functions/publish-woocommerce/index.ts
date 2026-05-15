@@ -147,7 +147,8 @@ Deno.serve(async (req) => {
         });
       }
 
-      const { baseUrl, auth } = wooConfig;
+      const { baseUrl: rawBaseUrl, auth } = wooConfig;
+      const baseUrl = rawBaseUrl.replace(/\/+$/, '');
       
       // Get workspace SEO settings once per batch to avoid redundant DB calls
       let seoPlugin = 'rankmath';

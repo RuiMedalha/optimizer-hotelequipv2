@@ -238,7 +238,11 @@ const ProductsPage = () => {
       
       if (error) throw error;
       
-      const sites = Array.from(new Set((data || []).map(p => p.published_to_url)));
+      const sites = Array.from(new Set(
+        (data || [])
+          .map(p => p.published_to_url?.replace(/\/+$/, ''))
+          .filter(Boolean)
+      ));
       return sites.sort();
     },
   });
