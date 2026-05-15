@@ -33,6 +33,8 @@ interface WorkspaceContextType {
   deleteWorkspace: (id: string) => void;
   mergeWorkspaces: (sourceId: string, targetId: string) => void;
   isCreating: boolean;
+  selectedCount: number;
+  setSelectedCount: (count: number) => void;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | null>(null);
