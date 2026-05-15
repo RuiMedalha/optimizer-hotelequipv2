@@ -114,6 +114,16 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const [copyToWs, setCopyToWs] = useState<{ id: string; name: string } | null>(null);
   const [copySourceId, setCopySourceId] = useState<string>("");
   const [copyToOptions, setCopyToOptions] = useState({ providers: true, routing: true, prompts: true, categories: false });
+  const [workspacesOpen, setWorkspacesOpen] = useState<boolean>(() => {
+    const saved = getStorageJson<{ open: boolean }>("sidebar-workspaces-open", { open: true });
+    return saved.open;
+  });
+  const toggleWorkspaces = useCallback(() => {
+    setWorkspacesOpen((prev) => {
+      setStorageItem("sidebar-workspaces-open", JSON.stringify({ open: !prev }));
+      return !prev;
+    });
+  }, []);
 
   // Group open/close state with localStorage persistence
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
@@ -265,9 +275,15 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
         {/* Workspace Selector */}
         {!collapsed && (
           <div className="px-2 py-3 border-b border-sidebar-border">
-            <p className="text-[10px] uppercase tracking-wider text-sidebar-muted px-3 mb-1.5 font-medium">
-              Workspaces
-            </p>
+            <button
+              onClick={toggleWorkspaces}
+              className="flex items-center w-full px-3 mb-1.5 text-[10px] uppercase tracking-wider text-sidebar-muted hover:text-sidebar-foreground font-medium transition-colors"
+            >
+              <span className="flex-1 text-left">Workspaces</span>
+              <ChevronDown className={cn("w-3 h-3 transition-transform", workspacesOpen ? "rotate-0" : "-rotate-90")} />
+            </button>
+            {workspacesOpen && (
+            <>
             <div className="space-y-0.5 max-h-64 overflow-y-auto scrollbar-thin">
               {isLoading ? (
                 <div className="flex justify-center py-4">
@@ -342,6 +358,8 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
               <Plus className="w-3.5 h-3.5" />
               <span>Novo workspace</span>
             </button>
+            </>
+            )}
           </div>
         )}
 
