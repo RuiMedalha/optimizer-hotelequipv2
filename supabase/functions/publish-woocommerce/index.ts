@@ -1332,6 +1332,7 @@ function generateImageAltText(productTitle: string, index: number, imageUrl: str
 }
 
 const IMAGE_EXTENSIONS = /\.(webp|jpeg|jpg|png|gif|svg|bmp|avif|tiff|tif)$/i;
+const NOT_IMAGE_EXTENSIONS = /\.(pdf|doc|docx|xls|xlsx|zip|rar|txt)$/i;
 const imageCache = new Map<string, Record<string, unknown>>();
 
 function resetImageCache() {
@@ -1438,6 +1439,12 @@ async function resolveImageRef(
 ): Promise<Record<string, unknown> | null> {
   const trimmed = String(ref || "").trim();
   if (!trimmed) return null;
+
+  // Skip non-image extensions (like PDF) to avoid upload failures
+  if (NOT_IMAGE_EXTENSIONS.test(trimmed)) {
+    console.log(`[resolveImageRef] Skipping non-image file: ${trimmed}`);
+    return null;
+  }
 
   const img: Record<string, unknown> = { position };
 
