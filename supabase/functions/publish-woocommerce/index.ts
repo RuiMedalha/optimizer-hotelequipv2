@@ -1415,12 +1415,12 @@ async function uploadImageToWPMedia(
     const finalContentType = contentType || "image/webp";
 
 
-    const fname = filename || sourceUrl.split("/").pop() || `image_${Date.now()}.webp`;
+    const fname = filename || sourceUrl.split("?")[0].split("/").pop() || `image_${Date.now()}.webp`;
     const formData = new FormData();
-    formData.append("file", new File([blob], fname, { type: contentType }));
+    formData.append("file", new File([blob], fname, { type: finalContentType }));
     
     // Add title derived from filename (strip extension and replace dashes with spaces)
-    const imageTitle = fname.replace(/\.[^.]+$/, "").replace(/-/g, " ");
+    const imageTitle = fname.split("?")[0].replace(/\.[^.]+$/, "").replace(/-/g, " ").replace(/_/g, " ");
     formData.append("title", imageTitle);
 
     const uploadResp = await fetch(`${baseUrl}/wp-json/wp/v2/media`, {
