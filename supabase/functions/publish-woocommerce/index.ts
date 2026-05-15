@@ -1332,6 +1332,7 @@ function generateImageAltText(productTitle: string, index: number, imageUrl: str
 }
 
 const IMAGE_EXTENSIONS = /\.(webp|jpeg|jpg|png|gif|svg|bmp|avif|tiff|tif)$/i;
+const NOT_IMAGE_EXTENSIONS = /\.(pdf|doc|docx|xls|xlsx|zip|rar|txt)$/i;
 const imageCache = new Map<string, Record<string, unknown>>();
 
 function resetImageCache() {
