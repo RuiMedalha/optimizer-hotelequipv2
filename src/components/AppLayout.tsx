@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { WorkflowSessionBanner } from "./WorkflowSessionBanner";
-import { Menu, X } from "lucide-react";
+import { Menu, X, FolderOpen } from "lucide-react";
+import { useWorkspaceContext } from "@/hooks/useWorkspaces";
+import { Badge } from "./ui/badge";
 import { cn } from "@/lib/utils";
 
 const SESSION_ROUTES = [
