@@ -235,6 +235,38 @@ Deno.serve(async (req) => {
         const itemStartedAt = new Date().toISOString();
         const itemStartMs = Date.now();
 
+        // Pre-publish validation: check for missing images
+        if (!product.image_urls ||
+            !Array.isArray(product.image_urls) ||
+            product.image_urls.length === 0) {
+          await adminClient.from("products").update({
+            workflow_state: "needs_review",
+            workflow_changed_at: new Date().toISOString(),
+            image_review_notes: "Produto sem imagem — adicionar URL antes de publicar",
+            validation_errors: [{
+              field: "image_urls",
+              message: "Produto sem imagem — não publicado",
+              timestamp: new Date().toISOString(),
+            }],
+          }).eq("id", product.id);
+
+          const result: WooResult = {
+            id: product.id,
+            status: "skipped",
+            error: "Sem imagem — movido para Revisão Necessária",
+          };
+          await adminClient.from("publish_job_items").insert({
+            job_id: jobId,
+            product_id: product.id,
+            status: "skipped",
+            started_at: itemStartedAt,
+            completed_at: new Date().toISOString(),
+            duration_ms: Date.now() - itemStartMs,
+            error_message: "Sem imagem — movido para Revisão Necessária",
+          });
+          return { result, itemStartedAt, durationMs: Date.now() - itemStartMs };
+        }
+
         // Check publish locks (skip if force_publish)
         if (!forcePublish) {
           const { data: activeLocks } = await adminClient
