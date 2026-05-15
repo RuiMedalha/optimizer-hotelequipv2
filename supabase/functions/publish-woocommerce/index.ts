@@ -1404,8 +1404,16 @@ async function uploadImageToWPMedia(
       console.warn(`Failed to download image from ${sourceUrl}: ${resp.status}`);
       return null;
     }
+    
+    const contentType = resp.headers.get("content-type") || "";
+    if (contentType && !contentType.startsWith("image/") && !contentType.includes("octet-stream")) {
+      console.warn(`[uploadImageToWPMedia] Skipping non-image content type: ${contentType} for ${sourceUrl}`);
+      return null;
+    }
+
     const blob = await resp.blob();
-    const contentType = resp.headers.get("content-type") || "image/webp";
+    const finalContentType = contentType || "image/webp";
+
 
     const fname = filename || sourceUrl.split("/").pop() || `image_${Date.now()}.webp`;
     const formData = new FormData();
@@ -1484,7 +1492,13 @@ async function resolveImageRef(
         console.log(`✅ ${isSupabase ? "Supabase" : "External"} image uploaded to WP Media: ${trimmed} → ID ${mediaId}`);
         return img;
       }
-      console.warn(`⚠️ Failed to upload ${isSupabase ? "Supabase" : "external"} image to WP, falling back to src: ${trimmed}`);
+      
+      // If it's an external image (Supabase or other) and upload failed, skip it
+      // to avoid WooCommerce 400 "woocommerce_product_image_upload_error"
+      if (!isLocalWP) {
+        console.warn(`⚠️ Failed to upload ${isSupabase ? "Supabase" : "external"} image to WP: ${trimmed}. Skipping to prevent publication failure.`);
+        return null;
+      }
     }
 
     img.src = trimmed;
