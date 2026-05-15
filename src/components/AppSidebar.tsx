@@ -262,7 +262,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
                     className={cn(
                       "flex items-center gap-2 flex-1 min-w-0 px-3 py-1.5 rounded-md text-xs transition-colors",
                       ws.id === activeWorkspace?.id
-                        ? "bg-primary text-primary-foreground font-bold shadow-sm"
+                        ? "bg-teal-500 text-white font-bold shadow-md ring-2 ring-teal-300"
                         : "text-sidebar-foreground hover:bg-sidebar-accent/50"
                     )}
                   >
