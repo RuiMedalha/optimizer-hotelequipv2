@@ -226,7 +226,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void }) {
       <aside
         className={cn(
           "flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 h-screen sticky top-0",
-          collapsed ? "w-16" : "w-64"
+          collapsed ? "w-14" : "w-52"
         )}
       >
         {/* Header / Branding */}
