@@ -304,6 +304,7 @@ Deno.serve(async (req) => {
           });
           return { result, itemStartedAt, durationMs: Date.now() - itemStartMs };
         } catch (e: unknown) {
+          const errorMessage = (e as Error).message?.substring(0, 500);
           const result: WooResult = {
             id: product.id,
             status: "error",
@@ -316,8 +317,18 @@ Deno.serve(async (req) => {
             started_at: itemStartedAt,
             completed_at: new Date().toISOString(),
             duration_ms: Date.now() - itemStartMs,
-            error_message: (e as Error).message?.substring(0, 500),
+            error_message: errorMessage,
           });
+          await adminClient.from("products").update({
+            workflow_state: "error",
+            workflow_changed_at: new Date().toISOString(),
+            validation_errors: [{
+              field: "publish",
+              message: errorMessage,
+              timestamp: new Date().toISOString(),
+              job_id: jobId,
+            }],
+          }).eq("id", product.id);
           return { result, itemStartedAt, durationMs: Date.now() - itemStartMs };
         }
       };
@@ -1916,7 +1927,7 @@ async function buildBasePayload(
   }
 
   // Minimum Order Quantity meta
-  if (product.min_order_quantity) {
+  if (product.min_order_quantity && product.min_order_quantity > 1) {
     if (!Array.isArray(wooProduct.meta_data)) wooProduct.meta_data = [];
     const meta = wooProduct.meta_data as Array<{ key: string; value: any }>;
     const moq = String(product.min_order_quantity || 1);
