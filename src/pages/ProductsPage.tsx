@@ -691,15 +691,15 @@ const ProductsPage = () => {
   const selectAllPages = () => {
     const allIds = (allProductsLight ?? [])
       .filter((p: any) => {
-        // Apply status filter or discontinued filter
+        // Always exclude discontinued unless that tab is active
         if (statusFilter === "discontinued") {
-          if (!p.is_discontinued) return false;
-        } else if (statusFilter !== "all") {
-          // If a status is selected, it must match and the product must NOT be discontinued
-          if (p.status !== statusFilter || p.is_discontinued) return false;
-        } else if (p.is_discontinued) {
-          // If "All" is selected, we exclude discontinued by default unless explicitly in that tab
-          return false;
+          if (p.is_discontinued !== true) return false;
+        } else {
+          if (p.is_discontinued) return false;
+          // Match workflow_state for specific tabs (fallback to status)
+          if (statusFilter !== "all") {
+            if (p.workflow_state !== statusFilter && p.status !== statusFilter) return false;
+          }
         }
 
         if (categoryFilter !== "all" && (p.category || "") !== categoryFilter) return false;
