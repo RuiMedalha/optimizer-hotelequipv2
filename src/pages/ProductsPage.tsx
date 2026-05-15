@@ -3556,7 +3556,7 @@ const ProductsPage = () => {
                     await exportAllProductsToExcel(activeWorkspace?.id || "", {
                       fileName: "produtos-selecionados",
                       skuPrefix: prefix,
-                      statusFilter,
+                      statusFilter: statusFilter as string,
                     });
                   }
                   setSelected(new Set());
@@ -3565,7 +3565,7 @@ const ProductsPage = () => {
                   await exportAllProductsToExcel(activeWorkspace?.id || "", {
                     fileName: "produtos-todos",
                     skuPrefix: prefix,
-                    statusFilter,
+                    statusFilter: statusFilter as string,
                   });
                 }
               } catch (e: any) {

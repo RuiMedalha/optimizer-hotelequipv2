@@ -316,7 +316,7 @@ export async function exportAllProductsToExcel(
     const rpcParams: any = {
       _workspace_id: workspaceId,
       _search: "",
-      _status: statusFilter === "discontinued" ? "all" : statusFilter,
+      _status: statusFilter,
       _category: "all",
       _product_type: "all",
       _source_file: "all",
@@ -324,6 +324,7 @@ export async function exportAllProductsToExcel(
       _image_status: "all",
       _page: page,
       _page_size: PAGE_SIZE,
+      _publishability_decision: "all",
     };
 
     const { data, error } = await supabase.rpc("get_products_page", rpcParams);
@@ -340,12 +341,7 @@ export async function exportAllProductsToExcel(
       totalCount = Number(rows[0].total_count) || 0;
     }
 
-    let products: Product[] = rows.map(({ total_count, ...rest }: any) => rest as Product);
-    
-    // Filter discontinued if requested
-    if (statusFilter === "discontinued") {
-      products = products.filter((p: any) => p.is_discontinued === true);
-    }
+    const products: Product[] = rows.map(({ total_count, ...rest }: any) => rest as Product);
     
     allProducts.push(...products);
 
