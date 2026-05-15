@@ -9962,6 +9962,8 @@ export type Database = {
           publishability_decision: string | null
           publishability_reason: string | null
           publishability_score: number | null
+          published_at: string | null
+          published_to_url: string | null
           quality_score: number | null
           sale_price: number | null
           seo_score: number | null
@@ -10039,6 +10041,8 @@ export type Database = {
           publishability_decision?: string | null
           publishability_reason?: string | null
           publishability_score?: number | null
+          published_at?: string | null
+          published_to_url?: string | null
           quality_score?: number | null
           sale_price?: number | null
           seo_score?: number | null
@@ -10118,6 +10122,8 @@ export type Database = {
           publishability_decision?: string | null
           publishability_reason?: string | null
           publishability_score?: number | null
+          published_at?: string | null
+          published_to_url?: string | null
           quality_score?: number | null
           sale_price?: number | null
           seo_score?: number | null
@@ -15135,6 +15141,23 @@ export type Database = {
               _workspace_id: string
             }
             Returns: Json[]
+          }
+        | {
+            Args: {
+              _category?: string
+              _image_status?: string
+              _page?: number
+              _page_size?: number
+              _product_type?: string
+              _publishability_decision?: string
+              _published_to_url?: string
+              _search?: string
+              _source_file?: string
+              _status?: string
+              _woo_filter?: string
+              _workspace_id: string
+            }
+            Returns: Record<string, unknown>[]
           }
         | {
             Args: {

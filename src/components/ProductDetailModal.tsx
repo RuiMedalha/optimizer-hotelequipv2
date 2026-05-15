@@ -1245,6 +1245,30 @@ export function ProductDetailModal({ product: initialProduct, onClose }: Props) 
           </TabsContent>
         </Tabs>
 
+        {/* Publication tracking info */}
+        {(product as any).published_to_url && (
+          <div className="mt-4 p-3 bg-primary/5 border border-primary/20 rounded-lg flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <Globe className="w-4 h-4 text-primary" />
+              <div className="flex flex-col">
+                <span className="text-[10px] text-muted-foreground uppercase font-bold">Publicado em:</span>
+                <span className="text-xs font-medium">{(product as any).published_to_url.replace(/^https?:\/\//, '').replace(/\/$/, '')}</span>
+              </div>
+            </div>
+            {(product as any).published_at && (
+              <div className="flex items-center gap-2">
+                <Database className="w-4 h-4 text-primary" />
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold">Data:</span>
+                  <span className="text-xs font-medium">
+                    {format(new Date((product as any).published_at), "dd/MM/yyyy HH:mm", { locale: pt })}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Footer actions */}
         <div className="flex items-center justify-between mt-4 pt-4 border-t gap-2 flex-wrap">
           <div>

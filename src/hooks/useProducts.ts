@@ -15,6 +15,7 @@ export interface ProductFilters {
   wooFilter?: string;
   imageStatus?: "failed" | "missing" | "ok" | "all" | "any_issue";
   publishabilityDecision?: string;
+  publishedToUrl?: string;
   page?: number;
   pageSize?: number;
 }
@@ -42,6 +43,7 @@ export function useProducts(filters: ProductFilters = {}) {
     wooFilter = "all",
     imageStatus = "all",
     publishabilityDecision = "all",
+    publishedToUrl = "all",
     page = 1,
     pageSize = 100,
   } = filters;
@@ -58,6 +60,7 @@ export function useProducts(filters: ProductFilters = {}) {
       wooFilter,
       imageStatus,
       publishabilityDecision,
+      publishedToUrl,
       page,
       pageSize,
     ],
@@ -73,6 +76,7 @@ export function useProducts(filters: ProductFilters = {}) {
         _woo_filter: wooFilter,
         _image_status: imageStatus,
         _publishability_decision: publishabilityDecision,
+        _published_to_url: publishedToUrl,
         _page: page,
         _page_size: pageSize,
       });
